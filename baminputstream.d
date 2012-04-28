@@ -7,9 +7,14 @@ class BamInputStream(ChunkRange) : Stream {
     MemoryStream stream;
 
     private void setupStream() {
+
         if (!range.empty()) {
-            stream = new MemoryStream(cast(ubyte[])range.front);
+            assert(range.front.length > 0);
+            stream = new MemoryStream(range.front);
+            return;
         }
+        
+        readEOF = true;
     }
 
     public this(ChunkRange range) {
@@ -21,14 +26,31 @@ class BamInputStream(ChunkRange) : Stream {
     }
 
     override size_t readBlock(void* buffer, size_t size) {
+
         if (range.empty()) {
-            return 0; // EOF
+            // no more chunks
+            readEOF = true;
+            return 0;
         }
+
         size_t read = stream.readBlock(buffer, size);
+
         if (read < size) {
             range.popFront(); // get next chunk
             setupStream();
         }
+
+        if (read == 0) { // try with next chunk
+            read = stream.readBlock(buffer, size);
+        }
+
+        if (stream.eof()) {
+            range.popFront();
+
+            // that will update readEOF flag if necessary
+            setupStream(); 
+        }
+
         return read;
     }
 

@@ -113,7 +113,9 @@ class BgzfRange {
     }
 
     public void popFront() {
-        _load_next_block();
+        if (!empty()) {
+            _load_next_block();
+        }
     }
 
     public BgzfBlock front() {
