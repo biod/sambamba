@@ -1,5 +1,10 @@
+FILES=bamreader.d rangetransformer.d baminputstream.d bgzfrange.d
+
 all:
-	dmd bamreader.d baminputstream.d bgzfrange.d -ofbamreader -O -release -inline
+	dmd $(FILES) -ofbamreader -O -release -inline
 
 debug:
-	dmd bamreader.d baminputstream.d bgzfrange.d -ofbamreader -debug
+	dmd $(FILES) -ofbamreader -debug -g
+
+ldc2:
+	ldc2 $(FILES) -ofbamreader -O5 -release

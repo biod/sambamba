@@ -13,7 +13,7 @@ struct BgzfBlock {
 
 class BgzfRange {
     private Stream _stream;
-    private size_t _start_offset;
+    private ulong _start_offset;
 
     private BgzfBlock _current_block;
 
@@ -106,7 +106,7 @@ class BgzfRange {
         _load_next_block();
     }
 
-    @property public size_t start_offset() { return _start_offset; }
+    @property public ulong start_offset() { return _start_offset; }
 
     public bool empty() {
         return _stream.eof();

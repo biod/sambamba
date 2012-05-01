@@ -4,7 +4,7 @@ import std.stream;
 
 class BamInputStream(ChunkRange) : Stream {
     ChunkRange range;
-    MemoryStream stream;
+	MemoryStream stream;
 
     private void setupStream() {
 

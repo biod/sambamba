@@ -1,5 +1,6 @@
 import bgzfrange;
 import baminputstream;
+import rangetransformer;
 
 import std.stdio;
 import std.stream;
@@ -9,9 +10,9 @@ import std.range : zip;
 import std.zlib : uncompress, crc32, ZlibException;
 import std.conv : to;
 
-ubyte[] decompress(BgzfBlock block) {
-    auto uncompressed = uncompress(block.compressed_data, 
-                                   block.input_size, -15);
+ubyte[] decompress(const BgzfBlock block) {
+    auto uncompressed = uncompress(cast(void[])block.compressed_data, 
+                                   cast(uint)block.input_size, -15);
 
     assert(block.input_size == uncompressed.length);
     assert(block.crc32 == crc32(0, uncompressed));
@@ -20,20 +21,28 @@ ubyte[] decompress(BgzfBlock block) {
 }
 
 int main(string[] args) {
+    
     BufferedFile file;
-
-    if (args.length == 2) {
+    if (args.length == 3) {
         file = new BufferedFile(args[1]);
     } else {
-        writeln("usage: bamreader <filename>\n       prints info about reference sequences: name, length, and\n       in how many alignment records its ID was referenced");
+        writeln(q{
+usage: bamreader <filename> <number_of_threads>
+                });
         return 0;
     }
     
     try {
         auto bgzf_range = new BgzfRange(file);
-        auto chunk_range = map!decompress(bgzf_range);
-        auto stream = new EndianStream(new BamInputStream!(typeof(chunk_range))(chunk_range),
-                                       Endian.littleEndian);
+        
+        /* TODO:
+           organize bgzf blocks into bigger chunks
+           */
+        auto chunk_range = new RangeTransformer!(decompress, BgzfRange)(bgzf_range, to!int(args[2]));
+
+        auto stream = new EndianStream(
+                          new BamInputStream!(typeof(chunk_range))(chunk_range),
+                          Endian.littleEndian);
 
         auto magic = stream.readString(4);
         if (magic != "BAM\1") {
@@ -85,7 +94,7 @@ int main(string[] args) {
             writefln("%s (length %d): referenced %d times", 
                      seq[0].name, seq[0].length, seq[1]);
         }
-
+        
     } catch (Exception e) {
         writeln(e);
         return 1;
