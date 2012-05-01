@@ -14,7 +14,7 @@ class RangeTransformer(alias func, R) {
     
     R range;
     
-    uint num_of_threads;
+    ulong num_of_threads;
 
     uint read = 0;
     uint consumed = 0;
@@ -41,11 +41,9 @@ class RangeTransformer(alias func, R) {
         }
     }
 
-    this(R range, uint num_of_threads) {
-        this.num_of_threads = num_of_threads;
-
-        this.pool = new TaskPool(num_of_threads);
-
+    this(R range, TaskPool pool=taskPool) {
+        this.num_of_threads = pool.size;
+        this.pool = pool;
         this.range = range;
         
         buffer = new ETask[num_of_threads];
@@ -53,16 +51,8 @@ class RangeTransformer(alias func, R) {
         initialize();
     }
    
-    void finish() {
-        pool.finish();
-    }
-
     bool empty() @property {
-        bool result = range.empty && read == consumed;
-        if (result) {
-            pool.finish();
-        }
-        return result;
+        return range.empty && read == consumed;
     }
 
     RetElem front() @property {

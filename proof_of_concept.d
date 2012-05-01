@@ -77,7 +77,10 @@ uint decompress(uint i) {
 }
 
 void main() {
-    foreach (n; new RangeTransformer!(decompress, BgzfRange)(new BgzfRange(), 3)) {
+    auto pool = new TaskPool(3);
+    scope(exit) pool.finish();
+
+    foreach (n; new RangeTransformer!(decompress, BgzfRange)(new BgzfRange(), pool)) {
         writeln(n);
     }
 }

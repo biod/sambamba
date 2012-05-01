@@ -23,11 +23,11 @@ ubyte[] decompress(const BgzfBlock block) {
 int main(string[] args) {
     
     BufferedFile file;
-    if (args.length == 3) {
+    if (args.length == 2) {
         file = new BufferedFile(args[1]);
     } else {
         writeln(q{
-usage: bamreader <filename> <number_of_threads>
+usage: bamreader <filename>
                 });
         return 0;
     }
@@ -38,7 +38,7 @@ usage: bamreader <filename> <number_of_threads>
         /* TODO:
            organize bgzf blocks into bigger chunks
            */
-        auto chunk_range = new RangeTransformer!(decompress, BgzfRange)(bgzf_range, to!int(args[2]));
+        auto chunk_range = new RangeTransformer!(decompress, BgzfRange)(bgzf_range);
 
         auto stream = new EndianStream(
                           new BamInputStream!(typeof(chunk_range))(chunk_range),
