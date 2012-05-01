@@ -8,7 +8,7 @@ class RangeTransformer(alias func, R) {
 
     alias ElementType!R ElemR;
 
-	alias ReturnType!func RetElem;
+    alias ReturnType!func RetElem;
 
     alias Task!(func, ElemR) ETask;
     
