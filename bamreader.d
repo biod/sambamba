@@ -10,6 +10,11 @@ import std.range : zip;
 import std.zlib : uncompress, crc32, ZlibException;
 import std.conv : to;
 
+import utils.inputrangechunks;
+import std.algorithm;
+import std.array;
+import std.functional;
+
 ubyte[] decompress(const BgzfBlock block) {
     auto uncompressed = uncompress(cast(void[])block.compressed_data, 
                                    cast(uint)block.input_size, -15);
@@ -18,6 +23,10 @@ ubyte[] decompress(const BgzfBlock block) {
     assert(block.crc32 == crc32(0, uncompressed));
 
     return cast(ubyte[])uncompressed;
+}
+
+auto chunkdecompress(BgzfBlock[] blocks) {
+    return array(map!decompress(blocks));
 }
 
 int main(string[] args) {
@@ -33,12 +42,13 @@ usage: bamreader <filename>
     }
     
     try {
-        auto bgzf_range = new BgzfRange(file);
-        
-        /* TODO:
-           organize bgzf blocks into bigger chunks
-           */
-        auto chunk_range = new RangeTransformer!(decompress, BgzfRange)(bgzf_range);
+        auto bgzf_range = chunkedInputRange(new BgzfRange(file), 150);
+   
+        import std.parallelism;
+        auto pool = new TaskPool(2);
+        scope(exit) pool.finish();
+
+        auto chunk_range = joiner(rangeTransformer!chunkdecompress(bgzf_range, pool));
 
         auto stream = new EndianStream(
                           new BamInputStream!(typeof(chunk_range))(chunk_range),
@@ -47,6 +57,7 @@ usage: bamreader <filename>
         auto magic = stream.readString(4);
         if (magic != "BAM\1") {
             writeln("not a BAM file!");
+            writeln(magic);
             return 0;
         }
 

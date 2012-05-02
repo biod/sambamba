@@ -6,9 +6,9 @@ import std.range : ElementType;
 
 class RangeTransformer(alias func, R) {
 
-    alias ElementType!R ElemR;
+    alias ElementType!(R) ElemR;
 
-    alias ReturnType!func RetElem;
+    alias ReturnType!(func) RetElem;
 
     alias Task!(func, ElemR) ETask;
     
@@ -70,4 +70,8 @@ class RangeTransformer(alias func, R) {
         range.popFront();
         ++consumed;
     }
+}
+
+auto rangeTransformer(alias func, R)(R range, TaskPool task_pool=taskPool) {
+    return new RangeTransformer!(func, R)(range, task_pool);
 }
