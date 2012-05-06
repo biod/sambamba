@@ -1,11 +1,16 @@
-FILES=bamreader.d rangetransformer.d baminputstream.d bgzfrange.d \
-	  utils/inputrangechunks.d
+FILES=bamfile.d rangetransformer.d chunkinputstream.d bgzfrange.d \
+	  utils/inputrangechunks.d samheader.d \
+	  bindings.d
 
-all:
-	dmd $(FILES) -ofbamreader -O -release -inline
+all: scaffolds
+	dmd $(FILES) -oflibbam.so -O -release -inline -shared
 
 debug:
-	dmd $(FILES) -ofbamreader -debug -g -unittest
+	dmd $(FILES) -oflibbam.so -debug -g -unittest -shared
 
-ldc2:
-	ldc2 $(FILES) -ofbamreader -O5 -release
+scaffolds:
+	dmd samheader.d generate_scaffolds.d -ofgenerate_scaffolds -J.
+	./generate_scaffolds
+
+clean:
+	rm *.o

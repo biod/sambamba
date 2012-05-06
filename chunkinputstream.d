@@ -1,8 +1,8 @@
-module baminputstream;
+module chunkinputstream;
 
 import std.stream;
 
-class BamInputStream(ChunkRange) : Stream {
+class ChunkInputStream(ChunkRange) : Stream {
     ChunkRange range;
 	MemoryStream stream;
 
@@ -61,4 +61,8 @@ class BamInputStream(ChunkRange) : Stream {
     override ulong seek(long offset, SeekPos whence) {
         throw new SeekException("Stream is not seekable");
     }
+}
+
+auto makeChunkInputStream(R)(R range) {
+    return new ChunkInputStream!R(range);
 }
