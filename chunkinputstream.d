@@ -2,23 +2,14 @@ module chunkinputstream;
 
 import std.stream;
 
+/**
+  Class for turning range of chunks (void[]/ubyte[] arrays)
+  into a proper InputStream
+ */
 class ChunkInputStream(ChunkRange) : Stream {
-    ChunkRange range;
-	MemoryStream stream;
 
-    private void setupStream() {
-
-        if (!range.empty()) {
-            assert(range.front.length > 0);
-            stream = new MemoryStream(range.front);
-            return;
-        }
-        
-        readEOF = true;
-    }
-
-    public this(ChunkRange range) {
-        this.range = range;
+    this(ChunkRange range) {
+        _range = range;
         setupStream();
         readable = true;
         writeable = false;
@@ -27,25 +18,25 @@ class ChunkInputStream(ChunkRange) : Stream {
 
     override size_t readBlock(void* buffer, size_t size) {
 
-        if (range.empty()) {
+        if (_range.empty()) {
             // no more chunks
             readEOF = true;
             return 0;
         }
 
-        size_t read = stream.readBlock(buffer, size);
+        size_t read = _stream.readBlock(buffer, size);
 
         if (read < size) {
-            range.popFront(); // get next chunk
+            _range.popFront(); // get next chunk
             setupStream();
         }
 
         if (read == 0) { // try with next chunk
-            read = stream.readBlock(buffer, size);
+            read = _stream.readBlock(buffer, size);
         }
 
-        if (stream.eof()) {
-            range.popFront();
+        if (_stream.eof()) {
+            _range.popFront();
 
             // that will update readEOF flag if necessary
             setupStream(); 
@@ -61,8 +52,26 @@ class ChunkInputStream(ChunkRange) : Stream {
     override ulong seek(long offset, SeekPos whence) {
         throw new SeekException("Stream is not seekable");
     }
+
+private:
+    ChunkRange _range;
+	MemoryStream _stream;
+
+    private void setupStream() {
+
+        if (!_range.empty()) {
+            assert(_range.front.length > 0);
+            _stream = new MemoryStream(_range.front);
+            return;
+        }
+        
+        readEOF = true;
+    }
 }
 
+/**
+   Returns: input stream wrapping given range of memory chunks
+ */
 auto makeChunkInputStream(R)(R range) {
     return new ChunkInputStream!R(range);
 }

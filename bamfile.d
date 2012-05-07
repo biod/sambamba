@@ -13,8 +13,17 @@ import std.zlib : uncompress, crc32, ZlibException;
 import std.conv : to;
 import std.exception : enforce;
 
+/**
+  Represents BAM file
+ */
 struct BamFile {
 
+    /**
+      Constructor taking filename of BAM file to open.
+      
+      Currently, opens the file read-only since library
+      has no support for writing yet.
+     */
     this(string filename) {
 
         ubyte[] decompress(const BgzfBlock block) {
@@ -43,11 +52,16 @@ struct BamFile {
         readSamHeader();
     }
     
-   
+    /*
+       Get SAM header of file.
+     */
     SamHeader header() @property {
         return _header;
     }
 
+    /*
+       Close underlying file stream
+     */
     void close() {
         _file.close();
     }
@@ -60,6 +74,7 @@ private:
 
     SamHeader _header;
 
+    // initializes _header
     void readSamHeader() {
         int header_len;
         _bam.read(header_len);

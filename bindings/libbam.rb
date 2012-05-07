@@ -13,6 +13,8 @@ module LibBAM
 
 	attach_function :libbam_init, [], :void
 
+    attach_function :get_last_error, [], :string
+
 	attach_function :bamfile_new, [:string], :pointer
 	attach_function :bamfile_destroy, [:pointer], :void
 	attach_function :bamfile_get_header, [:pointer], SamHeader.by_value
@@ -24,7 +26,11 @@ end
 class BamFile
     def initialize(filename)
         @ptr = LibBAM.bamfile_new filename
-        ObjectSpace.define_finalizer @ptr, BamFile.finalize(@ptr)
+        if @ptr.address.zero?
+            raise Exception.new(LibBAM.get_last_error)
+        else 
+            ObjectSpace.define_finalizer @ptr, BamFile.finalize(@ptr)
+        end
     end
 
     def header

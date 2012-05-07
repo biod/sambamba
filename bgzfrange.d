@@ -2,22 +2,62 @@ module bgzfrange;
 
 import std.stream;
 
+/**
+  Structure representing BGZF block.
+ */
 struct BgzfBlock {
-    // field types are as in the specification
+    // field types are as in the SAM/BAM specification
     // ushort ~ uint16_t, char ~ uint8_t, uint ~ uint32_t
-    public ushort bsize;
+
+    public ushort bsize; /// total Block SIZE minus one
     public char[] compressed_data = void;
     public uint crc32;
     public uint input_size;
 }
 
+/**
+  Class for iterating over BGZF blocks coming from any Stream
+ */
 class BgzfRange {
-    private Stream _stream;
-    private ulong _start_offset;
 
-    private BgzfBlock _current_block;
+    /**
+      Constructs range from stream
+     */
+    this(Stream stream) {
+        _stream = stream;
+        loadNextBlock();
+    }
 
-    private bool _load_next_block() {
+    /**
+        Returns: offset of the start of the current BGZF block
+                 in underlying stream
+     */
+    @property ulong start_offset() { return _start_offset; }
+
+    bool empty() {
+        return _stream.eof();
+    }
+
+    void popFront() {
+        if (!empty()) {
+            loadNextBlock();
+        }
+    }
+
+    BgzfBlock front() {
+        return _current_block;
+    }
+
+private:
+    Stream _stream;
+    ulong _start_offset;
+
+    BgzfBlock _current_block;
+
+    /*
+        TODO: throw various exceptions instead of returning false
+     */
+    bool loadNextBlock() {
         _start_offset = _stream.position;
 
         try {
@@ -99,26 +139,5 @@ class BgzfRange {
         }
 
         return false;
-    }
-
-    public this(Stream stream) {
-        _stream = stream;
-        _load_next_block();
-    }
-
-    @property public ulong start_offset() { return _start_offset; }
-
-    public bool empty() {
-        return _stream.eof();
-    }
-
-    public void popFront() {
-        if (!empty()) {
-            _load_next_block();
-        }
-    }
-
-    public BgzfBlock front() {
-        return _current_block;
     }
 }

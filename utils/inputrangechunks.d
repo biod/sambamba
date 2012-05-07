@@ -58,7 +58,5 @@ unittest {
     assert(equal(chunkedInputRange(iota(1, 7), 2), [[1, 2], [3, 4], [5, 6]]));
     assert(equal(chunkedInputRange([1], 10), [[1]]));
     auto r = iota(25);
-    import std.stdio;
-    writeln(joiner(chunkedInputRange(r, 7)));
     assert(equal(joiner(chunkedInputRange(r, 7)), r));
 }
