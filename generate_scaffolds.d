@@ -1,11 +1,18 @@
 import samheader;
+import reference;
 mixin(import("utils/scaffold.d"));
 
 import std.stdio;
 
+void createScaffold(T)() {
+    File("bindings/scaffolds/" ~ T.stringof ~ ".rb", "w")
+        .write(toRuby!T);
+}
+
 void main() {
-    File("bindings/scaffolds/SqLine.rb", "w").write(toRuby!SqLine);
-    File("bindings/scaffolds/RgLine.rb", "w").write(toRuby!RgLine);
-    File("bindings/scaffolds/PgLine.rb", "w").write(toRuby!PgLine);
-    File("bindings/scaffolds/SamHeader.rb", "w").write(toRuby!SamHeader);
+    createScaffold!SqLine();
+    createScaffold!RgLine();
+    createScaffold!PgLine();
+    createScaffold!SamHeader();
+    createScaffold!ReferenceSequenceInfo();
 }

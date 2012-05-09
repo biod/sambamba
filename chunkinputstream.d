@@ -59,13 +59,13 @@ private:
 
     private void setupStream() {
 
-        if (!_range.empty()) {
-            assert(_range.front.length > 0);
-            _stream = new MemoryStream(_range.front);
-            return;
-        }
-        
-        readEOF = true;
+		if (_range.empty() || _range.front.length == 0) {
+			readEOF = true;
+			return;
+		}
+
+		_stream = new MemoryStream(_range.front);
+		return;
     }
 }
 

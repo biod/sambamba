@@ -4,6 +4,8 @@ import bgzfrange;
 import chunkinputstream;
 import rangetransformer;
 import samheader;
+import reference;
+import alignment;
 
 import std.stream;
 import std.system;
@@ -26,6 +28,88 @@ struct BamFile {
      */
     this(string filename) {
 
+        _filename = filename;
+        initializeStreams();
+
+        auto magic = _bam.readString(4);
+        
+        enforce(magic == "BAM\1");
+
+        readSamHeader();
+        readReferenceSequencesInfo();
+
+        // right after constructing, we are at the beginning
+        //                           of the list of alignments
+    }
+    
+    /*
+       Get SAM header of file.
+     */
+    SamHeader header() @property {
+        return _header;
+    }
+
+    /**
+        Returns: information about reference sequences
+     */
+    ReferenceSequenceInfo[] reference_sequences() @property {
+        return _reference_sequences;
+    }
+
+    /**
+        Returns: range of alignments.
+     */
+    auto alignments() @property {
+        if (_alignments_first_call) {
+            // save rewind call
+            _alignments_first_call = false;
+        } else {
+            rewind(); // if not the first call, need to rewind
+        }
+        return alignmentRange(_bam);
+    }
+    private bool _alignments_first_call = true;
+
+    /**
+        Seeks to the beginning of the list of alignments.
+     */
+    void rewind() {
+        initializeStreams();
+        _bam.readString(4); // skip magic
+        int l_text;
+        _bam.read(l_text);
+        _bam.readString(l_text); // skip header
+        int n_ref;
+        _bam.read(n_ref);
+        while (--n_ref > 0) {
+            int l_name;
+            _bam.read(l_name);
+            _bam.readString(l_name);
+            int l_ref;
+            _bam.read(l_ref);
+        } // skip reference sequences information
+    }
+
+    /*
+       Closes underlying file stream
+     */
+    void close() {
+        _file.close();
+    }
+
+private:
+    string _filename;
+    Stream _file;
+    Stream _compressed_stream;
+    BgzfRange _bgzf_range;
+    Stream _bam;
+
+    SamHeader _header;
+    ReferenceSequenceInfo[] _reference_sequences;
+
+    // sets up the streams and ranges
+    void initializeStreams() {
+
         ubyte[] decompress(const BgzfBlock block) {
             auto uncompressed = uncompress(cast(void[])block.compressed_data, 
                                            cast(uint)block.input_size, -15);
@@ -36,7 +120,7 @@ struct BamFile {
             return cast(ubyte[])uncompressed;
         }
 
-        _file = new BufferedFile(filename);
+        _file = new BufferedFile(_filename);
         _compressed_stream = new EndianStream(_file, Endian.littleEndian);
         _bgzf_range = new BgzfRange(_compressed_stream);
 
@@ -44,42 +128,24 @@ struct BamFile {
         
         auto decompressed_stream = makeChunkInputStream(chunk_range);
         _bam = new EndianStream(decompressed_stream, Endian.littleEndian); 
-
-        auto magic = _bam.readString(4);
-        
-        enforce(magic == "BAM\1");
-
-        readSamHeader();
     }
-    
-    /*
-       Get SAM header of file.
-     */
-    SamHeader header() @property {
-        return _header;
-    }
-
-    /*
-       Close underlying file stream
-     */
-    void close() {
-        _file.close();
-    }
-
-private:
-    Stream _file;
-    Stream _compressed_stream;
-    BgzfRange _bgzf_range;
-    Stream _bam;
-
-    SamHeader _header;
 
     // initializes _header
     void readSamHeader() {
-        int header_len;
-        _bam.read(header_len);
+        int l_text;
+        _bam.read(l_text);
 
-        string header_contents = to!string(_bam.readString(header_len));
-        _header = SamHeader(header_contents);
+        string text = to!string(_bam.readString(l_text));
+        _header = SamHeader(text);
+    }
+
+    // initialize _reference_sequences
+    void readReferenceSequencesInfo() {
+        int n_ref;
+        _bam.read(n_ref);
+        _reference_sequences = new ReferenceSequenceInfo[n_ref];
+        foreach (i; 0..n_ref) {
+            _reference_sequences[i] = ReferenceSequenceInfo(_bam);
+        }
     }
 }

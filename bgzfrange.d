@@ -35,13 +35,11 @@ class BgzfRange {
     @property ulong start_offset() { return _start_offset; }
 
     bool empty() {
-        return _stream.eof();
+        return _empty;
     }
 
     void popFront() {
-        if (!empty()) {
-            loadNextBlock();
-        }
+        loadNextBlock();
     }
 
     BgzfBlock front() {
@@ -52,6 +50,8 @@ private:
     Stream _stream;
     ulong _start_offset;
 
+    bool _empty = false;
+
     BgzfBlock _current_block;
 
     /*
@@ -60,31 +60,36 @@ private:
     bool loadNextBlock() {
         _start_offset = _stream.position;
 
+        if (_stream.eof()) {
+            _empty = true; // indicate that range is now empty
+            return true;
+        }
+
         try {
             auto bgzf_magic = _stream.readString(4);
             if (bgzf_magic != x"1F 8B 08 04") {
                 return false;
             }
             
-            uint gzip_mod_time;
-            ubyte gzip_extra_flags;
-            ubyte gzip_os;
-            ushort gzip_extra_length;
+            uint gzip_mod_time = void;
+            ubyte gzip_extra_flags = void;
+            ubyte gzip_os = void;
+            ushort gzip_extra_length = void;
 
             _stream.read(gzip_mod_time);
             _stream.read(gzip_extra_flags);
             _stream.read(gzip_os);
             _stream.read(gzip_extra_length);
           
-            ushort bsize; // total Block SIZE minus 1
+            ushort bsize = void; // total Block SIZE minus 1
             bool found_block_size = false;
 
             // read extra subfields
             size_t len = 0;
             while (len < gzip_extra_length) {
-                ubyte si1;    // Subfield Identifier1
-                ubyte si2;    // Subfield Identifier2
-                ushort slen;  // Subfield LENgth
+                ubyte si1 = void;    // Subfield Identifier1
+                ubyte si2 = void;    // Subfield Identifier2
+                ushort slen = void;  // Subfield LENgth
                 
                 _stream.read(si1);    
                 _stream.read(si2);    
