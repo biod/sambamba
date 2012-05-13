@@ -14,6 +14,18 @@ import std.range : zip;
 import std.zlib : uncompress, crc32, ZlibException;
 import std.conv : to;
 import std.exception : enforce;
+import std.parallelism;
+
+ubyte[] decompress(const BgzfBlock block) {
+    auto uncompressed = uncompress(cast(void[])block.compressed_data, 
+                                   cast(uint)block.input_size, -15);
+
+    assert(block.input_size == uncompressed.length);
+    assert(block.crc32 == crc32(0, uncompressed));
+
+    return cast(ubyte[])uncompressed;
+}
+
 
 /**
   Represents BAM file
@@ -21,14 +33,16 @@ import std.exception : enforce;
 struct BamFile {
 
     /**
-      Constructor taking filename of BAM file to open.
+      Constructor taking filename of BAM file to open,
+      and optionally, task pool to use.
       
       Currently, opens the file read-only since library
       has no support for writing yet.
      */
-    this(string filename) {
+    this(string filename, TaskPool task_pool = taskPool) {
 
         _filename = filename;
+        _task_pool = task_pool;
         initializeStreams();
 
         auto magic = _bam.readString(4);
@@ -66,7 +80,7 @@ struct BamFile {
         } else {
             rewind(); // if not the first call, need to rewind
         }
-        return alignmentRange(_bam);
+        return alignmentRange(_bam, _task_pool);
     }
     private bool _alignments_first_call = true;
 
@@ -107,24 +121,21 @@ private:
     SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
 
+    TaskPool _task_pool;
+
     // sets up the streams and ranges
     void initializeStreams() {
-
-        ubyte[] decompress(const BgzfBlock block) {
-            auto uncompressed = uncompress(cast(void[])block.compressed_data, 
-                                           cast(uint)block.input_size, -15);
-
-            assert(block.input_size == uncompressed.length);
-            assert(block.crc32 == crc32(0, uncompressed));
-
-            return cast(ubyte[])uncompressed;
-        }
-
+        
         _file = new BufferedFile(_filename);
         _compressed_stream = new EndianStream(_file, Endian.littleEndian);
         _bgzf_range = new BgzfRange(_compressed_stream);
 
-        auto chunk_range = map!decompress(_bgzf_range); 
+		version(serial) {
+			auto chunk_range = map!decompress(_bgzf_range);
+		} else {
+			/* TODO: tweak granularity */
+			auto chunk_range = _task_pool.map!decompress(_bgzf_range, 25); 
+		}
         
         auto decompressed_stream = makeChunkInputStream(chunk_range);
         _bam = new EndianStream(decompressed_stream, Endian.littleEndian); 
