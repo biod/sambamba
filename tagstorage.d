@@ -28,7 +28,7 @@ import std.system;
 abstract class TagStorage {
     abstract Value opIndex(string s); /// hash-like access
 
-    abstract int opApply(int delegate(string, Value value) dg); /// iteration
+    abstract int opApply(int delegate(string key, Value) dg); /// iteration
 }
 
 /**
@@ -67,7 +67,7 @@ class EagerTagStorage : TagStorage {
         return new EagerTagStorage(chunk);
     }
 
-    int opApply(int delegate(string, Value value) dg) {
+    final override int opApply(int delegate(string, Value value) dg) {
         foreach (s, v; _tags) {
             auto result = dg(s, v);
             if (result != 0) {
@@ -77,7 +77,7 @@ class EagerTagStorage : TagStorage {
         return 0;
     }
 
-    Value opIndex(string s) {
+    final override Value opIndex(string s) {
         return _tags[s];
     }
 
@@ -149,7 +149,7 @@ class LazyTagStorage : TagStorage {
         }
     }
 
-    Value opIndex(string key) {
+    final override Value opIndex(string key) {
         assert(key.length == 2);
         if (_chunk.length < 4)
             throw new RangeError();
@@ -167,7 +167,7 @@ class LazyTagStorage : TagStorage {
        throw new RangeError();
     }
 
-    int opApply(int delegate(string key, Value value) dg) {
+    final override int opApply(int delegate(string k, Value v) dg) {
         size_t offset = 0;
         while (offset < _chunk.length) {
             auto key = cast(string)_chunk[offset .. offset + 2];

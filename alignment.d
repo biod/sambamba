@@ -73,7 +73,7 @@ struct CigarOperation {
    
     /// CIGAR operation as one of MIDNSHP=X
     char operation() @property {
-        if ((raw & 0xF) >= 8) {
+        if ((raw & 0xF) > 8) {
             return '\0';
         }
 
@@ -101,7 +101,34 @@ struct Alignment {
 
     CigarOperation[] cigar = void; /// CIGAR operations
 
+    /// human-readable representation of CIGAR string
+    string cigar_string() @property {
+        char[] str;
+        foreach (cigar_op; cigar) {
+            str ~= to!string(cigar_op.length);
+            str ~= cigar_op.operation;
+        }
+        return cast(string)str;
+    }
+
     ubyte[] seq = void; /// sequence data
+
+    /// string representation of seq
+    string sequence() @property {
+        immutable string chars = "=ACMGRSVTWYHKDBN";
+        char[] s = new char[sequence_length];
+        for (auto i = 0; i < sequence_length; i++) {
+            auto j = i / 2;
+            auto b = seq[j];
+            if (i % 2 == 0) {
+                s[i] = chars[b >> 4]; 
+            } else {
+                s[i] = chars[b & 0xF];
+            }
+        }
+        return cast(string)s;
+    }
+
     char[] qual = void; /// quality data
 
     TagStorage tags = void;

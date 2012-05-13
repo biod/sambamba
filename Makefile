@@ -24,7 +24,7 @@ unittests-gdc: $(TESTFILES)
 	./run_unittests
 
 test: $(FILES) readbam.d
-	dmd $(FILES) readbam.d -ofreadbam -O -release -inline
+	dmd $(FILES) readbam.d -ofreadbam -g -version=serial
 
 test-gdc: $(FILES) readbam.d
 	/opt/gdc/bin/gdc $(FILES) readbam.d -o readbam -O3 -lpthread -frelease -fno-bounds-check -fno-assert -fversion=serial
