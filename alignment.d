@@ -146,7 +146,7 @@ struct Alignment {
         this.qual = stream.readString(this.sequence_length);
 
         /* FIXME: don't hardcode storage type */
-        this.tags = new EagerTagStorage(cast(ubyte[])chunk[cast(uint)stream.position .. $]);
+        this.tags = new LazyTagStorage(cast(ubyte[])chunk[cast(uint)stream.position .. $]);
     } 
 }
 

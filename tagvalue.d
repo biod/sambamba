@@ -1,6 +1,8 @@
 module tagvalue;
 
 import std.variant;
+import std.typetuple;
+import std.conv : to;
 
 /**
   Represents tag value.
@@ -22,8 +24,6 @@ alias Algebraic!(char, byte, ubyte, short, ushort, int, uint, float,
       H -> string
       Z -> string
       B -> array of [cCsSiIf] */
-
-import std.typetuple;
 
 /**
   Struct to be used in classes which implement TagStorage interface.
@@ -57,3 +57,31 @@ alias TypeTuple!(CharToType!('c', byte),
                  CharToType!('i', int),   
                  CharToType!('I', uint),
                  CharToType!('f', float))       ArrayElementTagValueTypes;
+
+/**
+  Thrown in case of unrecognized tag type
+ */
+class UnknownTagTypeException : Exception {
+    this(string msg) { super(msg); }
+}
+
+/**
+  Params:
+    c =         primitive type identifier
+
+  Returns: size of corresponding type in bytes
+*/
+uint charToSizeof(char c) {
+    string charToSizeofHelper() {
+        char[] cases;
+        foreach (c2t; PrimitiveTagValueTypes) {
+            cases ~= "case '"~c2t.ch~"':"~
+                     "  return "~to!string(c2t.ValueType.sizeof)~";".dup;
+        }
+        return to!string("switch (c) { " ~ cases ~
+               "  default: " ~
+               "    throw new UnknownTagTypeException(to!string(c));"~ 
+               "}");
+    }
+    mixin(charToSizeofHelper());
+}

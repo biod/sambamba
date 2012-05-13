@@ -1,6 +1,6 @@
 FILES=bamfile.d rangetransformer.d chunkinputstream.d bgzfrange.d \
 	  utils/inputrangechunks.d samheader.d reference.d alignment.d \
-	  tagstorage.d tagvalue.d
+	  tagstorage.d tagvalue.d utils/switchendianness.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
@@ -24,7 +24,7 @@ unittests-gdc: $(TESTFILES)
 	./run_unittests
 
 test: $(FILES) readbam.d
-	dmd $(FILES) readbam.d -ofreadbam -O -release -inline -version=serial
+	dmd $(FILES) readbam.d -ofreadbam -O -release -inline
 
 test-gdc: $(FILES) readbam.d
 	/opt/gdc/bin/gdc $(FILES) readbam.d -o readbam -O3 -lpthread -frelease -fno-bounds-check -fno-assert -fversion=serial
