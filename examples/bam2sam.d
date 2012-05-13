@@ -26,8 +26,8 @@ void main(string[] args) {
        seems to be usage of VariantN. 
     */
 
-	auto bam = BamFile(args[1]);
-	foreach (alignment; bam.alignments) {
+    auto bam = BamFile(args[1]);
+    foreach (alignment; bam.alignments) {
         writef("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", 
                  alignment.read_name, 
                  alignment.flag,
@@ -56,10 +56,10 @@ void main(string[] args) {
                      "*" : 
                      to!string(map!"cast(char)(a+33)"(alignment.qual)));
 
-		foreach (k, v; alignment.tags) {
+        foreach (k, v; alignment.tags) {
             writef("\t%s:%s", k, to_sam(v));
-		}
+        }
 
         write("\n");
-	}
+    }
 }

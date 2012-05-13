@@ -48,7 +48,7 @@ unittest {
         } else {
             expected = read_name[3..$];
         }
-		// use default conversion to string
+        // use default conversion to string
         string value = to!string(alignment.tags[tag.idup]);
         if (array) {
             value = value[1..$-1]; // strip []

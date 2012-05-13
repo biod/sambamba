@@ -130,12 +130,12 @@ private:
         _compressed_stream = new EndianStream(_file, Endian.littleEndian);
         _bgzf_range = new BgzfRange(_compressed_stream);
 
-		version(serial) {
-			auto chunk_range = map!decompress(_bgzf_range);
-		} else {
-			/* TODO: tweak granularity */
-			auto chunk_range = _task_pool.map!decompress(_bgzf_range, 25); 
-		}
+        version(serial) {
+            auto chunk_range = map!decompress(_bgzf_range);
+        } else {
+            /* TODO: tweak granularity */
+            auto chunk_range = _task_pool.map!decompress(_bgzf_range, 25); 
+        }
         
         auto decompressed_stream = makeChunkInputStream(chunk_range);
         _bam = new EndianStream(decompressed_stream, Endian.littleEndian); 

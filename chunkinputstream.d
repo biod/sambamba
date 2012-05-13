@@ -55,17 +55,17 @@ class ChunkInputStream(ChunkRange) : Stream {
 
 private:
     ChunkRange _range;
-	MemoryStream _stream;
+    MemoryStream _stream;
 
     private void setupStream() {
 
-		if (_range.empty() || _range.front.length == 0) {
-			readEOF = true;
-			return;
-		}
+        if (_range.empty() || _range.front.length == 0) {
+            readEOF = true;
+            return;
+        }
 
-		_stream = new MemoryStream(_range.front);
-		return;
+        _stream = new MemoryStream(_range.front);
+        return;
     }
 }
 
