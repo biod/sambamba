@@ -40,24 +40,13 @@ unittest {
             tag ~= read_name[0];
             read_name = read_name[1..$];
         }
-        string expected;
-        bool array = false;
-        if (read_name[1] == 'B') {
-            expected = read_name[5..$];
-            array = true;
-        } else {
-            expected = read_name[3..$];
+        read_name = read_name[1..$];
+        string value = alignment.tags[tag.idup].to_sam;
+        if (read_name != value) {
+            writeln("tag: ", tag, "\tread_name: ", read_name, "\tvalue: ", value);
+            writeln("value bam_typeid: ", alignment.tags[tag.idup].bam_typeid);
         }
-        // use default conversion to string
-        string value = to!string(alignment.tags[tag.idup]);
-        if (array) {
-            value = value[1..$-1]; // strip []
-            value = to!string(filter!"a != ' '"(value)); // s/, /,/g
-        }
-        if (expected != value) {
-            writeln(tag, read_name, expected, value);
-        }
-        assert(expected == value);
+        assert(read_name == value);
     }
 }
 

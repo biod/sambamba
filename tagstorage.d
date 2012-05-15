@@ -50,7 +50,11 @@ class EagerTagStorage : TagStorage {
             stream.read(type);
 
             if (type == 'Z' || type == 'H') {
-                _tags[tag.idup] = readString(stream, type);
+                auto v = readString(stream, type);
+                if (type == 'H') {
+                    v.setHexadecimalFlag();
+                }
+                _tags[tag.idup] = v;
             } else if (type != 'B') {
                 _tags[tag.idup] = readPrimitive(stream, type);
             } else {
@@ -220,7 +224,11 @@ private:
             auto begin = offset;
             while (_chunk[offset++] != 0) {}
             // return string with stripped '\0'
-            return Value(cast(string)_chunk[begin .. offset - 1]);
+            auto v = Value(cast(string)_chunk[begin .. offset - 1]);
+            if (type == 'H') {
+                v.setHexadecimalFlag();
+            }
+            return v;
         } else if (type == 'B') {
             char elem_type = cast(char)_chunk[offset++];
             uint length = *(cast(uint*)(_chunk.ptr + offset));

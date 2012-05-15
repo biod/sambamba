@@ -5,26 +5,9 @@ import std.stdio;
 import std.conv;
 import std.algorithm : map;
 
-string to_sam(Value v) {
-    if (v.type == typeid(string)) {
-        return "Z:" ~ to!string(v);
-    } else if (v.type == typeid(float)) {
-        return "f:" ~ to!string(v);
-    } else if (v.type == typeid(char)) {
-        return "A:" ~ to!string(v);
-    } else if (v.convertsTo!int()) {
-        return "i:" ~ to!string(v);
-    } else { // array
-        return "Z:NOT_YET_IMPLEMENTED";
-    }
-}
-
 void main(string[] args) {
 
-    /* This is something like 'samtools view'.
-       Unfortunately, quite slow, and the bottleneck
-       seems to be usage of VariantN. 
-    */
+    /* This is something like 'samtools view'  */
 
     auto bam = BamFile(args[1]);
     foreach (alignment; bam.alignments) {
@@ -57,7 +40,7 @@ void main(string[] args) {
                      to!string(map!"cast(char)(a+33)"(alignment.qual)));
 
         foreach (k, v; alignment.tags) {
-            writef("\t%s:%s", k, to_sam(v));
+            writef("\t%s:%s", k, v.to_sam);
         }
 
         write("\n");
