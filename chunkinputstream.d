@@ -24,7 +24,7 @@ class ChunkInputStream(ChunkRange) : Stream {
             return 0;
         }
 
-        size_t read = _stream.readBlock(buffer, size);
+        size_t read = readBlockHelper(buffer, size);
 
         if (read < size) {
             _range.popFront(); // get next chunk
@@ -32,10 +32,10 @@ class ChunkInputStream(ChunkRange) : Stream {
         }
 
         if (read == 0) { // try with next chunk
-            read = _stream.readBlock(buffer, size);
+            read = readBlockHelper(buffer, size);
         }
 
-        if (_stream.eof()) {
+        if (_cur == _len) { // end of current chunk
             _range.popFront();
 
             // that will update readEOF flag if necessary
@@ -55,18 +55,46 @@ class ChunkInputStream(ChunkRange) : Stream {
 
 private:
     ChunkRange _range;
-    MemoryStream _stream;
+    typeof(_range.front) _buf;
 
-    private void setupStream() {
+    void setupStream() {
 
-        if (_range.empty() || _range.front.length == 0) {
+        if (_range.empty()) {
             readEOF = true;
             return;
         }
 
-        _stream = new MemoryStream(_range.front);
+        _buf = _range.front;
+        _len = _buf.length;
+
+        if (_len == 0) {
+            readEOF = true;
+            return;
+        }
+
+        _cur = 0;
+
         return;
     }
+
+    // We try to avoid ANY overhead in serial parts of the library,
+    // and creating new MemoryStream for each block is expensive.
+    // So needed parts are just copy-pasted from phobos/std/stream.d
+    // with minor modifications.
+
+    ulong _len;  // current data length
+    ulong _cur;  // current position
+
+    size_t readBlockHelper(void* buffer, size_t size) {
+        ubyte* cbuf = cast(ubyte*) buffer;
+        if (_len - _cur < size)
+          size = cast(size_t)(_len - _cur);
+        ubyte[] ubuf = cast(ubyte[])_buf[cast(size_t)_cur .. cast(size_t)(_cur + size)];
+        cbuf[0 .. size] = ubuf[];
+        _cur += size;
+        return size;
+    }
+
 }
 
 /**

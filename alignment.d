@@ -6,58 +6,58 @@ import std.stream;
 import std.algorithm;
 import std.system;
 
-private {
+/**
+  Range for iterating over unparsed alignments
+ */
+class UnparsedAlignmentRange {
 
-    /**
-      Range for iterating over unparsed alignments
-     */
-    class UnparsedAlignmentRange {
-        this(ref Stream stream) {
-            _stream = stream;
-            readNext();
-        }
+    this(ref Stream stream) {
+        _stream = stream;
+        readNext();
+    }
 
-        bool empty() @property {
-            return _empty;
-        }
-
-        /**
-            Returns: alignment block except the first 4 bytes (block_size)
-         */
-        char[] front() @property {
-            return _current_record;
-        }
-
-        void popFront() {
-            readNext();
-        }
-
-    private:
-        Stream _stream;
-        char[] _current_record;
-        bool _empty = false;
-
-        /**
-          Reads next alignment block from stream.
-         */
-        void readNext() {
-            if (_stream.eof()) {
-                _empty = true;
-                return;
-            }
-
-            int block_size = void;
-            _stream.read(block_size);
-            _current_record = _stream.readString(block_size);
-        }
+    bool empty() @property {
+        return _empty;
     }
 
     /**
-        Returns: range for iterating over alignment blocks
+        Returns: alignment block except the first 4 bytes (block_size)
      */
-    auto unparsedAlignments(ref Stream stream) {
-        return new UnparsedAlignmentRange(stream);
+    char[] front() @property {
+        return _current_record;
     }
+
+    void popFront() {
+        readNext();
+    }
+
+private:
+    Stream _stream;
+    char[] _current_record;
+    bool _empty = false;
+
+    /**
+      Reads next alignment block from stream.
+     */
+    void readNext() {
+        if (_stream.eof()) {
+            _empty = true;
+            return;
+        }
+
+        int block_size = void;
+        _stream.read(block_size);
+        _current_record = new char[block_size];
+        _stream.readExact(_current_record.ptr, block_size);
+    }
+
+}
+
+/**
+    Returns: range for iterating over alignment blocks
+ */
+auto unparsedAlignments(ref Stream stream) {
+    return new UnparsedAlignmentRange(stream);
 }
 
 /**
@@ -188,6 +188,7 @@ auto alignmentRange(ref Stream stream, TaskPool task_pool) {
         return map!parseAlignment(unparsedAlignments(stream));
     } else {
         /* TODO: tweak granularity */
-        return task_pool.map!parseAlignment(unparsedAlignments(stream), 500);
+        return map!parseAlignment(unparsedAlignments(stream));
+//        return task_pool.map!parseAlignment(unparsedAlignments(stream), 500);
     }
 }

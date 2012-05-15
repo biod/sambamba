@@ -95,7 +95,7 @@ struct BamFile {
         _bam.readString(l_text); // skip header
         int n_ref;
         _bam.read(n_ref);
-        while (--n_ref > 0) {
+        while (n_ref-- > 0) {
             int l_name;
             _bam.read(l_name);
             _bam.readString(l_name);
