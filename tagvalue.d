@@ -112,12 +112,12 @@ alias TypeTuple!(TypeId!(char,     0b00000_1_0),
     TypeIdMap;
 
 
+private template GetType(U) {
+    alias U.Type GetType;
+}
+
 template GetTypeId(T) {
-    template GetType(U) {
-        alias U.Type GetType;
-    }
-    private enum index = staticIndexOf!(T, staticMap!(GetType, TypeIdMap));
-    enum GetTypeId = TypeIdMap[index].Id;
+    enum GetTypeId = TypeIdMap[staticIndexOf!(T, staticMap!(GetType, TypeIdMap))].Id;
 }
 
 string generateUnion() {
@@ -132,7 +132,7 @@ string generateUnion() {
         u ~= t.ValueType.stringof ~ "[] " ~ 'B' ~ t.ch ~ ";".dup;
     }
     u ~= "}; U u;".dup;
-    return to!string(u);
+    return u.idup;
 }
 
 template ArrayOf(T) {
@@ -164,7 +164,7 @@ string defineOpAssign() {
               "}";
     }
 
-    return to!string(cs);
+    return cs.idup;
 }
 
 struct Value {
