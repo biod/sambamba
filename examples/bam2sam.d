@@ -35,9 +35,10 @@ void main(string[] args) {
                  alignment.sequence.length == 0 ?
                      "*" :
                      alignment.sequence,
-                 alignment.qual.length == 0 || alignment.qual[0] == '\xFF' ? 
+                 alignment.phred_base_quality.length == 0 || 
+                     alignment.phred_base_quality[0] == '\xFF' ? 
                      "*" : 
-                     to!string(map!"cast(char)(a+33)"(alignment.qual)));
+                     to!string(map!"cast(char)(a+33)"(alignment.phred_base_quality)));
 
         foreach (k, v; alignment.tags) {
             writef("\t%s:%s", k, v.to_sam);

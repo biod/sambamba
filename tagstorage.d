@@ -263,11 +263,11 @@ private:
             char type = *(cast(char*)p);
             ++p; // skip type
             if (type == 'Z' || type == 'H') {
-                while (*p != 0) {
-                    ++p;
+                while (*p != 0) { // zero-terminated
+                    ++p;          // string
                 }
                 ++p; // skip '\0'
-            } else if (type == 'B') {
+            } else if (type == 'B') { // array
                 char elem_type = *(cast(char*)p);
                 uint size = charToSizeof(elem_type);
                 switchEndianness(p, uint.sizeof);

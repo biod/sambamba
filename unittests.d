@@ -28,6 +28,23 @@ unittest {
     assert(bf.header.sq_lines[2].sequence_name == "large");
     assert(bf.header.sq_lines[1].sequence_length == 65536);
 
+    writeln("Testing alignment parsing...");
+    fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
+    bf = BamFile(fn);
+    auto alignments = bf.alignments;
+    auto read = alignments.front;
+    assert(read.sequence == "CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA");
+    assert(equal(map!"cast(char)(a + 33)"(read.phred_base_quality),
+                "<<<7<<<;<<<<<<<<8;;<7;4<;<;;;;;94<;"));
+    assert(bf.reference_sequences[read.ref_id].name == "chr1");
+    assert(read.read_name == "EAS56_57:6:190:289:82");
+    assert(read.flag == 69);
+    assert(read.position == 99);
+    assert(read.mapping_quality == 0);
+    alignments.popFront();
+    alignments.popFront();
+    assert(alignments.front.cigar_string == "35M");
+
     writeln("Testing tag parsing...");
     fn = buildPath(dirName(__FILE__), "test", "data", "tags.bam");
     bf = BamFile(fn);

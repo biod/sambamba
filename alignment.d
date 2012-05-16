@@ -6,6 +6,8 @@ import std.stream;
 import std.algorithm;
 import std.system;
 
+import utils.switchendianness;
+
 /**
   Range for iterating over unparsed alignments
  */
@@ -23,7 +25,7 @@ class UnparsedAlignmentRange {
     /**
         Returns: alignment block except the first 4 bytes (block_size)
      */
-    char[] front() @property {
+    ubyte[] front() @property {
         return _current_record;
     }
 
@@ -33,7 +35,7 @@ class UnparsedAlignmentRange {
 
 private:
     Stream _stream;
-    char[] _current_record;
+    ubyte[] _current_record;
     bool _empty = false;
 
     /**
@@ -47,7 +49,7 @@ private:
 
         int block_size = void;
         _stream.read(block_size);
-        _current_record = new char[block_size];
+        _current_record = new ubyte[block_size];
         _stream.readExact(_current_record.ptr, block_size);
     }
 
@@ -64,6 +66,20 @@ auto unparsedAlignments(ref Stream stream) {
   Represents single CIGAR operation
  */
 struct CigarOperation {
+    static assert(CigarOperation.sizeof == uint.sizeof);
+    /*
+        WARNING!
+
+      It is very essential that the size of 
+      this struct is EXACTLY equal to uint.sizeof!
+
+      The reason is to avoid copying of arrays during alignment parsing.
+
+      Namely, when some_pointer points to raw cigar data,
+      we can just do a cast. This allows to access those data
+      directly, not doing any memory allocations. 
+    */
+
     uint raw; /// raw data from BAM
 
     /// operation length
@@ -85,24 +101,58 @@ struct CigarOperation {
   Represents single read
 */
 struct Alignment {
-    
-    int ref_id = void;
-    int position = void;
-    ushort bin = void;
-    ubyte mapping_quality = void;
-    ushort flag = void;
-    int sequence_length = void;
 
-    int next_ref_id = void;
-    int next_pos = void;
-    int template_length = void;
+    int ref_id() @property {
+        return _refID;
+    }
 
-    string read_name = void;
+    int position() @property {
+        return _pos;
+    }
 
-    CigarOperation[] cigar = void; /// CIGAR operations
+    ushort bin() @property {
+        return _bin;
+    }
 
-    /// human-readable representation of CIGAR string
-    string cigar_string() @property {
+    ubyte mapping_quality() @property {
+        return (_bin_mq_nl >> 8) & 0xFF;
+    }
+
+    ushort flag() @property { 
+        return _flag_nc >> 16;
+    }
+
+    int sequence_length() @property {
+        return _l_seq;
+    }
+
+    int next_ref_id() @property {
+        return _next_refID;
+    }
+
+    int next_pos() @property {
+        return _next_pos;
+    }
+
+    int template_length() @property {
+        return _tlen;
+    }
+
+    string read_name() @property {
+        // notice -1: the string is zero-terminated, so we should strip that '\0'
+        return cast(string)(_chunk[_read_name_offset .. _read_name_offset + _l_read_name - 1]);
+    }
+
+    CigarOperation[] cigar() @property {
+        return cast(CigarOperation[])(_chunk[_cigar_offset .. _cigar_offset + 
+                                             _n_cigar_op * CigarOperation.sizeof]);
+    }
+
+    /// Human-readable representation of CIGAR string
+    ///
+    /// Evaluated lazily from raw data, therefore NOT
+    /// marked as @property.
+    string cigar_string() {
         char[] str;
         foreach (cigar_op; cigar) {
             str ~= to!string(cigar_op.length);
@@ -111,15 +161,19 @@ struct Alignment {
         return cast(string)str;
     }
 
-    ubyte[] seq = void; /// sequence data
+    /// Sequence data 
+    ubyte[] raw_sequence_data() @property {
+        return _chunk[_seq_offset .. _seq_offset + (_l_seq + 1) / 2];
+    }
 
-    /// string representation of seq
-    string sequence() @property {
+    /// String representation of raw_sequence_data.
+    /// Evaluated lazily, so not @property
+    string sequence() {
         immutable string chars = "=ACMGRSVTWYHKDBN";
         char[] s = new char[sequence_length];
         for (auto i = 0; i < sequence_length; i++) {
             auto j = i / 2;
-            auto b = seq[j];
+            auto b = raw_sequence_data[j];
             if (i % 2 == 0) {
                 s[i] = chars[b >> 4]; 
             } else {
@@ -129,55 +183,85 @@ struct Alignment {
         return cast(string)s;
     }
 
-    char[] qual = void; /// quality data
+    /// Quality data
+    char[] phred_base_quality() @property {
+        return cast(char[])_chunk[_qual_offset .. _qual_offset + _l_seq * char.sizeof];
+    }
 
     TagStorage tags = void;
 
     /**
       Constructs the struct from memory chunk
       */
-    this(char[] chunk) {
-        scope Stream memory_stream = new MemoryStream(chunk);
-        scope Stream stream = new EndianStream(memory_stream,
-                                         Endian.littleEndian);
+    this(ubyte[] chunk) {
 
-        stream.read(this.ref_id);
-        stream.read(this.position);
+        _chunk = chunk;
+        if (std.system.endian != Endian.littleEndian) {
+            // First 8 fields are 32-bit integers:                 
+            //                                                     
+            // 0) refID                int                         
+            // 1) pos                  int                         
+            // 2) bin_mq_nl           uint                         
+            // 3) flag_nc             uint                         
+            // 4) l_seq                int                         
+            // 5) next_refID           int                         
+            // 6) next_pos             int                         
+            // 7) tlen                 int                         
+            // ----------------------------------------------------
+            // (after them read_name follows which is string)      
+            //                                                     
+            switchEndianness(_chunk.ptr, 8 * uint.sizeof);
 
-        uint bin_mq_nl = void;
-        stream.read(bin_mq_nl);
-        this.bin = bin_mq_nl >> 16;
-        this.mapping_quality = (bin_mq_nl >> 8) & 0xFF;
-        
-        ubyte l_read_name = bin_mq_nl & 0xFF;
+            // Then we need to switch endianness of CIGAR data:
+            switchEndianness(_chunk.ptr + _cigar_offset, 
+                             _n_cigar_op * uint.sizeof);
 
-        uint flag_nc = void;
-        stream.read(flag_nc);
-        this.flag = flag_nc >> 16;
-
-        ushort n_cigar_op = flag_nc & 0xFFFF;
-        
-        stream.read(this.sequence_length);
-        stream.read(this.next_ref_id);
-        stream.read(this.next_pos);
-        stream.read(this.template_length);
-
-        this.read_name = stream.readString(l_read_name)[0..$-1].idup;
-
-        this.cigar = new CigarOperation[n_cigar_op];
-        foreach (i; 0 .. n_cigar_op) {
-            stream.read(this.cigar[i].raw);
+            // Dealing with tags is not our responsibility.
+            // It goes to TagStorage interface implementations
+            // which are given a reference to the chunk of memory
+            // and are allowed to do whatever they find appropriate.
         }
-       
-        this.seq = cast(ubyte[])stream.readString((this.sequence_length + 1) / 2);
-        this.qual = stream.readString(this.sequence_length);
 
         /* FIXME: don't hardcode storage type */
-        this.tags = new LazyTagStorage(cast(ubyte[])chunk[cast(uint)stream.position .. $]);
+        this.tags = new LazyTagStorage(cast(ubyte[])_chunk[_tags_offset .. $]);
     } 
+
+private:
+
+    private ubyte[] _chunk; /// holds all the data, 
+                            /// the access is organized via properties
+                            /// (see below)
+
+    /// Official field names from SAM/BAM specification.
+    /// For internal use only
+
+    int _refID()            @property { return *(cast( int*)(_chunk.ptr + int.sizeof * 0)); }
+    int _pos()              @property { return *(cast( int*)(_chunk.ptr + int.sizeof * 1)); }
+   uint _bin_mq_nl()        @property { return *(cast(uint*)(_chunk.ptr + int.sizeof * 2)); }
+   uint _flag_nc()          @property { return *(cast(uint*)(_chunk.ptr + int.sizeof * 3)); }
+    int _l_seq()            @property { return *(cast( int*)(_chunk.ptr + int.sizeof * 4)); }
+    int _next_refID()       @property { return *(cast( int*)(_chunk.ptr + int.sizeof * 5)); }
+    int _next_pos()         @property { return *(cast( int*)(_chunk.ptr + int.sizeof * 6)); }
+    int _tlen()             @property { return *(cast( int*)(_chunk.ptr + int.sizeof * 7)); }
+
+    /// Additional useful properties, also from SAM/BAM specification
+ ushort _bin()              @property { return _bin_mq_nl >> 16; }
+  ubyte _l_read_name()      @property { return _bin_mq_nl & 0xFF; }
+ ushort _n_cigar_op()       @property { return _flag_nc & 0xFFFF; }
+   
+    /// Offsets of various arrays in bytes.
+    /// Currently, are computed each time, so if speed will be an issue,
+    /// they can be made fields instead of properties.
+  ulong _read_name_offset() @property { return 8 * int.sizeof; }
+  ulong _cigar_offset()     @property { return _read_name_offset + _l_read_name * char.sizeof; }
+  ulong _seq_offset()       @property { return _cigar_offset + _n_cigar_op * uint.sizeof; }
+  ulong _qual_offset()      @property { return _seq_offset + (_l_seq + 1) / 2 * ubyte.sizeof; }
+
+    /// Offset of auxiliary data
+  ulong _tags_offset()      @property { return _qual_offset + _l_seq * char.sizeof; }
 }
 
-Alignment parseAlignment(char[] chunk) {
+Alignment parseAlignment(ubyte[] chunk) {
     return Alignment(chunk);
 }
 
