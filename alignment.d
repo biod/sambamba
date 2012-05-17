@@ -222,15 +222,15 @@ struct Alignment {
             // and are allowed to do whatever they find appropriate.
         }
 
-        /* FIXME: don't hardcode storage type */
+        /// currently, LazyTagStorage is the best choice
         this.tags = new LazyTagStorage(cast(ubyte[])_chunk[_tags_offset .. $]);
     } 
 
 private:
 
-    private ubyte[] _chunk; /// holds all the data, 
-                            /// the access is organized via properties
-                            /// (see below)
+    ubyte[] _chunk; /// holds all the data, 
+                    /// the access is organized via properties
+                    /// (see below)
 
     /// Official field names from SAM/BAM specification.
     /// For internal use only
