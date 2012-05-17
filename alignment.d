@@ -86,10 +86,12 @@ struct CigarOperation {
     uint length() @property {
         return raw >> 4;
     }
-   
+  
+    /* FIXME: better name? */
     /// CIGAR operation as one of MIDNSHP=X
     char operation() @property {
         if ((raw & 0xF) > 8) {
+            /* FIXME: what to do in this case? */
             return '\0';
         }
 
@@ -154,6 +156,10 @@ struct Alignment {
     /// marked as @property.
     string cigar_string() {
         char[] str;
+
+        // guess size of resulting string
+        str.reserve(_n_cigar_op * 3);
+
         foreach (cigar_op; cigar) {
             str ~= to!string(cigar_op.length);
             str ~= cigar_op.operation;

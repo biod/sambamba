@@ -1,7 +1,7 @@
 import bamfile;
 import tagvalue;
 
-import std.stdio;
+import std.c.stdio;
 import std.conv;
 import std.algorithm : map;
 
@@ -11,39 +11,63 @@ void main(string[] args) {
 
     auto bam = BamFile(args[1]);
     foreach (alignment; bam.alignments) {
-        writef("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", 
-                 alignment.read_name, 
-                 alignment.flag,
-                 alignment.ref_id == -1 ?
-                     "*" :
-                     bam.reference_sequences[alignment.ref_id].name,
-                 alignment.position + 1,
-                 alignment.mapping_quality,
-                 alignment.cigar_string.length == 0 ?
-                     "*" :
-                     alignment.cigar_string,
-                 alignment.next_ref_id == alignment.ref_id ?
-                     alignment.next_ref_id == -1 ?
-                        "*" :
-                        "=" :
-                     alignment.next_ref_id == -1 ||
-                     bam.reference_sequences[alignment.next_ref_id].name.length == 0 ?
-                        "*" :
-                        bam.reference_sequences[alignment.next_ref_id].name,
-                 alignment.next_pos + 1,
-                 alignment.template_length,
-                 alignment.sequence.length == 0 ?
-                     "*" :
-                     alignment.sequence,
-                 alignment.phred_base_quality.length == 0 || 
-                     alignment.phred_base_quality[0] == '\xFF' ? 
-                     "*" : 
-                     to!string(map!"cast(char)(a+33)"(alignment.phred_base_quality)));
-
-        foreach (k, v; alignment.tags) {
-            writef("\t%s:%s", k, v.to_sam);
+        printf("%.*s\t%u\t",
+                 alignment.read_name.length, alignment.read_name.ptr,
+                 alignment.flag);
+        if (alignment.ref_id == -1) {
+            printf("*");
+        } else {
+            auto refseqname = bam.reference_sequences[alignment.ref_id].name;
+            printf("%.*s", refseqname.length, refseqname.ptr);
+        }
+        printf("\t%d\t%u\t", alignment.position + 1, alignment.mapping_quality);
+        if (alignment.cigar.length == 0) {
+            printf("*\t");
+        } else {
+            // avoid memory allocation and NOT use cigar_string()
+            foreach (cigar_op; alignment.cigar) {
+                printf("%i%c", cigar_op.length, cigar_op.operation);
+            }
+            printf("\t");
+        }
+        if (alignment.next_ref_id == alignment.ref_id) {
+            if (alignment.next_ref_id == -1) {
+                printf("*\t");
+            } else {
+                printf("=\t");
+            }
+        } else {
+            if (alignment.next_ref_id == -1 ||
+                bam.reference_sequences[alignment.next_ref_id].name.length == 0)
+            {
+                printf("*\t");
+            } else {
+                auto refseqname = bam.reference_sequences[alignment.next_ref_id].name;
+                printf("%.*s\t", refseqname.length, refseqname.ptr);
+            }
+        }
+        printf("%i\t%i\t", alignment.next_pos + 1, alignment.template_length);
+        if (alignment.raw_sequence_data.length == 0) {
+            printf("*\t");
+        } else {
+            auto seq = alignment.sequence;
+            printf("%.*s\t", seq.length, seq.ptr);
+        }
+        if (alignment.phred_base_quality.length == 0 || 
+            alignment.phred_base_quality[0] == '\xFF')
+        {
+            printf("*");
+        } else {
+            foreach (c; alignment.phred_base_quality) {
+                printf("%c", c + 33);
+            }
         }
 
-        write("\n");
+        foreach (k, v; alignment.tags) {
+            auto s = v.to_sam();
+            printf("\t%.*s:%.*s", k.length, k.ptr, s.length, s.ptr);
+        }
+
+        printf("\n");
     }
 }
