@@ -68,7 +68,7 @@ ulong measure(string desc, alias func, Args...)(Args args) {
     foreach (elem; range) {
     }
     sw.stop();
-    writeln(desc, ": ", sw.peek().msecs, "ms");
+    write("\t", sw.peek().msecs);
     return sw.peek().nsecs;
 }
 
@@ -77,10 +77,14 @@ void main(string[] args) {
         auto n_threads = args.length > 1 ? to!uint(args[1]) : totalCPUs;
         task_pool = new TaskPool(n_threads);
         scope(exit) task_pool.finish();
+        write(n_threads);
+    } else {
+        write(1);
     }
     string filename = "../../HG00476.chrom11.ILLUMINA.bwa.CHS.low_coverage.20111114.bam";
     measure!("iterating BGZF blocks", bgzfRange)(filename);
     measure!("iterating decompressed BGZF blocks", decompressedRange)(filename);
     measure!("iterating unparsed alignments", unparsedAlignmentRange)(filename);
     measure!("iterating parsed alignments", parsedAlignmentRange)(filename);
+    write("\n");
 }
