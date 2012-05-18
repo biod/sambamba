@@ -13,7 +13,7 @@ struct BgzfBlock {
     public ushort bsize; /// total Block SIZE minus one
     public ubyte[] compressed_data = void;
     public uint crc32;
-    public uint input_size;
+    public uint input_size; /// size of uncompressed data
 }
 
 /**

@@ -11,19 +11,56 @@ import std.stream;
 import std.system;
 import std.algorithm : map;
 import std.range : zip;
-import std.zlib : uncompress, crc32, ZlibException;
+import std.zlib : crc32, ZlibException;
 import std.conv : to;
 import std.exception : enforce;
 import std.parallelism;
+import std.array : uninitializedArray;
+import etc.c.zlib;
 
 ubyte[] decompress(const BgzfBlock block) {
-    auto uncompressed = uncompress(cast(void[])block.compressed_data, 
-                                   cast(uint)block.input_size, -15);
 
-    assert(block.input_size == uncompressed.length);
+    if (block.input_size == 0) {
+        return []; // EOF marker
+        // TODO: add check for correctness of EOF marker
+    }
+
+    int err;
+
+    ubyte[] uncompressed = uninitializedArray!(ubyte[])(block.input_size);
+
+    // set input data
+    etc.c.zlib.z_stream zs;
+    zs.next_in = cast(typeof(zs.next_in))block.compressed_data;
+    zs.avail_in = to!uint(block.compressed_data.length);
+
+    err = etc.c.zlib.inflateInit2(&zs, /* winbits = */-15);
+    if (err)
+    {
+        throw new ZlibException(err);
+    }
+
+    zs.next_out = cast(typeof(zs.next_out))uncompressed.ptr;
+    zs.avail_out = block.input_size;
+
+    err = etc.c.zlib.inflate(&zs, Z_FINISH);
+    switch (err)
+    {
+        case Z_STREAM_END:
+            assert(zs.total_out == block.input_size);
+            err = etc.c.zlib.inflateEnd(&zs);
+            if (err != Z_OK) {
+                throw new ZlibException(err);
+            }
+            break;
+        default:
+            etc.c.zlib.inflateEnd(&zs);
+            throw new ZlibException(err);
+    }
+
     assert(block.crc32 == crc32(0, uncompressed));
 
-    return cast(ubyte[])uncompressed;
+    return uncompressed;
 }
 
 
