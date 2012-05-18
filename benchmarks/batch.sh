@@ -1,8 +1,18 @@
 #!/bin/bash
 
-./run_benchmarks > serial.results
+FILENAME=benchmark.dat
 
-for n in {1..8} 
+echo -e "compiler\tn\tcompressed\tdecompressed\tunparsed\tparsed" > $FILENAME
+
+echo -ne "dmd\t" >> $FILENAME
+./run_benchmarks >> $FILENAME
+echo -ne "gdc\t" >> $FILENAME
+./run_benchmarks_gdc >> $FILENAME
+
+for i in {2..8}
 do
-    ./run_benchmarks_mt $n > $n.results
+    echo -ne "dmd\t" >> $FILENAME
+    ./run_benchmarks_mt $i >> $FILENAME
+    echo -ne "gdc\t" >> $FILENAME
+    ./run_benchmarks_mt_gdc $i >> $FILENAME
 done
