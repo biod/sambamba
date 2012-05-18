@@ -1,6 +1,7 @@
 module bgzfrange;
 
 import std.stream;
+import std.array : uninitializedArray;
 
 /**
   Structure representing BGZF block.
@@ -10,7 +11,7 @@ struct BgzfBlock {
     // ushort ~ uint16_t, char ~ uint8_t, uint ~ uint32_t
 
     public ushort bsize; /// total Block SIZE minus one
-    public char[] compressed_data = void;
+    public ubyte[] compressed_data = void;
     public uint crc32;
     public uint input_size;
 }
@@ -66,8 +67,9 @@ private:
         }
 
         try {
-            auto bgzf_magic = _stream.readString(4);
-            if (bgzf_magic != x"1F 8B 08 04") {
+            uint bgzf_magic = void;
+            _stream.read(bgzf_magic);
+            if (bgzf_magic != 0x04_08_8B_1F) { // little endian
                 return false;
             }
             
@@ -109,12 +111,12 @@ private:
                     _stream.read(bsize); 
                     found_block_size = true;
 
-                    // read the rest
-                    _stream.readString(slen - bsize.sizeof); 
+                    // skip the rest
+                    _stream.seekCur(slen - bsize.sizeof);
                 } else {
                     // this subfield has nothing to do with block size, 
                     // just skip
-                    _stream.readString(slen);
+                    _stream.seekCur(slen);
                 }
 
                 len += si1.sizeof + si2.sizeof + slen.sizeof + slen;
@@ -132,7 +134,8 @@ private:
             auto cdata_size = bsize - gzip_extra_length - 19;
 
             _current_block.bsize = bsize;
-            _current_block.compressed_data = _stream.readString(cdata_size);
+            _current_block.compressed_data = uninitializedArray!(ubyte[])(cdata_size);
+            _stream.readExact(_current_block.compressed_data.ptr, cdata_size);
             
             _stream.read(_current_block.crc32);
             _stream.read(_current_block.input_size);

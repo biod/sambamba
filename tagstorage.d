@@ -30,10 +30,9 @@ import std.system;
   Provides hash-like access (currently read-only) and opportunity to iterate
   storage like an associative array.
 */
-abstract class TagStorage {
-    abstract Value opIndex(string s); /// hash-like access
-
-    abstract int opApply(int delegate(ref string key, ref Value) dg); /// iteration
+interface TagStorage {
+    Value opIndex(string s); /// hash-like access
+    int opApply(int delegate(ref string key, ref Value) dg); /// iteration
 }
 
 import std.system;
@@ -50,7 +49,7 @@ class LazyTagStorage : TagStorage {
         }
     }
 
-    final override Value opIndex(string key) {
+    final Value opIndex(string key) {
         assert(key.length == 2);
         if (_chunk.length < 4)
             throw new RangeError();
@@ -68,7 +67,7 @@ class LazyTagStorage : TagStorage {
        throw new RangeError();
     }
 
-    final override int opApply(int delegate(ref string k, ref Value v) dg) {
+    final int opApply(int delegate(ref string k, ref Value v) dg) {
         size_t offset = 0;
         while (offset < _chunk.length) {
             auto key = cast(string)_chunk[offset .. offset + 2];

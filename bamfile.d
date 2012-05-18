@@ -92,13 +92,16 @@ struct BamFile {
         _bam.readString(4); // skip magic
         int l_text;
         _bam.read(l_text);
-        _bam.readString(l_text); // skip header
+
+        _bam.readString(l_text); // skip header 
+        // TODO: there should be a faster way, without memory allocations
+
         int n_ref;
         _bam.read(n_ref);
         while (n_ref-- > 0) {
             int l_name;
             _bam.read(l_name);
-            _bam.readString(l_name);
+            _bam.readString(l_name); // TODO: ditto
             int l_ref;
             _bam.read(l_ref);
         } // skip reference sequences information

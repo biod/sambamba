@@ -6,7 +6,7 @@ import std.stream;
   Class for turning range of chunks (void[]/ubyte[] arrays)
   into a proper InputStream
  */
-class ChunkInputStream(ChunkRange) : Stream {
+final class ChunkInputStream(ChunkRange) : Stream {
 
     this(ChunkRange range) {
         _range = range;

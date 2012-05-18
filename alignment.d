@@ -5,6 +5,7 @@ import tagstorage;
 import std.stream;
 import std.algorithm;
 import std.system;
+import std.array : uninitializedArray;
 
 import utils.switchendianness;
 
@@ -49,7 +50,7 @@ private:
 
         int block_size = void;
         _stream.read(block_size);
-        _current_record = new ubyte[block_size];
+        _current_record = uninitializedArray!(ubyte[])(block_size);
         _stream.readExact(_current_record.ptr, block_size);
     }
 
@@ -176,7 +177,7 @@ struct Alignment {
     /// Evaluated lazily, so not @property
     string sequence() {
         immutable string chars = "=ACMGRSVTWYHKDBN";
-        char[] s = new char[sequence_length];
+        char[] s = uninitializedArray!(char[])(sequence_length);
         for (auto i = 0; i < sequence_length; i++) {
             auto j = i / 2;
             auto b = raw_sequence_data[j];
