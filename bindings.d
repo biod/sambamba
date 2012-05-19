@@ -1,5 +1,4 @@
-
-extern(C) import bamfile;
+import bamfile;
 import samheader;
 import reference;
 import alignment;
