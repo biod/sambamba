@@ -229,8 +229,7 @@ struct Alignment {
             // and are allowed to do whatever they find appropriate.
         }
 
-        /// currently, LazyTagStorage is the best choice
-        this.tags = new LazyTagStorage(cast(ubyte[])_chunk[_tags_offset .. $]);
+        this.tags = TagStorage(cast(ubyte[])_chunk[_tags_offset .. $]);
     } 
 
 private:
@@ -259,13 +258,13 @@ private:
     /// Offsets of various arrays in bytes.
     /// Currently, are computed each time, so if speed will be an issue,
     /// they can be made fields instead of properties.
-  ulong _read_name_offset() @property { return 8 * int.sizeof; }
-  ulong _cigar_offset()     @property { return _read_name_offset + _l_read_name * char.sizeof; }
-  ulong _seq_offset()       @property { return _cigar_offset + _n_cigar_op * uint.sizeof; }
-  ulong _qual_offset()      @property { return _seq_offset + (_l_seq + 1) / 2 * ubyte.sizeof; }
+ size_t _read_name_offset() @property { return 8 * int.sizeof; }
+ size_t _cigar_offset()     @property { return _read_name_offset + _l_read_name * char.sizeof; }
+ size_t _seq_offset()       @property { return _cigar_offset + _n_cigar_op * uint.sizeof; }
+ size_t _qual_offset()      @property { return _seq_offset + (_l_seq + 1) / 2 * ubyte.sizeof; }
 
     /// Offset of auxiliary data
-  ulong _tags_offset()      @property { return _qual_offset + _l_seq * char.sizeof; }
+ size_t _tags_offset()      @property { return _qual_offset + _l_seq * char.sizeof; }
 }
 
 Alignment parseAlignment(ubyte[] chunk) {

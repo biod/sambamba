@@ -1,5 +1,8 @@
 import samheader;
 import reference;
+import alignment;
+import tagstorage;
+
 mixin(import("utils/scaffold.d"));
 
 import std.stdio;

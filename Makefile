@@ -12,7 +12,7 @@ debug:
 	dmd $(LIBFILES) -oflibbam.so -debug -g -shared
 
 scaffolds:
-	dmd samheader.d reference.d generate_scaffolds.d -ofgenerate_scaffolds -J.
+	dmd utils/switchendianness.d samheader.d reference.d alignment.d tagvalue.d tagstorage.d generate_scaffolds.d -ofgenerate_scaffolds -J.
 	./generate_scaffolds
 
 unittests: $(TESTFILES)

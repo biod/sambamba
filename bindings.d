@@ -1,6 +1,8 @@
-import bamfile;
+
+extern(C) import bamfile;
 import samheader;
 import reference;
+import alignment;
 
 import core.memory : GC;
 import core.runtime : Runtime;
@@ -8,6 +10,8 @@ import std.c.stdlib;
 import std.string;
 import core.stdc.string : memcpy;
 import std.conv;
+
+import std.traits;
 
 extern(C) void libbam_init() {
     Runtime.initialize();
@@ -59,5 +63,118 @@ bamfile_get_reference_sequences(BamFile* f) {
     typeof(return) arr;
     arr.length = f.reference_sequences.length;
     arr.ptr = f.reference_sequences.ptr;
+    return arr;
+}
+
+alias ReturnType!(BamFile.alignments) AlignmentRange;
+
+extern(C) AlignmentRange* 
+bamfile_get_alignments(BamFile* f) {
+    AlignmentRange* ar = cast(AlignmentRange*)malloc(AlignmentRange.sizeof);
+    auto _ar = f.alignments;
+    memcpy(ar, &_ar, _ar.sizeof);
+    GC.addRange(ar, AlignmentRange.sizeof);
+    return ar;
+}
+
+extern(C) void 
+alignment_range_destroy(AlignmentRange* ar) {
+    GC.removeRange(ar);
+    free(cast(void*)ar);
+}
+
+extern(C) Alignment* 
+alignment_range_front(AlignmentRange* ar) {
+    Alignment* a = cast(Alignment*)malloc(Alignment.sizeof);
+    auto _a = ar.front;
+    memcpy(a, &_a, _a.sizeof);
+    GC.addRange(ar, Alignment.sizeof);
+    return a;
+}
+
+extern(C) void 
+alignment_destroy(Alignment* a) {
+    GC.removeRange(a);
+    free(cast(void*)a);
+}
+
+extern(C) void 
+alignment_range_popfront(AlignmentRange* ar) {
+    ar.popFront();
+}
+
+extern(C) bool 
+alignment_range_empty(AlignmentRange* ar) {
+    return ar.empty();
+}
+
+extern(C) int 
+alignment_ref_id(Alignment* a) {
+    return a.ref_id;
+}
+
+extern(C) int 
+alignment_position(Alignment* a) {
+    return a.position;
+}
+
+extern(C) ushort 
+alignment_bin(Alignment* a) {
+    return a.bin;
+}
+
+extern(C) ubyte 
+alignment_mapping_quality(Alignment* a) {
+    return a.mapping_quality;
+}
+
+extern(C) ushort 
+alignment_flag(Alignment* a) {
+    return a.flag;
+}
+
+extern(C) int 
+alignment_sequence_length(Alignment* a) {
+    return a.sequence_length;
+}
+
+extern(C) int 
+alignment_next_ref_id(Alignment* a) {
+    return a.next_ref_id;
+}
+
+extern(C) int 
+alignment_next_pos(Alignment* a) {
+    return a.next_pos;
+}
+
+extern(C) int 
+alignment_template_length(Alignment* a) {
+    return a.template_length;
+}
+
+extern(C) Array!(immutable(char))
+alignment_read_name(Alignment* a) {
+    typeof(return) arr;
+    arr.length = a.read_name.length;
+    arr.ptr = a.read_name.ptr;
+    return arr;
+}
+
+extern(C) immutable(char)*
+alignment_cigar_string(Alignment* a) {
+    return toStringz(a.cigar_string());
+}
+
+extern(C) immutable(char)*
+alignment_sequence(Alignment* a) {
+    return toStringz(a.sequence());
+}
+
+extern(C) Array!ubyte
+alignment_phred_base_quality(Alignment* a) {
+    Array!ubyte arr;
+    arr.length = a.phred_base_quality.length;
+    arr.ptr = cast(ubyte*)(a.phred_base_quality.ptr);
     return arr;
 }

@@ -1,20 +1,3 @@
-/**
-   Contains classes implementing TagStorage interface for accessing tags. 
-   The classes encapsulate tag parsing logic as well.
-
-   The approach to parsing used by original samtools is as follows:
-
-   1) don't parse tags eagerly
-   2) store ubyte[] array in the struct
-   3) change endianness in-place, if needed
-        - thus we can slice strings and arrays -- no extra allocations!
-   4) to retrieve value, iterate over all tags
-        - micro-optimization: compare ushorts instead of 2-char strings
-
-
-   TODO: consider getting rid of interface for the sake of optimization,
-         and make LazyTagStorage a struct.
-*/
 module tagstorage;
 
 import tagvalue;
@@ -24,24 +7,15 @@ import std.stream;
 import std.conv;
 import std.system;
 
+import core.exception;
+
 /**
-  Abstract tag storage. 
+  Lazy tag storage. 
 
   Provides hash-like access (currently read-only) and opportunity to iterate
   storage like an associative array.
 */
-interface TagStorage {
-    Value opIndex(string s); /// hash-like access
-    int opApply(int delegate(ref string key, ref Value) dg); /// iteration
-}
-
-import std.system;
-import core.exception;
-
-/**
-    Provides behaviour similar to original samtools
-*/
-class LazyTagStorage : TagStorage {
+struct TagStorage {
     this(ubyte[] chunk) {
         _chunk = chunk;
         if (std.system.endian != Endian.littleEndian) {
@@ -49,6 +23,9 @@ class LazyTagStorage : TagStorage {
         }
     }
 
+    /**
+      Hash-like access.
+    */
     final Value opIndex(string key) {
         assert(key.length == 2);
         if (_chunk.length < 4)
@@ -67,6 +44,9 @@ class LazyTagStorage : TagStorage {
        throw new RangeError();
     }
 
+    /**
+      Provides opportunity to iterate over tags.
+    */
     final int opApply(int delegate(ref string k, ref Value v) dg) {
         size_t offset = 0;
         while (offset < _chunk.length) {
@@ -84,6 +64,10 @@ class LazyTagStorage : TagStorage {
 private:
     ubyte[] _chunk;
 
+    /**
+      Reads value which starts from (_chunk.ptr + offset) address,
+      and updates offset to the end of value.
+    */
     Value readValue(ref size_t offset) {
 
         string readValueArrayTypeHelper() {
@@ -135,6 +119,9 @@ private:
         }
     }
 
+    /**
+      Increases offset so that it points to the next value.
+    */
     void skipValue(ref size_t offset) {
         char type = cast(char)_chunk[offset++];
         if (type == 'Z' || type == 'H') {
@@ -148,6 +135,12 @@ private:
         }
     }
 
+    /**
+      Intended to be used in constructor for initial endianness fixing
+      in case the library is used on big-endian system.
+
+      NOT TESTED AT ALL!!!
+    */
     void fixByteOrder() {
         /* TODO: TEST ON BIG-ENDIAN SYSTEM!!! */
         ubyte* p = _chunk.ptr;
