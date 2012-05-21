@@ -29,7 +29,7 @@ struct TagStorage {
     final Value opIndex(string key) {
         assert(key.length == 2);
         if (_chunk.length < 4)
-            throw new RangeError();
+            return Value(null);
         
        size_t offset = 0;
        while (offset < _chunk.length) {
@@ -41,7 +41,7 @@ struct TagStorage {
                skipValue(offset);
            }
        }
-       throw new RangeError();
+       return Value(null);
     }
 
     /**

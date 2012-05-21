@@ -1,4 +1,5 @@
 require 'ffi'
+require './bindings/TagValue.rb'
 
 class Alignment
 
@@ -12,7 +13,15 @@ class Alignment
     end
 
     def [](tag)
-       raise 'Tag length must be 2' if tag.length != 2 
+        raise 'Tag length must be 2' if tag.length != 2 
+        val_ptr = LibBAM.alignment_get_tag_value @ptr, tag
+        val = TagValue.new val_ptr
+        val.to_ruby_value
+    end
+
+    def tags
+        dhash = DHash.new(LibBAM.alignment_get_all_tags @ptr)
+        dhash.to_ruby_value
     end
 
     def ref_id

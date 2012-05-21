@@ -32,4 +32,9 @@ Feature: iterating alignment records
           And it contains some tags
          When I access it like a hash
           But it doesn't contain the requested tag
-         Then nil should be returned.
+          Then nil should be returned.
+
+    Scenario: fetching all tags as a hash
+        Given I have an alignment
+         When I use its 'tags' method
+         Then I should be able to work with the returned object just like with Hash

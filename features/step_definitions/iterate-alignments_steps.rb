@@ -47,15 +47,15 @@ When /^I use 2-character string as a key$/ do
 end
 
 When /^the alignment has such tag$/ do
-  pending # express the regexp above with the code you wish you had
+  @read[@key].should_not be_nil
 end
 
 Then /^I should be able to see corresponding value$/ do
-  pending # express the regexp above with the code you wish you had
+  @read[@key].should be == 192
 end
 
 Then /^it should be a simple Ruby object \(Array, Numeric, or String\)$/ do
-  pending # express the regexp above with the code you wish you had
+  @read[@key].should be_kind_of Numeric
 end
 
 When /^I use string of length different than two, as a key,$/ do
@@ -67,9 +67,20 @@ Then /^exception should be thrown\.$/ do
 end
 
 When /^it doesn't contain the requested tag$/ do
-  pending # express the regexp above with the code you wish you had
+  @key = 'hq'
 end
 
 Then /^nil should be returned\.$/ do
-  pending # express the regexp above with the code you wish you had
+  @read[@key].should be_nil
+end
+
+When /^I use its 'tags' method$/ do
+  @tags = @read.tags
+end
+
+Then /^I should be able to work with the returned object just like with Hash$/ do
+  @tags.should be_kind_of Hash
+  @tags['MF'].should be == 192
+  @tags.keys.should be == ['MF']
+  @tags.values.should be == [192]
 end

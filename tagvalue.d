@@ -76,26 +76,37 @@ struct TypeId(T, ubyte id) {
 /*
   Structure of type identifier:
 
-                      0                                  1   
+                              0                                   1   
 
-                  primitive                       array/string
-            numeric      char                numeric         string
-    integer        float              (see left branch)     Z       H   
-unsigned   signed              
- [ size in bytes]               
-
+                             primitive                          array/string
+                 something         null/nothing             numeric         string
+            numeric      char                        (see left branch)     Z       H   
+    integer        float       
+unsigned   signed               
+ [ size in bytes]              
 */
-alias TypeTuple!(TypeId!(char,     0b00000_1_0),
+alias TypeTuple!(TypeId!(char,     0b00000_1_00),
         
-                 TypeId!(ubyte,    0b001_0_000), 
-                 TypeId!(ushort,   0b010_0_000), 
-                 TypeId!(uint,     0b100_0_000), 
+                 TypeId!(ubyte,    0b001_0_0000), 
+                 TypeId!(ushort,   0b010_0_0000), 
+                 TypeId!(uint,     0b100_0__0__0__0__0), 
+/* Let's take                         4  u  i  n  s  p                  
+   uint as an                            n  n  u  o  r                  
+   example                            b  s  t  m  m  i                  
+                                      y  i  e  e  e  m
+                                      t  g  g  r  t  i
+                                      e  n  e  i  h  t
+                                      s  e  r  c  i  i
+                                         d        n  v
+                                                  g  e
+*/   
+ 
 
-                 TypeId!(byte,     0b001_1_000),
-                 TypeId!(short,    0b010_1_000), 
-                 TypeId!(int,      0b100_1_000), 
+                 TypeId!(byte,     0b001_1_0000),
+                 TypeId!(short,    0b010_1_0000), 
+                 TypeId!(int,      0b100_1_0000), 
 
-                 TypeId!(float,    0b0000_1_00),
+                 TypeId!(float,    0b0000_1_000),
 
                  TypeId!(ubyte[],  0b001_00_01),
                  TypeId!(ushort[], 0b010_00_01),
@@ -108,7 +119,8 @@ alias TypeTuple!(TypeId!(char,     0b00000_1_0),
                  TypeId!(float[],  0b0000_1_01),
 
                  TypeId!(string,   0b0000_0_11),
-                 TypeId!(string,   0b0000_1_11)) 
+                 TypeId!(string,   0b0000_1_11),
+                 TypeId!(typeof(null), 0b0000_0010))
     TypeIdMap;
 
 
@@ -188,6 +200,10 @@ struct Value {
         u = v.u;
     }
 
+    final void opAssign(typeof(null) n) {
+        tag = GetTypeId!(typeof(null));
+    }
+
     this(T)(T value) {
         opAssign(value);
     }
@@ -199,18 +215,20 @@ struct Value {
         u.H = u.Z;
     }
 
+    bool is_nothing() @property { return tag == GetTypeId!(typeof(null)); }
+
     bool is_char() @property { return tag == GetTypeId!char; }
     bool is_float() @property { return tag == GetTypeId!float; }
     bool is_numeric_array() @property { return (tag & 0b11) == 0b01; }
     bool is_array_of_integers() @property { return (tag & 0b111) == 0b001; }
     bool is_array_of_floats() @property { return (tag & 0b111) == 0b101; }
-    bool is_integer() @property { return (tag & 0b111) == 0; }
+    bool is_integer() @property { return (tag & 0b1111) == 0; }
 
     /// true if the value is unsigned integer
-    bool is_unsigned() @property { return (tag & 0b1111) == 0; }
+    bool is_unsigned() @property { return (tag & 0b11111) == 0; }
 
     /// true if the value is signed integer
-    bool is_signed() @property { return (tag & 0b1111) == 0b1000; }
+    bool is_signed() @property { return (tag & 0b11111) == 0b10000; }
 
     /// true if the value represents 'Z' or 'H' tag
     bool is_string() @property { return (tag & 0b11) == 0b11; }
@@ -242,10 +260,6 @@ struct Value {
         }
         if (this.is_integer) {
             switch (bam_typeid) {
-                /* TODO: this probably can be optimized 
-                         using some bit hacks
-                         since we can compute sizeof in O(1)
-                */
                 case 'c': return "i:" ~ to!string(u.c);
                 case 'C': return "i:" ~ to!string(u.C);
                 case 's': return "i:" ~ to!string(u.s);
@@ -297,4 +311,7 @@ unittest {
     v = array_of_shorts;
     assert(v.is_numeric_array);
     assert(v.to_sam == "B:s,4,5,6");
+
+    v = null;
+    assert(v.is_nothing);
 }

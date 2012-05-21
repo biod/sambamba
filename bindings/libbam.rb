@@ -7,11 +7,8 @@ require './bindings/scaffolds/SamHeader.rb'
 require './bindings/scaffolds/ReferenceSequenceInfo.rb'
 require './bindings/SamHeader.rb'
 require './bindings/Alignment.rb'
-
-class DArray < FFI::Struct 
-	layout :length, :size_t,
-		   :ptr, :pointer
-end
+require './bindings/TagValue.rb'
+require './bindings/DTypes.rb'
 
 module LibBAM 
 	extend FFI::Library
@@ -49,6 +46,11 @@ module LibBAM
     attach_function :alignment_cigar_string, [:pointer], :string
     attach_function :alignment_sequence, [:pointer], :string
     attach_function :alignment_phred_base_quality, [:pointer], DArray.by_value
+    attach_function :alignment_get_tag_value, [:pointer, :string], TagValue
+    attach_function :alignment_get_all_tags, [:pointer], DHash
+
+    attach_function :dhash_destroy, [:pointer], :void
+    attach_function :tag_value_destroy, [:pointer], :void
 
     @@initialized ||= false
     LibBAM.libbam_init unless @@initialized
@@ -82,7 +84,6 @@ class BamFile
 
     def alignments
         ptr = LibBAM.bamfile_get_alignments @ptr
-        puts ptr
         AlignmentIterator.new(ptr, @ptr)
     end
 

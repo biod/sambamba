@@ -2,6 +2,7 @@ import bamfile;
 import samheader;
 import reference;
 import alignment;
+import tagvalue;
 
 import core.memory : GC;
 import core.runtime : Runtime;
@@ -14,6 +15,7 @@ import std.traits;
 
 extern(C) void libbam_init() {
     Runtime.initialize();
+    GC.disable();
 }
 
 void main() {}
@@ -176,4 +178,43 @@ alignment_phred_base_quality(Alignment* a) {
     arr.length = a.phred_base_quality.length;
     arr.ptr = cast(ubyte*)(a.phred_base_quality.ptr);
     return arr;
+}
+
+extern(C) Value*
+alignment_get_tag_value(Alignment* a, char* str) {
+    Value* v = cast(Value*)malloc(Value.sizeof);
+    auto _v = a.tags[to!string(str)];
+    memcpy(v, &_v, _v.sizeof);
+    GC.addRange(v, Value.sizeof);
+    return v;
+}
+
+extern(C) void
+tag_value_destroy(Value* v) {
+    GC.removeRange(v);
+    free(v);
+}
+
+struct DHash {
+    string[] keys = void;
+    Value[] values = void;
+}
+
+extern(C) void
+dhash_destroy(DHash* hash) {
+    GC.removeRange(hash);
+    free(hash);
+}
+
+extern(C) DHash*
+alignment_get_all_tags(Alignment* a) {
+    DHash* hash = cast(DHash*)malloc(DHash.sizeof);
+    GC.addRange(hash, DHash.sizeof);
+    hash.keys = new string[0];
+    hash.values = new Value[0];
+    foreach (k, v; a.tags) {
+        hash.keys ~= k;
+        hash.values ~= v;
+    }
+    return hash;
 }
