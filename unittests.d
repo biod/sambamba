@@ -4,12 +4,15 @@
 
 import samheader;
 import bamfile;
+import bgzfrange;
+
+import std.path;
+import std.stdio;
+import std.algorithm;
+import std.conv;
+import std.exception;
 
 unittest {
-    import std.path;
-    import std.stdio;
-    import std.algorithm;
-    import std.conv;
 
     writeln("Testing extracting SAM header...");
     auto fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
@@ -65,6 +68,18 @@ unittest {
         }
         assert(read_name == value);
     }
+
+    writeln("Testing exception handling...");
+    fn = buildPath(dirName(__FILE__), "test", "data", "duplicated_block_size.bam");
+    assertThrown!BgzfException(BamFile(fn));
+    fn = buildPath(dirName(__FILE__), "test", "data", "no_block_size.bam");
+    assertThrown!BgzfException(BamFile(fn));
+    fn = buildPath(dirName(__FILE__), "test", "data", "wrong_extra_gzip_length.bam");
+    assertThrown!BgzfException(BamFile(fn));
+    fn = buildPath(dirName(__FILE__), "test", "data", "wrong_bc_subfield_length.bam");
+    assertThrown!BgzfException(BamFile(fn));
+    fn = buildPath(dirName(__FILE__), "test", "data", "corrupted_zlib_archive.bam");
+    assertThrown!ZlibException(BamFile(fn));
 }
 
 void main() {

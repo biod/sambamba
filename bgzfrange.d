@@ -2,6 +2,7 @@ module bgzfrange;
 
 import std.stream;
 import std.array : uninitializedArray;
+import std.conv;
 
 /**
   Structure representing BGZF block.
@@ -14,6 +15,11 @@ struct BgzfBlock {
     public ubyte[] compressed_data = void;
     public uint crc32;
     public uint input_size; /// size of uncompressed data
+}
+
+/// Exception type, thrown in case of encountering corrupt BGZF blocks
+class BgzfException : Exception {
+    this(string msg) { super(msg); }
 }
 
 /**
@@ -55,22 +61,24 @@ private:
 
     BgzfBlock _current_block;
 
-    /*
-        TODO: throw various exceptions instead of returning false
-     */
-    bool loadNextBlock() {
+    void throwBgzfException(string msg) {
+        throw new BgzfException("Error reading BGZF block starting from offset " ~
+                                to!string(_start_offset) ~ ": " ~ msg);
+    }
+
+    void loadNextBlock() {
         _start_offset = _stream.position;
 
         if (_stream.eof()) {
             _empty = true; // indicate that range is now empty
-            return true;
+            return;
         }
 
         try {
             uint bgzf_magic = void;
             _stream.read(bgzf_magic);
             if (bgzf_magic != 0x04_08_8B_1F) { // little endian
-                return false;
+                throwBgzfException("wrong BGZF magic");
             }
             
             uint gzip_mod_time = void;
@@ -100,11 +108,12 @@ private:
                 if (si1 == 66 && si2 == 67) { 
                     // found 'BC' as subfield identifier
                     if (slen != 2) {
-                        return false; // wrong subfield length
+                        throwBgzfException("wrong BC subfield length: " ~ 
+                                           to!string(slen) ~ "; expected 2");
                     }
 
                     if (found_block_size) {
-                        return false; // duplicate field
+                        throwBgzfException("duplicate field with block size");
                     }
 
                     // read block size
@@ -123,11 +132,14 @@ private:
             } 
 
             if (len != gzip_extra_length) {
-                return false;
+                throwBgzfException("total length of subfields in bytes (" ~ 
+                                   to!string(len) ~ 
+                                   ") is not equal to gzip_extra_length (" ~
+                                   to!string(gzip_extra_length) ~ ")");
             }
 
             if (!found_block_size) {
-                return false;
+                throwBgzfException("block size was not found in any subfield");
             }
            
             // read compressed data
@@ -140,12 +152,12 @@ private:
             _stream.read(_current_block.crc32);
             _stream.read(_current_block.input_size);
             
-            return true;
+            return;
 
         } catch (ReadException e) {
-            return false; // TODO: better error handling
+            throwBgzfException("stream error: " ~ e.msg);
         }
 
-        return false;
+        assert(0);
     }
 }

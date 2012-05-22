@@ -84,7 +84,7 @@ struct BamFile {
 
         auto magic = _bam.readString(4);
         
-        enforce(magic == "BAM\1");
+        enforce(magic == "BAM\1", "Invalid file format: expected BAM\\1");
 
         readSamHeader();
         readReferenceSequencesInfo();

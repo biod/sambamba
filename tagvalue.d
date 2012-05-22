@@ -84,6 +84,8 @@ struct TypeId(T, ubyte id) {
     integer        float       
 unsigned   signed               
  [ size in bytes]              
+
+
 */
 alias TypeTuple!(TypeId!(char,     0b00000_1_00),
         
@@ -188,6 +190,14 @@ struct Value {
     */
     public char bam_typeid;
 
+    /*
+                                    WARNING:
+
+    Currently, type identifier for (u)int requires 8 bits.
+    Fortunately, SAM/BAM specification doesn't use bigger integer types.
+    However, in case of need to extend the hierarchy, the type
+    should be changed from ubyte to something bigger. 
+    */
     private ubyte tag; /// for internal use
 
     private mixin(generateUnion());

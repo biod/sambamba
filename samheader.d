@@ -176,6 +176,9 @@ public:
     ///          'queryname', or 'coordinate')
     string sorting_order() @property { return _sorting_order; }
 
+    /// Returns: urls of all fasta files encountered in @SQ lines
+    string[] fasta_urls() @property { return _fasta_urls; }
+
 private:
     string _header;
 
@@ -183,11 +186,16 @@ private:
     RgLine[] _rg_lines;
     PgLine[] _pg_lines;
 
+    string[] _fasta_urls;
+
     string _format_version;
     string _sorting_order = "unknown";
 
     void parse() {
         bool parsed_first_line = false;
+
+        uint[string] _fasta_urls_dict; /// acts like a set
+
         foreach (line; splitter(_header, '\n')) {
             if (line.length < 3) {
                 continue;
@@ -203,7 +211,11 @@ private:
             }
             switch (line[0..3]) {
                 case "@SQ":
-                    _sq_lines ~= SqLine.parse(line);
+                    auto sq_line = SqLine.parse(line);
+                    _sq_lines ~= sq_line;
+                    if (sq_line.uri != null) {
+                        _fasta_urls_dict[sq_line.uri] = 1;
+                    }
                     break;
                 case "@RG":
                     _rg_lines ~= RgLine.parse(line);
@@ -212,11 +224,12 @@ private:
                     _pg_lines ~= PgLine.parse(line);
                     break;
                 default:
-                    /* NYI */
                     break;
             }
 
             parsed_first_line = true;
         }
+
+        _fasta_urls = _fasta_urls_dict.keys;
     }
 }
