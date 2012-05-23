@@ -160,6 +160,9 @@ public:
         parse();
     }
 
+    /// Returns: whether there is a @HD line in the header
+    bool hasHeaderLine() { return _header_line != HdLine.init; }
+
     /// Returns: array of SqLine structs representing @SQ lines
     SqLine[] sq_lines() @property { return _sq_lines; }
 
@@ -170,11 +173,11 @@ public:
     PgLine[] pg_lines() @property { return _pg_lines; }
 
     /// Returns: format version if present in header, or null
-    string format_version() @property { return _format_version; }
+    string format_version() @property { return _header_line.format_version; }
 
     /// Returns: sorting order ('unknown', 'unsorted',
     ///          'queryname', or 'coordinate')
-    string sorting_order() @property { return _sorting_order; }
+    string sorting_order() @property { return _header_line.sorting_order; }
 
     /// Returns: urls of all fasta files encountered in @SQ lines
     string[] fasta_urls() @property { return _fasta_urls; }
@@ -182,14 +185,13 @@ public:
 private:
     string _header;
 
+    HdLine _header_line;
+
     SqLine[] _sq_lines;
     RgLine[] _rg_lines;
     PgLine[] _pg_lines;
 
     string[] _fasta_urls;
-
-    string _format_version;
-    string _sorting_order = "unknown";
 
     void parse() {
         bool parsed_first_line = false;
@@ -202,12 +204,7 @@ private:
             }
             if (!parsed_first_line && line[0..3] == "@HD") {
                 /* parse header line */
-                HdLine header_line = HdLine.parse(line);
-
-                _format_version = header_line.format_version;
-                enforce(_format_version != null);
-
-                _sorting_order = header_line.sorting_order;
+                _header_line = HdLine.parse(line);
             }
             switch (line[0..3]) {
                 case "@SQ":
