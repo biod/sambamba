@@ -6,6 +6,7 @@ import std.stream;
 import std.algorithm;
 import std.system;
 import std.array : uninitializedArray;
+import std.conv;
 
 import utils.switchendianness;
 
@@ -191,8 +192,8 @@ struct Alignment {
     }
 
     /// Quality data
-    char[] phred_base_quality() @property {
-        return cast(char[])_chunk[_qual_offset .. _qual_offset + _l_seq * char.sizeof];
+    ubyte[] phred_base_quality() @property {
+        return _chunk[_qual_offset .. _qual_offset + _l_seq * char.sizeof];
     }
 
     TagStorage tags = void;

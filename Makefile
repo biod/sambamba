@@ -1,7 +1,7 @@
 FILES=bamfile.d rangetransformer.d chunkinputstream.d bgzfrange.d \
 	  utils/inputrangechunks.d samheader.d reference.d alignment.d \
 	  tagstorage.d tagvalue.d utils/switchendianness.d \
-	  validation/samheader.d utils/algo.d
+	  validation/samheader.d validation/alignment.d utils/algo.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d

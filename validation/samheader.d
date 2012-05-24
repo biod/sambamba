@@ -2,19 +2,22 @@
   Module for SAM header validation.
   
   In order to implement your own validation behaviour,
-  subclass SamHeaderValidator and define your own 
+  subclass AbstractSamHeaderValidator and define your own 
   onError() methods.
 */
 module validation.samheader;
 
-import samheader;
+public import samheader;
 import utils.algo : allDistinct;
 
 import std.algorithm;
 import std.functional;
 import std.ascii;
 
-/// High-level SAM header errors
+/// SAM header validation error types.
+///
+/// Each Invalid??Line error is accompanied by 
+/// corresponding ??LineError.
 enum SamHeaderError {
     InvalidSqLine,
     InvalidPgLine,
@@ -26,20 +29,20 @@ enum SamHeaderError {
     NotUniqueProgramIdentifiers
 }
 
-/// Errors in @SQ lines
+/// @SQ line validation error types.
 enum SqLineError {
     MissingSequenceName,
     InvalidSequenceName,
     SequenceLengthOutOfRange
 }
 
-/// Errors in @RG lines
+/// @RG line validation error types.
 enum RgLineError {
     UnknownPlatform,
     MissingIdentifier
 }
 
-/// Errors in @PG lines
+/// @PG line validation error types.
 enum PgLineError {
     NoMatchForPreviousProgram,
     MissingIdentifier
@@ -48,16 +51,15 @@ enum PgLineError {
 /**
   Abstract class encapsulating visitation of SAM header elements.
 */
-abstract class SamHeaderValidator {
+abstract class AbstractSamHeaderValidator {
 
-    /// Start validation process. Override if you need to.
+    /// Start validation process.
     ///
     /// Passing by reference is not only for doing less copying, 
     /// one might want to attempt to fix invalid fields 
-    /// in onError() methods (see below).
+    /// in onError() methods.
     void validate(ref SamHeader header) {
-        _header = header;
-        _visitHeader();
+        _visitHeader(header);
     }
 
     /** Implement those methods to define your own behaviour.
@@ -66,25 +68,6 @@ abstract class SamHeaderValidator {
         method gets called, and is provided the object where the error occurred,
         and type of the error. Objects are passed by reference so that they
         can be changed (fixed / cleaned up / etc.)
-
-        Example:
-        ----------------------
-
-        class BooleanValidator : SamHeaderValidator {
-            bool result = true;
-            void validate(ref SamHeader header) {
-                super.validate(header);
-            }
-            void onError(T, U)(T t, U u) {
-                result = false;
-            }
-        }
-
-        bool isValid(ref SamHeader header) {
-            auto validator = new BooleanValidator();
-            validator.validate(header);
-            return validator.result;
-        }
     */
     abstract void onError(ref SamHeader header, SamHeaderError error);
     abstract void onError(ref SqLine line, SqLineError error); /// ditto
@@ -92,7 +75,6 @@ abstract class SamHeaderValidator {
     abstract void onError(ref RgLine line, RgLineError error); /// ditto
 
 private:
-    SamHeader _header;
 
     bool isValid(ref SqLine sq) {
 
@@ -165,48 +147,48 @@ private:
         return true;
     }
 
-    void _visitHeader() {
+    void _visitHeader(ref SamHeader header) {
 
-        foreach (sq; _header.sq_lines) {
-            if (!isValid(sq)) onError(_header, SamHeaderError.InvalidSqLine);
+        foreach (sq; header.sq_lines) {
+            if (!isValid(sq)) onError(header, SamHeaderError.InvalidSqLine);
         }
 
-        foreach (rg; _header.rg_lines) {
-            if (!isValid(rg)) onError(_header, SamHeaderError.InvalidRgLine);
+        foreach (rg; header.rg_lines) {
+            if (!isValid(rg)) onError(header, SamHeaderError.InvalidRgLine);
         }
 
-        foreach (pg; _header.pg_lines) {
-            if (!isValid(pg)) onError(_header, SamHeaderError.InvalidPgLine);
+        foreach (pg; header.pg_lines) {
+            if (!isValid(pg)) onError(header, SamHeaderError.InvalidPgLine);
         }
 
-        if (_header.hasHeaderLine()) {
-            if (!checkFormatVersion(_header.format_version)) {
-                onError(_header, SamHeaderError.InvalidFormatVersion);
+        if (header.hasHeaderLine()) {
+            if (!checkFormatVersion(header.format_version)) {
+                onError(header, SamHeaderError.InvalidFormatVersion);
             }
-            if (!checkSortingOrder(_header.sorting_order)) {
-                onError(_header, SamHeaderError.InvalidSortingOrder);
+            if (!checkSortingOrder(header.sorting_order)) {
+                onError(header, SamHeaderError.InvalidSortingOrder);
             }
         }
 
         // check uniqueness of @SQ/SN
-        if (!allDistinct(map!"a.sequence_name"(_header.sq_lines))) {
-            onError(_header, SamHeaderError.NotUniqueSequenceNames);
+        if (!allDistinct(map!"a.sequence_name"(header.sq_lines))) {
+            onError(header, SamHeaderError.NotUniqueSequenceNames);
         }
 
         // check uniqueness of @RG/ID
-        if (!allDistinct(map!"a.identifier"(_header.rg_lines))) {
-            onError(_header, SamHeaderError.NotUniqueReadGroupIdentifiers);
+        if (!allDistinct(map!"a.identifier"(header.rg_lines))) {
+            onError(header, SamHeaderError.NotUniqueReadGroupIdentifiers);
         }
 
         // check uniqueness of @PG/ID
-        if (!allDistinct(map!"a.identifier"(_header.pg_lines))) {
-            onError(_header, SamHeaderError.NotUniqueProgramIdentifiers);
+        if (!allDistinct(map!"a.identifier"(header.pg_lines))) {
+            onError(header, SamHeaderError.NotUniqueProgramIdentifiers);
         }
 
         // check that each @PG/PP matches some @PG/ID
-        foreach (pg; _header.pg_lines) {
+        foreach (pg; header.pg_lines) {
             if (pg.previous_program.length != 0) {
-                if (!canFind(map!"a.identifier"(_header.pg_lines),
+                if (!canFind(map!"a.identifier"(header.pg_lines),
                              pg.previous_program)) 
                 {
                     onError(pg, PgLineError.NoMatchForPreviousProgram);
@@ -215,7 +197,7 @@ private:
         }
     } // visitHeader
 
-} // SamHeaderValidator
+} // AbstractSamHeaderValidator
 
 private {
 
@@ -271,14 +253,13 @@ bool checkSortingOrder(string sorting_order) {
                    sorting_order);
 }
 
-/// The most simple validator possible
-class BooleanValidator : SamHeaderValidator {
+class BooleanValidator : AbstractSamHeaderValidator {
 
     class BooleanValidationException : Exception {
         this() { super(""); }
     }
 
-    bool result = true;
+    bool result;
 
     override void validate(ref SamHeader header) {
         result = true;
@@ -309,7 +290,7 @@ class BooleanValidator : SamHeaderValidator {
 } // private
 
 /// Check if header is valid
-bool isValid(ref SamHeader header) {
+bool isValid(SamHeader header) {
     auto validator = new BooleanValidator();
     validator.validate(header);
     return validator.result;

@@ -1,7 +1,8 @@
 module tagvalue;
 
-import std.conv : to;
+import std.conv;
 import std.typetuple;
+import std.exception;
 
 struct CharToType(char c, T) {
     /** symbol */
@@ -153,7 +154,7 @@ template ArrayOf(T) {
     alias T[] ArrayOf;
 }
 
-string defineOpAssign() {
+string injectOpAssign() {
     char[] cs;
 
     foreach (t; PrimitiveTagValueTypes) {
@@ -181,6 +182,54 @@ string defineOpAssign() {
     return cs.idup;
 }
 
+string injectOpCast() {
+    char[] cs = `static if `.dup;
+    
+    foreach (t; PrimitiveTagValueTypes) {
+        cs ~= `(is(T == `~t.ValueType.stringof~`)) {`~
+              `  if (this.tag != `~to!string(GetTypeId!(t.ValueType))~`) {`~
+              `    throw new ConvException("Cannot convert Value to `~
+                                           t.ValueType.stringof~`");`~
+              `  }`~
+              `  return this.u.`~t.ch~`;`~
+              `} else static if `;
+    }
+
+    foreach (t; ArrayElementTagValueTypes) {
+        cs ~= `(is(T == ` ~ t.ValueType.stringof ~ `[])) {` ~
+              `  if (this.tag != `~to!string(GetTypeId!(ArrayOf!(t.ValueType)))~`) {`~
+              `    throw new ConvException("Cannot convert Value to `~
+                                           t.ValueType.stringof~`[]");`~
+              `  }`~
+              `  return this.u.B`~t.ch~`;`~
+              `} else static if `;
+    }
+
+    cs ~= `(is(T == string)) {` ~
+          `  if (is_string) {`
+          `    return bam_typeid == 'Z' ? u.Z : u.H;`~
+          `  } else {`~
+          `    throw new ConvException("Cannot convert Value to string");`~
+          `  }`~
+          `}`.dup;
+
+    return "final T opCast(T)() {" ~ cs.idup ~ "}";
+}
+
+
+/**
+  Struct for representing tag values. 
+
+  Tagged union, allows to store 
+  8/16/32-bit integers, floats, chars, strings, 
+  and arrays of integers/floats.
+
+  Currently, opCast is very restrictive and requires that 
+  the requested type is exactly the same as stored in Value
+  (otherwise, ConvException is thrown). That means that
+  you can't cast Value to string when it contains integer,
+  although it's possible to convert integer to string.
+*/
 struct Value {
     /**
       If this is an array, one of [cCsSiIf].
@@ -202,7 +251,8 @@ struct Value {
 
     private mixin(generateUnion());
 
-    mixin(defineOpAssign());
+    mixin(injectOpAssign());
+    mixin(injectOpCast());
 
     final void opAssign(Value v) {
         bam_typeid = v.bam_typeid;
@@ -214,12 +264,25 @@ struct Value {
         tag = GetTypeId!(typeof(null));
     }
 
+    final bool opEqual(T)(T val) {
+        return to!T(this) == val;
+    }
+
+    /// Conversion to string occurs only when Value stores 
+    /// 'Z' or 'H' tag. Otherwise ConvException is thrown.
+    string toString() {
+        return opCast!string();
+    }
+
     this(T)(T value) {
         opAssign(value);
     }
  
     /// sets 'H' tag instead of default 'Z'. Is not expected to be used much.
     void setHexadecimalFlag() {
+
+        enforce(this.is_string);
+
         bam_typeid = 'H';
         tag = 0b111;
         u.H = u.Z;
@@ -227,7 +290,7 @@ struct Value {
 
     bool is_nothing() @property { return tag == GetTypeId!(typeof(null)); }
 
-    bool is_char() @property { return tag == GetTypeId!char; }
+    bool is_character() @property { return tag == GetTypeId!char; }
     bool is_float() @property { return tag == GetTypeId!float; }
     bool is_numeric_array() @property { return (tag & 0b11) == 0b01; }
     bool is_array_of_integers() @property { return (tag & 0b111) == 0b001; }
@@ -242,6 +305,9 @@ struct Value {
 
     /// true if the value represents 'Z' or 'H' tag
     bool is_string() @property { return (tag & 0b11) == 0b11; }
+
+    /// true if the value represents 'H' tag
+    bool is_hexadecimal_string() @property { return (tag & 0b111) == 0b111; }
 
     /** representation in SAM format
      
@@ -293,14 +359,16 @@ struct Value {
 
 unittest {
     import std.stdio;
+    import std.math;
 
-    writeln("Testing converting tags to SAM representation...");
+    writeln("Testing Value code...");
     Value v = 5;
     assert(v.is_integer);
     assert(v.to_sam == "i:5");
     v = "abc";
     assert(v.is_string);
     assert(v.to_sam == "Z:abc");
+    assert(to!string(v) == "abc");
     v = [1, 2, 3];
     assert(v.is_numeric_array);
     assert(v.to_sam == "B:i,1,2,3");
@@ -310,6 +378,7 @@ unittest {
     v = 5.6;
     assert(v.is_float);
     assert(v.to_sam == "f:5.6");
+    assert(approxEqual(to!float(v), 5.6));
     v = -17;
     assert(v.is_signed);
     assert(v.to_sam == "i:-17");
@@ -321,7 +390,12 @@ unittest {
     v = array_of_shorts;
     assert(v.is_numeric_array);
     assert(v.to_sam == "B:s,4,5,6");
+    assert(to!(short[])(v) == array_of_shorts);
 
     v = null;
     assert(v.is_nothing);
+
+    v = "0eabcf123";
+    v.setHexadecimalFlag();
+    assert(v.is_hexadecimal_string);    
 }
