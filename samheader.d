@@ -177,7 +177,13 @@ public:
 
     /// Returns: sorting order ('unknown', 'unsorted',
     ///          'queryname', or 'coordinate')
-    string sorting_order() @property { return _header_line.sorting_order; }
+    string sorting_order() @property { 
+        if (!hasHeaderLine()) {
+            return "unknown";
+        } else {
+            return _header_line.sorting_order; 
+        }
+    }
 
     /// Returns: urls of all fasta files encountered in @SQ lines
     string[] fasta_urls() @property { return _fasta_urls; }
@@ -220,8 +226,11 @@ private:
                 case "@PG":
                     _pg_lines ~= PgLine.parse(line);
                     break;
-                default:
+                case "@HD":
+                case "@CO":
                     break;
+                default:
+                    assert(0);
             }
 
             parsed_first_line = true;

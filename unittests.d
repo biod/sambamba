@@ -6,6 +6,8 @@ import samheader;
 import bamfile;
 import bgzfrange;
 
+import validation.samheader;
+
 import std.path;
 import std.stdio;
 import std.algorithm;
