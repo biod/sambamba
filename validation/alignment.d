@@ -13,7 +13,7 @@ import std.typetuple;
     Alignment validation error types.
 
     InvalidCigar error is accompanied by some CigarError,
-    InvalidTag is accompanied by some TagError.
+    InvalidTags is accompanied by some TagError.
 */
 enum AlignmentError {
     EmptyReadName,
@@ -22,7 +22,7 @@ enum AlignmentError {
     PositionIsOutOfRange,
     QualityDataContainsInvalidElements,
     InvalidCigar,
-    InvalidTag,
+    InvalidTags,
     DuplicateTagKeys
 }
 
@@ -44,7 +44,9 @@ enum TagError {
     InvalidHexadecimalString,
     ExpectedIntegerValue,
     ExpectedStringValue,
-    InvalidValueType
+    InvalidValueType,
+    InvalidQualityString,
+    ExpectedStringWithSameLengthAsSequence
 }
 
 /// Designates pair of predefined key from SAM/BAM specification
@@ -227,7 +229,7 @@ private:
         
         void someTagIsBad() {
             if (all_tags_are_good) {
-                onError(al, AlignmentError.InvalidTag);
+                onError(al, AlignmentError.InvalidTags);
             }
             all_tags_are_good = false;
         }
@@ -236,7 +238,7 @@ private:
 
         /// Check each tag in turn.
         foreach (k, v; al.tags) {
-            if (!isValid(k, v)) {
+            if (!isValid(k, v, al)) {
                 someTagIsBad();
             }
 
@@ -250,7 +252,7 @@ private:
 
     }
 
-    bool isValid(string key, Value value) {
+    bool isValid(string key, Value value, ref Alignment al) {
 
         bool result = true;
 
@@ -285,7 +287,7 @@ private:
         }
 
         /// check various tags from SAM/BAM specification
-        if (!additionalChecksIfTheTagIsPredefined(key, value)) {
+        if (!additionalChecksIfTheTagIsPredefined(key, value, al)) {
             result = false;
         }
 
@@ -295,7 +297,9 @@ private:
     /// There're some requirements for predefined tags to be checked
     /// such as type, length in some cases, or even some regular expression.
     /// See page 6 of SAM/BAM specification.
-    bool additionalChecksIfTheTagIsPredefined(string key, Value value) {
+    bool additionalChecksIfTheTagIsPredefined(string key, Value value,
+                                              ref Alignment al) 
+    {
         bool result = true;
 
         // Creates a switch for all predefined tag keys.
@@ -303,7 +307,7 @@ private:
             char[] cs;
             foreach (t; PredefinedTags) {
                 cs ~= `case "`~t.Key~`":`~
-                      `  if (!checkTagValue!"`~t.Key~`"(value)) {`~
+                      `  if (!checkTagValue!"`~t.Key~`"(value, al)) {`~
                       `    result = false;`~
                       `  }`~
                       `  break;`.dup;
@@ -317,9 +321,11 @@ private:
     }
 
     /// Supposed to be inlined in the above switch
-    bool checkTagValue(string s)(Value value) {
+    bool checkTagValue(string s)(Value value, ref Alignment al) {
 
         bool result = true;
+        
+        /// 1. Check type.
 
         static if (is(PredefinedTagType!s == int)) {
             if (!value.is_integer) {
@@ -339,6 +345,72 @@ private:
                 onError(s, value, TagError.InvalidValueType);
                 result = false;
             }
+        }
+        
+        /// 2. For tags which contain quality as a string,
+        ///    check that all characters are valid 
+        
+        static if (staticIndexOf!(s, "CQ", "E2", "OQ", "Q2", "E2") != -1) {
+            auto str = to!string(value);
+            if (str != "*" && !all!"a >= '!' && a <= '~'"(str)) {
+                onError(s, value, TagError.InvalidQualityString);
+                result = false;
+            }
+        }
+
+        /// 3. In a couple of cases values are required to be 
+        ///    of the same length as the read sequence.
+
+        static if (staticIndexOf!(s, "BQ", "E2") != -1) {
+            if (to!string(value).length != al.sequence_length) {
+                onError(s, value, TagError.ExpectedStringWithSameLengthAsSequence);
+            }
+        }
+
+
+        /// 4. MD tag ought to: a) match /^[0-9]+(([A-Z]|\^[A-Z]+)[0-9]+)*$/
+        ///                     b) match CIGAR string (TODO?)
+        
+        static if (s == "MD") {
+
+            /// a) check regular expression
+
+            auto s = to!string(value);
+            bool valid = true;
+            if (s.length == 0) valid = false;
+            if (!isDigit(s[0])) valid = false;
+            size_t i = 1;
+            while (i < s.length && isDigit(s[i])) 
+                ++i;
+            while (i < s.length) {
+                if (isUpper(s[i])) {
+                    ++i; // [A-Z]
+                } else if (s[i] == '^') { // ^[A-Z]+
+                    ++i;
+                    if (i == s.length || !isUpper(s[i])) {
+                        valid = false;
+                        break;
+                    }
+                    while (i < s.length && isUpper(s[i]))
+                        ++i;
+                } else {
+                    valid = false;
+                    break;
+                }
+                // now [0-9]+
+                if (i == s.length || !isDigit(s[i])) {
+                    valid = false;
+                    break;
+                }
+                while (i < s.length && isDigit(s[i]))
+                    ++i;
+            }
+
+            if (i < s.length) {
+                valid = false;
+            }
+
+            if (!valid) result = false;
         }
 
         return result;
