@@ -7,6 +7,7 @@ import utils.algo;
 import std.algorithm;
 import std.ascii;
 import std.conv;
+import std.typetuple;
 
 /**
     Alignment validation error types.
@@ -40,7 +41,70 @@ enum TagError {
     EmptyHexadecimalString,
     NonPrintableString,
     NonPrintableCharacter,
-    InvalidHexadecimalString
+    InvalidHexadecimalString,
+    ExpectedIntegerValue,
+    ExpectedStringValue,
+    InvalidValueType
+}
+
+/// Designates pair of predefined key from SAM/BAM specification
+/// and expected type of tags with that key.
+struct TagType(string key, T) {
+    enum Key = key;
+    alias T Type;
+}
+
+/// Compile-time available information about predefined tags
+alias TypeTuple!(TagType!("AM", int),
+                 TagType!("AS", int),
+                 TagType!("BC", string),
+                 TagType!("BQ", string),
+                 TagType!("CC", string),
+                 TagType!("CM", int),
+                 TagType!("CP", int),
+                 TagType!("CQ", string),
+                 TagType!("CS", string),
+                 TagType!("E2", string),
+                 TagType!("FI", int),
+                 TagType!("FS", string),
+                 TagType!("FZ", ushort[]),
+                 TagType!("LB", string),
+                 TagType!("H0", int),
+                 TagType!("H1", int),
+                 TagType!("H2", int),
+                 TagType!("HI", int),
+                 TagType!("IH", int),
+                 TagType!("MD", string),
+                 TagType!("MQ", int),
+                 TagType!("NH", int),
+                 TagType!("NM", int),
+                 TagType!("OQ", string),
+                 TagType!("OP", int),
+                 TagType!("OC", string),
+                 TagType!("PG", string),
+                 TagType!("PQ", int),
+                 TagType!("PU", string),
+                 TagType!("Q2", string),
+                 TagType!("R2", string),
+                 TagType!("RG", string),
+                 TagType!("SM", int),
+                 TagType!("TC", int),
+                 TagType!("U2", string),
+                 TagType!("UQ", int))
+    PredefinedTags;
+
+
+private template GetKey(U) {
+    enum GetKey = U.Key;
+}
+
+private template PredefinedTagTypeHelper(string s) {
+    alias PredefinedTags[staticIndexOf!(s, staticMap!(GetKey, PredefinedTags))] PredefinedTagTypeHelper;
+}
+
+/// Get predefined tag type by its key, in compile-time.
+template PredefinedTagType(string s) {
+    alias PredefinedTagTypeHelper!(s).Type PredefinedTagType;
 }
 
 /**
@@ -219,8 +283,63 @@ private:
                 result = false;
             }
         }
-        
-        /// TODO: add checks for various tags from SAM/BAM specification
+
+        /// check various tags from SAM/BAM specification
+        if (!additionalChecksIfTheTagIsPredefined(key, value)) {
+            result = false;
+        }
+
+        return result;
+    }
+
+    /// There're some requirements for predefined tags to be checked
+    /// such as type, length in some cases, or even some regular expression.
+    /// See page 6 of SAM/BAM specification.
+    bool additionalChecksIfTheTagIsPredefined(string key, Value value) {
+        bool result = true;
+
+        // Creates a switch for all predefined tag keys.
+        string switchTagKey() {
+            char[] cs;
+            foreach (t; PredefinedTags) {
+                cs ~= `case "`~t.Key~`":`~
+                      `  if (!checkTagValue!"`~t.Key~`"(value)) {`~
+                      `    result = false;`~
+                      `  }`~
+                      `  break;`.dup;
+            }
+            return "switch (key) { " ~ cs.idup ~ " default : break; }";
+        }
+
+        mixin(switchTagKey());
+
+        return result;
+    }
+
+    /// Supposed to be inlined in the above switch
+    bool checkTagValue(string s)(Value value) {
+
+        bool result = true;
+
+        static if (is(PredefinedTagType!s == int)) {
+            if (!value.is_integer) {
+                onError(s, value, TagError.ExpectedIntegerValue);
+                result = false;
+            }
+        } else if (is(PredefinedTagType!s == string)) {
+            // Notice that there are no 'H'-typed predefined tags,
+            // and they are almost unused and therefore are not likely
+            // to appear in the future. 
+            if (!value.is_string || value.bam_typeid == 'H') {
+                onError(s, value, TagError.ExpectedStringValue);
+                result = false;
+            }
+        } else {
+            if (value.tag != GetTypeId!(PredefinedTagType!s)) {
+                onError(s, value, TagError.InvalidValueType);
+                result = false;
+            }
+        }
 
         return result;
     }
@@ -259,7 +378,7 @@ private class BooleanValidator : AbstractAlignmentValidator {
 
 /// Check if alignment is valid
 bool isValid(Alignment alignment) {
-    auto validator = new BooleanValidator();
+    scope validator = new BooleanValidator();
     validator.validate(alignment);
     return validator.result;
 }

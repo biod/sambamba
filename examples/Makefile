@@ -10,7 +10,10 @@ bam2sam-gdc: $(FILES) bam2sam.d
 	gdc $(FILES) bam2sam.d -o bam2sam -O3 -frelease -finline -fno-bounds-check -fno-assert -fversion=parallel -g -lpthread
 
 validator: $(FILES) validator.d
-	dmd $(FILES) validator.d -ofvalidator -O -release -inline
+	dmd $(FILES) validator.d -ofvalidator -O -inline -version=serial -g
+
+validator-gdc: $(FILES) validator.d
+	gdc $(FILES) validator.d -ofvalidator -O3 -finline -frelease -fno-bounds-check -fno-assert -g -lpthread
 
 clean:
 	rm *.o

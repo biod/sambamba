@@ -66,8 +66,9 @@ uint charToSizeof(char c) {
 }
 
 /**
-    Currently, ubyte is more than enough 
-    (there're only 17 tag types at the moment)
+  Pair of type and its ubyte identifier. 
+
+  (Currently, ubyte is enough, but that might change in the future.)
 */
 struct TypeId(T, ubyte id) {
     enum Id = id;
@@ -131,6 +132,15 @@ private template GetType(U) {
     alias U.Type GetType;
 }
 
+/// Get tag for type T.
+///
+/// Useful for comparison with tag field of Value struct.
+/// 
+/// Example:
+/// ------------
+/// Value v = "zzz";
+/// assert(v.tag == GetTypeId!string);
+///
 template GetTypeId(T) {
     enum GetTypeId = TypeIdMap[staticIndexOf!(T, staticMap!(GetType, TypeIdMap))].Id;
 }
@@ -160,21 +170,21 @@ string injectOpAssign() {
     foreach (t; PrimitiveTagValueTypes) {
         cs ~= "final void opAssign(" ~ t.ValueType.stringof ~ " value) {" ~
               "  this.u." ~ t.ch ~ " = value;" ~
-              "  this.tag = " ~ to!string(GetTypeId!(t.ValueType)) ~ ";" ~
+              "  this._tag = " ~ to!string(GetTypeId!(t.ValueType)) ~ ";" ~
               "  this.bam_typeid = '" ~ t.ch ~ "';" ~
               "}";
     }
 
     cs ~= "final void opAssign(string value) {" ~
           "  this.u.Z = value;" ~
-          "  this.tag = " ~ to!string(GetTypeId!string) ~ ";" ~
+          "  this._tag = " ~ to!string(GetTypeId!string) ~ ";" ~
           "  this.bam_typeid = 'Z';" ~
           "}";
 
     foreach (t; ArrayElementTagValueTypes) {
         cs ~= "final void opAssign(" ~ t.ValueType.stringof ~ "[] value) {" ~
               "  this.u.B" ~ t.ch ~ " = value;" ~
-              "  this.tag = " ~ to!string(GetTypeId!(ArrayOf!(t.ValueType))) ~ ";" ~
+              "  this._tag = " ~ to!string(GetTypeId!(ArrayOf!(t.ValueType))) ~ ";" ~
               "  this.bam_typeid = '" ~ t.ch ~ "';" ~
               "}";
     }
@@ -187,7 +197,7 @@ string injectOpCast() {
     
     foreach (t; PrimitiveTagValueTypes) {
         cs ~= `(is(T == `~t.ValueType.stringof~`)) {`~
-              `  if (this.tag != `~to!string(GetTypeId!(t.ValueType))~`) {`~
+              `  if (this._tag != `~to!string(GetTypeId!(t.ValueType))~`) {`~
               `    throw new ConvException("Cannot convert Value to `~
                                            t.ValueType.stringof~`");`~
               `  }`~
@@ -197,7 +207,7 @@ string injectOpCast() {
 
     foreach (t; ArrayElementTagValueTypes) {
         cs ~= `(is(T == ` ~ t.ValueType.stringof ~ `[])) {` ~
-              `  if (this.tag != `~to!string(GetTypeId!(ArrayOf!(t.ValueType)))~`) {`~
+              `  if (this._tag != `~to!string(GetTypeId!(ArrayOf!(t.ValueType)))~`) {`~
               `    throw new ConvException("Cannot convert Value to `~
                                            t.ValueType.stringof~`[]");`~
               `  }`~
@@ -247,7 +257,14 @@ struct Value {
     However, in case of need to extend the hierarchy, the type
     should be changed from ubyte to something bigger. 
     */
-    private ubyte tag; /// for internal use
+    ubyte _tag;
+
+    /// Designates the type of currently stored value.
+    ///
+    /// Supposed to be used externally for checking type with GetTypeId.
+    ubyte tag() @property {
+        return _tag;
+    }
 
     private mixin(generateUnion());
 
@@ -256,12 +273,12 @@ struct Value {
 
     final void opAssign(Value v) {
         bam_typeid = v.bam_typeid;
-        tag = v.tag;
+        _tag = v._tag;
         u = v.u;
     }
 
     final void opAssign(typeof(null) n) {
-        tag = GetTypeId!(typeof(null));
+        _tag = GetTypeId!(typeof(null));
     }
 
     final bool opEqual(T)(T val) {
@@ -284,30 +301,30 @@ struct Value {
         enforce(this.is_string);
 
         bam_typeid = 'H';
-        tag = 0b111;
+        _tag = 0b111;
         u.H = u.Z;
     }
 
-    bool is_nothing() @property { return tag == GetTypeId!(typeof(null)); }
+    bool is_nothing() @property { return _tag == GetTypeId!(typeof(null)); }
 
-    bool is_character() @property { return tag == GetTypeId!char; }
-    bool is_float() @property { return tag == GetTypeId!float; }
-    bool is_numeric_array() @property { return (tag & 0b11) == 0b01; }
-    bool is_array_of_integers() @property { return (tag & 0b111) == 0b001; }
-    bool is_array_of_floats() @property { return (tag & 0b111) == 0b101; }
-    bool is_integer() @property { return (tag & 0b1111) == 0; }
+    bool is_character() @property { return _tag == GetTypeId!char; }
+    bool is_float() @property { return _tag == GetTypeId!float; }
+    bool is_numeric_array() @property { return (_tag & 0b11) == 0b01; }
+    bool is_array_of_integers() @property { return (_tag & 0b111) == 0b001; }
+    bool is_array_of_floats() @property { return (_tag & 0b111) == 0b101; }
+    bool is_integer() @property { return (_tag & 0b1111) == 0; }
 
     /// true if the value is unsigned integer
-    bool is_unsigned() @property { return (tag & 0b11111) == 0; }
+    bool is_unsigned() @property { return (_tag & 0b11111) == 0; }
 
     /// true if the value is signed integer
-    bool is_signed() @property { return (tag & 0b11111) == 0b10000; }
+    bool is_signed() @property { return (_tag & 0b11111) == 0b10000; }
 
     /// true if the value represents 'Z' or 'H' tag
-    bool is_string() @property { return (tag & 0b11) == 0b11; }
+    bool is_string() @property { return (_tag & 0b11) == 0b11; }
 
     /// true if the value represents 'H' tag
-    bool is_hexadecimal_string() @property { return (tag & 0b111) == 0b111; }
+    bool is_hexadecimal_string() @property { return (_tag & 0b111) == 0b111; }
 
     /** representation in SAM format
      
