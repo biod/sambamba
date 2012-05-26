@@ -129,9 +129,9 @@ abstract class AbstractAlignmentValidator {
         and type of the error. Objects are passed by reference so that they
         can be changed (fixed / cleaned up / etc.)
     */
-    abstract void onError(ref Alignment al, AlignmentError error); // ditto
-    abstract void onError(ref Alignment al, CigarError error); // ditto
-    abstract void onError(string key, ref Value value, TagError error); // ditto
+    abstract void onError(ref Alignment al, AlignmentError error); 
+    abstract void onError(ref Alignment al, CigarError error); /// ditto
+    abstract void onError(string key, ref Value value, TagError error); /// ditto
 
 private:
     void _visitAlignment(ref Alignment al) {
@@ -350,7 +350,7 @@ private:
         /// 2. For tags which contain quality as a string,
         ///    check that all characters are valid 
         
-        static if (staticIndexOf!(s, "CQ", "E2", "OQ", "Q2", "E2") != -1) {
+        static if (staticIndexOf!(s, "CQ", "E2", "OQ", "Q2", "U2") != -1) {
             auto str = to!string(value);
             if (str != "*" && !all!"a >= '!' && a <= '~'"(str)) {
                 onError(s, value, TagError.InvalidQualityString);
