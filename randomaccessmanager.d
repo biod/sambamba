@@ -66,9 +66,9 @@ class RandomAccessManager {
     static struct RefSeq {
 
         RandomAccessManager manager;
-        uint ref_id;
+        int ref_id;
 
-        this(RandomAccessManager manager, uint ref_id) {
+        this(RandomAccessManager manager, int ref_id) {
             this.manager = manager;
             this.ref_id = ref_id;
         }
@@ -85,7 +85,7 @@ class RandomAccessManager {
     }
 
     /// Fetch alignments with given reference sequence id, overlapping [beg..end)
-    auto getAlignments(size_t ref_id, int beg, int end) {
+    auto getAlignments(int ref_id, int beg, int end) {
 
         enforce(has_index_file, "BAM index file (.bai) must be provided");
         enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
@@ -99,8 +99,6 @@ class RandomAccessManager {
             return b.canOverlapWith(beg, end);
         }
 
-        //auto bins = filter!((Bin b) { return b.canOverlapWith(beg, end); })
-        //                   (_bai.indices[ref_id].bins);
         auto bins = filter!canOverlap(_bai.indices[ref_id].bins);
 
         debug {
@@ -143,7 +141,6 @@ class RandomAccessManager {
             return a.end > min_offset;
         }
         auto filtered_chunks = filter!minOffsetFilter(chunks);
-//        auto filtered_chunks = filter!((Chunk a){ return a.end > min_offset; })(chunks); 
 
         debug {
             writeln("Filtered chunks: ");
@@ -185,11 +182,8 @@ class RandomAccessManager {
         }
 
         auto alignments = disjointChunkAlignmentRange(disjoint_chunks);
-        while (!alignments.empty() && alignments.front.ref_id < ref_id) {
-            alignments.popFront();
-        }
 
-        return filterAlignments(alignments, beg, end);
+        return filterAlignments(alignments, ref_id, beg, end);
     }
 
 private:
@@ -294,8 +288,9 @@ private:
     }
 
     static struct AlignmentFilter(R) {
-        this(R r, int beg, int end) {
+        this(R r, int ref_id, int beg, int end) {
             _range = r;
+            _ref_id = ref_id;
             _beg = beg;
             _end = end;
             findNext();
@@ -316,6 +311,7 @@ private:
 
     private: 
         R _range;
+        int _ref_id;
         int _beg;
         int _end;
         bool _empty;
@@ -328,6 +324,20 @@ private:
             }
             while (!_range.empty) {
                 _current_alignment = _range.front;
+
+                /// Alignments are sorted first by ref. ID.
+                auto current_ref_id = _current_alignment.ref_id;
+                if (current_ref_id > _ref_id) {
+                    /// no more records for this _ref_id
+                    _empty = true;
+                    return;
+                } else if (current_ref_id < _ref_id) {
+                    /// skip alignments referring to sequences
+                    /// with ID less than ours
+                    _range.popFront();
+                    continue;
+                }
+
                 if (_current_alignment.position >= _end) {
                     _empty = true;
                     /// As alignments are sorted by leftmost
@@ -345,7 +355,7 @@ private:
                 }
 
                 if (_current_alignment.position +
-                    _current_alignment.sequence_length < _beg) 
+                    _current_alignment.bases_covered() < _beg) 
                 {
                     /// ends before beginning of the region
                     ///  [-----------)
@@ -355,17 +365,17 @@ private:
                     return; /// _current_alignment overlaps the region
                 }
             }
-            _empty = true; /// seems like _range is empty...
+            _empty = true; 
         }
     }
 
     /// Get range of alignments sorted by leftmost coordinate,
     /// together with an interval [beg, end),
     /// and return another range of alignments which overlap the region.
-    auto filterAlignments(R)(R r, int beg, int end) 
+    auto filterAlignments(R)(R r, int ref_id, int beg, int end) 
         if(is(ElementType!R == Alignment)) 
     {
-        return AlignmentFilter!R(r, beg, end);
+        return AlignmentFilter!R(r, ref_id, beg, end);
     }
 
 }

@@ -172,6 +172,25 @@ struct Alignment {
                                              _n_cigar_op * CigarOperation.sizeof]);
     }
 
+    /// The number of reference bases covered
+    int bases_covered() {
+        int n = 0;
+        foreach (c; cigar) {
+            switch (c.operation) {
+                case 'M':
+                case '=':
+                case 'X':
+                case 'D':
+                case 'N':
+                    n += c.length;
+                    break;
+                default:
+                    break;
+            }
+        }
+        return n;
+    }
+
     /// Human-readable representation of CIGAR string
     string cigar_string() {
         char[] str;
@@ -185,6 +204,8 @@ struct Alignment {
         }
         return cast(string)str;
     }
+
+    
 
     /// Sequence data 
     ubyte[] raw_sequence_data() @property {

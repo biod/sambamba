@@ -107,7 +107,7 @@ struct BamFile {
 
 
     // TODO: more syntax sugar
-    auto fetch(uint ref_id, int beg, int end) {
+    auto fetch(int ref_id, int beg, int end) {
         auto ref_seq = _random_access_manager.reference_sequence(ref_id);
         return ref_seq.getAlignments(beg, end);
     }
