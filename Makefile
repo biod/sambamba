@@ -8,7 +8,7 @@ FILES=bamfile.d rangetransformer.d chunkinputstream.d bgzfrange.d \
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
 
-all: scaffolds
+all:
 	dmd $(LIBFILES) -oflibbam.so -O -release -inline -shared
 
 debug:

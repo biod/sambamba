@@ -1,6 +1,10 @@
 class SamHeader < FFI::Struct
   layout :_header_len, :size_t,
          :_header_data, :pointer,
+         :_format_version_len, :size_t,
+         :_format_version_data, :pointer,
+         :_sorting_order_len, :size_t,
+         :_sorting_order_data, :pointer,
          :_sq_lines_len, :size_t,
          :_sq_lines_data, :pointer,
          :_rg_lines_len, :size_t,
@@ -8,11 +12,7 @@ class SamHeader < FFI::Struct
          :_pg_lines_len, :size_t,
          :_pg_lines_data, :pointer,
          :_fasta_urls_len, :size_t,
-         :_fasta_urls_data, :pointer,
-         :_format_version_len, :size_t,
-         :_format_version_data, :pointer,
-         :_sorting_order_len, :size_t,
-         :_sorting_order_data, :pointer
+         :_fasta_urls_data, :pointer
 
   def _header
     return nil if self[:_header_data].address == 0

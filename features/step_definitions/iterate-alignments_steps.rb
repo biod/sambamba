@@ -20,6 +20,7 @@ Then /^the objects which I iterate over should represent the alignments$/ do
 end
 
 Then /^I should be able to access all fields mentioned in SAM\/BAM format specification$/ do
+  @bam.rewind!
   @read = @bam.alignments.first
   @read.read_name.should == 'EAS56_57:6:190:289:82'
   @read.sequence.should == 'CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA'

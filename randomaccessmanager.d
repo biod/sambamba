@@ -90,11 +90,6 @@ class RandomAccessManager {
         enforce(has_index_file, "BAM index file (.bai) must be provided");
         enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
 
-        auto bgzf_range = new BgzfRange(_compressed_stream);
-        auto decompressed_range = map!decompressBgzfBlock(bgzf_range);
-
-        IChunkInputStream stream = makeChunkInputStream(decompressed_range);
-
         bool canOverlap(Bin b) {
             return b.canOverlapWith(beg, end);
         }

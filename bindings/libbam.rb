@@ -27,6 +27,8 @@ module LibBAM
 	attach_function :bamfile_get_reference_sequences, [:pointer], DArray.by_value
 
     attach_function :bamfile_get_alignments, [:pointer], :pointer
+    attach_function :bamfile_rewind, [:pointer], :void
+
     attach_function :alignment_range_destroy, [:pointer], :void
     attach_function :alignment_range_front, [:pointer], :pointer
     attach_function :alignment_range_popfront, [:pointer], :void
@@ -85,6 +87,10 @@ class BamFile
     def alignments
         ptr = LibBAM.bamfile_get_alignments @ptr
         AlignmentIterator.new(ptr, @ptr)
+    end
+
+    def rewind!
+        LibBAM.bamfile_rewind @ptr
     end
 
     def self.finalize ptr

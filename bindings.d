@@ -49,6 +49,11 @@ bamfile_destroy(BamFile* f) {
     free(cast(void*)f);
 }
 
+extern(C) void
+bamfile_rewind(BamFile* f) {
+    f.rewind();
+}
+
 extern(C) SamHeader 
 bamfile_get_header(BamFile* f) {
     return f.header;
