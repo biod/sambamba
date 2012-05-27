@@ -1,7 +1,9 @@
 FILES=bamfile.d rangetransformer.d chunkinputstream.d bgzfrange.d \
 	  utils/inputrangechunks.d samheader.d reference.d alignment.d \
 	  tagstorage.d tagvalue.d utils/switchendianness.d \
-	  validation/samheader.d validation/alignment.d utils/algo.d
+	  validation/samheader.d validation/alignment.d utils/algo.d \
+	  randomaccessmanager.d virtualoffset.d bai/read.d bai/utils/algo.d \
+	  bai/bin.d bai/chunk.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
@@ -21,7 +23,7 @@ unittests: $(TESTFILES)
 	./run_unittests
 
 unittests-gdc: $(TESTFILES)
-	gdc $(TESTFILES) -funittest -o run_unittests -lpthread
+	gdc $(TESTFILES) -O0 -funittest -o run_unittests -lpthread -fdebug
 	./run_unittests
 
 test: $(FILES) readbam.d

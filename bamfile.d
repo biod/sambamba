@@ -6,63 +6,19 @@ import rangetransformer;
 import samheader;
 import reference;
 import alignment;
+import randomaccessmanager;
+import virtualoffset;
+import bai.read;
 
 import std.stream;
 import std.system;
+import std.stdio;
 import std.algorithm : map;
 import std.range : zip;
-import std.zlib : crc32, ZlibException;
 import std.conv : to;
 import std.exception : enforce;
 import std.parallelism;
 import std.array : uninitializedArray;
-import etc.c.zlib;
-
-ubyte[] decompress(const BgzfBlock block) {
-
-    if (block.input_size == 0) {
-        return []; // EOF marker
-        // TODO: add check for correctness of EOF marker
-    }
-
-    int err;
-
-    ubyte[] uncompressed = uninitializedArray!(ubyte[])(block.input_size);
-
-    // set input data
-    etc.c.zlib.z_stream zs;
-    zs.next_in = cast(typeof(zs.next_in))block.compressed_data;
-    zs.avail_in = to!uint(block.compressed_data.length);
-
-    err = etc.c.zlib.inflateInit2(&zs, /* winbits = */-15);
-    if (err)
-    {
-        throw new ZlibException(err);
-    }
-
-    zs.next_out = cast(typeof(zs.next_out))uncompressed.ptr;
-    zs.avail_out = block.input_size;
-
-    err = etc.c.zlib.inflate(&zs, Z_FINISH);
-    switch (err)
-    {
-        case Z_STREAM_END:
-            assert(zs.total_out == block.input_size);
-            err = etc.c.zlib.inflateEnd(&zs);
-            if (err != Z_OK) {
-                throw new ZlibException(err);
-            }
-            break;
-        default:
-            etc.c.zlib.inflateEnd(&zs);
-            throw new ZlibException(err);
-    }
-
-    assert(block.crc32 == crc32(0, uncompressed));
-
-    return uncompressed;
-}
-
 
 /**
   Represents BAM file
@@ -81,6 +37,14 @@ struct BamFile {
         _filename = filename;
         _task_pool = task_pool;
         initializeStreams();
+      
+        try {
+            _bai_file = BaiFile(filename);
+            _random_access_manager = new RandomAccessManager(_file, _bai_file);
+        } catch (Exception e) {
+            stderr.writeln("Couldn't find index file: ", e.msg);
+            _random_access_manager = new RandomAccessManager(_file);
+        }
 
         auto magic = _bam.readString(4);
         
@@ -108,21 +72,52 @@ struct BamFile {
     }
 
     /**
-        Returns: range of alignments.
+        Returns: range of alignments starting from the current file position.
+
+        This is a single range of alignments which is affected by rewind() calls.
+
+        The range operates on the file stream associated with this 
+        BamFile instance. Therefore if you need to use more than one range
+        simultaneously, create several BamFile instances. 
+        However, that's not recommended because disk access performance 
+        is better when the accesses are serial.
      */
     auto alignments() @property {
         if (_alignments_first_call) {
-            // save rewind call
             _alignments_first_call = false;
-        } else {
-            rewind(); // if not the first call, need to rewind
+            _alignment_range = alignmentRange(_decompressed_stream);
         }
-        return alignmentRange(_bam, _task_pool);
+        return _alignment_range;
     }
     private bool _alignments_first_call = true;
 
     /**
+       Closes underlying file stream
+     */
+    void close() {
+        _file.close();
+    }
+    
+    /**
+      Get an alignment at a given virtual offset.
+     */
+    Alignment opIndex(VirtualOffset offset) {
+        return _random_access_manager.getAlignmentAt(offset);
+    }
+
+
+    // TODO: more syntax sugar
+    auto fetch(uint ref_id, int beg, int end) {
+        auto ref_seq = _random_access_manager.reference_sequence(ref_id);
+        return ref_seq.getAlignments(beg, end);
+    }
+
+    /**
         Seeks to the beginning of the list of alignments.
+        
+        Effect: the range available through alignments() method
+        is refreshed, and its front element is the first element
+        in the file.
      */
     void rewind() {
         initializeStreams();
@@ -142,24 +137,27 @@ struct BamFile {
             int l_ref;
             _bam.read(l_ref);
         } // skip reference sequences information
-    }
 
-    /*
-       Closes underlying file stream
-     */
-    void close() {
-        _file.close();
+        _alignment_range = alignmentRange(_decompressed_stream);
     }
 
 private:
+    
     string _filename;
     Stream _file;
     Stream _compressed_stream;
     BgzfRange _bgzf_range;
+    IChunkInputStream _decompressed_stream;
     Stream _bam;
+
+    BaiFile _bai_file; /// provides access to index file
+
+    typeof(alignmentRange(_decompressed_stream)) _alignment_range;
+    RandomAccessManager _random_access_manager;
 
     SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
+    size_t[string] _reference_sequence_dict; /// name -> index mapping
 
     TaskPool _task_pool;
 
@@ -171,14 +169,14 @@ private:
         _bgzf_range = new BgzfRange(_compressed_stream);
 
         version(serial) {
-            auto chunk_range = map!decompress(_bgzf_range);
+            auto chunk_range = map!decompressBgzfBlock(_bgzf_range);
         } else {
             /* TODO: tweak granularity */
-            auto chunk_range = _task_pool.map!decompress(_bgzf_range, 25); 
+            auto chunk_range = _task_pool.map!decompressBgzfBlock(_bgzf_range, 25); 
         }
         
-        auto decompressed_stream = makeChunkInputStream(chunk_range);
-        _bam = new EndianStream(decompressed_stream, Endian.littleEndian); 
+        _decompressed_stream = makeChunkInputStream(chunk_range);
+        _bam = new EndianStream(_decompressed_stream, Endian.littleEndian); 
     }
 
     // initializes _header
@@ -197,6 +195,9 @@ private:
         _reference_sequences = new ReferenceSequenceInfo[n_ref];
         foreach (i; 0..n_ref) {
             _reference_sequences[i] = ReferenceSequenceInfo(_bam);
+
+            // provide mapping Name -> Index
+            _reference_sequence_dict[_reference_sequences[i].name] = i;
         }
     }
 }

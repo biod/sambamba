@@ -1,6 +1,9 @@
 module alignment;
+
 import tagvalue;
 import tagstorage;
+import chunkinputstream;
+import virtualoffset;
 
 import std.stream;
 import std.algorithm;
@@ -10,13 +13,22 @@ import std.conv;
 
 import utils.switchendianness;
 
-/**
-  Range for iterating over unparsed alignments
- */
-class UnparsedAlignmentRange {
+struct RawAlignmentBlock {
+    VirtualOffset virtual_offset;
+    ubyte[] raw_alignment_data;
+}
 
-    this(ref Stream stream) {
+/**
+  Range for iterating over unparsed alignments,
+  together with their virtual offsets in the BAM file.
+ */
+class UnparsedAlignmentRange { // TODO: make it a template class with policies 
+                               //       for iteration with/without offsets?
+
+    /// Create new range from IChunkInputStream.
+    this(ref IChunkInputStream stream) {
         _stream = stream;
+        _endian_stream = new EndianStream(_stream, Endian.littleEndian);
         readNext();
     }
 
@@ -25,10 +37,13 @@ class UnparsedAlignmentRange {
     }
 
     /**
-        Returns: alignment block except the first 4 bytes (block_size)
+        Returns: tuple of 1) virtual offset of alignment block beginning,
+                          2) alignment block except the first 4 bytes (block_size)
+
+        See SAM/BAM specification for details about the structure of alignment blocks.
      */
-    ubyte[] front() @property {
-        return _current_record;
+    RawAlignmentBlock front() @property {
+        return RawAlignmentBlock(_current_voffset, _current_record);
     }
 
     void popFront() {
@@ -36,8 +51,11 @@ class UnparsedAlignmentRange {
     }
 
 private:
-    Stream _stream;
+    IChunkInputStream _stream;
+    EndianStream _endian_stream;
+
     ubyte[] _current_record;
+    VirtualOffset _current_voffset;
     bool _empty = false;
 
     /**
@@ -48,11 +66,13 @@ private:
             _empty = true;
             return;
         }
+        
+        _current_voffset = _stream.virtualTell();
 
         int block_size = void;
-        _stream.read(block_size);
+        _endian_stream.read(block_size);
         _current_record = uninitializedArray!(ubyte[])(block_size);
-        _stream.readExact(_current_record.ptr, block_size);
+        _endian_stream.readExact(_current_record.ptr, block_size);
     }
 
 }
@@ -60,7 +80,7 @@ private:
 /**
     Returns: range for iterating over alignment blocks
  */
-auto unparsedAlignments(ref Stream stream) {
+auto unparsedAlignments(ref IChunkInputStream stream) {
     return new UnparsedAlignmentRange(stream);
 }
 
@@ -153,9 +173,6 @@ struct Alignment {
     }
 
     /// Human-readable representation of CIGAR string
-    ///
-    /// Evaluated lazily from raw data, therefore NOT
-    /// marked as @property.
     string cigar_string() {
         char[] str;
 
@@ -175,7 +192,6 @@ struct Alignment {
     }
 
     /// String representation of raw_sequence_data.
-    /// Evaluated lazily, so not @property
     string sequence() {
         immutable string chars = "=ACMGRSVTWYHKDBN";
         char[] s = uninitializedArray!(char[])(sequence_length);
@@ -203,6 +219,8 @@ struct Alignment {
       */
     this(ubyte[] chunk) {
 
+        // TODO: switch endianness lazily as well?
+
         _chunk = chunk;
         if (std.system.endian != Endian.littleEndian) {
             // First 8 fields are 32-bit integers:                 
@@ -224,10 +242,7 @@ struct Alignment {
             switchEndianness(_chunk.ptr + _cigar_offset, 
                              _n_cigar_op * uint.sizeof);
 
-            // Dealing with tags is not our responsibility.
-            // It goes to TagStorage interface implementations
-            // which are given a reference to the chunk of memory
-            // and are allowed to do whatever they find appropriate.
+            // Dealing with tags is the responsibility of TagStorage.
         }
 
         this.tags = TagStorage(cast(ubyte[])_chunk[_tags_offset .. $]);
@@ -268,18 +283,37 @@ private:
  size_t _tags_offset()      @property { return _qual_offset + _l_seq * char.sizeof; }
 }
 
-Alignment parseAlignment(ubyte[] chunk) {
+/// Returns: an alignment constructed out of given chunk of memory.
+///
+/// No parsing occurs, it is done lazily.
+Alignment makeAlignment(ubyte[] chunk) {
     return Alignment(chunk);
 }
 
-import std.parallelism;
+/// Tuple of virtual offset of the alignment, and the alignment itself.
+struct AlignmentBlock {
+    VirtualOffset virtual_offset;
+    Alignment alignment;
+}
 
-auto alignmentRange(ref Stream stream, TaskPool task_pool) {
-    version(serial) {
-        return map!parseAlignment(unparsedAlignments(stream));
-    } else {
-        /* TODO: tweak granularity */
-        return map!parseAlignment(unparsedAlignments(stream));
-//        return task_pool.map!parseAlignment(unparsedAlignments(stream), 500);
+/// Returns: lazy range of Alignment structs constructed from a given stream.
+auto alignmentRange(ref IChunkInputStream stream) {
+
+    static Alignment makeAlignment(RawAlignmentBlock block) {
+        return alignment.makeAlignment(block.raw_alignment_data);
     }
+    return map!makeAlignment(unparsedAlignments(stream));
+}
+
+/// Returns: lazy range of AlignmentBlock structs constructed from a given stream.
+///
+/// Provides virtual offsets together with alignments and thus
+/// Useful for random access operations.
+auto alignmentRangeWithOffsets(ref IChunkInputStream stream) {
+    static AlignmentBlock makeAlignmentBlock(RawAlignmentBlock block) {
+        return AlignmentBlock(block.virtual_offset,
+                              makeAlignment(block.raw_alignment_data));
+    }
+
+    return map!makeAlignmentBlock(unparsedAlignments(stream));
 }

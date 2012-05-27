@@ -1,14 +1,51 @@
 module chunkinputstream;
 
+import bgzfrange;
+import virtualoffset;
+
 import std.stream;
+import std.range;
+
+/// Interface on top of Stream, which glues decompressed blocks
+/// together and provides virtualTell() method for determining
+/// virtual offset in the stream.
+///
+/// NOTE: the class has no virtualSeek method. The reason is
+///       that an implementing class should have no direct access 
+///       to any of underlying streams, (which provide chunks 
+///       and their start virtual offsets), the reason being
+///       the single responsibility principle. 
+///       
+///       If you need to do "virtualSeek", seek to coffset
+///       in stream providing compressed blocks, create new
+///       stream for decompressing, and skip uoffset bytes
+///       in the decompressed stream. In general, you probably
+///       will want to use different  decompression function
+///       for each use case. (For serial iteration - without any 
+///       caching, for random access - with caching; and maybe 
+///       you'll want several types of caching.)
+///
+abstract class IChunkInputStream : Stream {
+    /// Returns: current virtual offset
+    ///
+    /// (For details about what virtual offset is, 
+    /// see bgzfrange module documentation.)
+    ///
+    abstract VirtualOffset virtualTell();
+}
 
 /**
-  Class for turning range of chunks (void[]/ubyte[] arrays)
+  Class for turning range of DecompressedBgzfBlock objects
   into a proper InputStream
  */
-final class ChunkInputStream(ChunkRange) : Stream {
+final class ChunkInputStream(ChunkRange) : IChunkInputStream
+{
 
-    this(ChunkRange range) {
+    //static assert(ElementType!ChunkRange == DecompressedBgzfBlock);
+
+    /// Construct class instance from range of chunks.
+    this(ChunkRange range) 
+    {
         _range = range;
         setupStream();
         readable = true;
@@ -53,9 +90,16 @@ final class ChunkInputStream(ChunkRange) : Stream {
         throw new SeekException("Stream is not seekable");
     }
 
+    /// Returns: current virtual offset
+    VirtualOffset virtualTell() {
+		assert(_cur < (1<<16));
+        return VirtualOffset(_start_offset, cast(ushort)_cur);
+    }
+
 private:
     ChunkRange _range;
-    typeof(_range.front) _buf;
+    typeof(_range.front.start_offset) _start_offset;
+    typeof(_range.front.decompressed_data) _buf;
 
     void setupStream() {
 
@@ -64,7 +108,11 @@ private:
             return;
         }
 
-        _buf = _range.front;
+        auto tmp = _range.front; /// _range might be lazy, 
+                                 /// so extra front() calls
+                                 /// can cost a lot
+        _start_offset = tmp.start_offset;
+        _buf = tmp.decompressed_data;
         _len = _buf.length;
 
         if (_len == 0) {

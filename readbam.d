@@ -6,11 +6,7 @@ import std.stdio;
 void main(string[] args) {
     StopWatch sw;
     sw.start();
-    import std.parallelism;
-    import std.conv;
-    auto tp = new TaskPool(to!int(args[2]) - 1);
-    scope(exit) tp.finish();
-    auto bam = BamFile(args[1], tp);
+    auto bam = BamFile(args[1]);
     foreach (alignment; bam.alignments) {
 //        foreach (k, v; alignment.tags) {
 //        }

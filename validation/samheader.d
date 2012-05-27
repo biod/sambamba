@@ -8,7 +8,7 @@
 module validation.samheader;
 
 public import samheader;
-import utils.algo : allDistinct;
+import utils.algo;
 
 import std.algorithm;
 import std.functional;

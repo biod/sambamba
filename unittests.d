@@ -7,6 +7,7 @@ import bamfile;
 import bgzfrange;
 
 import validation.samheader;
+import validation.alignment;
 
 import std.path;
 import std.stdio;
@@ -49,6 +50,15 @@ unittest {
     alignments.popFront();
     alignments.popFront();
     assert(alignments.front.cigar_string == "35M");
+
+    writeln("Testing BamFile methods...");
+    bf.rewind();
+    assert(bf.alignments.front.read_name == "EAS56_57:6:190:289:82");
+    bf.close();
+    /*
+TODO: this should throw
+    bf.alignments.popFront();
+    */
 
     writeln("Testing tag parsing...");
     fn = buildPath(dirName(__FILE__), "test", "data", "tags.bam");
