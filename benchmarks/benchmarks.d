@@ -20,15 +20,15 @@ auto bgzfRange(string filename) {
 
 auto decompressedRange(string filename) {
     version(parallel) {
-        return task_pool.map!decompress(bgzfRange(filename), 64);
+        return task_pool.map!decompressBgzfBlock(bgzfRange(filename), 64);
     } else {
-        return map!decompress(bgzfRange(filename));
+        return map!decompressBgzfBlock(bgzfRange(filename));
     }
 }
 
 auto unparsedAlignmentRange(string filename) {
 
-    Stream decompressed_stream = makeChunkInputStream(decompressedRange(filename));
+    IChunkInputStream decompressed_stream = makeChunkInputStream(decompressedRange(filename));
     Stream bam = new EndianStream(decompressed_stream, Endian.littleEndian); 
 
     bam.readString(4); // skip magic
@@ -45,16 +45,14 @@ auto unparsedAlignmentRange(string filename) {
         bam.read(l_ref);
     } // skip reference sequences information
 
-    return unparsedAlignments(bam);
+    return unparsedAlignments(decompressed_stream);
 }
 
 auto parsedAlignmentRange(string filename) {
-    version(parallel) {
-        return map!parseAlignment(unparsedAlignmentRange(filename));
-//        return task_pool.map!parseAlignment(unparsedAlignmentRange(filename), 81920, 10240);
-    } else {
-        return map!parseAlignment(unparsedAlignmentRange(filename));
+    static Alignment makeAlignment(RawAlignmentBlock block) {
+        return alignment.makeAlignment(block.raw_alignment_data);
     }
+    return map!makeAlignment(unparsedAlignmentRange(filename));
 }
 
 import std.datetime;

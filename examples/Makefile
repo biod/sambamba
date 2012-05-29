@@ -1,9 +1,9 @@
-FILES=../bamfile.d ../rangetransformer.d ../chunkinputstream.d ../bgzfrange.d \
-	  ../utils/inputrangechunks.d ../samheader.d ../reference.d ../alignment.d \
+FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
+	  ../samheader.d ../reference.d ../alignment.d \
 	  ../tagstorage.d ../tagvalue.d ../utils/switchendianness.d \
 	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
 	  ../bai/read.d ../bai/chunk.d ../bai/bin.d ../bai/utils/algo.d \
-	  ../virtualoffset.d
+	  ../virtualoffset.d ../utils/range.d
 
 DMDFLAGS=-O -release -inline -g
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
