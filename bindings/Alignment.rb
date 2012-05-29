@@ -9,7 +9,7 @@ class Alignment
   end
 
   def self.finalize(ptr)
-    proc { LibBAM.alignment_destroy ptr }
+    proc { puts 'finalization...'; LibBAM.alignment_destroy ptr }
   end
 
   def [](tag)
@@ -84,56 +84,56 @@ class Alignment
 
   ### Template having multiple segments in sequencing
   def is_paired                
-    flag & 0x1
+    (flag & 0x1) != 0
   end
 
   ### Each segment properly aligned according to the aligner
   def proper_pair              
-    flag & 0x2
+    (flag & 0x2) != 0
   end
 
   ### Segment unmapped
   def is_unmapped              
-    flag & 0x4
+    (flag & 0x4) != 0
   end
 
   ### Next segment in the template unmapped
   def mate_is_unmapped         
-    flag & 0x8
+    (flag & 0x8) != 0
   end
 
   ### Sequence being reverse complemented
   def is_reverse_strand        
-    flag & 0x10
+    (flag & 0x10) != 0
   end
 
   ### Sequence of the next segment in the template being reversed
   def mate_is_reverse_strand   
-    flag & 0x20
+    (flag & 0x20) != 0
   end
 
   ### The first segment in the template
   def is_first_of_pair         
-    flag & 0x40
+    (flag & 0x40) != 0
   end
 
   ### The last segment in the template
   def is_second_of_pair        
-    flag & 0x80
+    (flag & 0x80) != 0
   end
 
   ### Secondary alignment
   def is_secondary_alignment   
-    flag & 0x100
+    (flag & 0x100) != 0
   end
 
   ### Not passing quality controls
   def failed_quality_control   
-    flag & 0x200
+    (flag & 0x200) != 0
   end
 
   ### PCR or optical duplicate
   def is_duplicate             
-    flag & 0x400
+    (flag & 0x400) != 0
   end
 end
