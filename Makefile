@@ -30,7 +30,7 @@ test: $(FILES) readbam.d
 	dmd $(FILES) readbam.d -ofreadbam -O -release -inline -g
 
 test-gdc: $(FILES) readbam.d
-	gdc $(FILES) readbam.d -o readbam -O3 -frelease -fno-bounds-check -fno-assert -lpthread -fversion=serial -g
+	gdc $(FILES) readbam.d -o readbam -O3 -frelease -fno-bounds-check -fno-assert -lpthread -g
 
 clean:
 	rm *.o

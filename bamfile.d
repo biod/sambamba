@@ -8,6 +8,7 @@ import alignment;
 import randomaccessmanager;
 import virtualoffset;
 import bai.read;
+import utils.range;
 
 import std.stream;
 import std.system;
@@ -171,9 +172,7 @@ private:
             auto chunk_range = map!decompressBgzfBlock(_bgzf_range);
         } else {
             /* TODO: tweak granularity */
-  //          auto chunk_range = _task_pool.map!decompressBgzfBlock(_bgzf_range, 25); 
-            import utils.range;
-            auto chunk_range = parallelTransform!decompressBgzfBlock(_bgzf_range, 25);
+            auto chunk_range = parallelTransform!decompressBgzfBlock(_bgzf_range, 50);
         }
         
         _decompressed_stream = makeChunkInputStream(chunk_range);

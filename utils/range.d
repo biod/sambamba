@@ -94,6 +94,8 @@ unittest {
 /// The cost is memory allocations for chunks.
 auto chunked(R)(R range, uint chunk_size) {
 
+    alias ElementType!R E;
+
 	struct Result {
 
 		this(R range, uint chunk_size) {
@@ -117,7 +119,6 @@ auto chunked(R)(R range, uint chunk_size) {
 
 	private:
 		R range;
-		alias ElementType!R E;
 		uint chunk_size;
 
 		E[] buffer;

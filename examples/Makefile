@@ -23,5 +23,8 @@ validator-gdc: $(FILES) validator.d
 voffset: $(FILES) voffset.d
 	dmd $(FILES) voffset.d -ofvoffset -version=serial -g
 
+voffset-gdc: $(FILES) voffset.d
+	gdc $(FILES) voffset.d -o voffset $(GDCFLAGS) -fversion=serial
+
 clean:
 	rm *.o

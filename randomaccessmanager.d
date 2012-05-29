@@ -90,83 +90,42 @@ class RandomAccessManager {
         enforce(has_index_file, "BAM index file (.bai) must be provided");
         enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
 
-        bool canOverlap(Bin b) {
-            return b.canOverlapWith(beg, end);
-        }
-
-        auto bins = filter!canOverlap(_bai.indices[ref_id].bins);
-
-        debug {
-            writeln("Ref. ID: ", ref_id);
-            writeln(beg, " .. ", end);
-            write("Bins: ");
-            auto _bins = filter!((Bin b) { return b.canOverlapWith(beg, end); })
-                           (_bai.indices[ref_id].bins);
-            foreach (bin; _bins) {
-                write(bin.id, " ");
-            }
-            writeln();
-        }
-
-        auto chunks = joiner(map!"a.chunks"(bins));
-
-        debug {
-            writeln("Chunks:");
-            auto _chunks = chunks.save;
-            foreach (chunk; joiner(map!"a.chunks"(bins))) {
-                auto b = VirtualOffset(chunk.beg);
-                auto e = VirtualOffset(chunk.end);
-                writeln("\t", b.coffset, "/", b.uoffset, " .. ", 
-                              e.coffset, "/", e.uoffset);
-            }
-            writeln();
-        }
-
         auto _beg = max(0, beg - 1); // 1-based => subtract one
         auto _i = min(_beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
                       _bai.indices[ref_id].ioffsets.length - 1);
         auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
 
-        debug {
-            auto v = VirtualOffset(min_offset);
-            writeln("Min. offset: ", v.coffset, "/", v.uoffset);
-        }
+version(DigitalMars) {
+        auto chunks  = _bai.indices[ref_id].bins
+                           .filter!((Bin b) { return b.canOverlapWith(beg, end); })
+                           .map!((Bin b) { return b.chunks; })
+                           .joiner()
+                           .filter!((Chunk c) { return c.end > min_offset; })
+                           .array();
 
-        bool minOffsetFilter(Chunk a) {
-            return a.end > min_offset;
-        }
-        auto filtered_chunks = filter!minOffsetFilter(chunks);
+} else {
+        /// use less functional approach
+        Chunk[] chunks;
+        foreach (b; _bai.indices[ref_id].bins) {
+            if (!b.canOverlapWith(beg, end)) {
+                continue;
+            }
 
-        debug {
-            writeln("Filtered chunks: ");
-            auto _filtered_chunks = filter!((Chunk a){ return a.end > min_offset; })(chunks); 
-            foreach (chunk; _filtered_chunks) {
-                auto b = VirtualOffset(chunk.beg);
-                auto e = VirtualOffset(chunk.end);
-                writeln("\t", b.coffset, "/", b.uoffset, " .. ", 
-                              e.coffset, "/", e.uoffset);
+            foreach (chunk; b.chunks) {
+                if (chunk.end > min_offset) {
+                    chunks ~= chunk;
+                }
             }
         }
-        
-        auto chunks_array = array(filtered_chunks);
-        sort(chunks_array);
+} // endif
 
-        debug {
-            writeln("Sorted chunks: ");
-            foreach (chunk; chunks_array) {
-                auto b = VirtualOffset(chunk.beg);
-                auto e = VirtualOffset(chunk.end);
-                writeln("\t", b.coffset, "/", b.uoffset, " .. ", 
-                              e.coffset, "/", e.uoffset);
-            }
-            stdout.flush();
-        }
+        sort(chunks);
 
-        auto disjoint_chunks = nonOverlappingChunks(chunks_array);
+        auto disjoint_chunks = nonOverlappingChunks(chunks);
 
         debug {
             writeln("Optimized chunks: ");
-            auto _optimized = nonOverlappingChunks(chunks_array);
+            auto _optimized = nonOverlappingChunks(chunks);
             foreach (chunk; _optimized) {
                 auto b = VirtualOffset(chunk.beg);
                 auto e = VirtualOffset(chunk.end);
@@ -374,4 +333,3 @@ private:
     }
 
 }
-
