@@ -161,6 +161,29 @@ struct Alignment {
     int template_length() @property {
         return _tlen;
     }
+  
+    /// Template having multiple segments in sequencing
+    bool is_paired()                @property { return cast(bool)(flag & 0x1); }
+    /// Each segment properly aligned according to the aligner
+    bool proper_pair()              @property { return cast(bool)(flag & 0x2); }
+    /// Segment unmapped
+    bool is_unmapped()              @property { return cast(bool)(flag & 0x4); }
+    /// Next segment in the template unmapped
+    bool mate_is_unmapped()         @property { return cast(bool)(flag & 0x8); }
+    /// Sequence being reverse complemented
+    bool is_reverse_strand()        @property { return cast(bool)(flag & 0x10); }
+    /// Sequence of the next segment in the template being reversed
+    bool mate_is_reverse_strand()   @property { return cast(bool)(flag & 0x20); }
+    /// The first segment in the template
+    bool is_first_of_pair()         @property { return cast(bool)(flag & 0x40); }
+    /// The last segment in the template
+    bool is_second_of_pair()        @property { return cast(bool)(flag & 0x80); }
+    /// Secondary alignment
+    bool is_secondary_alignment()   @property { return cast(bool)(flag & 0x100); }
+    /// Not passing quality controls
+    bool failed_quality_control()   @property { return cast(bool)(flag & 0x200); }
+    /// PCR or optical duplicate
+    bool is_duplicate()             @property { return cast(bool)(flag & 0x400); }
 
     string read_name() @property {
         // notice -1: the string is zero-terminated, so we should strip that '\0'

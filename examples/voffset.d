@@ -10,18 +10,18 @@ void main(string[] args) {
 	auto index = BaiFile(args[1] ~ ".bai");
 
 /*	write(bf[VirtualOffset(2514054033992)].read_name);
-
+*/
 	foreach (ind; index.indices) {
 		foreach (bin; ind.bins) {
-			foreach (chunk; bin.chunks) {
-//				writeln("beg = ", chunk.beg, "; end = ", chunk.end);
-			}
+            foreach (chunk; bin.chunks) {
+                writeln(bin.level, "\t", chunk.beg, "\t", chunk.end);
+            }
 		}
-	}*/
+	}
 
-    foreach(al; bf.fetch(19, 1916900, 1917000)) {
-        writeln(al.position);
-        writeln(al.sequence_length);
-    }
+    //foreach(al; bf.fetch(19, 1916900, 1917000)) {
+    //    writeln(al.position);
+    //    writeln(al.sequence_length);
+   // }
 }
 

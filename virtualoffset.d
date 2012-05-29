@@ -1,5 +1,7 @@
 module virtualoffset;
 
+import std.conv;
+
 /// Structure representing virtual offset in BAM file.
 struct VirtualOffset {
     /// Params:
@@ -41,6 +43,11 @@ struct VirtualOffset {
 
     int opCmp(ulong voffset) {
         return opCmp(VirtualOffset(voffset));
+    }
+
+    /// String representation in format "<coffset>/<uoffset>"
+    string toString() {
+        return to!string(coffset) ~ "/" ~ to!string(uoffset);
     }
 
 private:

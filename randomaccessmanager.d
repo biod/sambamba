@@ -125,7 +125,7 @@ class RandomAccessManager {
         auto _beg = max(0, beg - 1); // 1-based => subtract one
         auto _i = min(_beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
                       _bai.indices[ref_id].ioffsets.length - 1);
-        auto min_offset = (_i == -1) ? -1UL : _bai.indices[ref_id].ioffsets[_i];
+        auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
 
         debug {
             auto v = VirtualOffset(min_offset);
