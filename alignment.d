@@ -18,12 +18,19 @@ struct RawAlignmentBlock {
     ubyte[] raw_alignment_data;
 }
 
+/// Whether to provide offsets or not
+/// when iterating raw alignment blocks
+private enum IteratePolicy {
+    withOffsets,
+    withoutOffsets
+}
+
 /**
   Range for iterating over unparsed alignments,
   together with their virtual offsets in the BAM file.
  */
-class UnparsedAlignmentRange { // TODO: make it a template class with policies 
-                               //       for iteration with/without offsets?
+private class UnparsedAlignmentRange(IteratePolicy policy) 
+{ 
 
     /// Create new range from IChunkInputStream.
     this(ref IChunkInputStream stream) {
@@ -36,6 +43,7 @@ class UnparsedAlignmentRange { // TODO: make it a template class with policies
         return _empty;
     }
 
+static if (policy == IteratePolicy.withOffsets) {
     /**
         Returns: tuple of 1) virtual offset of alignment block beginning,
                           2) alignment block except the first 4 bytes (block_size)
@@ -45,6 +53,14 @@ class UnparsedAlignmentRange { // TODO: make it a template class with policies
     RawAlignmentBlock front() @property {
         return RawAlignmentBlock(_current_voffset, _current_record);
     }
+} else {
+    /**
+        Returns: alignment block except the first 4 bytes (block_size)
+     */
+    ubyte[] front() @property {
+        return _current_record;
+    }
+}
 
     void popFront() {
         readNext();
@@ -55,8 +71,11 @@ private:
     EndianStream _endian_stream;
 
     ubyte[] _current_record;
-    VirtualOffset _current_voffset;
     bool _empty = false;
+
+static if (policy == IteratePolicy.withOffsets) {
+    VirtualOffset _current_voffset;
+}
 
     /**
       Reads next alignment block from stream.
@@ -67,7 +86,9 @@ private:
             return;
         }
         
+static if (policy == IteratePolicy.withOffsets) {
         _current_voffset = _stream.virtualTell();
+}
 
         int block_size = void;
         _endian_stream.read(block_size);
@@ -80,8 +101,8 @@ private:
 /**
     Returns: range for iterating over alignment blocks
  */
-auto unparsedAlignments(ref IChunkInputStream stream) {
-    return new UnparsedAlignmentRange(stream);
+auto unparsedAlignments(alias Policy)(ref IChunkInputStream stream) {
+    return new UnparsedAlignmentRange!(Policy)(stream);
 }
 
 /**
@@ -343,10 +364,7 @@ struct AlignmentBlock {
 /// Returns: lazy range of Alignment structs constructed from a given stream.
 auto alignmentRange(ref IChunkInputStream stream) {
 
-    static Alignment makeAlignment(RawAlignmentBlock block) {
-        return alignment.makeAlignment(block.raw_alignment_data);
-    }
-    return map!makeAlignment(unparsedAlignments(stream));
+    return map!makeAlignment(unparsedAlignments!(IteratePolicy.withoutOffsets)(stream));
 }
 
 /// Returns: lazy range of AlignmentBlock structs constructed from a given stream.
@@ -359,5 +377,5 @@ auto alignmentRangeWithOffsets(ref IChunkInputStream stream) {
                               makeAlignment(block.raw_alignment_data));
     }
 
-    return map!makeAlignmentBlock(unparsedAlignments(stream));
+    return map!makeAlignmentBlock(unparsedAlignments!(IteratePolicy.withOffsets)(stream));
 }

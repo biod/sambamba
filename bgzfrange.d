@@ -84,9 +84,9 @@ class BgzfException : Exception {
 }
 
 /**
-  Class for iterating over BGZF blocks coming from any Stream
+  Range for iterating over BGZF blocks coming from any Stream
  */
-class BgzfRange {
+struct BgzfRange {
 
     /**
       Constructs range from stream
@@ -141,15 +141,16 @@ private:
             if (bgzf_magic != 0x04_08_8B_1F) { // little endian
                 throwBgzfException("wrong BGZF magic");
             }
-            
-            uint gzip_mod_time = void;
-            ubyte gzip_extra_flags = void;
-            ubyte gzip_os = void;
+           
+            // uint gzip_mod_time = void;
+            // ubyte gzip_extra_flags = void;
+            // ubyte gzip_os = void;
             ushort gzip_extra_length = void;
 
-            _stream.read(gzip_mod_time);
-            _stream.read(gzip_extra_flags);
-            _stream.read(gzip_os);
+            // _stream.read(gzip_mod_time);
+            // _stream.read(gzip_extra_flags);
+            // _stream.read(gzip_os);
+            _stream.seekCur(uint.sizeof + 2 * ubyte.sizeof);
             _stream.read(gzip_extra_length);
           
             ushort bsize = void; // total Block SIZE minus 1

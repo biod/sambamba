@@ -9,7 +9,7 @@ import std.system;
 
 version(parallel) {
     import std.parallelism;
-    TaskPool task_pool;
+    int n_threads;
 }
 
 auto bgzfRange(string filename) {
@@ -20,7 +20,9 @@ auto bgzfRange(string filename) {
 
 auto decompressedRange(string filename) {
     version(parallel) {
-        return task_pool.map!decompressBgzfBlock(bgzfRange(filename), 64);
+//        return task_pool.map!decompressBgzfBlock(bgzfRange(filename), 64);
+        import utils.range;
+        return parallelTransform!decompressBgzfBlock(bgzfRange(filename), 64, n_threads);
     } else {
         return map!decompressBgzfBlock(bgzfRange(filename));
     }
@@ -45,13 +47,10 @@ auto unparsedAlignmentRange(string filename) {
         bam.read(l_ref);
     } // skip reference sequences information
 
-    return unparsedAlignments(decompressed_stream);
+    return unparsedAlignments!(IteratePolicy.withoutOffsets)(decompressed_stream);
 }
 
 auto parsedAlignmentRange(string filename) {
-    static Alignment makeAlignment(RawAlignmentBlock block) {
-        return alignment.makeAlignment(block.raw_alignment_data);
-    }
     return map!makeAlignment(unparsedAlignmentRange(filename));
 }
 
@@ -72,9 +71,7 @@ ulong measure(string desc, alias func, Args...)(Args args) {
 
 void main(string[] args) {
     version(parallel) {
-        auto n_threads = args.length > 1 ? to!uint(args[1]) : totalCPUs;
-        task_pool = new TaskPool(n_threads);
-        scope(exit) task_pool.finish();
+        n_threads = args.length > 1 ? to!uint(args[1]) : totalCPUs;
         write(n_threads);
     } else {
         write(1);

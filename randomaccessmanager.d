@@ -49,7 +49,7 @@ class RandomAccessManager {
 
         _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
-        auto bgzf_range = new BgzfRange(_compressed_stream);
+        auto bgzf_range = BgzfRange(_compressed_stream);
         auto decompressed_range = map!decompressBgzfBlock(bgzf_range);
 
         IChunkInputStream stream = makeChunkInputStream(decompressed_range);
@@ -96,12 +96,16 @@ class RandomAccessManager {
         auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
 
 version(DigitalMars) {
-        auto chunks  = _bai.indices[ref_id].bins
-                           .filter!((Bin b) { return b.canOverlapWith(beg, end); })
-                           .map!((Bin b) { return b.chunks; })
-                           .joiner()
-                           .filter!((Chunk c) { return c.end > min_offset; })
-                           .array();
+        return _bai.indices[ref_id].bins
+                                   .filter!((Bin b) { return b.canOverlapWith(beg, end); })
+                                   .map!((Bin b) { return b.chunks; })
+                                   .joiner()
+                                   .filter!((Chunk c) { return c.end > min_offset; })
+                                   .array()
+                                   .sort()
+                                   .nonOverlappingChunks()
+                                   .disjointChunkAlignmentRange(_compressed_stream)
+                                   .filterAlignments(ref_id, beg, end);
 
 } else {
         /// use less functional approach
@@ -117,35 +121,28 @@ version(DigitalMars) {
                 }
             }
         }
-} // endif
 
         sort(chunks);
 
         auto disjoint_chunks = nonOverlappingChunks(chunks);
 
-        debug {
-            writeln("Optimized chunks: ");
-            auto _optimized = nonOverlappingChunks(chunks);
-            foreach (chunk; _optimized) {
-                auto b = VirtualOffset(chunk.beg);
-                auto e = VirtualOffset(chunk.end);
-                writeln("\t", b.coffset, "/", b.uoffset, " .. ", 
-                              e.coffset, "/", e.uoffset);
-            }
-            stdout.flush();
-        }
-
-        auto alignments = disjointChunkAlignmentRange(disjoint_chunks);
+        auto alignments = disjointChunkAlignmentRange(disjoint_chunks, _compressed_stream);
 
         return filterAlignments(alignments, ref_id, beg, end);
+} // endif
+
     }
 
 private:
 
     Stream _compressed_stream;
     BaiFile _bai;
+   
+}
 
-    static struct DisjointChunkAlignmentRange(Range) {
+private {
+
+    struct DisjointChunkAlignmentRange(Range) {
 
         this(Range r, ref Stream compressed_stream) {
             _chunks = r;
@@ -197,7 +194,7 @@ private:
             _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
             /// setup BgzfRange and ChunkInputStream
-            auto bgzf_range = new BgzfRange(_compressed_stream);
+            auto bgzf_range = BgzfRange(_compressed_stream);
             // TODO: decompressing should use caching
             auto decompressed_range = map!decompressBgzfBlock(bgzf_range);
             IChunkInputStream stream = makeChunkInputStream(decompressed_range);
@@ -234,14 +231,14 @@ private:
 
     /// Range for iterating alignments contained in supplied intervals.
     /// 
-    /// Modifies _compressed_stream during iteration.
-    auto disjointChunkAlignmentRange(Range)(Range r) 
+    /// Modifies stream during iteration.
+    auto disjointChunkAlignmentRange(Range)(Range r, ref Stream stream) 
         if (is(ElementType!Range == Chunk))
     {
-        return DisjointChunkAlignmentRange!Range(r, _compressed_stream);
+        return DisjointChunkAlignmentRange!Range(r, stream);
     }
-
-    static struct AlignmentFilter(R) {
+ 
+    struct AlignmentFilter(R) {
         this(R r, int ref_id, int beg, int end) {
             _range = r;
             _ref_id = ref_id;
@@ -309,7 +306,7 @@ private:
                 }
 
                 if (_current_alignment.position +
-                    _current_alignment.bases_covered() < _beg) 
+                    _current_alignment.bases_covered() <= _beg) 
                 {
                     /// ends before beginning of the region
                     ///  [-----------)

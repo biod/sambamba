@@ -124,7 +124,7 @@ auto chunked(R)(R range, uint chunk_size) {
 		E[] buffer;
 
 		void fillBuffer() {
-			buffer = new E[chunk_size];
+			buffer = uninitializedArray!(E[])(chunk_size);
 			for (auto i = 0; i < chunk_size; i++) {
 				if (range.empty) {
 					buffer.length = i;

@@ -166,13 +166,14 @@ private:
         
         _file = new BufferedFile(_filename);
         _compressed_stream = new EndianStream(_file, Endian.littleEndian);
-        _bgzf_range = new BgzfRange(_compressed_stream);
+        _bgzf_range = BgzfRange(_compressed_stream);
 
         version(serial) {
             auto chunk_range = map!decompressBgzfBlock(_bgzf_range);
         } else {
             /* TODO: tweak granularity */
-            auto chunk_range = parallelTransform!decompressBgzfBlock(_bgzf_range, 50);
+//            auto chunk_range = parallelTransform!decompressBgzfBlock(_bgzf_range, 25);
+            auto chunk_range = _task_pool.map!decompressBgzfBlock(_bgzf_range, 25);
         }
         
         _decompressed_stream = makeChunkInputStream(chunk_range);
