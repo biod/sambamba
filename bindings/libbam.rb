@@ -27,11 +27,12 @@ module LibBAM
 	attach_function :bamfile_get_reference_sequences, [:pointer], DArray.by_value
 
     attach_function :bamfile_get_alignments, [:pointer], :pointer
+    attach_function :bamfile_get_valid_alignments, [:pointer], :pointer
     attach_function :bamfile_rewind, [:pointer], :void
 
     attach_function :alignment_range_destroy, [:pointer], :void
     attach_function :alignment_range_front, [:pointer], :pointer
-    attach_function :alignment_range_popfront, [:pointer], :void
+    attach_function :alignment_range_popfront, [:pointer], :int
     attach_function :alignment_range_empty, [:pointer], :bool
 
     attach_function :alignment_destroy, [:pointer], :void
@@ -50,6 +51,7 @@ module LibBAM
     attach_function :alignment_phred_base_quality, [:pointer], DArray.by_value
     attach_function :alignment_get_tag_value, [:pointer, :string], TagValue
     attach_function :alignment_get_all_tags, [:pointer], DHash
+    attach_function :alignment_is_valid, [:pointer], :bool
 
     attach_function :dhash_destroy, [:pointer], :void
     attach_function :tag_value_destroy, [:pointer], :void
@@ -85,8 +87,7 @@ class BamFile
 	end
 
     def alignments
-        ptr = LibBAM.bamfile_get_alignments @ptr
-        AlignmentIterator.new(ptr, @ptr)
+        AlignmentIterator.new(@ptr)
     end
 
     def rewind!
@@ -101,17 +102,28 @@ end
 class AlignmentIterator
     include Enumerable
 
-    def initialize(ptr, bam_ptr)
+    def initialize(bam_ptr)
         @bam_ptr = bam_ptr # so that parent object won't get destroyed
                            # during lifetime of the iterator
-        @ptr = ptr
-        ObjectSpace.define_finalizer @ptr, AlignmentIterator.finalize(@ptr)
     end
 
-    def each
-        while not LibBAM.alignment_range_empty @ptr do
+    def each(options={})
+        if options[:valid] == true then
+            @ptr = LibBAM.bamfile_get_valid_alignments @bam_ptr
+        else
+            @ptr = LibBAM.bamfile_get_alignments @bam_ptr
+        end
+        ObjectSpace.define_finalizer @ptr, AlignmentIterator.finalize(@ptr)
+
+        return if LibBAM.alignment_range_empty(@ptr)
+        loop do
             yield Alignment.new(LibBAM.alignment_range_front @ptr)
-            LibBAM.alignment_range_popfront @ptr
+            res = LibBAM.alignment_range_popfront @ptr
+            if res == 0 then
+                break # empty
+            elsif res == -1 then
+                raise LibBAM.get_last_error
+            end
         end
     end
 

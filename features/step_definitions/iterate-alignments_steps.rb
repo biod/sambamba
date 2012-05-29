@@ -1,6 +1,3 @@
-require './bindings/libbam.rb'
-require 'rspec/expectations'
-
 Before do
   @bam = BamFile.new 'test/data/ex1_header.bam'
 end

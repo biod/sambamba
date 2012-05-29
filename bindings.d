@@ -3,11 +3,14 @@ import samheader;
 import reference;
 import alignment;
 import tagvalue;
+import validation.alignment;
 
 import core.memory : GC;
 import core.runtime : Runtime;
 import std.c.stdlib;
 import std.string;
+import std.range;
+import std.algorithm;
 import core.stdc.string : memcpy;
 import std.conv;
 
@@ -15,7 +18,6 @@ import std.traits;
 
 extern(C) void libbam_init() {
     Runtime.initialize();
-    GC.disable();
 }
 
 void main() {}
@@ -72,12 +74,22 @@ bamfile_get_reference_sequences(BamFile* f) {
     return arr;
 }
 
-alias ReturnType!(BamFile.alignments) AlignmentRange;
+alias InputRange!Alignment AlignmentRange;
 
 extern(C) AlignmentRange* 
 bamfile_get_alignments(BamFile* f) {
     AlignmentRange* ar = cast(AlignmentRange*)malloc(AlignmentRange.sizeof);
-    auto _ar = f.alignments;
+    AlignmentRange _ar = inputRangeObject(f.alignments);
+    memcpy(ar, &_ar, _ar.sizeof);
+    GC.addRange(ar, AlignmentRange.sizeof);
+    return ar;
+}
+
+extern(C) AlignmentRange* 
+bamfile_get_valid_alignments(BamFile* f) {
+    AlignmentRange* ar = cast(AlignmentRange*)malloc(AlignmentRange.sizeof);
+    auto range = filter!((Alignment a){return isValid(a);})(f.alignments);
+    AlignmentRange _ar = inputRangeObject(range);
     memcpy(ar, &_ar, _ar.sizeof);
     GC.addRange(ar, AlignmentRange.sizeof);
     return ar;
@@ -98,20 +110,34 @@ alignment_range_front(AlignmentRange* ar) {
     return a;
 }
 
+/// returns 0 if range is empty after popfront,
+///         1 if non-empty,
+///        -1 if error occurred
+extern(C) int
+alignment_range_popfront(AlignmentRange* ar) {
+    try {
+        ar.popFront();
+        return ar.empty() ? 0 : 1;
+    } catch (Throwable e) {
+        last_error = e.msg;
+        return -1;
+    }
+}
+
+extern(C) bool 
+alignment_range_empty(AlignmentRange* ar) {
+    return ar.empty();
+}
+
 extern(C) void 
 alignment_destroy(Alignment* a) {
     GC.removeRange(a);
     free(cast(void*)a);
 }
 
-extern(C) void 
-alignment_range_popfront(AlignmentRange* ar) {
-    ar.popFront();
-}
-
-extern(C) bool 
-alignment_range_empty(AlignmentRange* ar) {
-    return ar.empty();
+extern(C) bool
+alignment_is_valid(Alignment* a) {
+    return isValid(*a);
 }
 
 extern(C) int 

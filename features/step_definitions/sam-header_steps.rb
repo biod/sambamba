@@ -1,12 +1,7 @@
-require 'rspec/expectations'
-
-require './bindings/libbam.rb'
-
-FILENAME = './test/data/ex1_header.bam'
-
 Given /^I opened a valid BAM file$/ do
-  File.exists?(FILENAME).should be_true
-  @bamfile = BamFile.new FILENAME
+  filename = './test/data/ex1_header.bam'
+  File.exists?(filename).should be_true
+  @bamfile = BamFile.new filename
 end
 
 Given /^it contains SAM header$/ do
