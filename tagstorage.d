@@ -61,6 +61,10 @@ struct TagStorage {
         return 0;
     }
 
+    bool opEquals(const ref TagStorage other) const pure nothrow {
+        return this._chunk == other._chunk;
+    }
+
 private:
     ubyte[] _chunk;
 

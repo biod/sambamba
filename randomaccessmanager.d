@@ -31,22 +31,30 @@ debug {
 // TODO: add caching
 class RandomAccessManager {
 
-    /// Constructs new manager for the stream.
-    this(Stream stream) {
-        _compressed_stream = new EndianStream(stream, Endian.littleEndian);
+    /// Constructs new manager for BAM file
+    this(string filename) {
+        _filename = filename;
     }
 
     /// Constructs new manager with given index file.
     /// This allows to do random-access interval queries.
-    this(Stream stream, ref BaiFile bai) {
-        _compressed_stream = new EndianStream(stream, Endian.littleEndian);
+    ///
+    /// Params:
+    ///     filename -  location of BAM file
+    ///     BaiFile  -  index file
+    this(string filename, ref BaiFile bai) {
+
+        _filename = filename;
         _bai = bai;
         _has_index_file = true;
     }
 
     /// Get single alignment at a given virtual offset.
+    /// Every time new stream is used.
     Alignment getAlignmentAt(VirtualOffset offset) {
 
+        auto _stream = new BufferedFile(_filename);
+        auto _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
         _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
         auto bgzf_range = BgzfRange(_compressed_stream);
@@ -63,27 +71,6 @@ class RandomAccessManager {
     }
     private bool _has_index_file = false; // overwritten in constructor if filename is provided
 
-    static struct RefSeq {
-
-        RandomAccessManager manager;
-        int ref_id;
-
-        this(RandomAccessManager manager, int ref_id) {
-            this.manager = manager;
-            this.ref_id = ref_id;
-        }
-
-        auto getAlignments(int start, int end) {
-            return manager.getAlignments(ref_id, start, end);
-        }
-    }
-
-    /// Returns an object representing reference sequence.
-    auto reference_sequence(uint ref_id) {
-
-        return RefSeq(this, ref_id);
-    }
-
     /// Fetch alignments with given reference sequence id, overlapping [beg..end)
     auto getAlignments(int ref_id, int beg, int end) {
 
@@ -94,6 +81,9 @@ class RandomAccessManager {
         auto _i = min(_beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
                       _bai.indices[ref_id].ioffsets.length - 1);
         auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
+
+        auto _stream = new BufferedFile(_filename);
+        Stream _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
 
 version(DigitalMars) {
         return _bai.indices[ref_id].bins
@@ -134,8 +124,8 @@ version(DigitalMars) {
     }
 
 private:
-
-    Stream _compressed_stream;
+    
+    string _filename;
     BaiFile _bai;
    
 }

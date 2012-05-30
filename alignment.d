@@ -313,6 +313,10 @@ struct Alignment {
         this.tags = TagStorage(cast(ubyte[])_chunk[_tags_offset .. $]);
     } 
 
+    bool opEquals(const ref Alignment other) const pure nothrow {
+        return this._chunk == other._chunk && this.tags == other.tags;
+    }
+
 private:
 
     ubyte[] _chunk; /// holds all the data, 

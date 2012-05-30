@@ -40,10 +40,10 @@ struct BamFile {
       
         try {
             _bai_file = BaiFile(filename);
-            _random_access_manager = new RandomAccessManager(_file, _bai_file);
+            _random_access_manager = new RandomAccessManager(_filename, _bai_file);
         } catch (Exception e) {
             stderr.writeln("Couldn't find index file: ", e.msg);
-            _random_access_manager = new RandomAccessManager(_file);
+            _random_access_manager = new RandomAccessManager(_filename);
         }
 
         auto magic = _bam.readString(4);
@@ -101,15 +101,28 @@ struct BamFile {
     /**
       Get an alignment at a given virtual offset.
      */
-    Alignment opIndex(VirtualOffset offset) {
+    Alignment getAlignmentAt(VirtualOffset offset) {
         return _random_access_manager.getAlignmentAt(offset);
     }
 
 
-    // TODO: more syntax sugar
-    auto fetch(int ref_id, int beg, int end) {
-        auto ref_seq = _random_access_manager.reference_sequence(ref_id);
-        return ref_seq.getAlignments(beg, end);
+    /**
+      Returns reference sequence with id $(D ref_id).
+     */
+    auto reference(int ref_id) {
+        enforce(ref_id < _reference_sequences.length, "Invalid reference index");
+        return ReferenceSequence(_random_access_manager, 
+                                 ref_id,
+                                 _reference_sequences[ref_id]);
+    }
+
+    /**
+      Returns reference sequence named $(D ref_name).
+     */
+    auto opIndex(string ref_name) {
+        enforce(ref_name in _reference_sequence_dict, "Invalid reference name");
+        auto ref_id = _reference_sequence_dict[ref_name];
+        return reference(ref_id);
     }
 
     /**
@@ -157,7 +170,7 @@ private:
 
     SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
-    size_t[string] _reference_sequence_dict; /// name -> index mapping
+    int[string] _reference_sequence_dict; /// name -> index mapping
 
     TaskPool _task_pool;
 
