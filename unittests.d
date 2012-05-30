@@ -36,7 +36,7 @@ unittest {
     bf = BamFile(fn);
     auto alignments = bf.alignments;
     auto read = alignments.front;
-    assert(read.sequence == "CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA");
+    assert(equal(read.sequence, "CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA"));
     assert(equal(map!"cast(char)(a + 33)"(read.phred_base_quality),
                 "<<<7<<<;<<<<<<<<8;;<7;4<;<;;;;;94<;"));
     assert(bf.reference(read.ref_id).name == "chr1");
@@ -99,10 +99,11 @@ TODO: this should throw
 
         auto refseq = array(bf["chr1"][beg .. end]);
 
-        auto naive = array(bf.alignments.filter!((Alignment a) { 
+        auto naive = array(filter!((Alignment a) { 
                          return bf.reference(a.ref_id).name == "chr1" &&
                                 a.position < end &&
-                                a.position + a.bases_covered() > beg; }));
+                                a.position + a.bases_covered() > beg; })
+                            (bf.alignments));
         if (!equal(naive, refseq)) {
             writeln(beg);
             writeln(end);

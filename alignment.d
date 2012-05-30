@@ -9,6 +9,7 @@ import std.stream;
 import std.algorithm;
 import std.system;
 import std.array : uninitializedArray;
+import std.range;
 import std.conv;
 
 import utils.switchendianness;
@@ -249,27 +250,16 @@ struct Alignment {
         return cast(string)str;
     }
 
-    
-
     /// Sequence data 
     ubyte[] raw_sequence_data() @property {
         return _chunk[_seq_offset .. _seq_offset + (_l_seq + 1) / 2];
     }
 
-    /// String representation of raw_sequence_data.
-    string sequence() {
-        immutable string chars = "=ACMGRSVTWYHKDBN";
-        char[] s = uninitializedArray!(char[])(sequence_length);
-        for (auto i = 0; i < sequence_length; i++) {
-            auto j = i / 2;
-            auto b = raw_sequence_data[j];
-            if (i % 2 == 0) {
-                s[i] = chars[b >> 4]; 
-            } else {
-                s[i] = chars[b & 0xF];
-            }
-        }
-        return cast(string)s;
+    /// Range of characters
+    auto sequence() {
+        auto even = map!"a>>4"(raw_sequence_data);
+        auto odd  = map!"a&15"(raw_sequence_data);
+        return map!`"=ACMGRSVTWYHKDBN"[a]`(take(roundRobin(even, odd), sequence_length));
     }
 
     /// Quality data

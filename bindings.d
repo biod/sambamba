@@ -200,7 +200,7 @@ alignment_cigar_string(Alignment* a) {
 
 extern(C) immutable(char)*
 alignment_sequence(Alignment* a) {
-    return toStringz(a.sequence());
+    return toStringz(array(a.sequence()));
 }
 
 extern(C) Array!ubyte
