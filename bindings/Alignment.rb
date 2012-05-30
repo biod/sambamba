@@ -5,11 +5,12 @@ class Alignment
 
   def initialize(ptr)
     @ptr = ptr
-    ObjectSpace.define_finalizer @ptr, Alignment.finalize(@ptr)
+    ObjectSpace.define_finalizer self, Alignment.finalize(@ptr)
   end
 
+
   def self.finalize(ptr)
-    proc { puts 'finalization...'; LibBAM.alignment_destroy ptr }
+    proc { LibBAM.alignment_destroy ptr }
   end
 
   def [](tag)

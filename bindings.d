@@ -110,14 +110,14 @@ alignment_range_front(AlignmentRange* ar) {
     return a;
 }
 
-/// returns 0 if range is empty after popfront,
-///         1 if non-empty,
+/// returns 1 if range is empty after popfront,
+///         0 if non-empty,
 ///        -1 if error occurred
 extern(C) int
 alignment_range_popfront(AlignmentRange* ar) {
     try {
         ar.popFront();
-        return ar.empty() ? 0 : 1;
+        return ar.empty() ? 1 : 0;
     } catch (Throwable e) {
         last_error = e.msg;
         return -1;

@@ -16,7 +16,7 @@ class DHash < FFI::Struct
     def initialize(ptr)
         super(ptr)
         @ptr = ptr
-        ObjectSpace.define_finalizer @ptr, DHash.finalize(ptr)
+        ObjectSpace.define_finalizer self, DHash.finalize(ptr)
     end
    
     def to_ruby_value

@@ -23,7 +23,7 @@ class TagValue < FFI::Struct
 
         unless owned
             @ptr = ptr
-            ObjectSpace.define_finalizer(@ptr, TagValue.finalize(ptr))
+            ObjectSpace.define_finalizer(self, TagValue.finalize(ptr))
         end
     end
 

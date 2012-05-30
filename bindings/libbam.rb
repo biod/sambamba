@@ -66,7 +66,7 @@ class BamFile
         if @ptr.address.zero?
             raise Exception.new(LibBAM.get_last_error)
         else 
-            ObjectSpace.define_finalizer @ptr, BamFile.finalize(@ptr)
+            ObjectSpace.define_finalizer self, BamFile.finalize(@ptr)
         end
     end
 
@@ -82,7 +82,7 @@ class BamFile
 
 		sz = ReferenceSequenceInfo.size
 		(0...array[:length]).map {|k|
-			ReferenceSequenceInfo.new (ptr + k * sz)
+			ReferenceSequenceInfo.new(ptr + k * sz)
 		}
 	end
 
@@ -113,15 +113,16 @@ class AlignmentIterator
         else
             @ptr = LibBAM.bamfile_get_alignments @bam_ptr
         end
-        ObjectSpace.define_finalizer @ptr, AlignmentIterator.finalize(@ptr)
+        ObjectSpace.define_finalizer self, AlignmentIterator.finalize(@ptr)
 
-        return if LibBAM.alignment_range_empty(@ptr)
-        loop do
+        is_empty = LibBAM.alignment_range_empty(@ptr)
+        while not is_empty do
             yield Alignment.new(LibBAM.alignment_range_front @ptr)
             res = LibBAM.alignment_range_popfront @ptr
-            if res == 0 then
-                break # empty
-            elsif res == -1 then
+            if res == 1 then
+                is_empty = true
+            end
+            if res == -1 then
                 raise LibBAM.get_last_error
             end
         end
