@@ -1,19 +1,85 @@
 import std.traits;
 import std.typecons;
-import std.parallelism;
 
-class CacheDefaultImpl(R, Args...) {
-    private R[Tuple!Args] cache; 
+/// Elements are not removed from the cache.
+class BasicCache(uint maxItems, K, V) {
+    private V[K] cache; 
 
-    R* lookup(Args args) {
-        return tuple(args) in cache;
+    V* lookup(K key) {
+        return key in cache;
     }
 
-    void associate(Args args, R value) {
-        cache[tuple(args)] = value;
+    void put(K key, V value) {
+        cache[key] = value;
+    }
+}
+
+/// First-in first-out element removal.
+class FifoCache(uint maxItems, K, V) {
+    private V[K] cache; 
+    private int items = 0;
+    bool full = false;
+    private K[maxItems] keys; // cyclic queue
+
+    V* lookup(K key) {
+        return key in cache;
     }
 
-    void update(Args args) {}
+    void put(K key, V value) {
+        cache[key] = value;
+
+        if (full) {
+            cache.remove(keys[items]);
+        }
+
+        keys[items] = key;
+        items += 1;
+
+        if (items == maxItems) {
+            full = true;
+            items = 0;
+        }
+    }
+}
+
+/// Least used strategy
+class LuCache(uint maxItems, K, V) {
+    private {
+        V[K] cache;
+        int[K] counter;
+    }
+
+    V* lookup(K key) {
+        auto result = key in cache;
+        if (result !is null) {
+            counter[key] += 1;
+        }
+        return result;
+    }
+
+    void put(K key, V value) {
+        if (counter.length >= maxItems) {
+            // delete one element before inserting next
+            int min = int.max;
+            K min_key;
+            foreach (k, i; counter) {
+                if (i < min) {
+                    min = i;
+                    min_key = k;
+                }
+            }
+            
+            debug {
+                import std.stdio;
+                writeln("LU cache: removing ", min_key);
+            }
+
+            cache.remove(min_key);
+            counter.remove(min_key);
+        }
+        cache[key] = value;
+        counter[key] = 1;
+    }
 }
 
 version(unittest) {
@@ -21,39 +87,41 @@ version(unittest) {
     static shared evaluations = 0;
 }
 
-auto memoize(alias func, 
-             alias CacheImpl=CacheDefaultImpl, Args...)(Args args)
+auto memoize(alias func, uint maxItems=1024,
+             alias CacheImpl=BasicCache, Args...)(Args args)
     if(isCallable!func && is(Args == ParameterTypeTuple!func)
                        && Args.length > 0) 
 {
     alias ReturnType!func R; 
 
-    static shared(CacheImpl!(R, Args)) cache;
+    static shared(CacheImpl!(maxItems, Tuple!Args, R)) cache;
     static shared bool init = false;
 
     if (!init) {
         synchronized {
             if (cache is null) {
-                cache = new shared(CacheImpl!(R, Args))();
+                cache = new shared(CacheImpl!(maxItems, Tuple!Args, R))();
             }
             init = true;
         }
     }
 
-    R* ret = (cast()cache).lookup(args);
+    auto key = tuple(args);
+
+    R* ret = (cast()cache).lookup(key);
     if (ret !is null) {
         return *ret;
     } else {
         synchronized(cache) {
 
-            ret = (cast()cache).lookup(args);
+            ret = (cast()cache).lookup(key);
             if (ret !is null) {
                 return *ret;
             }
 
             debug {
                 import std.stdio;
-                writeln("evaluating... args: ", tuple(args));
+                writeln("evaluating... args: ", key);
             }
 
             version(unittest) {
@@ -61,8 +129,7 @@ auto memoize(alias func,
             }
 
             auto result = func(args);
-            (cast()cache).associate(args, result);
-            (cast()cache).update(args);
+            (cast()cache).put(key, result);
             return result;
         }
     }
@@ -94,6 +161,44 @@ unittest {
     /// number of evaluations must be the same as number of 
     /// different argument values (4 in this case)
     assert(evaluations == 4);
-}
 
-void main(){}
+    /// test FIFO cache
+    alias memoize!(func, 2, FifoCache, int, int) fifomemoize;
+    evaluations = 0;
+
+    fifomemoize(1, 5); // 5
+    fifomemoize(2, 3); // 5 6
+    fifomemoize(2, 4); // 6 8
+    fifomemoize(1, 5); // 8 5
+    assert(evaluations == 4);
+    fifomemoize(2, 4); // 8 5
+    assert(evaluations == 4);
+    fifomemoize(1, 7); // 5 7
+    fifomemoize(1, 5); // 5 7
+    assert(evaluations == 5);
+
+    int foo(int x) {
+        return x;
+    }
+    /// Test LU cache
+    alias memoize!(foo, 3, LuCache, int) lumemoize;
+    evaluations = 0;
+
+    lumemoize(1);
+    lumemoize(1);
+    lumemoize(1); // 1
+    lumemoize(2);
+    lumemoize(2); // 1, 2
+    lumemoize(3);
+    lumemoize(3);
+    lumemoize(3); // 1, 2, 3
+    lumemoize(4); // 2 -> 4
+    lumemoize(2); // 4 -> 2
+    assert(evaluations == 5);
+    lumemoize(3); // 1, 2, 3
+    lumemoize(5); // 2 -> 5
+    assert(evaluations == 6);
+    lumemoize(4); // 5 -> 4
+    lumemoize(9); // 4 -> 9
+    assert(evaluations == 8);
+}
