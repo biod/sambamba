@@ -11,6 +11,7 @@ import bai.read;
 import bai.bin;
 import bai.chunk;
 import bai.utils.algo;
+import utils.memoize;
 
 import std.stream;
 import std.system;
@@ -23,6 +24,20 @@ import std.exception;
 private {
     immutable int LINEAR_INDEX_WINDOW_SIZE_LOG = 14;
 }
+
+    import std.parallelism;
+
+    auto decompressTask(BgzfBlock block) {
+        auto t = task!decompressBgzfBlock(block);
+        taskPool.put(t);
+        return t;
+    }
+
+    alias memoize!(decompressTask, 512, LuCache, BgzfBlock) memDecompressTask;
+
+    DecompressedBgzfBlock decompress(BgzfBlock block) { 
+        return memDecompressTask(block).yieldForce();
+    }
 
 debug {
     import std.stdio;
@@ -58,7 +73,7 @@ class RandomAccessManager {
         _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
         auto bgzf_range = BgzfRange(_compressed_stream);
-        auto decompressed_range = map!decompressBgzfBlock(bgzf_range);
+        auto decompressed_range = map!decompress(bgzf_range);
 
         IChunkInputStream stream = makeChunkInputStream(decompressed_range);
         stream.readString(offset.uoffset); // TODO: optimize
@@ -77,7 +92,7 @@ class RandomAccessManager {
         enforce(has_index_file, "BAM index file (.bai) must be provided");
         enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
 
-        auto _beg = max(0, beg - 1); // 1-based => subtract one
+        auto _beg = max(0, beg);
         auto _i = min(_beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
                       _bai.indices[ref_id].ioffsets.length - 1);
         auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
@@ -87,7 +102,7 @@ class RandomAccessManager {
 
 version(DigitalMars) {
         return _bai.indices[ref_id].bins
-                                   .filter!((Bin b) { return b.canOverlapWith(beg, end); })
+                                   .filter!((Bin b) { return b.canOverlapWith(_beg, end); })
                                    .map!((Bin b) { return b.chunks; })
                                    .joiner()
                                    .filter!((Chunk c) { return c.end > min_offset; })
@@ -95,7 +110,7 @@ version(DigitalMars) {
                                    .sort()
                                    .nonOverlappingChunks()
                                    .disjointChunkAlignmentRange(_compressed_stream)
-                                   .filterAlignments(ref_id, beg, end);
+                                   .filterAlignments(ref_id, _beg, end);
 
 } else {
         /// use less functional approach
@@ -185,8 +200,7 @@ private {
 
             /// setup BgzfRange and ChunkInputStream
             auto bgzf_range = BgzfRange(_compressed_stream);
-            // TODO: decompressing should use caching
-            auto decompressed_range = map!decompressBgzfBlock(bgzf_range);
+            auto decompressed_range = map!decompress(bgzf_range);
             IChunkInputStream stream = makeChunkInputStream(decompressed_range);
 
             /// seek uoffset in decompressed stream

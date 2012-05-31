@@ -124,6 +124,11 @@ TODO: this should throw
     compareWithNaiveApproach( 361, 1231);
     compareWithNaiveApproach( 322,  612);
     compareWithNaiveApproach( 912,  938);
+    compareWithNaiveApproach(-100, 3000);
+    compareWithNaiveApproach(-100,  100);
+    compareWithNaiveApproach(-100, 1000);
+    compareWithNaiveApproach(   0, 1900);
+    compareWithNaiveApproach(   1,  279);
 }
 
 void main() {

@@ -19,6 +19,7 @@ struct BgzfBlock {
     public ubyte[] compressed_data = void;
     public uint crc32;
     public uint input_size; /// size of uncompressed data
+
 }
 
 /**
@@ -33,7 +34,7 @@ struct DecompressedBgzfBlock {
 }
 
 /// Function for BGZF block decompression.
-DecompressedBgzfBlock decompressBgzfBlock(const BgzfBlock block) {
+DecompressedBgzfBlock decompressBgzfBlock(BgzfBlock block) {
 
     if (block.input_size == 0) {
         return DecompressedBgzfBlock(block.start_offset, cast(ubyte[])[]); // EOF marker

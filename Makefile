@@ -3,7 +3,7 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  tagstorage.d tagvalue.d utils/switchendianness.d \
 	  validation/samheader.d validation/alignment.d utils/algo.d \
 	  randomaccessmanager.d virtualoffset.d bai/read.d bai/utils/algo.d \
-	  bai/bin.d bai/chunk.d utils/range.d
+	  bai/bin.d bai/chunk.d utils/range.d utils/memoize.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d

@@ -1,5 +1,11 @@
+module utils.memoize;
+
 import std.traits;
 import std.typecons;
+
+debug {
+    import std.stdio;
+}
 
 /// Elements are not removed from the cache.
 class BasicCache(uint maxItems, K, V) {
@@ -69,11 +75,6 @@ class LuCache(uint maxItems, K, V) {
                 }
             }
             
-            debug {
-                import std.stdio;
-                writeln("LU cache: removing ", min_key);
-            }
-
             cache.remove(min_key);
             counter.remove(min_key);
         }
@@ -85,6 +86,14 @@ class LuCache(uint maxItems, K, V) {
 version(unittest) {
     /// keeps number of function evaluations
     static shared evaluations = 0;
+    static shared int hits = 0;
+    static shared int misses = 0;
+
+    import std.stdio;
+    import core.atomic;
+    void printStats() {
+        writeln("hits: ", hits, " misses: ", misses);
+    }
 }
 
 auto memoize(alias func, uint maxItems=1024,
@@ -110,18 +119,19 @@ auto memoize(alias func, uint maxItems=1024,
 
     R* ret = (cast()cache).lookup(key);
     if (ret !is null) {
+        version(unittest) {
+            atomicOp!"+="(hits, 1);
+        }
         return *ret;
     } else {
+        version(unittest) {
+            atomicOp!"+="(misses, 1);
+        }
         synchronized(cache) {
 
             ret = (cast()cache).lookup(key);
             if (ret !is null) {
                 return *ret;
-            }
-
-            debug {
-                import std.stdio;
-                writeln("evaluating... args: ", key);
             }
 
             version(unittest) {
