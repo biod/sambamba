@@ -219,6 +219,11 @@ struct Alignment {
 
     /// The number of reference bases covered
     int bases_covered() {
+
+        if (this.is_unmapped) {
+            return 0; // actually, valid alignments should have empty cigar string
+        }
+
         int n = 0;
         foreach (c; cigar) {
             switch (c.operation) {
