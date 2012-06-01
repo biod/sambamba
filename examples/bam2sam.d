@@ -50,8 +50,9 @@ void main(string[] args) {
         if (alignment.raw_sequence_data.length == 0) {
             printf("*\t");
         } else {
-            auto seq = alignment.sequence;
-            printf("%.*s\t", seq.length, seq.ptr);
+            foreach(c; alignment.sequence)
+                printf("%c", c);
+            printf("\t");
         }
         if (alignment.phred_base_quality.length == 0 || 
             alignment.phred_base_quality[0] == '\xFF')

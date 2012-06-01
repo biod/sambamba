@@ -93,8 +93,8 @@ class RandomAccessManager {
         enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
 
         auto _beg = max(0, beg);
-        auto _i = min(_beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
-                      _bai.indices[ref_id].ioffsets.length - 1);
+        int _i = min(_beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
+                     cast(int)_bai.indices[ref_id].ioffsets.length - 1);
         auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
 
         auto _stream = new BufferedFile(_filename);

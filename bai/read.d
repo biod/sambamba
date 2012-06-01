@@ -10,6 +10,8 @@ import std.stream;
 import std.system;
 import std.exception;
 import std.algorithm;
+import std.file;
+import std.path;
 
 struct Index {
     Bin[] bins;
@@ -29,9 +31,22 @@ struct BaiFile {
     this(string filename) {
         Stream fstream;
         if (endsWith(filename, ".bam")) {
-            filename ~=  ".bai";
+            /// Unfortunately, std.path.addExt is going to be deprecated
+            if (std.file.exists(filename ~ ".bai")) {
+                fstream = new BufferedFile(absolutePath(filename ~ ".bai"));
+            } else {
+                filename = filename[0 .. $ - 3] ~ "bai";
+                if (std.file.exists(filename)) {
+                    fstream = new BufferedFile(absolutePath(filename));
+                } else {
+                    throw new Exception("searched for " ~ filename ~ " or " ~
+                                        filename[0..$-1] ~ "m.bai" ~ ", found neither");
+                }
+            }
+        } else {
+            fstream = new BufferedFile(filename);
         }
-        fstream = new BufferedFile(filename);
+
         Stream estream = new EndianStream(fstream, Endian.littleEndian);
         this(estream);
     }

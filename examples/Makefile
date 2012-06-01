@@ -3,7 +3,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../tagstorage.d ../tagvalue.d ../utils/switchendianness.d \
 	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
 	  ../bai/read.d ../bai/chunk.d ../bai/bin.d ../bai/utils/algo.d \
-	  ../virtualoffset.d ../utils/range.d
+	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d
 
 DMDFLAGS=-O -release -inline -g
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
@@ -20,11 +20,11 @@ validator: $(FILES) validator.d
 validator-gdc: $(FILES) validator.d
 	gdc $(FILES) validator.d -o validator $(GDCFLAGS) -fversion=serial
 
-voffset: $(FILES) voffset.d
-	dmd $(FILES) voffset.d -ofvoffset -version=serial -g
+randomaccess: $(FILES) randomaccess.d
+	dmd $(FILES) randomaccess.d -ofrandomaccess $(DMDFLAGS) -version=serial
 
-voffset-gdc: $(FILES) voffset.d
-	gdc $(FILES) voffset.d -o voffset $(GDCFLAGS) -fversion=serial
+randomaccess-gdc: $(FILES) randomaccess.d
+	gdc $(FILES) randomaccess.d -o randomaccess $(GDCFLAGS) -fversion=serial
 
 clean:
 	rm *.o
