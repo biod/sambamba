@@ -63,7 +63,7 @@ But that's not the only syntax sugar you can use. A simple example:
         foreach(alignment; BamFile("mybamfile.bam")["chr1"][10_000 .. 12_000]) {
             write(alignment.read_name); 
             Value read_group = alignment.tags["RG"];
-            writeln(v.is_nothing ? "" : " " ~ to!string(v));
+            writeln(read_group.is_nothing ? "" : " " ~ to!string(read_group));
         }
     }
 
