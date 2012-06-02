@@ -12,6 +12,7 @@ import bai.bin;
 import bai.chunk;
 import bai.utils.algo;
 import utils.memoize;
+import utils.range;
 
 import std.stream;
 import std.system;
@@ -35,8 +36,12 @@ private {
 
     alias memoize!(decompressTask, 512, LuCache, BgzfBlock) memDecompressTask;
 
-    DecompressedBgzfBlock decompress(BgzfBlock block) { 
-        return memDecompressTask(block).yieldForce();
+    auto decompressSerial(BgzfBlock block) {
+        return decompress(block).yieldForce();
+    }
+
+    auto decompress(BgzfBlock block) { 
+        return memDecompressTask(block);
     }
 
 debug {
@@ -73,7 +78,7 @@ class RandomAccessManager {
         _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
         auto bgzf_range = BgzfRange(_compressed_stream);
-        auto decompressed_range = map!decompress(bgzf_range);
+        auto decompressed_range = map!decompressSerial(bgzf_range);
 
         IChunkInputStream stream = makeChunkInputStream(decompressed_range);
         stream.readString(offset.uoffset); // TODO: optimize
@@ -200,7 +205,9 @@ private {
 
             /// setup BgzfRange and ChunkInputStream
             auto bgzf_range = BgzfRange(_compressed_stream);
-            auto decompressed_range = map!decompress(bgzf_range);
+            /// up to totalCPUs tasks are being executed at every moment
+            auto prefetched_range = prefetch(map!decompress(bgzf_range), totalCPUs);
+            auto decompressed_range = map!"a.yieldForce()"(prefetched_range);
             IChunkInputStream stream = makeChunkInputStream(decompressed_range);
 
             /// seek uoffset in decompressed stream
