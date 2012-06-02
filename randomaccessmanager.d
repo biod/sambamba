@@ -205,8 +205,8 @@ private {
 
             /// setup BgzfRange and ChunkInputStream
             auto bgzf_range = BgzfRange(_compressed_stream);
-            /// up to totalCPUs tasks are being executed at every moment
-            auto prefetched_range = prefetch(map!decompress(bgzf_range), totalCPUs);
+            /// up to 2 tasks are being executed at every moment
+            auto prefetched_range = prefetch(map!decompress(bgzf_range), 2);
             auto decompressed_range = map!"a.yieldForce()"(prefetched_range);
             IChunkInputStream stream = makeChunkInputStream(decompressed_range);
 
