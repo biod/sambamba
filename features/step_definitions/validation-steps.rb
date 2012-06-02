@@ -16,10 +16,10 @@ Then /^it should return whether it is valid or not$/ do
 end
 
 Given /^I have a BAM file$/ do
-  @tagsbam.rewind!
 end
 
 When /^I want to iterate over its records$/ do
+  @tagsbam.rewind!
   @records = @tagsbam.alignments
 end
 

@@ -1,6 +1,6 @@
 module tagvalue;
 
-import std.conv;
+public import std.conv;
 import std.typetuple;
 import std.exception;
 

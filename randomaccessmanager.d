@@ -61,7 +61,7 @@ class RandomAccessManager {
 
         _filename = filename;
         _bai = bai;
-        _has_index_file = true;
+        _found_index_file = true;
     }
 
     /// Get single alignment at a given virtual offset.
@@ -81,15 +81,15 @@ class RandomAccessManager {
         return alignmentRange(stream).front;
     }
 
-    bool has_index_file() @property {
-        return _has_index_file;
+    bool found_index_file() @property {
+        return _found_index_file;
     }
-    private bool _has_index_file = false; // overwritten in constructor if filename is provided
+    private bool _found_index_file = false; // overwritten in constructor if filename is provided
 
     /// Fetch alignments with given reference sequence id, overlapping [beg..end)
     auto getAlignments(int ref_id, int beg, int end) {
 
-        enforce(has_index_file, "BAM index file (.bai) must be provided");
+        enforce(found_index_file, "BAM index file (.bai) must be provided");
         enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
 
         auto _beg = max(0, beg);

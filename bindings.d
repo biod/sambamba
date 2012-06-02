@@ -44,6 +44,11 @@ bamfile_new(const char* filename) {
     }
 }
 
+extern(C) bool
+bamfile_has_index(BamFile* f) {
+    return f.has_index;
+}
+
 extern(C) void 
 bamfile_destroy(BamFile* f) {
     f.close();
@@ -89,6 +94,16 @@ extern(C) AlignmentRange*
 bamfile_get_valid_alignments(BamFile* f) {
     AlignmentRange* ar = cast(AlignmentRange*)malloc(AlignmentRange.sizeof);
     auto range = filter!((Alignment a){return isValid(a);})(f.alignments);
+    AlignmentRange _ar = inputRangeObject(range);
+    memcpy(ar, &_ar, _ar.sizeof);
+    GC.addRange(ar, AlignmentRange.sizeof);
+    return ar;
+}
+
+extern(C) AlignmentRange*
+bamfile_fetch_alignments(BamFile* f, const char* chr, int beg, int end) {
+    AlignmentRange* ar = cast(AlignmentRange*)malloc(AlignmentRange.sizeof);
+    auto range = (*f)[to!string(chr)][beg .. end];
     AlignmentRange _ar = inputRangeObject(range);
     memcpy(ar, &_ar, _ar.sizeof);
     GC.addRange(ar, AlignmentRange.sizeof);
@@ -200,7 +215,7 @@ alignment_cigar_string(Alignment* a) {
 
 extern(C) immutable(char)*
 alignment_sequence(Alignment* a) {
-    return toStringz(array(a.sequence()));
+    return toStringz(to!string(a.sequence()));
 }
 
 extern(C) Array!ubyte

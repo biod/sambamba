@@ -6,6 +6,5 @@ Feature: random access to BAM file
         Given I have a BAM file
           And it's sorted by coordinate
           And I have its index as well
-         When I specify reference sequence and region
-         Then I should be able to immediately have access to alignments 
-              overlapping this region and referencing the sequence.
+         When I specify reference sequence and region (0-based beginning and end positions)
+         Then I should be able to immediately have access to alignments overlapping it

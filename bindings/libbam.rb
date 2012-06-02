@@ -22,12 +22,14 @@ module LibBAM
     attach_function :get_last_error, [], :string
 
 	attach_function :bamfile_new, [:string], :pointer
+    attach_function :bamfile_has_index, [:pointer], :bool
 	attach_function :bamfile_destroy, [:pointer], :void
 	attach_function :bamfile_get_header, [:pointer], SamHeader.by_value
 	attach_function :bamfile_get_reference_sequences, [:pointer], DArray.by_value
 
     attach_function :bamfile_get_alignments, [:pointer], :pointer
     attach_function :bamfile_get_valid_alignments, [:pointer], :pointer
+    attach_function :bamfile_fetch_alignments, [:pointer, :string, :int32, :int32], :pointer
     attach_function :bamfile_rewind, [:pointer], :void
 
     attach_function :alignment_range_destroy, [:pointer], :void
@@ -74,6 +76,10 @@ class BamFile
         LibBAM.bamfile_get_header @ptr
     end
 
+    def has_index?
+        LibBAM.bamfile_has_index @ptr
+    end
+
 	def reference_sequences
 		return @ref_seqs unless @ref_seqs.nil?
 		array = LibBAM.bamfile_get_reference_sequences @ptr
@@ -87,7 +93,16 @@ class BamFile
 	end
 
     def alignments
-        AlignmentIterator.new(@ptr)
+        AlignmentIterator.new(@ptr, 
+                              LibBAM.method(:bamfile_get_alignments),
+                              LibBAM.method(:bamfile_get_valid_alignments))
+    end
+
+    def fetch(chr, region)
+        AlignmentIterator.new @ptr,
+          (lambda do |ptr| 
+            LibBAM.bamfile_fetch_alignments(ptr, chr, region.min, region.max + 1)
+          end)
     end
 
     def rewind!
@@ -102,16 +117,20 @@ end
 class AlignmentIterator
     include Enumerable
 
-    def initialize(bam_ptr)
+    # Creates iterator corresponding to range returned by
+    # +method+ or +method_with_validation+
+    def initialize(bam_ptr, method, method_with_validation=nil)
         @bam_ptr = bam_ptr # so that parent object won't get destroyed
                            # during lifetime of the iterator
+        @method = method
+        @method_with_validation = method_with_validation
     end
 
     def each(options={})
-        if options[:valid] == true then
-            @ptr = LibBAM.bamfile_get_valid_alignments @bam_ptr
+        if options[:valid] == true and @method_with_validation != nil then
+            @ptr = @method_with_validation.call @bam_ptr
         else
-            @ptr = LibBAM.bamfile_get_alignments @bam_ptr
+            @ptr = @method.call @bam_ptr
         end
         ObjectSpace.define_finalizer self, AlignmentIterator.finalize(@ptr)
 

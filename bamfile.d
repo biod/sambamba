@@ -1,12 +1,13 @@
 module bamfile;
 
+public import samheader;
+public import reference;
+public import alignment;
+public import virtualoffset;
+public import tagvalue;
 import bgzfrange;
 import chunkinputstream;
-import samheader;
-import reference;
-import alignment;
 import randomaccessmanager;
-import virtualoffset;
 import bai.read;
 import utils.range;
 
@@ -56,7 +57,12 @@ struct BamFile {
         // right after constructing, we are at the beginning
         //                           of the list of alignments
     }
-    
+  
+    /// True if associated BAI file was found
+    bool has_index() @property {
+        return _random_access_manager.found_index_file;
+    }
+
     /*
        Get SAM header of file.
      */
