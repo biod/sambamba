@@ -152,7 +152,9 @@ unittest {
 } 
 
 /// Version of parallel map using cyclic buffer with prefetching.
-/// Uses combination of chunked, prefetch, joiner, and std.parallelism
+/// Uses combination of chunked, prefetch, joiner, and std.parallelism.
+///
+/// The analogue in Haskell is Control.Parallel.Strategies.parBuffer
 /// 
 /// Params:
 /// 	prefetch_amount -   how many chunks will be prefetched

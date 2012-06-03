@@ -18,6 +18,7 @@ import std.traits;
 
 extern(C) void libbam_init() {
     Runtime.initialize();
+    GC.disable();
 }
 
 void main() {}
