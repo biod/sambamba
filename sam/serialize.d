@@ -40,7 +40,7 @@ void serialize(S)(Value v, ref S stream) {
                 }
                 cases ~= `case '`~t.ch~`':` ~
                          `  putstring(stream, "B:`~t.ch~`");`~
-                         t.ValueType.stringof~`[] arr = to!(`~t.ValueType.stringof~`[])(v);`~
+                         t.ValueType.stringof~`[] arr = cast(`~t.ValueType.stringof~`[])v;`~
                          `  foreach (elem; arr) {`~
                          `      append(stream, ",`~format~`", elem);`~
                          `  }`~
@@ -69,7 +69,7 @@ void serialize(S)(Value v, ref S stream) {
         case 'Z', 'H':
             putcharacter(stream, v.bam_typeid);
             putcharacter(stream, ':');
-            putstring(stream, to!string(v));
+            putstring(stream, cast(string)v);
             return;
         case 'A': 
             append(stream, "A:%c", to!char(v));

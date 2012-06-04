@@ -93,7 +93,7 @@ unittest {
 
     buf = "".dup;
     putstring(buf, "tes");
-    putchar(buf, 't');
+    putcharacter(buf, 't');
 
     uint z = 345;
     append(buf, "%d", z);

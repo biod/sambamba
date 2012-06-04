@@ -241,6 +241,14 @@ string injectOpCast() {
   although it's possible to convert integer to string.
 */
 struct Value {
+
+    /**
+      Notice that having union first allows to do simple casts,
+      without using opCast(). That's a bit hackish but
+      allows for better speed.
+     */
+    private mixin(generateUnion());
+
     /**
       If this is an array, one of [cCsSiIf].
       Otherwise, one of [AcCsSiIfZH]
@@ -265,8 +273,6 @@ struct Value {
     ubyte tag() @property {
         return _tag;
     }
-
-    private mixin(generateUnion());
 
     mixin(injectOpAssign());
     mixin(injectOpCast());
