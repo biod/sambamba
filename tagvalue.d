@@ -326,87 +326,43 @@ struct Value {
     /// true if the value represents 'H' tag
     bool is_hexadecimal_string() @property { return (_tag & 0b111) == 0b111; }
 
-    /** representation in SAM format
-     
-        Example:
-        ----------
-        Value v = 2.7;
-        assert(v.to_sam() == "f:2.7");
-
-        v = [1, 2, 3];
-        assert(v.to_sam() == "B:i,1,2,3");
-    */
-    string to_sam() @property {
-        if (this.is_numeric_array) {
-            string toSamNumericArrayHelper() {
-                char[] cases;
-                foreach (t; ArrayElementTagValueTypes) 
-                    cases ~= `case '`~t.ch~`':` ~
-                             `  char[] str = "B:`~t.ch~`".dup;`~
-                             `  foreach (elem; this.u.B`~t.ch~`) {`~
-                             `    str ~= ',' ~ to!string(elem);`~
-                             `  }`~
-                             `  return cast(string)str;`.dup;
-                return "switch (bam_typeid) { " ~ cases.idup ~ "default: assert(0); }";
-            }
-            mixin(toSamNumericArrayHelper());
-        }
-        if (this.is_integer) {
-            switch (bam_typeid) {
-                case 'c': return "i:" ~ to!string(u.c);
-                case 'C': return "i:" ~ to!string(u.C);
-                case 's': return "i:" ~ to!string(u.s);
-                case 'S': return "i:" ~ to!string(u.S);
-                case 'i': return "i:" ~ to!string(u.i);
-                case 'I': return "i:" ~ to!string(u.I);
-                default: assert(0);
-            }
-        }
-        if (this.is_float) {
-            return "f:" ~ to!string(u.f);
-        }
-        switch (bam_typeid) {
-            case 'Z': return "Z:" ~ u.Z;
-            case 'H': return "H:" ~ u.H;
-            case 'A': return "A:" ~ u.A;
-            default: assert(0);
-        }
-    }
 }
 
 unittest {
     import std.stdio;
     import std.math;
 
+    import sam.serialize;
+
     writeln("Testing Value code...");
     Value v = 5;
     assert(v.is_integer);
-    assert(v.to_sam == "i:5");
+    assert(to_sam(v) == "i:5");
     v = "abc";
     assert(v.is_string);
-    assert(v.to_sam == "Z:abc");
+    assert(to_sam(v) == "Z:abc");
     assert(to!string(v) == "abc");
     v = [1, 2, 3];
     assert(v.is_numeric_array);
-    assert(v.to_sam == "B:i,1,2,3");
+    assert(to_sam(v) == "B:i,1,2,3");
     v = [1.5, 2.3, 17.0];
     assert(v.is_numeric_array);
-    assert(v.to_sam == "B:f,1.5,2.3,17");
+    assert(to_sam(v) == "B:f,1.5,2.3,17");
     v = 5.6;
     assert(v.is_float);
-    assert(v.to_sam == "f:5.6");
+    assert(to_sam(v) == "f:5.6");
     assert(approxEqual(to!float(v), 5.6));
     v = -17;
     assert(v.is_signed);
-    assert(v.to_sam == "i:-17");
+    assert(to_sam(v) == "i:-17");
     v = 297u;
     assert(v.is_unsigned);
-    assert(v.to_sam == "i:297");
+    assert(to_sam(v) == "i:297");
 
     short[] array_of_shorts = [4, 5, 6];
     v = array_of_shorts;
     assert(v.is_numeric_array);
-    assert(v.to_sam == "B:s,4,5,6");
+    assert(to_sam(v) == "B:s,4,5,6");
     assert(to!(short[])(v) == array_of_shorts);
 
     v = null;

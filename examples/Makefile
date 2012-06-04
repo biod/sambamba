@@ -3,9 +3,10 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../tagstorage.d ../tagvalue.d ../utils/switchendianness.d \
 	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
 	  ../bai/read.d ../bai/chunk.d ../bai/bin.d ../bai/utils/algo.d \
-	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d
+	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
+	  ../utils/format.d
 
-DMDFLAGS=-O -release -inline -g
+DMDFLAGS=-O -release -inline
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
 
 bam2sam: $(FILES) bam2sam.d

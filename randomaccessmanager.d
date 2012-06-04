@@ -97,8 +97,8 @@ class RandomAccessManager {
         enforce(found_index_file, "BAM index file (.bai) must be provided");
         enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
 
-        auto _beg = max(0, beg);
-        int _i = min(_beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
+        beg = max(0, beg);
+        int _i = min(beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
                      cast(int)_bai.indices[ref_id].ioffsets.length - 1);
         auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
 
@@ -107,7 +107,7 @@ class RandomAccessManager {
 
 version(DigitalMars) {
         return _bai.indices[ref_id].bins
-                                   .filter!((Bin b) { return b.canOverlapWith(_beg, end); })
+                                   .filter!((Bin b) { return b.canOverlapWith(beg, end); })
                                    .map!((Bin b) { return b.chunks; })
                                    .joiner()
                                    .filter!((Chunk c) { return c.end > min_offset; })
@@ -115,7 +115,7 @@ version(DigitalMars) {
                                    .sort()
                                    .nonOverlappingChunks()
                                    .disjointChunkAlignmentRange(_compressed_stream)
-                                   .filterAlignments(ref_id, _beg, end);
+                                   .filterAlignments(ref_id, beg, end);
 
 } else {
         /// use less functional approach

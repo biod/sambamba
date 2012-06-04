@@ -5,6 +5,8 @@ import bgzfrange;
 import validation.samheader;
 import validation.alignment;
 
+import sam.serialize;
+
 import std.path;
 import std.stdio;
 import std.algorithm;
@@ -47,6 +49,7 @@ unittest {
     alignments.popFront();
     alignments.popFront();
     assert(alignments.front.cigar_string == "35M");
+    assert(to_sam(alignments.front, bf.reference_sequences) == "EAS51_64:3:190:727:308	99	chr1	103	99	35M	=	263	195	GGTGCAGAGCCGAGTCACGGGGTTGCCAGCACAGG	<<<<<<<<<<<<<<<<<<<<<<<<<<<::<<<844	MF:i:18	Aq:i:73	NM:i:0	UQ:i:0	H0:i:1	H1:i:0");
 
     writeln("Testing BamFile methods...");
     bf.rewind();
@@ -70,7 +73,7 @@ TODO: this should throw
             read_name = read_name[1..$];
         }
         read_name = read_name[1..$];
-        string value = alignment.tags[tag.idup].to_sam;
+        string value = to_sam(alignment.tags[tag.idup]);
         if (read_name != value) {
             writeln("tag: ", tag, "\tread_name: ", read_name, "\tvalue: ", value);
             writeln("value bam_typeid: ", alignment.tags[tag.idup].bam_typeid);
