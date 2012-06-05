@@ -9,12 +9,6 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 DMDFLAGS=-O -release -inline
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
 
-bam2sam: $(FILES) bam2sam.d
-	dmd $(FILES) bam2sam.d -ofbam2sam $(DMDFLAGS) -version=serial
-
-bam2sam-gdc: $(FILES) bam2sam.d
-	gdc $(FILES) bam2sam.d -o bam2sam $(GDCFLAGS) -fversion=serial
-
 validator: $(FILES) validator.d
 	dmd $(FILES) validator.d -ofvalidator $(DMDFLAGS) -version=serial
 

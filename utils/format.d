@@ -3,6 +3,12 @@
   too slow for big data processing, while standard C functions
   are very fast. This module contains set of functions for
   building strings in memory and outputting them into a file.
+
+  For outputting to file, FILE* pointers are supported.
+  For building strings in memory, provide Appender!(ubyte[]) struct.
+
+  Requirement for ubyte might seem strange, but that's the only reliable 
+  way to avoid overhead caused by utf8-awareness of D algorithms.
  */
 module utils.format;
 
@@ -10,6 +16,7 @@ import std.c.stdio;
 import std.c.stdlib;
 import std.string;
 import std.traits;
+import std.array;
 
 /// Used for building a string in a buffer or for outputting to stream.
 void append(Args...)(FILE* stream, string format, Args args)
@@ -19,7 +26,7 @@ void append(Args...)(FILE* stream, string format, Args args)
 }
 
 /// ditto
-void append(Args...)(ref char[] stream, string format, Args args) 
+void append(Args...)(ref Appender!(ubyte[]) stream, string format, Args args) 
 {
     char[1024] buffer;
     int count;
@@ -50,7 +57,7 @@ void append(Args...)(ref char[] stream, string format, Args args)
         }
     }
 
-    stream ~= p[0 .. count];
+    stream.put(cast(ubyte[])p[0 .. count]);
 }
 
 /// Put char into a stream
@@ -60,9 +67,9 @@ void putcharacter(FILE* stream, char c)
 }
 
 /// Append char to a buffer
-void putcharacter(ref char[] stream, char c)
+void putcharacter(ref Appender!(ubyte[]) stream, char c)
 {
-    stream ~= c;
+    stream.put(cast(ubyte)c);
 }
 
 /// Append string to output stream.
@@ -73,10 +80,10 @@ void putstring(T)(FILE* stream, T[] s)
 }
 
 /// Append string to a buffer
-void putstring(T)(ref char[] stream, T[] s) 
+void putstring(T)(ref Appender!(ubyte[]) stream, T[] s) 
     if (is(Unqual!T == char)) 
 {
-    stream ~= s;
+    stream.put(cast(ubyte[])s);
 }
 
 private {
@@ -108,7 +115,6 @@ private {
             if (value < 0) *wstr++ = '-';
         }
 
-        // Reverse string
         strreverse(str,wstr-1);
 
         return wstr - str;
@@ -126,45 +132,45 @@ void putinteger(T)(FILE* stream, T number)
 }
 
 /// Add string representation of an integer to a buffer
-void putinteger(T)(ref char[] stream, T number)
+void putinteger(T)(ref Appender!(ubyte[]) stream, T number)
     if (isIntegral!T)
 {
     char[64] buf;
     auto len = itoa(number, buf.ptr);
-    stream ~= buf[0..len];
+    stream.put(cast(ubyte[])buf[0..len]);
 }
 
 unittest {
-    char[] buf;
+    auto buf = appender!(ubyte[])();
     append(buf, "%d%g", 1, 2.4);
-    assert(buf == "12.4");
+    assert(cast(string)(buf.data) == "12.4");
 
     append(buf, "%s", toStringz("k"));
-    assert(buf == "12.4k");
+    assert(cast(string)(buf.data) == "12.4k");
 
     auto str = "m";
     append(buf, "%.*s", str.length, str.ptr);
-    assert(buf == "12.4km");
+    assert(cast(string)(buf.data) == "12.4km");
 
     append(buf, "%c%c", '/', 'h');
-    assert(buf == "12.4km/h");
+    assert(cast(string)(buf.data) == "12.4km/h");
 
     ushort k = 5;
     append(buf, "%d", k);
-    assert(buf[$-1] == '5');
+    assert(cast(char)(buf.data[$-1]) == '5');
 
-    buf = "".dup;
+    buf.clear();
     putstring(buf, "tes");
     putcharacter(buf, 't');
 
     uint z = 345;
     append(buf, "%d", z);
 
-    assert(buf == "test345");
+    assert(cast(string)(buf.data) == "test345");
 
-    buf = [];
+    buf.clear();
     putinteger(buf, 25);
-    assert(buf == "25");
+    assert(cast(string)(buf.data) == "25");
     putinteger(buf, -31);
-    assert(buf == "25-31");
+    assert(cast(string)(buf.data) == "25-31");
 }

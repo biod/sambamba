@@ -6,14 +6,19 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d
 
-
 DMDFLAGS=-O -release -inline
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -fversion=serial
 
-bam-fetch:
+bam2sam: $(FILES) bam2sam/bam2sam.d
+	dmd $(DMDFLAGS) $(FILES) bam2sam/bam2sam.d -ofbuild/bam2sam 
+
+bam2sam-gdc: $(FILES) bam2sam/bam2sam.d
+	gdc $(GDCFLAGS) $(FILES) bam2sam/bam2sam.d -o build/bam2sam
+
+bam-fetch: $(FILES) bam-fetch/bam_fetch.d
 	mkdir -p build
 	dmd $(DMDFLAGS) $(FILES) bam-fetch/bam_fetch.d -ofbuild/bam-fetch
 
-bam-fetch-gdc:
+bam-fetch-gdc: $(FILES) bam-fetch/bam_fetch.d
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) bam-fetch/bam_fetch.d -o build/bam-fetch

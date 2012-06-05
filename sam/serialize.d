@@ -12,6 +12,8 @@ import std.algorithm;
 import std.typecons;
 import std.stdio;
 
+import std.array;
+
 /** Representation of tag value in SAM format
  
     Example:
@@ -23,12 +25,13 @@ import std.stdio;
     assert(to_sam(v) == "B:i,1,2,3");
 */
 string to_sam(Value v) {
-    char[] buf;
+    auto buf = appender!(ubyte[])();
+    buf.reserve(16);
     serialize(v, buf);
-    return cast(string)buf;
+    return cast(string)buf.data;
 }
 
-/// Prints SAM representation into a file or a buffer
+/// Prints SAM representation into FILE* or Appender!(ubyte[])
 void serialize(S)(Value v, ref S stream) {
     if (v.is_numeric_array) {
         string toSamNumericArrayHelper() {
@@ -88,12 +91,13 @@ void serialize(S)(Value v, ref S stream) {
 /// to_sam(alignment, bam.reference_sequences);
 ///
 string to_sam(Alignment alignment, ReferenceSequenceInfo[] info) {
-    char[] buf;
+    auto buf = appender!(ubyte[])();
+    buf.reserve(512);
     serialize(alignment, info, buf);
-    return cast(string)buf;
+    return cast(string)buf.data;
 }
 
-/// Serialize an alignment into a stream or file
+/// Serialize an alignment into FILE* or Appender!(ubyte[])
 void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S stream) {
 
     putstring(stream, alignment.read_name);
