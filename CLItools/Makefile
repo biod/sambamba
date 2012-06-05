@@ -8,7 +8,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 
 
 DMDFLAGS=-O -release -inline
-GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread
+GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -fversion=serial
 
 bam-fetch:
 	mkdir -p build

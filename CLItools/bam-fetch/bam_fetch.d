@@ -1,6 +1,7 @@
 import bamfile;
 
 import sam.serialize;
+import utils.format;
 
 import std.conv;
 import std.c.stdio;

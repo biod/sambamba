@@ -34,16 +34,14 @@ void serialize(S)(Value v, ref S stream) {
         string toSamNumericArrayHelper() {
             char[] cases;
             foreach (t; ArrayElementTagValueTypes) {
-                char[] format = "%d".dup;
+                char[] loopbody = "putcharacter(stream, ',');putinteger(stream, elem);".dup;
                 if (t.ch == 'f') {
-                    format = "%g".dup;
+                    loopbody = "append(stream, \",%g\", elem);".dup;
                 }
                 cases ~= `case '`~t.ch~`':` ~
                          `  putstring(stream, "B:`~t.ch~`");`~
                          t.ValueType.stringof~`[] arr = cast(`~t.ValueType.stringof~`[])v;`~
-                         `  foreach (elem; arr) {`~
-                         `      append(stream, ",`~format~`", elem);`~
-                         `  }`~
+                         `  foreach (elem; arr) {`~loopbody~`}`~
                          `  return;`.dup;
             }
             return "switch (v.bam_typeid) { " ~ cases.idup ~ "default: assert(0); }";
@@ -51,13 +49,14 @@ void serialize(S)(Value v, ref S stream) {
         mixin(toSamNumericArrayHelper());
     }
     if (v.is_integer) {
+        putstring(stream, "i:");
         switch (v.bam_typeid) {
-            case 'c': append(stream, "i:%d", to!byte(v)); return;
-            case 'C': append(stream, "i:%d", to!ubyte(v)); return;
-            case 's': append(stream, "i:%d", to!short(v)); return;
-            case 'S': append(stream, "i:%d", to!ushort(v)); return;
-            case 'i': append(stream, "i:%d", to!int(v)); return;
-            case 'I': append(stream, "i:%d", to!uint(v)); return;
+            case 'c': putinteger(stream, to!byte(v)); return;
+            case 'C': putinteger(stream, to!ubyte(v)); return;
+            case 's': putinteger(stream, to!short(v)); return;
+            case 'S': putinteger(stream, to!ushort(v)); return;
+            case 'i': putinteger(stream, to!int(v)); return;
+            case 'I': putinteger(stream, to!uint(v)); return;
             default: assert(0);
         }
     }
@@ -72,7 +71,8 @@ void serialize(S)(Value v, ref S stream) {
             putstring(stream, cast(string)v);
             return;
         case 'A': 
-            append(stream, "A:%c", to!char(v));
+            putstring(stream, "A:");
+            putcharacter(stream, to!char(v));
             return;
         default: assert(0);
     }
@@ -95,39 +95,59 @@ string to_sam(Alignment alignment, ReferenceSequenceInfo[] info) {
 
 /// Serialize an alignment into a stream or file
 void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S stream) {
+
     putstring(stream, alignment.read_name);
-    append(stream, "\t%d\t", alignment.flag);
+    putcharacter(stream, '\t');
+
+    putinteger(stream, alignment.flag);
+    putcharacter(stream, '\t');
+
     if (alignment.ref_id == -1) {
-        putcharacter(stream, '*');
+        putstring(stream, "*\t");
     } else {
         putstring(stream, info[alignment.ref_id].name);
+        putcharacter(stream, '\t');
     }
-    append(stream, "\t%d\t%d\t", alignment.position + 1, alignment.mapping_quality);
+
+    putinteger(stream, alignment.position + 1);
+    putcharacter(stream, '\t');
+
+    putinteger(stream, alignment.mapping_quality);
+    putcharacter(stream, '\t');
+
     if (alignment.cigar.length == 0) {
         putstring(stream, "*\t");
     } else {
         // avoid memory allocation and NOT use cigar_string()
         foreach (cigar_op; alignment.cigar) {
-            append(stream, "%d%c", cigar_op.length, cigar_op.operation);
+            putinteger(stream, cigar_op.length);
+            putcharacter(stream, cigar_op.operation);
         }
         putcharacter(stream, '\t');
     }
     if (alignment.next_ref_id == alignment.ref_id) {
         if (alignment.next_ref_id == -1) {
-            putcharacter(stream, '*');
+            putstring(stream, "*\t");
         } else {
-            putcharacter(stream, '=');
+            putstring(stream, "=\t");
         }
     } else {
         if (alignment.next_ref_id == -1 ||
             info[alignment.next_ref_id].name.length == 0)
         {
-            putcharacter(stream, '*');
+            putstring(stream, "*\t");
         } else {
             putstring(stream, info[alignment.next_ref_id].name);
+            putcharacter(stream, '\t');
         }
     }
-    append(stream, "\t%d\t%d\t", alignment.next_pos + 1, alignment.template_length);
+
+    putinteger(stream, alignment.next_pos + 1);
+    putcharacter(stream, '\t');
+
+    putinteger(stream, alignment.template_length);
+    putcharacter(stream, '\t');
+
     if (alignment.raw_sequence_data.length == 0) {
         putstring(stream, "*\t");
     } else {
@@ -147,7 +167,9 @@ void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S strea
     
     foreach (k, v; alignment.tags) {
         assert(k.length == 2);
-        append(stream, "\t%c%c:", k[0], k[1]);
+        putcharacter(stream, '\t');
+        putstring(stream, k);
+        putcharacter(stream, ':');
         serialize(v, stream);
     }
 }

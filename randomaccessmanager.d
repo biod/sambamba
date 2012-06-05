@@ -205,9 +205,14 @@ private {
 
             /// setup BgzfRange and ChunkInputStream
             auto bgzf_range = BgzfRange(_compressed_stream);
-            /// up to 2 tasks are being executed at every moment
-            auto prefetched_range = prefetch(map!decompress(bgzf_range), 2);
-            auto decompressed_range = map!"a.yieldForce()"(prefetched_range);
+
+            version(serial) {
+                auto decompressed_range = map!decompressBgzfBlock(bgzf_range);
+            } else {
+                /// up to 2 tasks are being executed at every moment
+                auto prefetched_range = prefetch(map!decompress(bgzf_range), 2);
+                auto decompressed_range = map!"a.yieldForce()"(prefetched_range);
+            }
             IChunkInputStream stream = makeChunkInputStream(decompressed_range);
 
             /// seek uoffset in decompressed stream

@@ -9,6 +9,7 @@ module utils.format;
 import std.c.stdio;
 import std.c.stdlib;
 import std.string;
+import std.traits;
 
 /// Used for building a string in a buffer or for outputting to stream.
 void append(Args...)(FILE* stream, string format, Args args)
@@ -49,27 +50,88 @@ void append(Args...)(ref char[] stream, string format, Args args)
         }
     }
 
-    if (stream.capacity < stream.length + count) {
-        stream.reserve(stream.capacity * 2);
-    }
-    stream ~= p[0 .. count].dup;
+    stream ~= p[0 .. count];
 }
 
-/// Put a char into a stream
+/// Put char into a stream
 void putcharacter(FILE* stream, char c)
 {
     fputc(c, stream);    
 }
 
-/// ditto
+/// Append char to a buffer
 void putcharacter(ref char[] stream, char c)
 {
     stream ~= c;
 }
 
-/// Appends string to output stream or buffer.
-void putstring(Out)(ref Out stream, string s) {
-    append(stream, "%.*s", s.length, s.ptr);
+/// Append string to output stream.
+void putstring(T)(FILE* stream, T[] s) 
+    if (is(Unqual!T == char))
+{
+    fwrite(s.ptr, s.length, char.sizeof, stream);
+}
+
+/// Append string to a buffer
+void putstring(T)(ref char[] stream, T[] s) 
+    if (is(Unqual!T == char)) 
+{
+    stream ~= s;
+}
+
+private {
+    /// Reverses closed interval [begin .. end]
+    void strreverse(char* begin, char* end)
+    {
+        char aux;
+        while (end > begin)
+            aux = *end, *end-- = *begin, *begin++ = aux;
+    }
+
+    /// Prints $(D value) at the address where $(D str) points to.
+    /// Returns number of characters written.
+    auto itoa(T)(T value, char* str)
+    {
+        char* wstr=str;
+
+        static if (isSigned!T) { 
+            uint uvalue = (value < 0) ? -value : value;
+        } else {
+            uint uvalue = value;
+        }
+
+        do {
+            *wstr++ = cast(char)(48 + (uvalue % 10)); 
+        } while (uvalue /= 10);
+
+        static if (isSigned!T) {
+            if (value < 0) *wstr++ = '-';
+        }
+
+        // Reverse string
+        strreverse(str,wstr-1);
+
+        return wstr - str;
+    }
+}
+
+
+/// Put integer number into a stream
+void putinteger(T)(FILE* stream, T number)
+    if (isIntegral!T)
+{
+    char[64] buf;
+    auto len = itoa(number, buf.ptr);
+    fwrite(buf.ptr, len, char.sizeof, stream);
+}
+
+/// Add string representation of an integer to a buffer
+void putinteger(T)(ref char[] stream, T number)
+    if (isIntegral!T)
+{
+    char[64] buf;
+    auto len = itoa(number, buf.ptr);
+    stream ~= buf[0..len];
 }
 
 unittest {
@@ -99,4 +161,10 @@ unittest {
     append(buf, "%d", z);
 
     assert(buf == "test345");
+
+    buf = [];
+    putinteger(buf, 25);
+    assert(buf == "25");
+    putinteger(buf, -31);
+    assert(buf == "25-31");
 }
