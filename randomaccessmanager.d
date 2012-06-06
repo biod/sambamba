@@ -6,6 +6,7 @@ module randomaccessmanager;
 import bgzfrange;
 import virtualoffset;
 import alignment;
+import alignmentrange;
 import chunkinputstream;
 import bai.read;
 import bai.bin;

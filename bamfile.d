@@ -5,6 +5,7 @@ public import reference;
 public import alignment;
 public import virtualoffset;
 public import tagvalue;
+import alignmentrange;
 import bgzfrange;
 import chunkinputstream;
 import randomaccessmanager;

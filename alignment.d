@@ -2,107 +2,16 @@ module alignment;
 
 import tagvalue;
 import tagstorage;
-import chunkinputstream;
-import virtualoffset;
 
-import std.stream;
+private import bai.bin;
+
 import std.algorithm;
-import std.system;
 import std.range;
 import std.conv;
+import std.exception;
+import std.system;
 
 import utils.switchendianness;
-
-struct RawAlignmentBlock {
-    VirtualOffset virtual_offset;
-    ubyte[] raw_alignment_data;
-}
-
-/// Whether to provide offsets or not
-/// when iterating raw alignment blocks
-private enum IteratePolicy {
-    withOffsets,
-    withoutOffsets
-}
-
-/**
-  Range for iterating over unparsed alignments,
-  together with their virtual offsets in the BAM file.
- */
-private class UnparsedAlignmentRange(IteratePolicy policy) 
-{ 
-
-    /// Create new range from IChunkInputStream.
-    this(ref IChunkInputStream stream) {
-        _stream = stream;
-        _endian_stream = new EndianStream(_stream, Endian.littleEndian);
-        readNext();
-    }
-
-    bool empty() @property const {
-        return _empty;
-    }
-
-static if (policy == IteratePolicy.withOffsets) {
-    /**
-        Returns: tuple of 1) virtual offset of alignment block beginning,
-                          2) alignment block except the first 4 bytes (block_size)
-
-        See SAM/BAM specification for details about the structure of alignment blocks.
-     */
-    RawAlignmentBlock front() @property {
-        return RawAlignmentBlock(_current_voffset, _current_record);
-    }
-} else {
-    /**
-        Returns: alignment block except the first 4 bytes (block_size)
-     */
-    ubyte[] front() @property {
-        return _current_record;
-    }
-}
-
-    void popFront() {
-        readNext();
-    }
-
-private:
-    IChunkInputStream _stream;
-    EndianStream _endian_stream;
-
-    ubyte[] _current_record;
-    bool _empty = false;
-
-static if (policy == IteratePolicy.withOffsets) {
-    VirtualOffset _current_voffset;
-}
-
-    /**
-      Reads next alignment block from stream.
-     */
-    void readNext() {
-        if (_stream.eof()) {
-            _empty = true;
-            return;
-        }
-        
-static if (policy == IteratePolicy.withOffsets) {
-        _current_voffset = _stream.virtualTell();
-}
-
-        int block_size = void;
-        _endian_stream.read(block_size);
-        _current_record = _stream.readSlice(block_size);
-    }
-
-}
-
-/**
-    Returns: range for iterating over alignment blocks
- */
-auto unparsedAlignments(alias Policy)(ref IChunkInputStream stream) {
-    return new UnparsedAlignmentRange!(Policy)(stream);
-}
 
 /**
   Represents single CIGAR operation
@@ -129,7 +38,6 @@ struct CigarOperation {
         return raw >> 4;
     }
   
-    /* FIXME: better name? */
     /// CIGAR operation as one of MIDNSHP=X
     char operation() @property const {
         if ((raw & 0xF) > 8) {
@@ -146,71 +54,60 @@ struct CigarOperation {
 */
 struct Alignment {
 
-    int ref_id() @property const {
-        return _refID;
-    }
+    @property    int ref_id()           const { return _refID; }
+    @property    int position()         const { return _pos; }
+    @property ushort bin()              const { return _bin; }
+    @property  ubyte mapping_quality()  const { return _mapq; }
+    @property ushort flag()             const { return _flag; }
+    @property    int sequence_length()  const { return _l_seq; }
+    @property    int next_ref_id()      const { return _next_refID; }
+    @property    int next_pos()         const { return _next_pos; }
+    @property    int template_length()  const { return _tlen; }
 
-    int position() @property const {
-        return _pos;
-    }
-
-    ushort bin() @property const {
-        return _bin;
-    }
-
-    ubyte mapping_quality() @property const {
-        return (_bin_mq_nl >> 8) & 0xFF;
-    }
-
-    ushort flag() @property const { 
-        return _flag_nc >> 16;
-    }
-
-    int sequence_length() @property const {
-        return _l_seq;
-    }
-
-    int next_ref_id() @property const {
-        return _next_refID;
-    }
-
-    int next_pos() @property const {
-        return _next_pos;
-    }
-
-    int template_length() @property const {
-        return _tlen;
-    }
+    /// Set reference id.
+    @property void ref_id(int n)              { _refID = n; }
+    /// Sets 0-based leftmost coordinate. Bin is automatically recalculated.
+    @property void position(int n)            { _pos = n; _recalculate_bin(); }
+    /// Set mapping quality
+    @property void mapping_quality(ubyte n)   { _mapq = n; }
+    /// Set flag 
+    @property void flag(ushort n)             { _flag = n; } // TODO: add setters like below
+    /// Set mate reference id.
+    @property void next_ref_id(int n)         { _next_refID = n; }
+    /// Set mate position
+    @property void next_pos(int n)            { _next_pos = n; }
+    /// Set template length
+    @property void template_length(int n)     { _tlen = n; }
   
     /// Template having multiple segments in sequencing
-    bool is_paired()                @property const { return cast(bool)(flag & 0x1); }
+    @property bool is_paired()                const { return cast(bool)(flag & 0x1); }
     /// Each segment properly aligned according to the aligner
-    bool proper_pair()              @property const { return cast(bool)(flag & 0x2); }
+    @property bool proper_pair()              const { return cast(bool)(flag & 0x2); }
     /// Segment unmapped
-    bool is_unmapped()              @property const { return cast(bool)(flag & 0x4); }
+    @property bool is_unmapped()              const { return cast(bool)(flag & 0x4); }
     /// Next segment in the template unmapped
-    bool mate_is_unmapped()         @property const { return cast(bool)(flag & 0x8); }
+    @property bool mate_is_unmapped()         const { return cast(bool)(flag & 0x8); }
     /// Sequence being reverse complemented
-    bool is_reverse_strand()        @property const { return cast(bool)(flag & 0x10); }
+    @property bool is_reverse_strand()        const { return cast(bool)(flag & 0x10); }
     /// Sequence of the next segment in the template being reversed
-    bool mate_is_reverse_strand()   @property const { return cast(bool)(flag & 0x20); }
+    @property bool mate_is_reverse_strand()   const { return cast(bool)(flag & 0x20); }
     /// The first segment in the template
-    bool is_first_of_pair()         @property const { return cast(bool)(flag & 0x40); }
+    @property bool is_first_of_pair()         const { return cast(bool)(flag & 0x40); }
     /// The last segment in the template
-    bool is_second_of_pair()        @property const { return cast(bool)(flag & 0x80); }
+    @property bool is_second_of_pair()        const { return cast(bool)(flag & 0x80); }
     /// Secondary alignment
-    bool is_secondary_alignment()   @property const { return cast(bool)(flag & 0x100); }
+    @property bool is_secondary_alignment()   const { return cast(bool)(flag & 0x100); }
     /// Not passing quality controls
-    bool failed_quality_control()   @property const { return cast(bool)(flag & 0x200); }
+    @property bool failed_quality_control()   const { return cast(bool)(flag & 0x200); }
     /// PCR or optical duplicate
-    bool is_duplicate()             @property const { return cast(bool)(flag & 0x400); }
+    @property bool is_duplicate()             const { return cast(bool)(flag & 0x400); }
 
-    string read_name() @property const {
+    @property string read_name() const {
         // notice -1: the string is zero-terminated, so we should strip that '\0'
         return cast(string)(_chunk[_read_name_offset .. _read_name_offset + _l_read_name - 1]);
     }
 
-    const(CigarOperation)[] cigar() @property const {
+    @property const(CigarOperation)[] cigar() const {
         return cast(const(CigarOperation)[])(_chunk[_cigar_offset .. _cigar_offset + 
                                              _n_cigar_op * CigarOperation.sizeof]);
     }
@@ -254,7 +151,7 @@ struct Alignment {
     }
 
     /// Sequence data 
-    const(ubyte)[] raw_sequence_data() @property const {
+    @property const(ubyte)[] raw_sequence_data() const {
         return _chunk[_seq_offset .. _seq_offset + (_l_seq + 1) / 2];
     }
 
@@ -266,7 +163,7 @@ struct Alignment {
     }
 
     /// Quality data
-    const(ubyte)[] phred_base_quality() @property const {
+    @property const(ubyte)[] phred_base_quality() const {
         return _chunk[_qual_offset .. _qual_offset + _l_seq * char.sizeof];
     }
 
@@ -303,10 +200,87 @@ struct Alignment {
             // Dealing with tags is the responsibility of TagStorage.
         }
 
-        this.tags = TagStorage(cast(ubyte[])_chunk[_tags_offset .. $]);
+        this.tags = TagStorage(_chunk[_tags_offset .. $]);
     } 
+    
+    /// Construct alignment from basic information about it.
+    ///
+    /// Other fields can be set afterwards.
+    this(string read_name,                          // info for developers:
+         string sequence,                           // these 3 fields are needed
+         in CigarOperation[] cigar)                 // to calculate size of _chunk
+    {
+        enforce(read_name.length < 256, "Too long read name, length must be <= 255");
+
+        this._chunk = new ubyte[8 * int.sizeof
+                              + (read_name.length + 1) // tailing '\0'
+                              + uint.sizeof * cigar.length
+                              + ubyte.sizeof * ((sequence.length + 1) / 2)
+                              + ubyte.sizeof * sequence.length];
+        
+        this.tags = TagStorage(_chunk[$ .. $]);
+
+        this._refID      =  -1;         // set default values
+        this._pos        =  -1;         // according to SAM/BAM
+        this._mapq       = 255;         // specification
+        this._next_refID =  -1;
+        this._next_pos   =  -1;
+        this._tlen       =   0;
+
+        this._l_read_name = cast(ubyte)(read_name.length + 1); // tailing '\0'
+        this._n_cigar_op  = cast(ushort)(cigar.length);
+        this._l_seq       = cast(int)(sequence.length);
+
+        // now all offsets can be calculated through corresponding properties
+
+        // set default quality
+        _chunk[_qual_offset .. _qual_offset + sequence.length] = 0xFF;
+
+        // set CIGAR data
+        _chunk[_cigar_offset .. _cigar_offset + cigar.length] = cast(ubyte[])(cigar);
+
+        // set read_name
+        auto _offset = _read_name_offset;
+        _chunk[_offset .. _offset + read_name.length] = cast(ubyte[])read_name;
+        _chunk[_offset + read_name.length] = cast(ubyte)'\0';
+
+        /// Translates sequence character to its internal representation.
+        static ubyte toHalfByte(char c) {
+            /// The table is taken from samtools/bam_import.c
+            static ubyte[256] table = [
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                 1, 2, 4, 8, 15,15,15,15, 15,15,15,15, 15, 0 /*=*/,15,15,
+                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
+                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
+                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
+                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15
+            ];
+            return table[c];
+        }
+
+        // set sequence
+        auto _raw_length = (sequence.length + 1) / 2;
+        ubyte[] _seq = _chunk[_seq_offset .. _seq_offset + _raw_length];
+        for (size_t i = 0; i < _raw_length; ++i) {
+            _seq[i] = cast(ubyte)(toHalfByte(sequence[2 * i]) << 4);
+
+            if (sequence.length > 2 * i + 1)
+                _seq[i] |= cast(ubyte)(toHalfByte(sequence[2 * i + 1]));
+        }
+    }
 
     bool opEquals(const ref Alignment other) const pure nothrow {
+        /// Notice that in D, array comparison compares elements, not pointers.
         return this._chunk == other._chunk && this.tags == other.tags;
     }
 
@@ -319,60 +293,60 @@ private:
     /// Official field names from SAM/BAM specification.
     /// For internal use only
 
-    int _refID()            @property const { return *(cast( int*)(_chunk.ptr + int.sizeof * 0)); }
-    int _pos()              @property const { return *(cast( int*)(_chunk.ptr + int.sizeof * 1)); }
-   uint _bin_mq_nl()        @property const { return *(cast(uint*)(_chunk.ptr + int.sizeof * 2)); }
-   uint _flag_nc()          @property const { return *(cast(uint*)(_chunk.ptr + int.sizeof * 3)); }
-    int _l_seq()            @property const { return *(cast( int*)(_chunk.ptr + int.sizeof * 4)); }
-    int _next_refID()       @property const { return *(cast( int*)(_chunk.ptr + int.sizeof * 5)); }
-    int _next_pos()         @property const { return *(cast( int*)(_chunk.ptr + int.sizeof * 6)); }
-    int _tlen()             @property const { return *(cast( int*)(_chunk.ptr + int.sizeof * 7)); }
+    @property  int _refID()      const { return *(cast( int*)(_chunk.ptr + int.sizeof * 0)); }
+    @property  int _pos()        const { return *(cast( int*)(_chunk.ptr + int.sizeof * 1)); }
+    @property uint _bin_mq_nl()  const { return *(cast(uint*)(_chunk.ptr + int.sizeof * 2)); }
+    @property uint _flag_nc()    const { return *(cast(uint*)(_chunk.ptr + int.sizeof * 3)); }
+    @property  int _l_seq()      const { return *(cast( int*)(_chunk.ptr + int.sizeof * 4)); }
+    @property  int _next_refID() const { return *(cast( int*)(_chunk.ptr + int.sizeof * 5)); }
+    @property  int _next_pos()   const { return *(cast( int*)(_chunk.ptr + int.sizeof * 6)); }
+    @property  int _tlen()       const { return *(cast( int*)(_chunk.ptr + int.sizeof * 7)); }
+
+    /// Setters, also only for internal use
+    @property void _refID(int n)       { *(cast( int*)(_chunk.ptr + int.sizeof * 0)) = n; }
+    @property void _pos(int n)         { *(cast( int*)(_chunk.ptr + int.sizeof * 1)) = n; }
+    @property void _bin_mq_nl(uint n)  { *(cast(uint*)(_chunk.ptr + int.sizeof * 2)) = n; }
+    @property void _flag_nc(uint n)    { *(cast(uint*)(_chunk.ptr + int.sizeof * 3)) = n; }
+    @property void _l_seq(int n)       { *(cast( int*)(_chunk.ptr + int.sizeof * 4)) = n; }
+    @property void _next_refID(int n)  { *(cast( int*)(_chunk.ptr + int.sizeof * 5)) = n; }
+    @property void _next_pos(int n)    { *(cast( int*)(_chunk.ptr + int.sizeof * 6)) = n; }
+    @property void _tlen(int n)        { *(cast( int*)(_chunk.ptr + int.sizeof * 7)) = n; }
 
     /// Additional useful properties, also from SAM/BAM specification
- ushort _bin()              @property const { return _bin_mq_nl >> 16; }
-  ubyte _l_read_name()      @property const { return _bin_mq_nl & 0xFF; }
- ushort _n_cigar_op()       @property const { return _flag_nc & 0xFFFF; }
-   
+    ///
+    ///             The layout of bin_mq_nl and flag_nc is as follows
+    ///                     (upper bits -------> lower bits):
+    /// 
+    /// bin_mq_nl [ { bin (16b) }  { mapping quality (8b) } { read name length (8b) } ]
+    ///
+    /// flag_nc   [ { flag (16b) } { n_cigar_op (16b) } ]
+    ///
+    @property ushort _bin()         const { return _bin_mq_nl >> 16; }
+    @property  ubyte _mapq()        const { return (_bin_mq_nl >> 8) & 0xFF; }
+    @property  ubyte _l_read_name() const { return _bin_mq_nl & 0xFF; }
+    @property ushort _flag()        const { return _flag_nc >> 16; }
+    @property ushort _n_cigar_op()  const { return _flag_nc & 0xFFFF; }
+  
+    /// Setters for those properties
+    @property void _bin(ushort n)         { _bin_mq_nl = _bin_mq_nl & ( 0xFFFF | (n << 16)); } 
+    @property void _mapq(ubyte n)         { _bin_mq_nl = _bin_mq_nl & (~0xFF00 | (n << 8)); }
+    @property void _l_read_name(ubyte n)  { _bin_mq_nl = _bin_mq_nl & (~0xFF   | n); }
+    @property void _flag(ushort n)        { _flag_nc   = _flag_nc   & ( 0xFFFF | (n << 16)); }
+    @property void _n_cigar_op(ushort n)  { _flag_nc   = _flag_nc   & (~0xFFFF | n); }
+
     /// Offsets of various arrays in bytes.
     /// Currently, are computed each time, so if speed will be an issue,
     /// they can be made fields instead of properties.
- size_t _read_name_offset() @property const { return 8 * int.sizeof; }
- size_t _cigar_offset()     @property const { return _read_name_offset + _l_read_name * char.sizeof; }
- size_t _seq_offset()       @property const { return _cigar_offset + _n_cigar_op * uint.sizeof; }
- size_t _qual_offset()      @property const { return _seq_offset + (_l_seq + 1) / 2 * ubyte.sizeof; }
+    @property size_t _read_name_offset() const { return 8 * int.sizeof; }
+    @property size_t _cigar_offset()     const { return _read_name_offset + _l_read_name * char.sizeof; }
+    @property size_t _seq_offset()       const { return _cigar_offset + _n_cigar_op * uint.sizeof; }
+    @property size_t _qual_offset()      const { return _seq_offset + (_l_seq + 1) / 2 * ubyte.sizeof; }
 
     /// Offset of auxiliary data
- size_t _tags_offset()      @property const { return _qual_offset + _l_seq * char.sizeof; }
-}
+    @property size_t _tags_offset()      const { return _qual_offset + _l_seq * char.sizeof; }
 
-/// Returns: an alignment constructed out of given chunk of memory.
-///
-/// No parsing occurs, it is done lazily.
-Alignment makeAlignment(ubyte[] chunk) {
-    return Alignment(chunk);
-}
-
-/// Tuple of virtual offset of the alignment, and the alignment itself.
-struct AlignmentBlock {
-    VirtualOffset virtual_offset;
-    Alignment alignment;
-}
-
-/// Returns: lazy range of Alignment structs constructed from a given stream.
-auto alignmentRange(ref IChunkInputStream stream) {
-
-    return map!makeAlignment(unparsedAlignments!(IteratePolicy.withoutOffsets)(stream));
-}
-
-/// Returns: lazy range of AlignmentBlock structs constructed from a given stream.
-///
-/// Provides virtual offsets together with alignments and thus
-/// Useful for random access operations.
-auto alignmentRangeWithOffsets(ref IChunkInputStream stream) {
-    static AlignmentBlock makeAlignmentBlock(RawAlignmentBlock block) {
-        return AlignmentBlock(block.virtual_offset,
-                              makeAlignment(block.raw_alignment_data));
+    /// Calculates bin number.
+    void _recalculate_bin() {
+        _bin = reg2bin(position, position + bases_covered());
     }
-
-    return map!makeAlignmentBlock(unparsedAlignments!(IteratePolicy.withOffsets)(stream));
 }

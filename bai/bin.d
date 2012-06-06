@@ -40,3 +40,14 @@ struct Bin {
 	}
 }
 
+/// Returns bin number for [beg, end) interval (zero-based).
+/// Taken from SAM/BAM specification.
+ushort reg2bin(int beg, int end) {
+    --end;
+    if (beg>>14 == end>>14) return cast(ushort)(((1<<15)-1)/7 + (beg>>14));
+    if (beg>>17 == end>>17) return cast(ushort)(((1<<12)-1)/7 + (beg>>17));
+    if (beg>>20 == end>>20) return cast(ushort)(((1<<9)-1)/7  + (beg>>20));
+    if (beg>>23 == end>>23) return cast(ushort)(((1<<6)-1)/7  + (beg>>23));
+    if (beg>>26 == end>>26) return cast(ushort)(((1<<3)-1)/7  + (beg>>26));
+    return 0;
+}

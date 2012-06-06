@@ -2,6 +2,7 @@ import bamfile;
 import samheader;
 import reference;
 import alignment;
+import alignmentrange;
 import tagvalue;
 import validation.alignment;
 
