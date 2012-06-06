@@ -5,6 +5,7 @@ import virtualoffset;
 
 import std.stream;
 import std.range;
+import std.array;
 
 /// Interface on top of Stream, which glues decompressed blocks
 /// together and provides virtualTell() method for determining
@@ -32,6 +33,9 @@ abstract class IChunkInputStream : Stream {
     /// see bgzfrange module documentation.)
     ///
     abstract VirtualOffset virtualTell();
+
+    /// Read a slice from chunk stream.
+    abstract ubyte[] readSlice(size_t n);
 }
 
 /**
@@ -41,7 +45,7 @@ abstract class IChunkInputStream : Stream {
 final class ChunkInputStream(ChunkRange) : IChunkInputStream
 {
 
-    //static assert(ElementType!ChunkRange == DecompressedBgzfBlock);
+    static assert(is(ElementType!ChunkRange == DecompressedBgzfBlock));
 
     /// Construct class instance from range of chunks.
     this(ChunkRange range) 
@@ -51,6 +55,38 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
         readable = true;
         writeable = false;
         seekable = false;
+    }
+
+    /// Read a slice from chunk stream.
+    ///
+    /// Behaviour: when current chunk contains >= n bytes,
+    ///            a chunk slice is returned. 
+    ///            Otherwise, memory copying occurs.
+    ubyte[] readSlice(size_t n) {
+        if (_range.empty()) {
+            readEOF = true;
+            return null;
+        }
+
+        if (_cur + n < _len) {
+            // can return a slice, 
+            // remaining in the current chunk
+            auto slice = _buf[_cur .. _cur + n];
+            _cur += n;
+            return slice;
+        } else if (_cur + n == _len) {
+            // end of current chunk
+            auto slice = _buf[_cur .. _len];
+            _range.popFront();
+            setupStream();
+            return slice;
+        } else {
+            // this branch will be executed rarely
+            // (wish the compiler could understand that...)
+            auto slice = uninitializedArray!(ubyte[])(n);
+            readExact(slice.ptr, n);
+            return slice;
+        }
     }
 
     override size_t readBlock(void* buffer, size_t size) {
@@ -101,6 +137,9 @@ private:
     typeof(_range.front.start_offset) _start_offset;
     typeof(_range.front.decompressed_data) _buf;
 
+    ulong _len;  // current data length
+    ulong _cur;  // current position
+
     void setupStream() {
 
         if (_range.empty()) {
@@ -125,17 +164,9 @@ private:
         return;
     }
 
-    // We try to avoid ANY overhead in serial parts of the library,
-    // and creating new MemoryStream for each block is expensive.
-    // So needed parts are just copy-pasted from phobos/std/stream.d
-    // with minor modifications.
-
-    ulong _len;  // current data length
-    ulong _cur;  // current position
-
     size_t readBlockHelper(void* buffer, size_t size) {
         ubyte* cbuf = cast(ubyte*) buffer;
-        if (_len - _cur < size)
+        if (size + _cur > _len)
           size = cast(size_t)(_len - _cur);
         ubyte[] ubuf = cast(ubyte[])_buf[cast(size_t)_cur .. cast(size_t)(_cur + size)];
         cbuf[0 .. size] = ubuf[];

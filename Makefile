@@ -31,7 +31,7 @@ test: $(FILES) readbam.d
 	dmd $(FILES) readbam.d -ofreadbam -O -release -inline -g
 
 test-gdc: $(FILES) readbam.d
-	gdc $(FILES) readbam.d -o readbam -O3 -frelease -fno-bounds-check -fno-assert -lpthread -g
+	gdc $(FILES) readbam.d -o readbam -O3 -frelease -fno-bounds-check -fno-assert -lpthread -g -funroll-all-loops -finline-limit=2048
 
 clean:
 	rm *.o

@@ -7,7 +7,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../utils/format.d
 
 DMDFLAGS=-O -release -inline
-GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -fversion=serial
+GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
 
 bam2sam: $(FILES) bam2sam/bam2sam.d
 	dmd $(DMDFLAGS) $(FILES) bam2sam/bam2sam.d -ofbuild/bam2sam 

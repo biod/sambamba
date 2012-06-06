@@ -8,7 +8,6 @@ import virtualoffset;
 import std.stream;
 import std.algorithm;
 import std.system;
-import std.array : uninitializedArray;
 import std.range;
 import std.conv;
 
@@ -93,8 +92,7 @@ static if (policy == IteratePolicy.withOffsets) {
 
         int block_size = void;
         _endian_stream.read(block_size);
-        _current_record = uninitializedArray!(ubyte[])(block_size);
-        _endian_stream.readExact(_current_record.ptr, block_size);
+        _current_record = _stream.readSlice(block_size);
     }
 
 }
