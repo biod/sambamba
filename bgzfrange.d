@@ -89,6 +89,83 @@ class BgzfException : Exception {
  */
 struct BgzfRange {
 
+    // /////////////////////////////////////////////////////////////////////////
+    //
+    // | Here is the general picture of what happens.
+    // |
+    // | First of all, BgzfRange reads bytes from the stream and determines
+    // | boundaries of BGZF blocks. Elements of the range are blocks of 
+    // | compressed data, together with their start offsets in the file.
+    // | 
+    // | After that, blocks are decompressed, and another range comes into play.
+    // | Start offsets are still provided together with blocks, because they are 
+    // | needed for random access, to calculate virtual offsets of alignments.
+    //
+    // - Virtual offset is a pair of numbers which uniquely identifies 
+    // - location of an individual alignment record in the file. The first is 
+    // - the start offset of the bgzf block in which the alignment record begins,
+    // - and the second is offset in decompressed data of that block.
+    // - Blocks are required to contain no more than 65536 bytes of uncompressed
+    // - data, and virtual offsets are stored as uint64_t numbers as follows:
+    // - [ {block offset (48 bits)} {offset in decompressed data (16 bits)} ]
+    // - 
+    // - Relatively small size of BGZF blocks makes for fast random access, 
+    // - still allowing good compression (about 3x).
+    //
+    // | Now that we have range of decompressed blocks, those blocks have to be
+    // | made into a proper input stream of bytes. BGZF specification does not
+    // | deal with alignment records, it deals with blocks of arbitrary data.
+    // | Therefore it's possible that some alignments will get splitted, though
+    // | nowadays most software which produces BAM files avoids that.
+    // | 
+    // | ChunkInputStream joins decompressed blocks into a stream, providing
+    // | virtualTell() method, which returns current virtual offset.
+    // |
+    // | Then, in case of BAM file, SAM header is read first, then comes some
+    // | basic information about reference sequences (names and lengths), 
+    // | just so as not to duplicate it in alignment records and use integer
+    // | indices instead.
+    // | 
+    // | After that, alignment records come. They are typically quite small,
+    // | about 100-1000 bytes depending on sequence length and amount of tags.
+    // |
+    // | In order to avoid copying memory, and, more importantly, allocating it
+    // | so frequently (GC is not well suited for 10000s of allocations/sec), 
+    // | the input stream provides yet another method, readSlice, which tries to
+    // | return a slice of underlying decompressed block, and only in case it's
+    // | impossible it allocates memory which is very rare.
+    //  
+    // - There're also two possible policies for iterating alignments, 
+    // - either packed together with their virtual offsets, or without them.
+    // - The first one is used for random access, the second one - for serial.
+    //                                                                      
+    // -----------------------------------------------------------------------
+    //            Picture summarizing the above description:                  
+    //                                                                        
+    //     Stream      BgzfRange          range of        input     range of  
+    //                                  decompressed     stream    alignment  
+    //                 each block       BGZF blocks,                records   
+    //                  is ~20kB         each ~65kB                           
+    //                                                                        
+    //     -------      ---------.        ---------     ---------             
+    //     |  r  |      |   1st | \       | f|d   |     |  SAM  |             
+    //     |  a  |  ->  |  bgzf |\ -----> | i|e   |     | header|             
+    //     |  w  |      | block | \       | r|c   |     |-------|             
+    //     |     |      |_______|\ \      | s|o   |  -> | r|s   |             
+    //     |  b  |      |   2nd | \ \     | t|m   |     | e|e   |             
+    //     |  y  |  ->  |  bgzf |  \ ---> |   p   |     | f|q|i |             
+    //     |  t  |      | block |   \     |   r   |     | e|u|n |             
+    //     |  e  |      |_______|    \    |   e|b |     | r|e|f |             
+    //     |  s  |      |   3rd |     \   |   s|l |  -> | e|n|o |             
+    //     |  .  |  ->  |  bgzf |      \  |   s|o |     | n|c   |             
+    //     |  .  |      | block |       ->|   e|c |     | c|e   |             
+    //     |  .  |      |-------|         |   d|k |     | e|s   |             
+    //     |  .  |  ->  |  ...  |         |       |     |-------|     --------
+    //     |  .  |      |       |         |-------|  -> |records|  -> |------|
+    //     |  .  |      |  ...  |         |  ...  |     |  ...  |  -> |------|
+    //
+    // /////////////////////////////////////////////////////////////////////////
+
     /**
       Constructs range from stream
      */
