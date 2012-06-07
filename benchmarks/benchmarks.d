@@ -1,6 +1,7 @@
 import bgzfrange;
 import bamfile;
 import alignment;
+import alignmentrange;
 import chunkinputstream;
 
 import std.stream;
@@ -15,7 +16,7 @@ version(parallel) {
 auto bgzfRange(string filename) {
     auto file = new BufferedFile(filename);
     auto compressed_stream = new EndianStream(file, Endian.littleEndian);
-    return new BgzfRange(compressed_stream);
+    return BgzfRange(compressed_stream);
 }
 
 auto decompressedRange(string filename) {
