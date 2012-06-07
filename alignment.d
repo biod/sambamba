@@ -31,7 +31,27 @@ struct CigarOperation {
       directly, not doing any memory allocations. 
     */
 
-    uint raw; /// raw data from BAM
+    private uint raw; /// raw data from BAM
+
+    private static ubyte char2op(char c) {
+        switch(c) {
+            case 'M': return 0;
+            case 'I': return 1;
+            case 'D': return 2;
+            case 'N': return 3;
+            case 'S': return 4;
+            case 'H': return 5;
+            case 'P': return 6;
+            case '=': return 7;
+            case 'X': return 8;
+            default:  return 8; // FIXME
+        }
+    }
+
+    this(uint length, char operation) {
+        enforce(length < (1<<28), "Too big length of CIGAR operation");
+        raw = (length << 4) | char2op(operation);
+    }
 
     /// operation length
     uint length() @property const {
@@ -54,6 +74,21 @@ struct CigarOperation {
 */
 struct Alignment {
 
+    // /////////////////////////////////////////////////////////////////////////
+    //
+    // Layout of Alignment in memory:
+    //
+    // TagStorage      <- tags
+    //     ubyte[]     <- tags/_chunk: slice of _chunk (see below) or an array
+    //         size_t                  containing tags in binary form, as in BAM.
+    //         ubyte*
+    // ubyte[]         <- _chunk: binary representation of alignment, as in BAM.
+    //     size_t
+    //     ubyte*
+    // bool            <- _is_slice: indicates whether _chunk is a slice or not
+    //
+    // //////////////////////////////////////////////////////////////////////////
+
     @property    int ref_id()           const { return _refID; }
     @property    int position()         const { return _pos; }
     @property ushort bin()              const { return _bin; }
@@ -65,19 +100,19 @@ struct Alignment {
     @property    int template_length()  const { return _tlen; }
 
     /// Set reference id.
-    @property void ref_id(int n)              { _refID = n; }
+    @property void ref_id(int n)              { _dup(); _refID = n; }
     /// Sets 0-based leftmost coordinate. Bin is automatically recalculated.
-    @property void position(int n)            { _pos = n; _recalculate_bin(); }
+    @property void position(int n)            { _dup(); _pos = n; _recalculate_bin(); }
     /// Set mapping quality
-    @property void mapping_quality(ubyte n)   { _mapq = n; }
+    @property void mapping_quality(ubyte n)   { _dup(); _mapq = n; }
     /// Set flag 
-    @property void flag(ushort n)             { _flag = n; } // TODO: add setters like below
+    @property void flag(ushort n)             { _dup(); _flag = n; }
     /// Set mate reference id.
-    @property void next_ref_id(int n)         { _next_refID = n; }
+    @property void next_ref_id(int n)         { _dup(); _next_refID = n; }
     /// Set mate position
-    @property void next_pos(int n)            { _next_pos = n; }
+    @property void next_pos(int n)            { _dup(); _next_pos = n; }
     /// Set template length
-    @property void template_length(int n)     { _tlen = n; }
+    @property void template_length(int n)     { _dup(); _tlen = n; }
   
     /// Template having multiple segments in sequencing
     @property bool is_paired()                const { return cast(bool)(flag & 0x1); }
@@ -101,6 +136,19 @@ struct Alignment {
     @property bool failed_quality_control()   const { return cast(bool)(flag & 0x200); }
     /// PCR or optical duplicate
     @property bool is_duplicate()             const { return cast(bool)(flag & 0x400); }
+
+    // flag setters
+    @property void is_paired(bool b)                { _setFlag( 0, b); }
+    @property void proper_pair(bool b)              { _setFlag( 1, b); }
+    @property void is_unmapped(bool b)              { _setFlag( 2, b); }
+    @property void mate_is_unmapped(bool b)         { _setFlag( 3, b); } 
+    @property void is_reverse_strand(bool b)        { _setFlag( 4, b); } 
+    @property void mate_is_reverse_strand(bool b)   { _setFlag( 5, b); } 
+    @property void is_first_of_pair(bool b)         { _setFlag( 6, b); } 
+    @property void is_second_of_pair(bool b)        { _setFlag( 7, b); } 
+    @property void is_secondary_alignment(bool b)   { _setFlag( 8, b); } 
+    @property void failed_quality_control(bool b)   { _setFlag( 9, b); } 
+    @property void is_duplicate(bool b)             { _setFlag(10, b); } 
 
     @property string read_name() const {
         // notice -1: the string is zero-terminated, so we should strip that '\0'
@@ -137,7 +185,7 @@ struct Alignment {
     }
 
     /// Human-readable representation of CIGAR string
-    string cigar_string() {
+    string cigarString() {
         char[] str;
 
         // guess size of resulting string
@@ -176,6 +224,8 @@ struct Alignment {
 
         // TODO: switch endianness lazily as well?
 
+        this._is_slice = true;
+
         _chunk = chunk;
         if (std.system.endian != Endian.littleEndian) {
             // First 8 fields are 32-bit integers:                 
@@ -212,6 +262,8 @@ struct Alignment {
     {
         enforce(read_name.length < 256, "Too long read name, length must be <= 255");
 
+        this._is_slice = false;
+
         this._chunk = new ubyte[8 * int.sizeof
                               + (read_name.length + 1) // tailing '\0'
                               + uint.sizeof * cigar.length
@@ -237,7 +289,8 @@ struct Alignment {
         _chunk[_qual_offset .. _qual_offset + sequence.length] = 0xFF;
 
         // set CIGAR data
-        _chunk[_cigar_offset .. _cigar_offset + cigar.length] = cast(ubyte[])(cigar);
+        auto _len = cigar.length * CigarOperation.sizeof;
+        _chunk[_cigar_offset .. _cigar_offset + _len] = cast(ubyte[])(cigar);
 
         // set read_name
         auto _offset = _read_name_offset;
@@ -290,6 +343,8 @@ private:
                     /// the access is organized via properties
                     /// (see below)
 
+    bool _is_slice; /// indicates whether _chunk is a slice or an allocated array.
+
     /// Official field names from SAM/BAM specification.
     /// For internal use only
 
@@ -328,11 +383,11 @@ private:
     @property ushort _n_cigar_op()  const { return _flag_nc & 0xFFFF; }
   
     /// Setters for those properties
-    @property void _bin(ushort n)         { _bin_mq_nl = _bin_mq_nl & ( 0xFFFF | (n << 16)); } 
-    @property void _mapq(ubyte n)         { _bin_mq_nl = _bin_mq_nl & (~0xFF00 | (n << 8)); }
-    @property void _l_read_name(ubyte n)  { _bin_mq_nl = _bin_mq_nl & (~0xFF   | n); }
-    @property void _flag(ushort n)        { _flag_nc   = _flag_nc   & ( 0xFFFF | (n << 16)); }
-    @property void _n_cigar_op(ushort n)  { _flag_nc   = _flag_nc   & (~0xFFFF | n); }
+    @property void _bin(ushort n)         { _bin_mq_nl = (_bin_mq_nl &  0xFFFF) | (n << 16); } 
+    @property void _mapq(ubyte n)         { _bin_mq_nl = (_bin_mq_nl & ~0xFF00) | (n << 8); }
+    @property void _l_read_name(ubyte n)  { _bin_mq_nl = (_bin_mq_nl & ~0xFF  ) | n; }
+    @property void _flag(ushort n)        { _flag_nc   = (_flag_nc   &  0xFFFF) | (n << 16); }
+    @property void _n_cigar_op(ushort n)  { _flag_nc   = (_flag_nc   & ~0xFFFF) | n; }
 
     /// Offsets of various arrays in bytes.
     /// Currently, are computed each time, so if speed will be an issue,
@@ -345,8 +400,45 @@ private:
     /// Offset of auxiliary data
     @property size_t _tags_offset()      const { return _qual_offset + _l_seq * char.sizeof; }
 
+    /// Sets n-th flag bit to boolean value b.
+    void _setFlag(int n, bool b) {
+        assert(n < 16);
+        // http://graphics.stanford.edu/~seander/bithacks.html#ConditionalSetOrClearBitsWithoutBranching
+        ushort mask = cast(ushort)(1 << n);
+        _flag = (_flag & ~mask) | ((-cast(int)b) & mask);
+    }
+
+    /// If _chunk is still a slice, not an array, duplicate it.
+    /// Used when some part of alignment record is modified by user.
+    ///
+    /// Basically, it's sort of copy-on-write: a lot of read-only alignments
+    /// may copy to the same location, but every modified one allocates its
+    /// own chunk of memory.
+    ///
+    /// Atomic compare-and-swap is used so multiple threads can modify fields.
+    void _dup() {
+        if (_is_slice) {
+            _is_slice = false;
+            _chunk = _chunk.dup;
+            tags = TagStorage(_chunk[_tags_offset .. $]);
+        }
+    }
+
     /// Calculates bin number.
     void _recalculate_bin() {
         _bin = reg2bin(position, position + bases_covered());
     }
+}
+
+unittest {
+    import std.algorithm;
+    import std.stdio;
+    auto read = Alignment("readname", 
+                          "AGCTGACTACGTAATAGCCCTA", 
+                          [CigarOperation(22, 'M')]);
+    assert(read.sequence_length == 22);
+    assert(read.cigar.length == 1);
+    assert(read.cigarString() == "22M");
+    assert(read.read_name == "readname");
+    assert(equal(read.sequence(), "AGCTGACTACGTAATAGCCCTA"));
 }

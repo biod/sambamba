@@ -212,7 +212,7 @@ alignment_read_name(Alignment* a) {
 
 extern(C) immutable(char)*
 alignment_cigar_string(Alignment* a) {
-    return toStringz(a.cigar_string());
+    return toStringz(a.cigarString());
 }
 
 extern(C) immutable(char)*

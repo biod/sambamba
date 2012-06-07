@@ -20,7 +20,7 @@ void main(string[] args) {
     foreach (alignment; bam[chr][beg .. end]) {
         writeln(alignment.read_name, " ", 
                 to!string(alignment.sequence), " ",
-                alignment.cigar_string(),
+                alignment.cigarString(),
                 " (begin: ", alignment.position,
                 "; end: ", alignment.position + alignment.bases_covered(),
                 ")");

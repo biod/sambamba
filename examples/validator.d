@@ -10,7 +10,7 @@ class Validator : AbstractAlignmentValidator {
 
     void onError(ref Alignment alignment, CigarError e) {
         writeln("\tCIGAR error: ", e);
-        writeln("\t\t   cigar string: ", alignment.cigar_string);
+        writeln("\t\t   cigar string: ", alignment.cigarString());
         writeln("\t\tsequence length: ", alignment.sequence_length);
     }
 
