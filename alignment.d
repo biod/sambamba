@@ -9,6 +9,7 @@ import std.algorithm;
 import std.range;
 import std.conv;
 import std.exception;
+import std.stream;
 import std.system;
 
 import utils.switchendianness;
@@ -335,6 +336,20 @@ struct Alignment {
     bool opEquals(const ref Alignment other) const pure nothrow {
         /// Notice that in D, array comparison compares elements, not pointers.
         return this._chunk == other._chunk && this.tags == other.tags;
+    }
+
+    /// Size of alignment when output to stream in BAM format.
+    /// Includes block_size as well (see SAM/BAM specification)
+    @property auto size_in_bytes() const {
+        return int.sizeof + _tags_offset + tags.size_in_bytes;
+    }
+   
+    /// Write alignment to EndianStream, together with block_size
+    /// and auxiliary data.
+    void write(EndianStream stream) {
+        stream.write(cast(int)(_tags_offset + tags.size_in_bytes));
+		stream.writeExact(_chunk.ptr, _tags_offset);
+        tags.write(stream);
     }
 
 private:

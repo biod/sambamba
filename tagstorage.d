@@ -65,6 +65,17 @@ struct TagStorage {
         return this._chunk == other._chunk;
     }
 
+    /// Returns size of auxiliary data to be written in output stream
+    @property auto size_in_bytes() const {
+        return _chunk.length;
+    }
+
+    /// Writes auxiliary data to output stream
+    void write(Stream stream) {
+        fixByteOrder();                                // FIXME: users of big-endian
+        stream.writeExact(_chunk.ptr, _chunk.length);  // systems won't be happy with
+        fixByteOrder();                                // speed of such an approach
+    }
 private:
     ubyte[] _chunk;
 

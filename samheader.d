@@ -108,12 +108,12 @@ unittest {
     import std.stdio;
 
     writeln("Testing @HD line parsing...");
-    auto hd_line = HdLine.parse("@HD	VN:1.0	SO:coordinate");
+    auto hd_line = HdLine.parse("@HD    VN:1.0    SO:coordinate");
     assert(hd_line.format_version == "1.0");
     assert(hd_line.sorting_order == "coordinate");
 
     writeln("Testing @SQ line parsing...");
-    auto sq_line = SqLine.parse("@SQ	SN:NC_007605	LN:171823	M5:6743bd63b3ff2b5b8985d8933c53290a	UR:ftp://.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz	AS:NCBI37	SP:HUMAN");
+    auto sq_line = SqLine.parse("@SQ    SN:NC_007605    LN:171823    M5:6743bd63b3ff2b5b8985d8933c53290a    UR:ftp://.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz    AS:NCBI37    SP:HUMAN");
     assert(sq_line.sequence_name == "NC_007605");
     assert(sq_line.sequence_length == 171823);
     assert(sq_line.md5 == "6743bd63b3ff2b5b8985d8933c53290a");
@@ -122,7 +122,7 @@ unittest {
     assert(sq_line.species == "HUMAN");
 
     writeln("Testing @RG line parsing...");
-    auto rg_line = RgLine.parse("@RG	ID:ERR016155	LB:HUMgdtRAGDIAAPE	SM:HG00125	PI:488	CN:BGI	PL:ILLUMINA	DS:SRP001294");
+    auto rg_line = RgLine.parse("@RG    ID:ERR016155    LB:HUMgdtRAGDIAAPE    SM:HG00125    PI:488    CN:BGI    PL:ILLUMINA    DS:SRP001294");
     assert(rg_line.identifier == "ERR016155");
     assert(rg_line.library == "HUMgdtRAGDIAAPE");
     assert(rg_line.sample == "HG00125");
@@ -132,7 +132,7 @@ unittest {
     assert(rg_line.description == "SRP001294");
 
     writeln("Testing @PG line parsing...");
-    auto pg_line = PgLine.parse("@PG	ID:bam_calculate_bq	PN:samtools	PP:bam_recalibrate_quality_scores	VN:0.1.17 (r973:277)	CL:samtools calmd -Erb $bam_file $reference_fasta > $bq_bam_file");
+    auto pg_line = PgLine.parse("@PG    ID:bam_calculate_bq    PN:samtools    PP:bam_recalibrate_quality_scores    VN:0.1.17 (r973:277)    CL:samtools calmd -Erb $bam_file $reference_fasta > $bq_bam_file");
     assert(pg_line.identifier == "bam_calculate_bq");
     assert(pg_line.program_name == "samtools");
     assert(pg_line.previous_program == "bam_recalibrate_quality_scores");
@@ -187,6 +187,11 @@ public:
 
     /// Returns: urls of all fasta files encountered in @SQ lines
     string[] fasta_urls() @property { return _fasta_urls; }
+
+    /// Returns: raw text of the header
+    string text() @property const {
+        return _header;
+    }
 
 private:
     string _header;
