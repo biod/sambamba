@@ -4,7 +4,7 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  validation/samheader.d validation/alignment.d utils/algo.d \
 	  randomaccessmanager.d virtualoffset.d bai/read.d bai/utils/algo.d \
 	  bai/bin.d bai/chunk.d utils/range.d utils/memoize.d sam/serialize.d \
-	  utils/format.d alignmentrange.d bamoutput.d
+	  utils/format.d alignmentrange.d bamoutput.d constants.d bgzfcompress.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
@@ -28,10 +28,10 @@ unittests-gdc: $(TESTFILES)
 	./run_unittests
 
 test: $(FILES) readbam.d
-	dmd $(FILES) readbam.d -ofreadbam -O -release -inline -g
+	dmd $(FILES) readbam.d -ofreadbam -g -debug
 
 test-gdc: $(FILES) readbam.d
-	gdc $(FILES) readbam.d -o readbam -O3 -frelease -fno-bounds-check -fno-assert -lpthread -g -funroll-all-loops -finline-limit=2048
+	gdc $(FILES) readbam.d -o readbam -g -fdebug
 
 clean:
 	rm *.o

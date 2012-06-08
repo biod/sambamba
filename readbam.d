@@ -15,4 +15,10 @@ void main(string[] args) {
     writeln("total time: ", sw.peek().nsecs, "ns");
     writeln("alignments found: ", count);
 
+	import std.stream;
+	import bamoutput;
+	auto stream = new BufferedFile("tmp.bam", FileMode.Out);
+	bam.rewind();
+	writeBAM(stream, bam.header.text, bam.reference_sequences, bam.alignments, 0);
+	stream.close();
 }

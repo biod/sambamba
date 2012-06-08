@@ -72,9 +72,13 @@ struct TagStorage {
 
     /// Writes auxiliary data to output stream
     void write(Stream stream) {
-        fixByteOrder();                                // FIXME: users of big-endian
-        stream.writeExact(_chunk.ptr, _chunk.length);  // systems won't be happy with
-        fixByteOrder();                                // speed of such an approach
+		if (std.system.endian == Endian.littleEndian) {
+			stream.writeExact(_chunk.ptr, _chunk.length);
+		} else {
+			fixByteOrder();                                // FIXME: should modify on-the-fly
+			stream.writeExact(_chunk.ptr, _chunk.length);  // during writing to the stream
+			fixByteOrder();                                
+		}
     }
 private:
     ubyte[] _chunk;
