@@ -5,7 +5,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../bai/read.d ../bai/chunk.d ../bai/bin.d ../bai/utils/algo.d \
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
-	  ../bgzfcompress.d
+	  ../bgzfcompress.d ../utils/array.d
 
 DMDFLAGS=-O -release -inline
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g

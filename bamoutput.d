@@ -67,14 +67,13 @@ void writeAlignment(EndianStream stream, Alignment alignment) {
 ///
 ///     alignments =  range of alignments
 ///
-///     compression_level =  level of compression, use 0 for uncompressed BAM;
-///                          default value is 9 - maximum compression.
+///     compression_level =  level of compression, use 0 for uncompressed BAM.
 /// 
 void writeBAM(R)(Stream stream, 
                  string header, 
                  ReferenceSequenceInfo[] info,
                  R alignments,
-                 int compression_level=9)
+                 int compression_level=-1) 
     if (is(ElementType!R == Alignment))
 {
     // First, pack header and reference sequences.
@@ -84,8 +83,10 @@ void writeBAM(R)(Stream stream,
     writeSamHeader(header_endian_stream, header);
     writeReferenceSequences(header_endian_stream, info);
 
-    auto header_block = bgzfCompress(header_memory_stream.data, compression_level);
-    stream.writeExact(header_block.ptr, header_block.length);
+    foreach (block; std.range.chunks(header_memory_stream.data, BGZF_BLOCK_SIZE)) {
+        auto bgzf_block = bgzfCompress(block, compression_level);
+        stream.writeExact(bgzf_block.ptr, bgzf_block.length);
+    }
 
     // OK, now alignments
 
@@ -151,6 +152,7 @@ void writeBAM(R)(Stream stream,
         }
     }
 
+    // TODO: parallelize this stuff
     auto blocks = BlockRange(alignments);
     foreach(block; blocks) {
         while (block.length > 0) {

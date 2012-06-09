@@ -12,6 +12,8 @@ import std.exception;
 import std.stream;
 import std.system;
 
+import utils.array;
+
 import utils.switchendianness;
 
 /**
@@ -156,9 +158,33 @@ struct Alignment {
         return cast(string)(_chunk[_read_name_offset .. _read_name_offset + _l_read_name - 1]);
     }
 
+    @property void read_name(string name) {
+        enforce(name.length >= 1 && name.length <= 255, "name length must be in 1-255 range");
+        _dup();
+        utils.array.replaceSlice(_chunk, 
+                     _chunk[_read_name_offset .. _read_name_offset + _l_read_name - 1],
+                     cast(ubyte[])name);
+        _l_read_name = cast(ubyte)(name.length + 1);
+
+        _updateTagStorage();
+    }
+
+    /// List of CIGAR operations
     @property const(CigarOperation)[] cigar() const {
         return cast(const(CigarOperation)[])(_chunk[_cigar_offset .. _cigar_offset + 
                                              _n_cigar_op * CigarOperation.sizeof]);
+    }
+
+    @property void cigar(const(CigarOperation)[] c) {
+        _dup();
+        utils.array.replaceSlice(_chunk,
+             _chunk[_cigar_offset .. _cigar_offset + _n_cigar_op * CigarOperation.sizeof],
+             cast(ubyte[])c);
+
+        _n_cigar_op = cast(ushort)(c.length);
+
+        _recalculate_bin();
+        _updateTagStorage();
     }
 
     /// The number of reference bases covered
@@ -205,15 +231,64 @@ struct Alignment {
     }
 
     /// Range of characters
-    auto sequence() const {
+    @property auto sequence() const {
         auto even = map!"a>>4"(raw_sequence_data);
         auto odd  = map!"a&15"(raw_sequence_data);
         return map!`"=ACMGRSVTWYHKDBN"[a]`(take(roundRobin(even, odd), sequence_length));
     }
 
+    /// Set sequence. Must be of the same length as current sequence.
+    @property void sequence(string seq) {
+
+        enforce(seq.length == _l_seq, "Sequence must have the same length as current");
+
+        _dup();
+
+        /// Translates sequence character to its internal representation.
+        static ubyte toHalfByte(char c) {
+            /// The table is taken from samtools/bam_import.c
+            static ubyte[256] table = [
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                 1, 2, 4, 8, 15,15,15,15, 15,15,15,15, 15, 0 /*=*/,15,15,
+                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
+                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
+                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
+                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
+                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15
+            ];
+            return table[c];
+        }
+
+        auto _raw_length = (seq.length + 1) / 2;
+        // set sequence
+        ubyte[] _seq = _chunk[_seq_offset .. _seq_offset + _raw_length];
+        for (size_t i = 0; i < _raw_length; ++i) {
+            _seq[i] = cast(ubyte)(toHalfByte(seq[2 * i]) << 4);
+
+            if (seq.length > 2 * i + 1)
+                _seq[i] |= cast(ubyte)(toHalfByte(seq[2 * i + 1]));
+        }
+    }
+
     /// Quality data
     @property const(ubyte)[] phred_base_quality() const {
         return _chunk[_qual_offset .. _qual_offset + _l_seq * char.sizeof];
+    }
+
+    /// Set quality data - array length must be of the same length as the sequence.
+    @property void phred_base_quality(const(ubyte)[] quality) {
+        enforce(quality.length == _l_seq, "Quality data must be of the same length as sequence");
+        _dup();
+        _chunk[_qual_offset .. _qual_offset + _l_seq] = quality;
     }
 
     TagStorage tags = void;
@@ -253,7 +328,7 @@ struct Alignment {
 
         this.tags = TagStorage(_chunk[_tags_offset .. $]);
     } 
-    
+   
     /// Construct alignment from basic information about it.
     ///
     /// Other fields can be set afterwards.
@@ -298,39 +373,7 @@ struct Alignment {
         _chunk[_offset .. _offset + read_name.length] = cast(ubyte[])read_name;
         _chunk[_offset + read_name.length] = cast(ubyte)'\0';
 
-        /// Translates sequence character to its internal representation.
-        static ubyte toHalfByte(char c) {
-            /// The table is taken from samtools/bam_import.c
-            static ubyte[256] table = [
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                 1, 2, 4, 8, 15,15,15,15, 15,15,15,15, 15, 0 /*=*/,15,15,
-                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
-                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
-                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
-                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15
-            ];
-            return table[c];
-        }
-
-        // set sequence
-        auto _raw_length = (sequence.length + 1) / 2;
-        ubyte[] _seq = _chunk[_seq_offset .. _seq_offset + _raw_length];
-        for (size_t i = 0; i < _raw_length; ++i) {
-            _seq[i] = cast(ubyte)(toHalfByte(sequence[2 * i]) << 4);
-
-            if (sequence.length > 2 * i + 1)
-                _seq[i] |= cast(ubyte)(toHalfByte(sequence[2 * i + 1]));
-        }
+        this.sequence = sequence;
     }
 
     bool opEquals(const ref Alignment other) const pure nothrow {
@@ -443,6 +486,11 @@ private:
     void _recalculate_bin() {
         _bin = reg2bin(position, position + bases_covered());
     }
+
+    /// Tags offset can change during some operations.
+    void _updateTagStorage() {
+        tags = TagStorage(_chunk[_tags_offset .. $]);
+    }
 }
 
 unittest {
@@ -456,4 +504,18 @@ unittest {
     assert(read.cigarString() == "22M");
     assert(read.read_name == "readname");
     assert(equal(read.sequence(), "AGCTGACTACGTAATAGCCCTA"));
+
+    read.read_name = "anothername";
+    assert(read.read_name == "anothername");
+    assert(read.cigarString() == "22M");
+
+    read.phred_base_quality = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 
+                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+    assert(reduce!"a+b"(0, read.phred_base_quality) == 253);
+
+    read.cigar = [CigarOperation(20, 'M'), CigarOperation(2, 'X')];
+    assert(read.cigarString() == "20M2X");
+
+    read.sequence = "AGCTGGCTACGTAATAGCCCTA";
+    assert(equal(read.sequence(), "AGCTGGCTACGTAATAGCCCTA"));
 }
