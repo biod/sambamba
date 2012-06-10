@@ -249,6 +249,7 @@ private:
 
                 if (si1 == BAM_SI1 && si2 == BAM_SI2) { 
                     // found 'BC' as subfield identifier
+					
                     if (slen != 2) {
                         throwBgzfException("wrong BC subfield length: " ~ 
                                            to!string(slen) ~ "; expected 2");

@@ -1,6 +1,6 @@
 FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  samheader.d reference.d alignment.d \
-	  tagstorage.d tagvalue.d utils/switchendianness.d \
+	  tagvalue.d utils/switchendianness.d \
 	  validation/samheader.d validation/alignment.d utils/algo.d \
 	  randomaccessmanager.d virtualoffset.d bai/read.d bai/utils/algo.d \
 	  bai/bin.d bai/chunk.d utils/range.d utils/memoize.d sam/serialize.d \
@@ -25,7 +25,7 @@ unittests: $(TESTFILES)
 	./run_unittests
 
 unittests-gdc: $(TESTFILES)
-	gdc $(TESTFILES) -O0 -funittest -o run_unittests -lpthread -fdebug
+	gdc $(TESTFILES) -O0 -funittest -o run_unittests -lpthread -fdebug -fversion=serial
 	./run_unittests
 
 test: $(FILES) readbam.d

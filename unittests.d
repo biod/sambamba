@@ -77,7 +77,8 @@ TODO: this should throw
         if (read_name != value) {
             writeln("tag: ", tag, "\tread_name: ", read_name, "\tvalue: ", value);
             writeln("value bam_typeid: ", alignment.tags[tag.idup].bam_typeid);
-        }
+		}
+
         assert(read_name == value);
     }
 
@@ -89,7 +90,7 @@ TODO: this should throw
     fn = buildPath(dirName(__FILE__), "test", "data", "wrong_extra_gzip_length.bam");
     assertThrown!BgzfException(BamFile(fn));
     fn = buildPath(dirName(__FILE__), "test", "data", "wrong_bc_subfield_length.bam");
-    assertThrown!BgzfException(BamFile(fn));
+    assertThrown!BgzfException(reduce!"a+b.sequence_length"(0,BamFile(fn).alignments));
     fn = buildPath(dirName(__FILE__), "test", "data", "corrupted_zlib_archive.bam");
     assertThrown!ZlibException(BamFile(fn));
 

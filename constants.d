@@ -10,8 +10,8 @@ immutable BAM_MAGIC = "BAM\1";
     return eof;
 }
 
-immutable BAM_SI1 = 66;
-immutable BAM_SI2 = 67;
+immutable ubyte BAM_SI1 = 66;
+immutable ubyte BAM_SI2 = 67;
 
 immutable BGZF_MAGIC = 0x04_08_8B_1F; // little endian
 

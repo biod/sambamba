@@ -1,8 +1,6 @@
 module alignment;
 
 import tagvalue;
-import tagstorage;
-
 private import bai.bin;
 
 import std.algorithm;
@@ -57,12 +55,12 @@ struct CigarOperation {
     }
 
     /// operation length
-    uint length() @property const {
+    uint length() @property const nothrow {
         return raw >> 4;
     }
   
     /// CIGAR operation as one of MIDNSHP=X
-    char operation() @property const {
+    char operation() @property const nothrow {
         if ((raw & 0xF) > 8) {
             /* FIXME: what to do in this case? */
             return '\0';
@@ -82,9 +80,10 @@ struct Alignment {
     // Layout of Alignment in memory:
     //
     // TagStorage      <- tags
-    //     ubyte[]     <- tags/_chunk: slice of _chunk (see below) or an array
-    //         size_t                  containing tags in binary form, as in BAM.
-    //         ubyte*
+    //     ubyte[]     <- slice of the whole chunk. Must maintain it
+    //         size_t                               because struct cannot hold
+    //         ubyte*                               a pointer to itself in D.
+    //     size_t      <- tags offset in the chunk
     // ubyte[]         <- _chunk: binary representation of alignment, as in BAM.
     //     size_t
     //     ubyte*
@@ -92,15 +91,15 @@ struct Alignment {
     //
     // //////////////////////////////////////////////////////////////////////////
 
-    @property    int ref_id()           const { return _refID; }
-    @property    int position()         const { return _pos; }
-    @property ushort bin()              const { return _bin; }
-    @property  ubyte mapping_quality()  const { return _mapq; }
-    @property ushort flag()             const { return _flag; }
-    @property    int sequence_length()  const { return _l_seq; }
-    @property    int next_ref_id()      const { return _next_refID; }
-    @property    int next_pos()         const { return _next_pos; }
-    @property    int template_length()  const { return _tlen; }
+    @property    int ref_id()           const nothrow { return _refID; }
+    @property    int position()         const nothrow { return _pos; }
+    @property ushort bin()              const nothrow { return _bin; }
+    @property  ubyte mapping_quality()  const nothrow { return _mapq; }
+    @property ushort flag()             const nothrow { return _flag; }
+    @property    int sequence_length()  const nothrow { return _l_seq; }
+    @property    int next_ref_id()      const nothrow { return _next_refID; }
+    @property    int next_pos()         const nothrow { return _next_pos; }
+    @property    int template_length()  const nothrow { return _tlen; }
 
     /// Set reference id.
     @property void ref_id(int n)              { _dup(); _refID = n; }
@@ -118,27 +117,27 @@ struct Alignment {
     @property void template_length(int n)     { _dup(); _tlen = n; }
   
     /// Template having multiple segments in sequencing
-    @property bool is_paired()                const { return cast(bool)(flag & 0x1); }
+    @property bool is_paired()                const nothrow { return cast(bool)(flag & 0x1); }
     /// Each segment properly aligned according to the aligner
-    @property bool proper_pair()              const { return cast(bool)(flag & 0x2); }
+    @property bool proper_pair()              const nothrow { return cast(bool)(flag & 0x2); }
     /// Segment unmapped
-    @property bool is_unmapped()              const { return cast(bool)(flag & 0x4); }
+    @property bool is_unmapped()              const nothrow { return cast(bool)(flag & 0x4); }
     /// Next segment in the template unmapped
-    @property bool mate_is_unmapped()         const { return cast(bool)(flag & 0x8); }
+    @property bool mate_is_unmapped()         const nothrow { return cast(bool)(flag & 0x8); }
     /// Sequence being reverse complemented
-    @property bool is_reverse_strand()        const { return cast(bool)(flag & 0x10); }
+    @property bool is_reverse_strand()        const nothrow { return cast(bool)(flag & 0x10); }
     /// Sequence of the next segment in the template being reversed
-    @property bool mate_is_reverse_strand()   const { return cast(bool)(flag & 0x20); }
+    @property bool mate_is_reverse_strand()   const nothrow { return cast(bool)(flag & 0x20); }
     /// The first segment in the template
-    @property bool is_first_of_pair()         const { return cast(bool)(flag & 0x40); }
+    @property bool is_first_of_pair()         const nothrow { return cast(bool)(flag & 0x40); }
     /// The last segment in the template
-    @property bool is_second_of_pair()        const { return cast(bool)(flag & 0x80); }
+    @property bool is_second_of_pair()        const nothrow { return cast(bool)(flag & 0x80); }
     /// Secondary alignment
-    @property bool is_secondary_alignment()   const { return cast(bool)(flag & 0x100); }
+    @property bool is_secondary_alignment()   const nothrow { return cast(bool)(flag & 0x100); }
     /// Not passing quality controls
-    @property bool failed_quality_control()   const { return cast(bool)(flag & 0x200); }
+    @property bool failed_quality_control()   const nothrow { return cast(bool)(flag & 0x200); }
     /// PCR or optical duplicate
-    @property bool is_duplicate()             const { return cast(bool)(flag & 0x400); }
+    @property bool is_duplicate()             const nothrow { return cast(bool)(flag & 0x400); }
 
     // flag setters
     @property void is_paired(bool b)                { _setFlag( 0, b); }
@@ -153,7 +152,7 @@ struct Alignment {
     @property void failed_quality_control(bool b)   { _setFlag( 9, b); } 
     @property void is_duplicate(bool b)             { _setFlag(10, b); } 
 
-    @property string read_name() const {
+    @property string read_name() const nothrow {
         // notice -1: the string is zero-terminated, so we should strip that '\0'
         return cast(string)(_chunk[_read_name_offset .. _read_name_offset + _l_read_name - 1]);
     }
@@ -165,12 +164,10 @@ struct Alignment {
                      _chunk[_read_name_offset .. _read_name_offset + _l_read_name - 1],
                      cast(ubyte[])name);
         _l_read_name = cast(ubyte)(name.length + 1);
-
-        _updateTagStorage();
     }
 
     /// List of CIGAR operations
-    @property const(CigarOperation)[] cigar() const {
+    @property const(CigarOperation)[] cigar() const nothrow {
         return cast(const(CigarOperation)[])(_chunk[_cigar_offset .. _cigar_offset + 
                                              _n_cigar_op * CigarOperation.sizeof]);
     }
@@ -184,7 +181,6 @@ struct Alignment {
         _n_cigar_op = cast(ushort)(c.length);
 
         _recalculate_bin();
-        _updateTagStorage();
     }
 
     /// The number of reference bases covered
@@ -226,7 +222,7 @@ struct Alignment {
     }
 
     /// Sequence data 
-    @property const(ubyte)[] raw_sequence_data() const {
+    @property const(ubyte)[] raw_sequence_data() const nothrow {
         return _chunk[_seq_offset .. _seq_offset + (_l_seq + 1) / 2];
     }
 
@@ -280,7 +276,7 @@ struct Alignment {
     }
 
     /// Quality data
-    @property const(ubyte)[] phred_base_quality() const {
+    @property const(ubyte)[] phred_base_quality() const nothrow {
         return _chunk[_qual_offset .. _qual_offset + _l_seq * char.sizeof];
     }
 
@@ -298,7 +294,16 @@ struct Alignment {
       */
     this(ubyte[] chunk) {
 
-        // TODO: switch endianness lazily as well?
+        // Switching endianness lazily is not a good idea:
+        //
+        // 1) switching byte order is pretty fast
+        // 2) lazy switching for arrays can kill the performance,
+        //    it has to be done once
+        // 3) the code will be too complicated, whereas there're
+        //    not so many users of big-endian systems
+        //
+        // In summa, BAM is little-endian format, so big-endian 
+        // users will suffer anyway, it's unavoidable.
 
         this._is_slice = true;
 
@@ -326,7 +331,8 @@ struct Alignment {
             // Dealing with tags is the responsibility of TagStorage.
         }
 
-        this.tags = TagStorage(_chunk[_tags_offset .. $]);
+        // create from chunk of little-endian memory
+        this.tags = TagStorage(_chunk[], _tags_offset, Endian.littleEndian);
     } 
    
     /// Construct alignment from basic information about it.
@@ -346,8 +352,6 @@ struct Alignment {
                               + ubyte.sizeof * ((sequence.length + 1) / 2)
                               + ubyte.sizeof * sequence.length];
         
-        this.tags = TagStorage(_chunk[$ .. $]);
-
         this._refID      =  -1;         // set default values
         this._pos        =  -1;         // according to SAM/BAM
         this._mapq       = 255;         // specification
@@ -360,6 +364,8 @@ struct Alignment {
         this._l_seq       = cast(int)(sequence.length);
 
         // now all offsets can be calculated through corresponding properties
+
+        this.tags = TagStorage(_chunk[], _tags_offset);
 
         // set default quality
         _chunk[_qual_offset .. _qual_offset + sequence.length] = 0xFF;
@@ -376,9 +382,11 @@ struct Alignment {
         this.sequence = sequence;
     }
 
+    /// Compare two alignments, including tags 
+    /// (they must be in the same order for equality).
     bool opEquals(const ref Alignment other) const pure nothrow {
-        /// Notice that in D, array comparison compares elements, not pointers.
-        return this._chunk == other._chunk && this.tags == other.tags;
+        // in D, array comparison compares elements, not pointers.
+        return this._chunk == other._chunk;
     }
 
     /// Size of alignment when output to stream in BAM format.
@@ -395,6 +403,9 @@ struct Alignment {
         tags.write(stream);
     }
 
+    this(this) {
+        tags = TagStorage(_chunk[], _tags_offset);
+    }
 private:
 
     ubyte[] _chunk; /// holds all the data, 
@@ -406,14 +417,37 @@ private:
     /// Official field names from SAM/BAM specification.
     /// For internal use only
 
-    @property  int _refID()      const { return *(cast( int*)(_chunk.ptr + int.sizeof * 0)); }
-    @property  int _pos()        const { return *(cast( int*)(_chunk.ptr + int.sizeof * 1)); }
-    @property uint _bin_mq_nl()  const { return *(cast(uint*)(_chunk.ptr + int.sizeof * 2)); }
-    @property uint _flag_nc()    const { return *(cast(uint*)(_chunk.ptr + int.sizeof * 3)); }
-    @property  int _l_seq()      const { return *(cast( int*)(_chunk.ptr + int.sizeof * 4)); }
-    @property  int _next_refID() const { return *(cast( int*)(_chunk.ptr + int.sizeof * 5)); }
-    @property  int _next_pos()   const { return *(cast( int*)(_chunk.ptr + int.sizeof * 6)); }
-    @property  int _tlen()       const { return *(cast( int*)(_chunk.ptr + int.sizeof * 7)); }
+    @property  int _refID()      const nothrow { 
+        return *(cast( int*)(_chunk.ptr + int.sizeof * 0)); 
+    }
+
+    @property  int _pos()        const nothrow { 
+        return *(cast( int*)(_chunk.ptr + int.sizeof * 1)); 
+    }
+
+    @property uint _bin_mq_nl()  const nothrow { 
+        return *(cast(uint*)(_chunk.ptr + int.sizeof * 2)); 
+    }
+
+    @property uint _flag_nc()    const nothrow { 
+        return *(cast(uint*)(_chunk.ptr + int.sizeof * 3)); 
+    }
+
+    @property  int _l_seq()      const nothrow { 
+        return *(cast( int*)(_chunk.ptr + int.sizeof * 4)); 
+    }
+
+    @property  int _next_refID() const nothrow {
+        return *(cast( int*)(_chunk.ptr + int.sizeof * 5)); 
+    }
+
+    @property  int _next_pos()   const nothrow { 
+        return *(cast( int*)(_chunk.ptr + int.sizeof * 6)); 
+    }
+
+    @property  int _tlen()       const nothrow {
+        return *(cast( int*)(_chunk.ptr + int.sizeof * 7)); 
+    }
 
     /// Setters, also only for internal use
     @property void _refID(int n)       { *(cast( int*)(_chunk.ptr + int.sizeof * 0)) = n; }
@@ -434,11 +468,21 @@ private:
     ///
     /// flag_nc   [ { flag (16b) } { n_cigar_op (16b) } ]
     ///
-    @property ushort _bin()         const { return _bin_mq_nl >> 16; }
-    @property  ubyte _mapq()        const { return (_bin_mq_nl >> 8) & 0xFF; }
-    @property  ubyte _l_read_name() const { return _bin_mq_nl & 0xFF; }
-    @property ushort _flag()        const { return _flag_nc >> 16; }
-    @property ushort _n_cigar_op()  const { return _flag_nc & 0xFFFF; }
+    @property ushort _bin()         const nothrow { 
+        return _bin_mq_nl >> 16; 
+    }
+    @property  ubyte _mapq()        const nothrow { 
+        return (_bin_mq_nl >> 8) & 0xFF; 
+    }
+    @property  ubyte _l_read_name() const nothrow { 
+        return _bin_mq_nl & 0xFF; 
+    }
+    @property ushort _flag()        const nothrow { 
+        return _flag_nc >> 16; 
+    }
+    @property ushort _n_cigar_op()  const nothrow { 
+        return _flag_nc & 0xFFFF; 
+    }
   
     /// Setters for those properties
     @property void _bin(ushort n)         { _bin_mq_nl = (_bin_mq_nl &  0xFFFF) | (n << 16); } 
@@ -450,13 +494,25 @@ private:
     /// Offsets of various arrays in bytes.
     /// Currently, are computed each time, so if speed will be an issue,
     /// they can be made fields instead of properties.
-    @property size_t _read_name_offset() const { return 8 * int.sizeof; }
-    @property size_t _cigar_offset()     const { return _read_name_offset + _l_read_name * char.sizeof; }
-    @property size_t _seq_offset()       const { return _cigar_offset + _n_cigar_op * uint.sizeof; }
-    @property size_t _qual_offset()      const { return _seq_offset + (_l_seq + 1) / 2 * ubyte.sizeof; }
+    @property size_t _read_name_offset() const nothrow { 
+        return 8 * int.sizeof; 
+    }
 
+    @property size_t _cigar_offset()     const nothrow { 
+        return _read_name_offset + _l_read_name * char.sizeof; 
+    }
+
+    @property size_t _seq_offset()       const nothrow { 
+        return _cigar_offset + _n_cigar_op * uint.sizeof; 
+    }
+
+    @property size_t _qual_offset()      const nothrow { 
+        return _seq_offset + (_l_seq + 1) / 2 * ubyte.sizeof; 
+    }
     /// Offset of auxiliary data
-    @property size_t _tags_offset()      const { return _qual_offset + _l_seq * char.sizeof; }
+    @property size_t _tags_offset()      const nothrow { 
+        return _qual_offset + _l_seq * char.sizeof; 
+    }
 
     /// Sets n-th flag bit to boolean value b.
     void _setFlag(int n, bool b) {
@@ -472,24 +528,18 @@ private:
     /// Basically, it's sort of copy-on-write: a lot of read-only alignments
     /// may copy to the same location, but every modified one allocates its
     /// own chunk of memory.
-    ///
-    /// Atomic compare-and-swap is used so multiple threads can modify fields.
     void _dup() {
         if (_is_slice) {
             _is_slice = false;
             _chunk = _chunk.dup;
-            tags = TagStorage(_chunk[_tags_offset .. $]);
+
+            tags = TagStorage(_chunk, _tags_offset);
         }
     }
 
     /// Calculates bin number.
     void _recalculate_bin() {
         _bin = reg2bin(position, position + bases_covered());
-    }
-
-    /// Tags offset can change during some operations.
-    void _updateTagStorage() {
-        tags = TagStorage(_chunk[_tags_offset .. $]);
     }
 }
 
@@ -518,4 +568,228 @@ unittest {
 
     read.sequence = "AGCTGGCTACGTAATAGCCCTA";
     assert(equal(read.sequence(), "AGCTGGCTACGTAATAGCCCTA"));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///
+/// Lazy tag storage. 
+///
+///   Provides hash-like access (currently read-only) and opportunity to iterate
+///   storage like an associative array.
+///
+///////////////////////////////////////////////////////////////////////////////
+struct TagStorage {
+
+    private {
+        ubyte[] _alignment_chunk;
+        size_t _tags_offset;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    ///
+    /// Construct tag storage for alignment.
+    ///
+    /// NOTE for big-endian users:
+    /// If the chunk of memory contains tags,
+    /// it's assumed that they are stored in $(D byte_order)
+    /// and if it's different from the system byte order, 
+    /// they are fixed on creation.
+    ///
+    ////////////////////////////////////////////////////////////////////////////
+    this(ubyte[] chunk, size_t tags_offset, Endian byte_order=std.system.endian) {
+        // in case of modification, we need to reallocate entire alignment chunk
+        // so we store it in tag storage
+        _alignment_chunk = chunk;
+        _tags_offset = tags_offset; 
+        if (byte_order != std.system.endian) {
+            fixByteOrder();
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    ///
+    /// Provides access to chunk of memory which contains tags
+    /// This way, every time _tags_offset gets updated
+    /// (due to update of cigar string of read name and memory move),
+    /// the change is reflected automatically in tag storage.
+    ///
+    ////////////////////////////////////////////////////////////////////////////
+    @property const(ubyte)[] _chunk() const  {
+        return _alignment_chunk[_tags_offset .. $];
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    ///
+    ///  Hash-like access.
+    ///
+    ////////////////////////////////////////////////////////////////////////////
+    final Value opIndex(string key) {
+        assert(key.length == 2);
+        if (_chunk.length < 4)
+            return Value(null);
+        
+       size_t offset = 0;
+       while (offset + 1 < _chunk.length) {
+           if (_chunk[offset .. offset + 2] == key) {
+               offset += 2;
+               return readValue(offset);
+           } else {
+               offset += 2;
+               skipValue(offset);
+           }
+       }
+       return Value(null);
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
+    ///  Provides opportunity to iterate over tags.
+    /////////////////////////////////////////////////////////////////////////////
+    final int opApply(int delegate(ref string k, ref Value v) dg) {
+        size_t offset = 0;
+        while (offset + 1 < _chunk.length) {
+            auto key = cast(string)_chunk[offset .. offset + 2];
+            offset += 2;
+            auto val = readValue(offset);
+            auto res = dg(key, val);
+            if (res != 0) {
+                return res;
+            }
+        }
+        return 0;
+    }
+
+    /// Returns size of auxiliary data to be written in output stream
+    @property auto size_in_bytes() const {
+        return _chunk.length;
+    }
+
+    /// Writes auxiliary data to output stream
+    void write(Stream stream) {
+		if (std.system.endian == Endian.littleEndian) {
+			stream.writeExact(_chunk.ptr, _chunk.length);
+		} else {
+			fixByteOrder();                                // FIXME: should modify on-the-fly
+			stream.writeExact(_chunk.ptr, _chunk.length);  // during writing to the stream
+			fixByteOrder();                                
+		}
+    }
+
+private:
+    ////////////////////////////////////////////////////////////////////////////
+    ///  Reads value which starts from (_chunk.ptr + offset) address,
+    ///  and updates offset to the end of value.
+    ////////////////////////////////////////////////////////////////////////////
+    Value readValue(ref size_t offset) {
+
+        string readValueArrayTypeHelper() {
+            char[] cases;
+            foreach (c2t; ArrayElementTagValueTypes) {
+                cases ~= 
+                "case '"~c2t.ch~"':".dup~
+                "  auto begin = offset;"~
+                "  auto end = offset + length * "~c2t.ValueType.stringof~".sizeof;"~
+                "  offset = end;"~ 
+                "  return Value(cast("~c2t.ValueType.stringof~"[])(_chunk[begin .. end].dup));";
+                // TODO: copy-on-write in Value type (currently, dup is used)
+            }
+            return to!string("switch (elem_type) {" ~ cases ~
+                   "  default: throw new UnknownTagTypeException(to!string(elem_type));"~
+                   "}");
+        }
+
+        string readValuePrimitiveTypeHelper() {
+            char[] cases;
+            foreach (c2t; PrimitiveTagValueTypes) {
+                cases ~= "case '"~c2t.ch~"':"~
+                         "  auto p = _chunk.ptr + offset;"~ 
+                         "  auto value = *(cast("~c2t.ValueType.stringof~"*)p);"~
+                         "  offset += value.sizeof;"~
+                         "  return Value(value);".dup;
+            }
+            return to!string("switch (type) {" ~ cases ~
+                   "  default: throw new UnknownTagTypeException(to!string(type));"~
+                   "}");
+        }
+
+        char type = cast(char)_chunk[offset++];
+        if (type == 'Z' || type == 'H') {
+            auto begin = offset;
+            while (_chunk[offset++] != 0) {}
+            // return string with stripped '\0'
+            auto v = Value(cast(string)_chunk[begin .. offset - 1]);
+            if (type == 'H') {
+                v.setHexadecimalFlag();
+            }
+            return v;
+        } else if (type == 'B') {
+            char elem_type = cast(char)_chunk[offset++];
+            uint length = *(cast(uint*)(_chunk.ptr + offset));
+            offset += uint.sizeof;
+            mixin(readValueArrayTypeHelper());
+        } else {
+            mixin(readValuePrimitiveTypeHelper());
+        }
+    }
+
+    /**
+      Increases offset so that it points to the next value.
+    */
+    void skipValue(ref size_t offset) {
+        char type = cast(char)_chunk[offset++];
+        if (type == 'Z' || type == 'H') {
+            while (_chunk[offset++] != 0) {}
+        } else if (type == 'B') {
+            char elem_type = cast(char)_chunk[offset++];
+            auto length = *(cast(uint*)(_chunk.ptr + offset));
+            offset += uint.sizeof + charToSizeof(elem_type) * length;
+        } else {
+            offset += charToSizeof(type);
+        }
+    }
+
+    /**
+      Intended to be used in constructor for initial endianness fixing
+      in case the library is used on big-endian system.
+
+      NOT TESTED AT ALL!!!
+    */
+    void fixByteOrder() {
+        /* TODO: TEST ON BIG-ENDIAN SYSTEM!!! */
+        const(ubyte)* p = _chunk.ptr;
+        const(ubyte)* end = _chunk.ptr + _chunk.length;
+        while (p < end) {
+            p += 2; // skip tag name
+            char type = *(cast(char*)p);
+            ++p; // skip type
+            if (type == 'Z' || type == 'H') {
+                while (*p != 0) { // zero-terminated
+                    ++p;          // string
+                }
+                ++p; // skip '\0'
+            } else if (type == 'B') { // array
+                char elem_type = *(cast(char*)p);
+                uint size = charToSizeof(elem_type);
+                switchEndianness(p, uint.sizeof);
+                uint length = *(cast(uint*)p);
+                p += uint.sizeof; // skip length
+                if (size != 1) {
+                    for (auto j = 0; j < length; j++) {
+                        switchEndianness(p, size);
+                        p += size;
+                    }
+                } else {
+                    // skip 
+                    p += length;
+                }
+            } else {
+                uint size = charToSizeof(type);
+                if (size != 1) {
+                    switchEndianness(p, size);
+                    p += size;
+                } else {
+                    ++p;
+                }
+            }
+        }
+    }
 }
