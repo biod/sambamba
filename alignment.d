@@ -595,6 +595,8 @@ mixin template TagStorage() {
     void opIndexAssign(Value value, string key) {
         enforce(key.length == 2, "Key length must be 2");
 
+        _dup();
+
         size_t offset = 0;
         while (offset + 1 < _tags_chunk.length) {
             if (_tags_chunk[offset .. offset + 2] == key) {
