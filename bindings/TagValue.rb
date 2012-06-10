@@ -14,9 +14,10 @@ class TagValueU < FFI::Union
 end
 
 class TagValue < FFI::Struct
-    layout :bam_typeid, :char,
-           :tag,        :uint8,
-           :u,          TagValueU
+    layout :u,          TagValueU,
+           :bam_typeid, :char,
+           :tag,        :uint8
+
 
     def initialize(ptr, owned=false)
         super(ptr)
