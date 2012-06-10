@@ -11,6 +11,7 @@ import std.system;
 version(parallel) {
     import std.parallelism;
     int n_threads;
+    TaskPool task_pool;
 }
 
 auto bgzfRange(string filename) {
@@ -21,9 +22,7 @@ auto bgzfRange(string filename) {
 
 auto decompressedRange(string filename) {
     version(parallel) {
-//        return task_pool.map!decompressBgzfBlock(bgzfRange(filename), 64);
-        import utils.range;
-        return parallelTransform!decompressBgzfBlock(bgzfRange(filename), 64, n_threads);
+        return task_pool.map!decompressBgzfBlock(bgzfRange(filename), 64);
     } else {
         return map!decompressBgzfBlock(bgzfRange(filename));
     }
@@ -71,16 +70,31 @@ ulong measure(string desc, alias func, Args...)(Args args) {
 }
 
 void main(string[] args) {
+    if (args.length == 1) {
+        writeln("usage: " ~ args[0] ~ " <input.bam> <number of threads>");
+        writeln("    prints the following numbers:");
+        writeln("    - number of threads used for decompression");
+        writeln("    - time to iterate over BGZF blocks");
+        writeln("    - time to iterate over decompressed blocks");
+        writeln("    - time to iterate over alignments");
+        writeln();
+        writeln("    For serial version, 1 thread is used.");
+        writeln();
+        writeln("    Also, timings for first step depend a lot on");
+        writeln("    whether the file is cached in memory or not.");
+        return;
+    }
     version(parallel) {
-        n_threads = args.length > 1 ? to!uint(args[1]) : totalCPUs;
+        n_threads = args.length > 2 ? to!uint(args[2]) : totalCPUs;
+        task_pool = new TaskPool(n_threads);
+        scope(exit) task_pool.finish();
         write(n_threads);
     } else {
         write(1);
     }
-    string filename = "../../HG00476.chrom11.ILLUMINA.bwa.CHS.low_coverage.20111114.bam";
+    string filename = args[1];
     measure!("iterating BGZF blocks", bgzfRange)(filename);
     measure!("iterating decompressed BGZF blocks", decompressedRange)(filename);
-    measure!("iterating unparsed alignments", unparsedAlignmentRange)(filename);
-    measure!("iterating parsed alignments", parsedAlignmentRange)(filename);
+    measure!("iterating alignments", parsedAlignmentRange)(filename);
     write("\n");
 }

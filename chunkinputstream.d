@@ -137,8 +137,8 @@ private:
     typeof(_range.front.start_offset) _start_offset;
     typeof(_range.front.decompressed_data) _buf;
 
-    ulong _len;  // current data length
-    ulong _cur;  // current position
+    size_t _len;  // current data length
+    size_t _cur;  // current position
 
     void setupStream() {
 

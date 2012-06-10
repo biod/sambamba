@@ -171,6 +171,10 @@ auto parallelTransform(alias func, Range)(Range r,
 		return task;
 	}
 
+    if (prefetch_amount == 0) {
+        prefetch_amount = 1;
+    }
+
 	auto chunks = chunked(r, chunk_size);
 	auto tasks = map!createTask(chunks);
 	auto prefetched = prefetch(tasks, prefetch_amount);
