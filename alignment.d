@@ -11,7 +11,7 @@ import std.stream;
 import std.system;
 
 import utils.array;
-
+import utils.value;
 import utils.switchendianness;
 
 /**
@@ -74,6 +74,15 @@ struct CigarOperation {
   Represents single read
 */
 struct Alignment {
+
+    mixin TagStorage;
+
+    /// This is an absolutely awful hack which allows you to write
+    /// alignment.tags["X0"] / foreach(k, v; alignment.tags)
+    /// instead of alignment["X0"] / foreach(k, v; alignment)
+    Alignment tags() @property {
+        return this;
+    }
 
     // /////////////////////////////////////////////////////////////////////////
     //
@@ -287,8 +296,6 @@ struct Alignment {
         _chunk[_qual_offset .. _qual_offset + _l_seq] = quality;
     }
 
-    TagStorage tags = void;
-
     /**
       Constructs the struct from memory chunk
       */
@@ -332,7 +339,9 @@ struct Alignment {
         }
 
         // create from chunk of little-endian memory
-        this.tags = TagStorage(_chunk[], _tags_offset, Endian.littleEndian);
+        if (std.system.endian != Endian.littleEndian) {
+            fixTagStorageByteOrder();
+        }
     } 
    
     /// Construct alignment from basic information about it.
@@ -365,8 +374,6 @@ struct Alignment {
 
         // now all offsets can be calculated through corresponding properties
 
-        this.tags = TagStorage(_chunk[], _tags_offset);
-
         // set default quality
         _chunk[_qual_offset .. _qual_offset + sequence.length] = 0xFF;
 
@@ -392,20 +399,17 @@ struct Alignment {
     /// Size of alignment when output to stream in BAM format.
     /// Includes block_size as well (see SAM/BAM specification)
     @property auto size_in_bytes() const {
-        return int.sizeof + _tags_offset + tags.size_in_bytes;
+        return int.sizeof + _chunk.length;
     }
    
     /// Write alignment to EndianStream, together with block_size
     /// and auxiliary data.
     void write(EndianStream stream) {
-        stream.write(cast(int)(_tags_offset + tags.size_in_bytes));
+        stream.write(cast(int)(_chunk.length));
 		stream.writeExact(_chunk.ptr, _tags_offset);
-        tags.write(stream);
+        writeTags(stream);
     }
 
-    this(this) {
-        tags = TagStorage(_chunk[], _tags_offset);
-    }
 private:
 
     ubyte[] _chunk; /// holds all the data, 
@@ -526,14 +530,12 @@ private:
     /// Used when some part of alignment record is modified by user.
     ///
     /// Basically, it's sort of copy-on-write: a lot of read-only alignments
-    /// may copy to the same location, but every modified one allocates its
+    /// may point to the same location, but every modified one allocates its
     /// own chunk of memory.
     void _dup() {
         if (_is_slice) {
             _is_slice = false;
             _chunk = _chunk.dup;
-
-            tags = TagStorage(_chunk, _tags_offset);
         }
     }
 
@@ -543,32 +545,6 @@ private:
     }
 }
 
-unittest {
-    import std.algorithm;
-    import std.stdio;
-    auto read = Alignment("readname", 
-                          "AGCTGACTACGTAATAGCCCTA", 
-                          [CigarOperation(22, 'M')]);
-    assert(read.sequence_length == 22);
-    assert(read.cigar.length == 1);
-    assert(read.cigarString() == "22M");
-    assert(read.read_name == "readname");
-    assert(equal(read.sequence(), "AGCTGACTACGTAATAGCCCTA"));
-
-    read.read_name = "anothername";
-    assert(read.read_name == "anothername");
-    assert(read.cigarString() == "22M");
-
-    read.phred_base_quality = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 
-                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
-    assert(reduce!"a+b"(0, read.phred_base_quality) == 253);
-
-    read.cigar = [CigarOperation(20, 'M'), CigarOperation(2, 'X')];
-    assert(read.cigarString() == "20M2X");
-
-    read.sequence = "AGCTGGCTACGTAATAGCCCTA";
-    assert(equal(read.sequence(), "AGCTGGCTACGTAATAGCCCTA"));
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 ///
@@ -578,33 +554,7 @@ unittest {
 ///   storage like an associative array.
 ///
 ///////////////////////////////////////////////////////////////////////////////
-struct TagStorage {
-
-    private {
-        ubyte[] _alignment_chunk;
-        size_t _tags_offset;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    ///
-    /// Construct tag storage for alignment.
-    ///
-    /// NOTE for big-endian users:
-    /// If the chunk of memory contains tags,
-    /// it's assumed that they are stored in $(D byte_order)
-    /// and if it's different from the system byte order, 
-    /// they are fixed on creation.
-    ///
-    ////////////////////////////////////////////////////////////////////////////
-    this(ubyte[] chunk, size_t tags_offset, Endian byte_order=std.system.endian) {
-        // in case of modification, we need to reallocate entire alignment chunk
-        // so we store it in tag storage
-        _alignment_chunk = chunk;
-        _tags_offset = tags_offset; 
-        if (byte_order != std.system.endian) {
-            fixByteOrder();
-        }
-    }
+mixin template TagStorage() {
 
     ////////////////////////////////////////////////////////////////////////////
     ///
@@ -614,23 +564,23 @@ struct TagStorage {
     /// the change is reflected automatically in tag storage.
     ///
     ////////////////////////////////////////////////////////////////////////////
-    @property const(ubyte)[] _chunk() const  {
-        return _alignment_chunk[_tags_offset .. $];
+    private @property const(ubyte)[] _tags_chunk() const  {
+        return _chunk[_tags_offset .. $];
     }
 
     ////////////////////////////////////////////////////////////////////////////
     ///
-    ///  Hash-like access.
+    ///  Hash-like access to tags.
     ///
     ////////////////////////////////////////////////////////////////////////////
-    final Value opIndex(string key) {
-        assert(key.length == 2);
-        if (_chunk.length < 4)
+    Value opIndex(string key) {
+        enforce(key.length == 2, "Key length must be 2");
+        if (_tags_chunk.length < 4)
             return Value(null);
         
        size_t offset = 0;
-       while (offset + 1 < _chunk.length) {
-           if (_chunk[offset .. offset + 2] == key) {
+       while (offset + 1 < _tags_chunk.length) {
+           if (_tags_chunk[offset .. offset + 2] == key) {
                offset += 2;
                return readValue(offset);
            } else {
@@ -641,13 +591,47 @@ struct TagStorage {
        return Value(null);
     }
 
+    /// ditto
+    void opIndexAssign(Value value, string key) {
+        enforce(key.length == 2, "Key length must be 2");
+
+        size_t offset = 0;
+        while (offset + 1 < _tags_chunk.length) {
+            if (_tags_chunk[offset .. offset + 2] == key) {
+                replaceValueAt(offset + 2, value);
+                return;
+            } else {
+                offset += 2;
+                skipValue(offset);
+            }
+        }
+
+        // append new tag to the end
+        auto oldlen = _chunk.length;
+        _chunk.length = _chunk.length + sizeInBytes(value) + 2 * char.sizeof;
+        _chunk[oldlen .. oldlen + 2] = cast(ubyte[])key;
+        emplaceValue(_chunk.ptr + oldlen + 2, value);
+    }
+
+    /// replace existing tag
+    private void replaceValueAt(size_t offset, Value value) {
+        // offset points to the beginning of the value
+        auto begin = offset;
+        skipValue(offset); // now offset is updated and points to the end
+        auto end = offset;
+        
+        prepareSlice(_chunk, _tags_chunk[begin .. end], sizeInBytes(value));
+
+        emplaceValue(_chunk.ptr + _tags_offset + begin, value);
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     ///  Provides opportunity to iterate over tags.
     /////////////////////////////////////////////////////////////////////////////
-    final int opApply(int delegate(ref string k, ref Value v) dg) {
+    int opApply(int delegate(ref string k, ref Value v) dg) {
         size_t offset = 0;
-        while (offset + 1 < _chunk.length) {
-            auto key = cast(string)_chunk[offset .. offset + 2];
+        while (offset + 1 < _tags_chunk.length) {
+            auto key = cast(string)_tags_chunk[offset .. offset + 2];
             offset += 2;
             auto val = readValue(offset);
             auto res = dg(key, val);
@@ -658,28 +642,22 @@ struct TagStorage {
         return 0;
     }
 
-    /// Returns size of auxiliary data to be written in output stream
-    @property auto size_in_bytes() const {
-        return _chunk.length;
-    }
-
     /// Writes auxiliary data to output stream
-    void write(Stream stream) {
+    private void writeTags(Stream stream) {
 		if (std.system.endian == Endian.littleEndian) {
-			stream.writeExact(_chunk.ptr, _chunk.length);
+			stream.writeExact(_tags_chunk.ptr, _tags_chunk.length);
 		} else {
-			fixByteOrder();                                // FIXME: should modify on-the-fly
-			stream.writeExact(_chunk.ptr, _chunk.length);  // during writing to the stream
-			fixByteOrder();                                
+			fixTagStorageByteOrder();                                // FIXME: should modify on-the-fly
+			stream.writeExact(_tags_chunk.ptr, _tags_chunk.length);  // during writing to the stream
+			fixTagStorageByteOrder();                                
 		}
     }
 
-private:
     ////////////////////////////////////////////////////////////////////////////
-    ///  Reads value which starts from (_chunk.ptr + offset) address,
+    ///  Reads value which starts from (_tags_chunk.ptr + offset) address,
     ///  and updates offset to the end of value.
     ////////////////////////////////////////////////////////////////////////////
-    Value readValue(ref size_t offset) {
+    private Value readValue(ref size_t offset) {
 
         string readValueArrayTypeHelper() {
             char[] cases;
@@ -689,7 +667,7 @@ private:
                 "  auto begin = offset;"~
                 "  auto end = offset + length * "~c2t.ValueType.stringof~".sizeof;"~
                 "  offset = end;"~ 
-                "  return Value(cast("~c2t.ValueType.stringof~"[])(_chunk[begin .. end].dup));";
+                "  return Value(cast("~c2t.ValueType.stringof~"[])(_tags_chunk[begin .. end].dup));";
                 // TODO: copy-on-write in Value type (currently, dup is used)
             }
             return to!string("switch (elem_type) {" ~ cases ~
@@ -701,7 +679,7 @@ private:
             char[] cases;
             foreach (c2t; PrimitiveTagValueTypes) {
                 cases ~= "case '"~c2t.ch~"':"~
-                         "  auto p = _chunk.ptr + offset;"~ 
+                         "  auto p = _tags_chunk.ptr + offset;"~ 
                          "  auto value = *(cast("~c2t.ValueType.stringof~"*)p);"~
                          "  offset += value.sizeof;"~
                          "  return Value(value);".dup;
@@ -711,19 +689,19 @@ private:
                    "}");
         }
 
-        char type = cast(char)_chunk[offset++];
+        char type = cast(char)_tags_chunk[offset++];
         if (type == 'Z' || type == 'H') {
             auto begin = offset;
-            while (_chunk[offset++] != 0) {}
+            while (_tags_chunk[offset++] != 0) {}
             // return string with stripped '\0'
-            auto v = Value(cast(string)_chunk[begin .. offset - 1]);
+            auto v = Value(cast(string)_tags_chunk[begin .. offset - 1]);
             if (type == 'H') {
                 v.setHexadecimalFlag();
             }
             return v;
         } else if (type == 'B') {
-            char elem_type = cast(char)_chunk[offset++];
-            uint length = *(cast(uint*)(_chunk.ptr + offset));
+            char elem_type = cast(char)_tags_chunk[offset++];
+            uint length = *(cast(uint*)(_tags_chunk.ptr + offset));
             offset += uint.sizeof;
             mixin(readValueArrayTypeHelper());
         } else {
@@ -734,13 +712,13 @@ private:
     /**
       Increases offset so that it points to the next value.
     */
-    void skipValue(ref size_t offset) {
-        char type = cast(char)_chunk[offset++];
+    private void skipValue(ref size_t offset) {
+        char type = cast(char)_tags_chunk[offset++];
         if (type == 'Z' || type == 'H') {
-            while (_chunk[offset++] != 0) {}
+            while (_tags_chunk[offset++] != 0) {}
         } else if (type == 'B') {
-            char elem_type = cast(char)_chunk[offset++];
-            auto length = *(cast(uint*)(_chunk.ptr + offset));
+            char elem_type = cast(char)_tags_chunk[offset++];
+            auto length = *(cast(uint*)(_tags_chunk.ptr + offset));
             offset += uint.sizeof + charToSizeof(elem_type) * length;
         } else {
             offset += charToSizeof(type);
@@ -753,10 +731,10 @@ private:
 
       NOT TESTED AT ALL!!!
     */
-    void fixByteOrder() {
+    private void fixTagStorageByteOrder() {
         /* TODO: TEST ON BIG-ENDIAN SYSTEM!!! */
-        const(ubyte)* p = _chunk.ptr;
-        const(ubyte)* end = _chunk.ptr + _chunk.length;
+        const(ubyte)* p = _tags_chunk.ptr;
+        const(ubyte)* end = _tags_chunk.ptr + _chunk.length;
         while (p < end) {
             p += 2; // skip tag name
             char type = *(cast(char*)p);
@@ -792,4 +770,46 @@ private:
             }
         }
     }
+}
+
+unittest {
+    import std.algorithm;
+    import std.stdio;
+    import sam.serialize;
+    import std.math;
+
+    auto read = Alignment("readname", 
+                          "AGCTGACTACGTAATAGCCCTA", 
+                          [CigarOperation(22, 'M')]);
+    assert(read.sequence_length == 22);
+    assert(read.cigar.length == 1);
+    assert(read.cigarString() == "22M");
+    assert(read.read_name == "readname");
+    assert(equal(read.sequence(), "AGCTGACTACGTAATAGCCCTA"));
+
+    read.read_name = "anothername";
+    assert(read.read_name == "anothername");
+    assert(read.cigarString() == "22M");
+
+    read.phred_base_quality = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 
+                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+    assert(reduce!"a+b"(0, read.phred_base_quality) == 253);
+
+    read.cigar = [CigarOperation(20, 'M'), CigarOperation(2, 'X')];
+    assert(read.cigarString() == "20M2X");
+
+    read.sequence = "AGCTGGCTACGTAATAGCCCTA";
+    assert(equal(read.sequence(), "AGCTGGCTACGTAATAGCCCTA"));
+
+    read["RG"] = Value(15);
+    assert(to!int(read["RG"]) == 15);
+
+    read["X1"] = Value([1, 2, 3, 4, 5]);
+    assert(to!(int[])(read["X1"]) == [1, 2, 3, 4, 5]);
+
+    read["RG"] = Value(5.6);
+    assert(approxEqual(to!float(read["RG"]), 5.6));
+
+    read["X1"] = Value(42);
+    assert(to!int(read["X1"]) == 42);
 }

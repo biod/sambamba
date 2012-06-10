@@ -82,11 +82,12 @@ struct TypeId(T, ubyte id) {
 
                              primitive                          array/string
                  something         null/nothing             numeric         string
-            numeric      char                        (see left branch)     Z       H   
-    integer        float       
-unsigned   signed               
- [ size in bytes]              
+            numeric      char           0                   0              Z       H   
+    integer        float                0              [see left           0       0 
+unsigned   signed       0               0               branch]            0       0
+ [ size in bytes]  [size in bytes]      0            [element size]        1       1
 
+     (TypeId >> 5) == elementType.sizeof
 
 */
 alias TypeTuple!(TypeId!(char,     0b00000_1_00),
@@ -110,20 +111,20 @@ alias TypeTuple!(TypeId!(char,     0b00000_1_00),
                  TypeId!(short,    0b010_1_0000), 
                  TypeId!(int,      0b100_1_0000), 
 
-                 TypeId!(float,    0b0000_1_000),
+                 TypeId!(float,    0b100_0_1_000),
 
-                 TypeId!(ubyte[],  0b001_00_01),
-                 TypeId!(ushort[], 0b010_00_01),
-                 TypeId!(uint[],   0b100_00_01),
+                 TypeId!(ubyte[],  0b001_000_01),
+                 TypeId!(ushort[], 0b010_000_01),
+                 TypeId!(uint[],   0b100_000_01),
 
-                 TypeId!(byte[],   0b001_10_01),
-                 TypeId!(short[],  0b010_10_01),
-                 TypeId!(int[],    0b100_10_01),
+                 TypeId!(byte[],   0b001_010_01),
+                 TypeId!(short[],  0b010_010_01),
+                 TypeId!(int[],    0b100_010_01),
 
-                 TypeId!(float[],  0b0000_1_01),
+                 TypeId!(float[],  0b100_00_1_01),
 
-                 TypeId!(string,   0b0000_0_11),
-                 TypeId!(string,   0b0000_1_11),
+                 TypeId!(string,   0b001_00_0_11),
+                 TypeId!(string,   0b001_00_1_11),
                  TypeId!(typeof(null), 0b0000_0010))
     TypeIdMap;
 
@@ -225,7 +226,6 @@ string injectOpCast() {
 
     return "final T opCast(T)() {" ~ cs.idup ~ "}";
 }
-
 
 /**
   Struct for representing tag values. 

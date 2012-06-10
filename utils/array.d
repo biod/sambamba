@@ -1,13 +1,15 @@
 module utils.array;
 
 import std.c.string;
+import std.traits;
 
 /// Modifies array in-place so that $(D slice) is replaced by
 /// $(D replacement[]).
 ///
 /// WARNING: it's you who is responsible that $(D slice) is indeed
 /// a slice of $(D s).
-void replaceSlice(T)(ref T[] s, in T[] slice, in T[] replacement)
+void replaceSlice(T, U)(ref T[] s, in U[] slice, in T[] replacement)
+    if (is(Unqual!U == T)) 
 {
 
     auto offset = slice.ptr - s.ptr;
@@ -42,6 +44,40 @@ void replaceSlice(T)(ref T[] s, in T[] slice, in T[] replacement)
     // and then overwrite
     s[offset .. offset + replen] = replacement;
 }
+
+/// Does almost the same, but does not require $(D replacement),
+/// instead only its length, $(D n) bytes. This is useful for
+/// avoiding memory allocations.
+void prepareSlice(T, U)(ref T[] s, in U[] slice, size_t n)
+    if (is(Unqual!U == T))
+{
+
+    auto offset = slice.ptr - s.ptr;
+    auto slicelen = slice.length;
+    auto replen = n;
+
+    auto newlen = s.length - slicelen + replen;
+
+    if (slicelen == replen) {
+        return;
+    }
+
+    if (replen < slicelen) {
+        memmove(s.ptr + (offset + replen),
+                s.ptr + (offset + slicelen),
+                (newlen - offset - replen) * T.sizeof);
+
+        s.length = newlen;
+        return;
+    }
+
+    // replen > slicelen
+    s.length = newlen;
+    memmove(s.ptr + (offset + replen),
+            s.ptr + (offset + slicelen),
+            (newlen - offset - replen) * T.sizeof);
+}
+
 
 unittest {
     auto array = [1, 2, 3, 4, 5];
