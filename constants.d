@@ -2,14 +2,6 @@ module constants;
 
 immutable BAM_MAGIC = "BAM\1";
 
-@property BAM_EOF() {
-    import bgzfcompress;
-    static ubyte[] eof = null;
-    if (eof is null)
-        eof = bgzfCompress([], -1);
-    return eof;
-}
-
 immutable ubyte BAM_SI1 = 66;
 immutable ubyte BAM_SI2 = 67;
 
@@ -33,3 +25,17 @@ immutable BLOCK_FOOTER_LENGTH = uint.sizeof + uint.sizeof;
 
 immutable BGZF_MAX_BLOCK_SIZE = 65536;
 immutable BGZF_BLOCK_SIZE = 0xFF00; 
+
+immutable ubyte[28] BAM_EOF = 
+    [31, 139, 8, 4, 
+        0, 0, 0, 0, 
+                 0, 
+               255, 
+              6, 0, 
+            66, 67, 
+              2, 0, 
+             27, 0, 
+              3, 0, 
+        0, 0, 0, 0, 
+        0, 0, 0, 0];
+
