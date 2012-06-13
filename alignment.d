@@ -608,7 +608,11 @@ mixin template TagStorage() {
             }
         }
 
-        // append new tag to the end
+        appendTag(key, value);
+    }
+
+    /// Append new tag to the end, skipping check if it already exists.
+    void appendTag(string key, Value value) {
         auto oldlen = _chunk.length;
         _chunk.length = _chunk.length + sizeInBytes(value) + 2 * char.sizeof;
         _chunk[oldlen .. oldlen + 2] = cast(ubyte[])key;
