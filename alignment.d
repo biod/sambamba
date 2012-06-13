@@ -777,7 +777,6 @@ mixin template TagStorage() {
 unittest {
     import std.algorithm;
     import std.stdio;
-    import sam.serialize;
     import std.math;
 
     auto read = Alignment("readname", 
