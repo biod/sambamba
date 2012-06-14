@@ -90,7 +90,7 @@ unsigned   signed       0               0               branch]            0    
      (TypeId >> 5) == elementType.sizeof
 
 */
-alias TypeTuple!(TypeId!(char,     0b00000_1_00),
+alias TypeTuple!(TypeId!(char,     0b001_00_1_00),
         
                  TypeId!(ubyte,    0b001_0_0000), 
                  TypeId!(ushort,   0b010_0_0000), 
