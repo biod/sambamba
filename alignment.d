@@ -575,17 +575,18 @@ mixin template TagStorage() {
     ////////////////////////////////////////////////////////////////////////////
     Value opIndex(string key) {
         enforce(key.length == 2, "Key length must be 2");
-        if (_tags_chunk.length < 4)
+        auto __tags_chunk = _tags_chunk; // _tags_chunk is evaluated lazily
+        if (__tags_chunk.length < 4)
             return Value(null);
         
        size_t offset = 0;
-       while (offset + 1 < _tags_chunk.length) {
-           if (_tags_chunk[offset .. offset + 2] == key) {
+       while (offset + 1 < __tags_chunk.length) {
+           if (__tags_chunk[offset .. offset + 2] == key) {
                offset += 2;
-               return readValue(offset);
+               return readValue(offset, __tags_chunk);
            } else {
                offset += 2;
-               skipValue(offset);
+               skipValue(offset, __tags_chunk);
            }
        }
        return Value(null);
@@ -594,17 +595,18 @@ mixin template TagStorage() {
     /// ditto
     void opIndexAssign(Value value, string key) {
         enforce(key.length == 2, "Key length must be 2");
+        auto __tags_chunk = _tags_chunk;
 
         _dup();
 
         size_t offset = 0;
-        while (offset + 1 < _tags_chunk.length) {
-            if (_tags_chunk[offset .. offset + 2] == key) {
+        while (offset + 1 < __tags_chunk.length) {
+            if (__tags_chunk[offset .. offset + 2] == key) {
                 replaceValueAt(offset + 2, value);
                 return;
             } else {
                 offset += 2;
-                skipValue(offset);
+                skipValue(offset, __tags_chunk);
             }
         }
 
@@ -619,10 +621,11 @@ mixin template TagStorage() {
     private void replaceValueAt(size_t offset, Value value) {
         // offset points to the beginning of the value
         auto begin = offset;
-        skipValue(offset); // now offset is updated and points to the end
+        auto __tags_chunk = _tags_chunk;
+        skipValue(offset, __tags_chunk); // now offset is updated and points to the end
         auto end = offset;
         
-        prepareSlice(_chunk, _tags_chunk[begin .. end], sizeInBytes(value));
+        prepareSlice(_chunk, __tags_chunk[begin .. end], sizeInBytes(value));
 
         emplaceValue(_chunk.ptr + _tags_offset + begin, value);
     }
@@ -632,10 +635,11 @@ mixin template TagStorage() {
     /////////////////////////////////////////////////////////////////////////////
     int opApply(int delegate(ref string k, ref Value v) dg) {
         size_t offset = 0;
-        while (offset + 1 < _tags_chunk.length) {
-            auto key = cast(string)_tags_chunk[offset .. offset + 2];
+        auto __tags_chunk = _tags_chunk;
+        while (offset + 1 < __tags_chunk.length) {
+            auto key = cast(string)__tags_chunk[offset .. offset + 2];
             offset += 2;
-            auto val = readValue(offset);
+            auto val = readValue(offset, __tags_chunk);
             auto res = dg(key, val);
             if (res != 0) {
                 return res;
@@ -659,7 +663,7 @@ mixin template TagStorage() {
     ///  Reads value which starts from (_tags_chunk.ptr + offset) address,
     ///  and updates offset to the end of value.
     ////////////////////////////////////////////////////////////////////////////
-    private Value readValue(ref size_t offset) {
+    private Value readValue(ref size_t offset, const(ubyte)[] tags_chunk) {
 
         string readValueArrayTypeHelper() {
             char[] cases;
@@ -669,7 +673,7 @@ mixin template TagStorage() {
                 "  auto begin = offset;"~
                 "  auto end = offset + length * "~c2t.ValueType.stringof~".sizeof;"~
                 "  offset = end;"~ 
-                "  return Value(cast("~c2t.ValueType.stringof~"[])(_tags_chunk[begin .. end].dup));";
+                "  return Value(cast("~c2t.ValueType.stringof~"[])(tags_chunk[begin .. end].dup));";
                 // TODO: copy-on-write in Value type (currently, dup is used)
             }
             return to!string("switch (elem_type) {" ~ cases ~
@@ -681,7 +685,7 @@ mixin template TagStorage() {
             char[] cases;
             foreach (c2t; PrimitiveTagValueTypes) {
                 cases ~= "case '"~c2t.ch~"':"~
-                         "  auto p = _tags_chunk.ptr + offset;"~ 
+                         "  auto p = tags_chunk.ptr + offset;"~ 
                          "  auto value = *(cast("~c2t.ValueType.stringof~"*)p);"~
                          "  offset += value.sizeof;"~
                          "  return Value(value);".dup;
@@ -691,19 +695,19 @@ mixin template TagStorage() {
                    "}");
         }
 
-        char type = cast(char)_tags_chunk[offset++];
+        char type = cast(char)tags_chunk[offset++];
         if (type == 'Z' || type == 'H') {
             auto begin = offset;
-            while (_tags_chunk[offset++] != 0) {}
+            while (tags_chunk[offset++] != 0) {}
             // return string with stripped '\0'
-            auto v = Value(cast(string)_tags_chunk[begin .. offset - 1]);
+            auto v = Value(cast(string)tags_chunk[begin .. offset - 1]);
             if (type == 'H') {
                 v.setHexadecimalFlag();
             }
             return v;
         } else if (type == 'B') {
-            char elem_type = cast(char)_tags_chunk[offset++];
-            uint length = *(cast(uint*)(_tags_chunk.ptr + offset));
+            char elem_type = cast(char)tags_chunk[offset++];
+            uint length = *(cast(uint*)(tags_chunk.ptr + offset));
             offset += uint.sizeof;
             mixin(readValueArrayTypeHelper());
         } else {
@@ -714,13 +718,13 @@ mixin template TagStorage() {
     /**
       Increases offset so that it points to the next value.
     */
-    private void skipValue(ref size_t offset) {
-        char type = cast(char)_tags_chunk[offset++];
+    private void skipValue(ref size_t offset, const(ubyte)[] tags_chunk) {
+        char type = cast(char)tags_chunk[offset++];
         if (type == 'Z' || type == 'H') {
-            while (_tags_chunk[offset++] != 0) {}
+            while (tags_chunk[offset++] != 0) {}
         } else if (type == 'B') {
-            char elem_type = cast(char)_tags_chunk[offset++];
-            auto length = *(cast(uint*)(_tags_chunk.ptr + offset));
+            char elem_type = cast(char)tags_chunk[offset++];
+            auto length = *(cast(uint*)(tags_chunk.ptr + offset));
             offset += uint.sizeof + charToSizeof(elem_type) * length;
         } else {
             offset += charToSizeof(type);
@@ -736,7 +740,7 @@ mixin template TagStorage() {
     private void fixTagStorageByteOrder() {
         /* TODO: TEST ON BIG-ENDIAN SYSTEM!!! */
         const(ubyte)* p = _tags_chunk.ptr;
-        const(ubyte)* end = _tags_chunk.ptr + _chunk.length;
+        const(ubyte)* end = p + _chunk.length;
         while (p < end) {
             p += 2; // skip tag name
             char type = *(cast(char*)p);

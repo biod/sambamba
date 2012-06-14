@@ -11,6 +11,7 @@ import std.conv;
 import std.algorithm;
 import std.typecons;
 import std.stdio;
+import std.c.stdlib;
 
 import std.array;
 
@@ -152,11 +153,25 @@ void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S strea
     putinteger(stream, alignment.template_length);
     putcharacter(stream, '\t');
 
+    // use alloca to avoid overhead of appending single chars
+    auto len = alignment.sequence_length;
+    char* str = null;
+    if (len <= 1024) {
+        str = cast(char*)alloca(alignment.sequence_length);
+    }
+
     if (alignment.raw_sequence_data.length == 0) {
         putstring(stream, "*\t");
     } else {
-        foreach(char c; alignment.sequence())
-            putcharacter(stream, c);
+        if (str is null) {
+            foreach(char c; alignment.sequence())
+                putcharacter(stream, c);
+        } else {
+            size_t i = 0;
+            foreach(char c; alignment.sequence()) 
+                *(str + i++) = c;
+            putstring(stream, str[0 .. i]);
+        }
         putcharacter(stream, '\t');
     }
     if (alignment.phred_base_quality.length == 0 || 
@@ -164,8 +179,14 @@ void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S strea
     {
         putcharacter(stream, '*');
     } else {
-        foreach (char c; alignment.phred_base_quality) {
-            putcharacter(stream, cast(char)(c + 33));
+        if (str is null) {
+            foreach(char c; alignment.phred_base_quality) {
+                putcharacter(stream, cast(char)(c + 33));
+            }
+        } else {
+            foreach(size_t i, char c; alignment.phred_base_quality)
+                *(str + i) = cast(char)(c + 33);
+            putstring(stream, str[0 .. alignment.sequence_length]);
         }
     }
     

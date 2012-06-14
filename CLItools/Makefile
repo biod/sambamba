@@ -7,8 +7,8 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d
 
-DMDFLAGS=-O -release -inline
-GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
+DMDFLAGS=-O -release -inline -version=serial -g
+GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -fversion=serial -funroll-all-loops -finline-limit=8192
 
 bam2sam-dmd: $(FILES) bam2sam/bam2sam.d
 	mkdir -p build
