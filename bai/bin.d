@@ -25,8 +25,8 @@ struct Bin {
 		auto magic_number = 4681;
 		auto b = begin >> 14;
 		auto e = end   >> 14;
-		
-		while (true) {
+	
+        while (true) {
 			auto delta = id - magic_number;
 			if (b <= delta && delta <= e) return true;
 

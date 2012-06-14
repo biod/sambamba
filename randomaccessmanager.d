@@ -96,7 +96,7 @@ class RandomAccessManager {
     auto getAlignments(int ref_id, int beg, int end) {
 
         enforce(found_index_file, "BAM index file (.bai) must be provided");
-        enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
+        enforce(ref_id >= 0 && ref_id < _bai.indices.length, "Invalid reference sequence index");
 
         beg = max(0, beg);
         int _i = min(beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 

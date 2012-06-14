@@ -1,36 +1,66 @@
 import bamfile;
-
+import region;
 import sam.serialize;
 import utils.format;
 
-import std.conv;
-import std.c.stdio;
-import std.string;
+import std.stdio;
+import std.c.stdio : stdout;
 import std.array;
+import std.getopt;
+import std.algorithm;
 
-void main(string[] args) {
-    BamFile bam;
-    string chr;
-    int beg;
-    int end;
+void printUsage(string program) {
+    writeln("Usage: " ~ program ~ " [options] <input.bam> region1 [...]");
+    writeln();
+    writeln("Options: -q, --quality-threshold=THRESHOLD");
+    writeln("                    skip reads with mapping quality < THRESHOLD");
+    writeln("         -r, --read-group=READGROUP");
+    writeln("                    output only reads from read group READGROUP");
+}
+
+int quality_threshold = -1;
+string read_group = null;
+
+int main(string[] args) {
     try {
-        bam = BamFile(args[1]);
-        chr = args[2];
-        beg = to!int(args[3]);
-        end = to!int(args[4]);
-    } catch (Throwable e) {
-        printf(toStringz("usage: " ~ args[0] ~ " <input.bam> <chromosome> <begin> <end>\n"));
-        return;
+
+        getopt(args,
+               "quality-threshold|q", &quality_threshold,
+               "read-group|r",        &read_group);
+        
+        if (args.length < 3) {
+            printUsage(args[0]);
+            return 0;
+        }
+
+        auto bam = BamFile(args[1]);
+        auto regions = map!parseRegion(args[2 .. $]);
+
+        auto buffer = appender!(ubyte[]);
+        buffer.reserve(65536);
+
+		foreach (ref r; regions) {
+			foreach (read; bam[r.reference][r.beg .. r.end]) {
+				if (quality_threshold != -1 && read.mapping_quality < quality_threshold) {
+					continue;
+				}
+				if (read_group !is null) {
+					auto rg = read["RG"];
+					if (!rg.is_string || (to!string(rg) != read_group)) {
+						continue;
+					}
+				}
+				serialize(read, bam.reference_sequences, buffer);
+				putstring(stdout, cast(char[])buffer.data);
+				putcharacter(stdout, '\n');
+
+				buffer.clear();
+			}
+		}
+    } catch (Exception e) {
+        writeln("bam-fetch: ", e.msg);
+        return 1;
     }
 
-    auto buffer = appender!(ubyte[])();
-    buffer.reserve(65536);
-
-    foreach (alignment; bam[chr][beg .. end]) {
-        serialize(alignment, bam.reference_sequences, buffer);
-        putstring(stdout, cast(string)buffer.data);
-        putchar('\n');
-
-        buffer.clear();
-    }
+    return 0;
 }
