@@ -35,7 +35,7 @@ private {
         return t;
     }
 
-    alias memoize!(decompressTask, 512, LuCache, BgzfBlock) memDecompressTask;
+    alias memoize!(decompressTask, 512, FifoCache, BgzfBlock) memDecompressTask;
 
     auto decompressSerial(BgzfBlock block) {
         return decompress(block).yieldForce();
@@ -49,7 +49,6 @@ debug {
     import std.stdio;
 }
 
-// TODO: add caching
 class RandomAccessManager {
 
     /// Constructs new manager for BAM file
