@@ -10,7 +10,13 @@
 
     uint = ([0-9]{1,18}) > init_integer $ consume_next_digit ;
     int = (sign >update_sign)? uint % take_sign_into_account ;
-    float = sign? digit* '.'? digit+ ([eE] sign? digit+)? ;
+
+    action mark_float_start { float_beg = p - line.ptr; }
+    action update_float_value { 
+        float_value = to!float(line[float_beg .. p - line.ptr]);
+    }
+
+    float = (sign? digit* '.'? digit+ ([eE] sign? digit+)?) > mark_float_start % update_float_value ;
 
     action qname_start { read_name_beg = p - line.ptr; }
     action qname_end { read_name_end = p - line.ptr; }
@@ -116,7 +122,7 @@
     action start_tagvalue { tagvalue_beg = p - line.ptr; }
 
     action set_floatvalue { 
-        current_tagvalue = Value(to!float(line[tagvalue_beg .. p - line.ptr]));
+        current_tagvalue = Value(float_value);
     }
 
     action set_stringvalue { 
@@ -130,12 +136,51 @@
 
     charvalue =  [!-~] > set_charvalue ;
     integervalue = int % set_integervalue;
-    floatvalue = float > start_tagvalue % set_floatvalue ;
+    floatvalue = float % set_floatvalue ;
+
+    action start_arrayvalue {
+        // it might be not the best idea to use outbuffer;
+        // the better idea might be two-pass approach
+        // when first pass is for counting commas, and
+        // the second is for filling allocated array
+        outbuffer = new OutBuffer();        
+        arraytype = fc;
+    }
+
+    action put_integer_to_array {
+        // here, we assume that compiler is smart enough to move switch out of loop.
+        switch (arraytype) {
+            case 'c': outbuffer.write(to!byte(int_value)); break;
+            case 'C': outbuffer.write(to!ubyte(int_value)); break;
+            case 's': outbuffer.write(to!short(int_value)); break;
+            case 'S': outbuffer.write(to!ushort(int_value)); break;
+            case 'i': outbuffer.write(to!int(int_value)); break;
+            case 'I': outbuffer.write(to!uint(int_value)); break;
+            default: assert(0);
+        }
+    }
+
+    action put_float_to_array { 
+        outbuffer.write(float_value); 
+    }
+
+    action set_arrayvalue {
+        switch (arraytype) {
+            case 'c': current_tagvalue = Value(cast(byte[])(outbuffer.toBytes())); break;
+            case 'C': current_tagvalue = Value(cast(ubyte[])(outbuffer.toBytes())); break;
+            case 's': current_tagvalue = Value(cast(short[])(outbuffer.toBytes())); break;
+            case 'S': current_tagvalue = Value(cast(ushort[])(outbuffer.toBytes())); break;
+            case 'i': current_tagvalue = Value(cast(int[])(outbuffer.toBytes())); break;
+            case 'I': current_tagvalue = Value(cast(uint[])(outbuffer.toBytes())); break;
+            case 'f': current_tagvalue = Value(cast(float[])(outbuffer.toBytes())); break;
+            default: assert(0);
+        }
+    }
 
     stringvalue = [ !-~]+ > start_tagvalue % set_stringvalue ;
     hexstringvalue = xdigit+ > start_tagvalue % set_hexstringvalue ;
-    integerarrayvalue = [cCsSiI] (',' int)+ ;
-    floatarrayvalue = [f] (',' float)+ ;
+    integerarrayvalue = [cCsSiI] > start_arrayvalue (',' int % put_integer_to_array)+ % set_arrayvalue;
+    floatarrayvalue = [f] > start_arrayvalue (',' float % put_float_to_array)+ % set_arrayvalue;
     arrayvalue = integerarrayvalue | floatarrayvalue ;
 
     tagvalue = ("A:" charvalue) | 
@@ -143,7 +188,7 @@
                ("f:" floatvalue) | 
                ("Z:" stringvalue) | 
                ("H:" hexstringvalue) |
-               ("B:" arrayvalue) ; # TODO
+               ("B:" arrayvalue) ;
 
     action tag_key_start { tag_key_beg = p - line.ptr; }
     action tag_key_end   { current_tag = line[tag_key_beg .. p - line.ptr]; }
@@ -160,8 +205,11 @@
 
 import alignment;
 import tagvalue;
+
 import std.array;
 import std.conv;
+import std.typecons;
+import std.outbuffer;
 import std.c.stdlib;
 
 Alignment parseAlignmentLine(string line) {
@@ -172,10 +220,10 @@ Alignment parseAlignmentLine(string line) {
 
     byte current_sign = 1;
 
-    size_t read_name_beg = 0;
-    size_t read_name_end = 0;
+    size_t read_name_beg;
+    size_t read_name_end;
 
-    size_t sequence_beg = 0;
+    size_t sequence_beg;
     string sequence;
 
     uint cigar_op_len;
@@ -186,6 +234,11 @@ Alignment parseAlignmentLine(string line) {
     auto cigar = appender!(CigarOperation[])();
 
     long int_value; 
+    float float_value;
+    size_t float_beg;
+    OutBuffer outbuffer;
+    char arraytype;
+
     Alignment read;
 
     ushort flag;
@@ -216,8 +269,9 @@ Alignment parseAlignmentLine(string line) {
 
 unittest {
     import std.algorithm;
+    import std.math;
 
-    auto line = "ERR016155.15021091\t185\t20\t60033\t25\t66S35M\t=\t60033\t0\tAGAAAAAACTGGAAGTTAATAGAGTGGTGACTCAGATCCAGTGGTGGAAGGGTAAGGGATCTTGGAACCCTATAGAGTTGCTGTGTGCCAGGGCCAGATCC\t#####################################################################################################\tX0:i:1\tX1:i:0\tXC:i:35\tMD:Z:17A8A8\tRG:Z:ERR016155\tAM:i:0\tNM:i:2\tSM:i:25\tXT:A:U\tBQ:Z:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@";
+    auto line = "ERR016155.15021091\t185\t20\t60033\t25\t66S35M\t=\t60033\t0\tAGAAAAAACTGGAAGTTAATAGAGTGGTGACTCAGATCCAGTGGTGGAAGGGTAAGGGATCTTGGAACCCTATAGAGTTGCTGTGTGCCAGGGCCAGATCC\t#####################################################################################################\tX0:i:1\tX1:i:0\tXC:i:35\tMD:Z:17A8A8\tRG:Z:ERR016155\tAM:i:0\tNM:i:2\tSM:i:25\tXT:A:U\tBQ:Z:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\tY0:B:c,1,2,3\tY1:B:f,13.263,-3.1415,52.63461";
 
     auto alignment = parseAlignmentLine(line);
     assert(alignment.read_name == "ERR016155.15021091");
@@ -235,4 +289,6 @@ unittest {
     assert(to!ubyte(alignment["AM"]) == 0);
     assert(to!ubyte(alignment["SM"]) == 25);
     assert(to!string(alignment["MD"]) == "17A8A8");
+    assert(equal(to!(byte[])(alignment["Y0"]), [1, 2, 3]));
+    assert(equal!approxEqual(to!(float[])(alignment["Y1"]), [13.263, -3.1415, 52.63461]));
 }
