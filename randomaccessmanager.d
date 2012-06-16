@@ -35,7 +35,7 @@ private {
         return t;
     }
 
-    alias memoize!(decompressTask, 512, LuCache, BgzfBlock) memDecompressTask;
+    alias memoize!(decompressTask, 512, FifoCache, BgzfBlock) memDecompressTask;
 
     auto decompressSerial(BgzfBlock block) {
         return decompress(block).yieldForce();
@@ -49,7 +49,7 @@ debug {
     import std.stdio;
 }
 
-// TODO: add caching
+/// Class which random access tasks are delegated to.
 class RandomAccessManager {
 
     /// Constructs new manager for BAM file
@@ -61,8 +61,8 @@ class RandomAccessManager {
     /// This allows to do random-access interval queries.
     ///
     /// Params:
-    ///     filename -  location of BAM file
-    ///     BaiFile  -  index file
+    ///     filename =  location of BAM file
+    ///     bai  =  index file
     this(string filename, ref BaiFile bai) {
 
         _filename = filename;
@@ -96,7 +96,7 @@ class RandomAccessManager {
     auto getAlignments(int ref_id, int beg, int end) {
 
         enforce(found_index_file, "BAM index file (.bai) must be provided");
-        enforce(_bai.indices.length > ref_id, "Invalid reference sequence index");
+        enforce(ref_id >= 0 && ref_id < _bai.indices.length, "Invalid reference sequence index");
 
         beg = max(0, beg);
         int _i = min(beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
@@ -246,9 +246,9 @@ private {
     }
 
 
-    /// Range for iterating alignments contained in supplied intervals.
-    /// 
-    /// Modifies stream during iteration.
+    // Range for iterating alignments contained in supplied intervals.
+    // 
+    // Modifies stream during iteration.
     auto disjointChunkAlignmentRange(Range)(Range r, ref Stream stream) 
         if (is(ElementType!Range == Chunk))
     {
@@ -337,9 +337,9 @@ private {
         }
     }
 
-    /// Get range of alignments sorted by leftmost coordinate,
-    /// together with an interval [beg, end),
-    /// and return another range of alignments which overlap the region.
+    // Get range of alignments sorted by leftmost coordinate,
+    // together with an interval [beg, end),
+    // and return another range of alignments which overlap the region.
     auto filterAlignments(R)(R r, int ref_id, int beg, int end) 
         if(is(ElementType!R == Alignment)) 
     {

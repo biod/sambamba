@@ -5,10 +5,15 @@
   building strings in memory and outputting them into a file.
 
   For outputting to file, FILE* pointers are supported.
-  For building strings in memory, provide Appender!(ubyte[]) struct.
+  For building strings in memory, provide char[] array or char*
+  pointer when you're sure that amount of preallocated memory
+  is enough to store string representation.
 
-  Requirement for ubyte might seem strange, but that's the only reliable 
-  way to avoid overhead caused by utf8-awareness of D algorithms.
+  In case char* is used, it is passed by reference, and the pointer
+  is updated during string building.
+
+  Use pointer version when it allows you to get better performance,
+  but remember that it's quite dangerous.
  */
 module utils.format;
 
@@ -19,14 +24,22 @@ import std.traits;
 import std.array;
 
 /// Used for building a string in a buffer or for outputting to stream.
-void append(Args...)(FILE* stream, string format, Args args)
+size_t append(Args...)(FILE* stream, string format, Args args)
 {
     auto _format = toStringz(format);
-    fprintf(stream, _format, args);
+    return fprintf(stream, _format, args);
 }
 
 /// ditto
-void append(Args...)(ref Appender!(ubyte[]) stream, string format, Args args) 
+size_t append(Args...)(ref char* stream, string format, Args args) {
+    auto _format = toStringz(format);
+    auto sz = sprintf(stream, _format, args);
+    stream += sz;
+    return sz;
+}
+
+/// ditto
+size_t append(Args...)(ref char[] stream, string format, Args args) 
 {
     char[1024] buffer;
     int count;
@@ -57,33 +70,53 @@ void append(Args...)(ref Appender!(ubyte[]) stream, string format, Args args)
         }
     }
 
-    stream.put(cast(ubyte[])p[0 .. count]);
+    stream ~= p[0 .. count];
+    return count;
 }
 
 /// Put char into a stream
-void putcharacter(FILE* stream, char c)
+size_t putcharacter(FILE* stream, char c)
 {
     fputc(c, stream);    
+    return 1;
 }
 
 /// Append char to a buffer
-void putcharacter(ref Appender!(ubyte[]) stream, char c)
+size_t putcharacter(ref char[] stream, char c)
 {
-    stream.put(cast(ubyte)c);
+    stream ~= c;
+    return 1;
+}
+
+/// ditto
+size_t putcharacter(ref char* stream, char c) {
+    *stream++ = c;
+    return 1;
 }
 
 /// Append string to output stream.
-void putstring(T)(FILE* stream, T[] s) 
+size_t putstring(T)(FILE* stream, T[] s) 
     if (is(Unqual!T == char))
 {
     fwrite(s.ptr, s.length, char.sizeof, stream);
+    return s.length;
 }
 
 /// Append string to a buffer
-void putstring(T)(ref Appender!(ubyte[]) stream, T[] s) 
+size_t putstring(T)(ref char[] stream, T[] s) 
     if (is(Unqual!T == char)) 
 {
-    stream.put(cast(ubyte[])s);
+    stream ~= s;
+    return s.length;
+}
+
+/// ditto
+size_t putstring(T)(ref char* stream, T[] s) 
+    if (is(Unqual!T == char)) 
+{
+    stream[0 .. s.length] = s;
+    stream += s.length;
+    return s.length;
 }
 
 private {
@@ -123,54 +156,73 @@ private {
 
 
 /// Put integer number into a stream
-void putinteger(T)(FILE* stream, T number)
+size_t putinteger(T)(FILE* stream, T number)
     if (isIntegral!T)
 {
     char[64] buf;
     auto len = itoa(number, buf.ptr);
     fwrite(buf.ptr, len, char.sizeof, stream);
+    return len;
 }
 
 /// Add string representation of an integer to a buffer
-void putinteger(T)(ref Appender!(ubyte[]) stream, T number)
+size_t putinteger(T)(ref char[] stream, T number)
     if (isIntegral!T)
 {
     char[64] buf;
     auto len = itoa(number, buf.ptr);
-    stream.put(cast(ubyte[])buf[0..len]);
+    stream ~= buf[0 .. len];
+    return len;
+}
+
+/// ditto
+size_t putinteger(T)(ref char* stream, T number) {
+    auto len = itoa(number, stream);
+    stream += len;
+    return len;
 }
 
 unittest {
-    auto buf = appender!(ubyte[])();
+    char[] buf;
     append(buf, "%d%g", 1, 2.4);
-    assert(cast(string)(buf.data) == "12.4");
+    assert(cast(string)(buf) == "12.4");
 
     append(buf, "%s", toStringz("k"));
-    assert(cast(string)(buf.data) == "12.4k");
+    assert(cast(string)(buf) == "12.4k");
 
     auto str = "m";
     append(buf, "%.*s", str.length, str.ptr);
-    assert(cast(string)(buf.data) == "12.4km");
+    assert(cast(string)(buf) == "12.4km");
 
     append(buf, "%c%c", '/', 'h');
-    assert(cast(string)(buf.data) == "12.4km/h");
+    assert(cast(string)(buf) == "12.4km/h");
 
     ushort k = 5;
     append(buf, "%d", k);
-    assert(cast(char)(buf.data[$-1]) == '5');
+    assert(cast(char)(buf[$-1]) == '5');
 
-    buf.clear();
+    buf.length = 0;
     putstring(buf, "tes");
     putcharacter(buf, 't');
 
     uint z = 345;
     append(buf, "%d", z);
 
-    assert(cast(string)(buf.data) == "test345");
+    assert(cast(string)(buf) == "test345");
 
-    buf.clear();
+    buf.length = 0;
     putinteger(buf, 25);
-    assert(cast(string)(buf.data) == "25");
+    assert(cast(string)(buf) == "25");
     putinteger(buf, -31);
-    assert(cast(string)(buf.data) == "25-31");
+    assert(cast(string)(buf) == "25-31");
+
+    char* s = cast(char*)malloc(100);
+    scope(exit) free(s);
+
+    char* p = s;
+    putstring(p, "123");
+    putinteger(p, 456);
+    putcharacter(p, '7');
+    append(p, "%g", 8.9);
+    assert(s[0 .. p - s] == "12345678.9");
 }

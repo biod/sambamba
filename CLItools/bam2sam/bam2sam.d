@@ -4,7 +4,6 @@ import utils.format;
 
 import std.stdio;
 import std.c.stdio : stdout;
-import std.array;
 
 void main(string[] args) {
 
@@ -22,15 +21,8 @@ void main(string[] args) {
         return;
     }
 
-
-    auto buffer = appender!(ubyte[]);
-    buffer.reserve(65536);
-
     foreach (alignment; bam.alignments) {
-        serialize(alignment, bam.reference_sequences, buffer);
-        putstring(stdout, cast(char[])buffer.data);
+        serialize(alignment, bam.reference_sequences, stdout);
         putcharacter(stdout, '\n');
-
-        buffer.clear();
     }
 }

@@ -12,6 +12,8 @@ import std.conv;
 import std.algorithm;
 import std.typecons;
 import std.stdio;
+import std.traits;
+import std.c.stdlib;
 
 import std.array;
 
@@ -24,21 +26,25 @@ import std.array;
 
     v = [1, 2, 3];
     assert(to_sam(v) == "B:i,1,2,3");
+    ----------
 */
 string to_sam(Value v) {
-    auto buf = appender!(ubyte[])();
+    char[] buf;
     buf.reserve(16);
     serialize(v, buf);
-    return cast(string)buf.data;
+    return cast(string)buf;
 }
 
-/// Prints SAM representation into FILE* or Appender!(ubyte[])
+/// Print SAM representation to FILE* or append it to char[]/char* 
+/// (in char* case it's your responsibility to allocate enough memory)
 void serialize(S)(Value v, ref S stream) {
+
     if (v.is_numeric_array) {
         string toSamNumericArrayHelper() {
             char[] cases;
             foreach (t; ArrayElementTagValueTypes) {
-                char[] loopbody = "putcharacter(stream, ',');putinteger(stream, elem);".dup;
+                char[] loopbody = "putcharacter(stream, ',');" ~
+                                  "putinteger(stream, elem);".dup;
                 if (t.ch == 'f') {
                     loopbody = "append(stream, \",%g\", elem);".dup;
                 }
@@ -55,12 +61,12 @@ void serialize(S)(Value v, ref S stream) {
     if (v.is_integer) {
         putstring(stream, "i:");
         switch (v.bam_typeid) {
-            case 'c': putinteger(stream, to!byte(v)); return;
-            case 'C': putinteger(stream, to!ubyte(v)); return;
-            case 's': putinteger(stream, to!short(v)); return;
-            case 'S': putinteger(stream, to!ushort(v)); return;
-            case 'i': putinteger(stream, to!int(v)); return;
-            case 'I': putinteger(stream, to!uint(v)); return;
+            case 'c': putinteger(stream, to!byte(v));   return;
+            case 'C': putinteger(stream, to!ubyte(v));  return; 
+            case 's': putinteger(stream, to!short(v));  return; 
+            case 'S': putinteger(stream, to!ushort(v)); return; 
+            case 'i': putinteger(stream, to!int(v));    return; 
+            case 'I': putinteger(stream, to!uint(v));   return; 
             default: assert(0);
         }
     }
@@ -90,17 +96,46 @@ void serialize(S)(Value v, ref S stream) {
 /// Example:
 /// -------------
 /// to_sam(alignment, bam.reference_sequences);
-///
+/// -------------
 string to_sam(Alignment alignment, ReferenceSequenceInfo[] info) {
-    auto buf = appender!(ubyte[])();
+    char[] buf;
     buf.reserve(512);
     serialize(alignment, info, buf);
-    return cast(string)buf.data;
+    return cast(string)buf;
 }
 
-/// Serialize an alignment into FILE* or Appender!(ubyte[])
-void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S stream) {
+/// Serialize $(D alignment) to FILE* or append it to char[]/char* 
+/// (in char* case it's your responsibility to allocate enough memory)
+void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S stream) 
+    if (is(Unqual!S == FILE*) || is(Unqual!S == char*) || is(Unqual!S == char[]))
+{
 
+    // Notice: it is extremely important to exclude pointers,
+    // otherwise you'll get recursion and stack overflow.
+    static if (__traits(compiles, alloca(0)) && !is(Unqual!S == char*)) {
+
+        immutable ALLOCA_THRESHOLD = 10000;
+
+        if (alignment.size_in_bytes < ALLOCA_THRESHOLD) {
+
+            // surely we can allocate 50 kilobytes on the stack,
+            // we're not targeting embedded systems :)
+            char* buffer = cast(char*)alloca(alignment.size_in_bytes * 5);
+
+            if (buffer != null) {
+                char* p = buffer; // this pointer will be modified
+                serialize(alignment, info, p);
+                putstring(stream, buffer[0 .. p - buffer]);
+                return;
+            } else {
+                debug {
+                    import std.stdio;
+                    writeln("WARNING: pointer allocated with alloca was null");
+                }
+            }
+        }
+    }
+    
     putstring(stream, alignment.read_name);
     putcharacter(stream, '\t');
 
@@ -123,7 +158,6 @@ void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S strea
     if (alignment.cigar.length == 0) {
         putstring(stream, "*\t");
     } else {
-        // avoid memory allocation and NOT use cigar_string()
         foreach (cigar_op; alignment.cigar) {
             putinteger(stream, cigar_op.length);
             putcharacter(stream, cigar_op.operation);
@@ -156,8 +190,9 @@ void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S strea
     if (alignment.raw_sequence_data.length == 0) {
         putstring(stream, "*\t");
     } else {
-        foreach(char c; alignment.sequence())
+        foreach(char c; alignment.sequence()) {
             putcharacter(stream, c);
+        }
         putcharacter(stream, '\t');
     }
     if (alignment.phred_base_quality.length == 0 || 
@@ -165,7 +200,7 @@ void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S strea
     {
         putcharacter(stream, '*');
     } else {
-        foreach (char c; alignment.phred_base_quality) {
+        foreach(char c; alignment.phred_base_quality) {
             putcharacter(stream, cast(char)(c + 33));
         }
     }
@@ -177,4 +212,6 @@ void serialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S strea
         putcharacter(stream, ':');
         serialize(v, stream);
     }
+
+    return;
 }

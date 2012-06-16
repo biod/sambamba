@@ -138,10 +138,10 @@ private template GetType(U) {
 /// Useful for comparison with tag field of Value struct.
 /// 
 /// Example:
-/// ------------
+/// -----------------------------------
 /// Value v = "zzz";
 /// assert(v.tag == GetTypeId!string);
-///
+/// -----------------------------------
 template GetTypeId(T) {
     enum GetTypeId = TypeIdMap[staticIndexOf!(T, staticMap!(GetType, TypeIdMap))].Id;
 }

@@ -127,9 +127,16 @@ struct BamFile {
       Returns reference sequence named $(D ref_name).
      */
     auto opIndex(string ref_name) {
-        enforce(ref_name in _reference_sequence_dict, "Invalid reference name");
+        enforce(hasReference(ref_name), "Reference with name " ~ ref_name ~ " does not exist");
         auto ref_id = _reference_sequence_dict[ref_name];
         return reference(ref_id);
+    }
+
+    /**
+      Check if reference named $(D ref_name) is presented in BAM header.
+     */
+    bool hasReference(string ref_name) {
+        return null != (ref_name in _reference_sequence_dict);
     }
 
     /**
