@@ -16,37 +16,37 @@ import std.typetuple;
     InvalidTags is accompanied by some TagError.
 */
 enum AlignmentError {
-    EmptyReadName,
-    TooLongReadName,
-    ReadNameContainsInvalidCharacters,
-    PositionIsOutOfRange,
-    QualityDataContainsInvalidElements,
-    InvalidCigar,
-    InvalidTags,
-    DuplicateTagKeys
+    EmptyReadName, ///
+    TooLongReadName, /// 
+    ReadNameContainsInvalidCharacters, ///
+    PositionIsOutOfRange, /// 
+    QualityDataContainsInvalidElements, ///
+    InvalidCigar, ///
+    InvalidTags, ///
+    DuplicateTagKeys ///
 }
 
 /// CIGAR string validation error types.
 enum CigarError {
-    InternalHardClipping,
-    InternalSoftClipping,
-    InconsistentLength
+    InternalHardClipping, /// 
+    InternalSoftClipping, ///
+    InconsistentLength ///
 }
 
 /// Auxiliary data validation error types.
 ///
 /// Refers to an individual tag.
 enum TagError {
-    EmptyString,
-    EmptyHexadecimalString,
-    NonPrintableString,
-    NonPrintableCharacter,
-    InvalidHexadecimalString,
-    ExpectedIntegerValue,
-    ExpectedStringValue,
-    InvalidValueType,
-    InvalidQualityString,
-    ExpectedStringWithSameLengthAsSequence
+    EmptyString, ///
+    EmptyHexadecimalString, ///
+    NonPrintableString, ///
+    NonPrintableCharacter, ///
+    InvalidHexadecimalString, ///
+    ExpectedIntegerValue, ///
+    ExpectedStringValue, ///
+    InvalidValueType, ///
+    InvalidQualityString, ///
+    ExpectedStringWithSameLengthAsSequence ///
 }
 
 /// Designates pair of predefined key from SAM/BAM specification
@@ -294,9 +294,9 @@ private:
         return result;
     }
 
-    /// There're some requirements for predefined tags to be checked
-    /// such as type, length in some cases, or even some regular expression.
-    /// See page 6 of SAM/BAM specification.
+    // There're some requirements for predefined tags to be checked
+    // such as type, length in some cases, or even some regular expression.
+    // See page 6 of SAM/BAM specification.
     bool additionalChecksIfTheTagIsPredefined(string key, Value value,
                                               ref Alignment al) 
     {
@@ -320,7 +320,7 @@ private:
         return result;
     }
 
-    /// Supposed to be inlined in the above switch
+    // Supposed to be inlined in the above switch
     bool checkTagValue(string s)(Value value, ref Alignment al) {
 
         bool result = true;

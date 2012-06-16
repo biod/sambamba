@@ -10,6 +10,9 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
 
+FILESTODOCUMENT = bamfile.d alignment.d reference.d tagvalue.d \
+				  samheader.d validation/samheader.d validation/samheader.d
+
 all:
 	dmd $(LIBFILES) -oflibbam.so -O -release -inline -shared
 
@@ -24,7 +27,7 @@ region-parser: region.rl
 	ragel region.rl -D -G2
 
 unittests: $(TESTFILES)
-	dmd $(TESTFILES) -debug -g -unittest -ofrun_unittests
+	dmd $(TESTFILES) -debug -g -unittest -ofrun_unittests -version=serial
 	./run_unittests
 
 unittests-gdc: $(TESTFILES)

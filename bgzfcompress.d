@@ -13,8 +13,10 @@ import core.bitop;
 /// If $(D buffer) is provided, it will be used for storing the block.
 ///
 /// Params: 
-///         chunk -  chunk of memory to be compressed
-///         level -  compression level, see zlib documentation
+///         chunk =  chunk of memory to be compressed
+///         level =  compression level, see zlib documentation
+///         buffer = optional buffer which will be used for storing
+///                  decompressed data
 ///
 /// For uncompressed BAM output, use level = 0.
 ubyte[] bgzfCompress(ubyte[] chunk, int level, ubyte[] buffer=null) 

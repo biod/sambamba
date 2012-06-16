@@ -36,9 +36,6 @@ int main(string[] args) {
         auto bam = BamFile(args[1]);
         auto regions = map!parseRegion(args[2 .. $]);
 
-        auto buffer = appender!(ubyte[]);
-        buffer.reserve(65536);
-
 		foreach (ref r; regions) {
 			foreach (read; bam[r.reference][r.beg .. r.end]) {
 				if (quality_threshold != -1 && read.mapping_quality < quality_threshold) {
@@ -50,11 +47,8 @@ int main(string[] args) {
 						continue;
 					}
 				}
-				serialize(read, bam.reference_sequences, buffer);
-				putstring(stdout, cast(char[])buffer.data);
+				serialize(read, bam.reference_sequences, stdout);
 				putcharacter(stdout, '\n');
-
-				buffer.clear();
 			}
 		}
     } catch (Exception e) {
