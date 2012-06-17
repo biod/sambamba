@@ -88,13 +88,11 @@ void writeBAM(R)(Stream stream,
         stream.writeExact(bgzf_block.ptr, bgzf_block.length);
     }
 
-    // OK, now alignments
-
     // Range of blocks, each is <= MAX_BLOCK_SIZE in size,
     // except cases where single alignment takes more than
     // one block. In this particular case, the alignment occupies
     // the whole block.
-    struct BlockRange {
+    static struct BlockRange(R) {
         this(R alignments) {
             _alignments = alignments;
 
@@ -152,22 +150,99 @@ void writeBAM(R)(Stream stream,
         }
     }
 
-    // TODO: parallelize this stuff
-    auto blocks = BlockRange(alignments);
-    foreach(block; blocks) {
-        while (block.length > 0) {
-            auto to_write = min(block.length, BGZF_BLOCK_SIZE);
-
-            debug {
-                writeln("compressing block of length ", to_write);
-            }
-
-            auto bgzf_block = bgzfCompress(block[0 .. to_write], compression_level);
-
-            stream.writeExact(bgzf_block.ptr, bgzf_block.length);
-
-            block = block[to_write .. $];
+    static auto blockRange(R)(R alignments) {
+        return BlockRange!R(alignments);
+    }
+        
+    // Takes range of blocks as input and returns
+    // another range where too big blocks, with length
+    // more than $(D max_size) were cut into several smaller blocks
+    static struct ChunkedBlockRange(R) {
+        R _blocks;
+        ElementType!R _current_block;
+        size_t _max_size;
+        bool _empty = false;
+        this(R blocks, size_t max_size) {
+            _blocks = blocks;
+            _max_size = max_size;
+            _loadNextBlock();
         }
+
+        bool empty() @property {
+            return _empty;
+        }
+
+        ubyte[] front() @property {
+            if (_current_block.length <= _max_size) {
+                return _current_block;
+            } else {
+                return _current_block[0 .. _max_size];
+            }
+        }
+
+        void popFront() {
+            if (_current_block.length <= _max_size) {
+                _loadNextBlock();
+            } else {
+                _current_block = _current_block[_max_size .. $];
+            }
+        }
+
+        void _loadNextBlock() {
+            if (!_blocks.empty) {
+                version(serial) {
+                    _current_block = _blocks.front;
+                } else {
+                    _current_block = _blocks.front.dup;
+                }
+                _blocks.popFront();
+            } else {
+                _empty = true;
+            }
+        }
+    }
+
+    static auto chunkedBlockRange(R)(R blocks, size_t max_size) {
+        return ChunkedBlockRange!R(blocks, max_size);
+    }
+
+    auto blocks = blockRange(alignments);
+    auto chunked_blocks = chunkedBlockRange(blocks, BGZF_BLOCK_SIZE);
+
+    // ugly workaround 
+    // (issue 5710, cannot use delegates as parameters to non-global template)
+    static ubyte[] makeBgzfCompressor(int n)(ubyte[] buf) {
+        return bgzfCompress(buf, n);
+    }
+       
+    // helper function
+    static void writeAlignmentBlocks(int n, R)(R chunked_blocks, ref Stream stream) {
+
+    version(serial) {
+        auto bgzf_blocks = map!(makeBgzfCompressor!n)(chunked_blocks);
+    } else {
+        import std.parallelism;
+        auto bgzf_blocks = taskPool.map!(makeBgzfCompressor!n)(chunked_blocks);
+    }
+
+        foreach (bgzf_block; bgzf_blocks) {
+            stream.writeExact(bgzf_block.ptr, bgzf_block.length);
+        }
+    }
+
+    switch (compression_level) {
+        case -1: writeAlignmentBlocks!(-1)(chunked_blocks, stream); break;
+        case 0: writeAlignmentBlocks!(0)(chunked_blocks, stream); break;
+        case 1: writeAlignmentBlocks!(1)(chunked_blocks, stream); break;
+        case 2: writeAlignmentBlocks!(2)(chunked_blocks, stream); break;
+        case 3: writeAlignmentBlocks!(3)(chunked_blocks, stream); break;
+        case 4: writeAlignmentBlocks!(4)(chunked_blocks, stream); break;
+        case 5: writeAlignmentBlocks!(5)(chunked_blocks, stream); break;
+        case 6: writeAlignmentBlocks!(6)(chunked_blocks, stream); break;
+        case 7: writeAlignmentBlocks!(7)(chunked_blocks, stream); break;
+        case 8: writeAlignmentBlocks!(8)(chunked_blocks, stream); break;
+        case 9: writeAlignmentBlocks!(9)(chunked_blocks, stream); break;
+        default: assert(0);
     }
 
     // write EOF block
