@@ -1,5 +1,7 @@
 import bamfile;
 
+import jsonserialization;
+
 import std.datetime;
 import std.stdio;
 
@@ -8,17 +10,11 @@ void main(string[] args) {
     sw.start();
     auto bam = BamFile(args[1]);
     auto count = 0;
+
+    FILE* fp = cast(FILE*)stdout.getFP();
     foreach (alignment; bam.alignments) {
-        count += 1;
+        jsonSerialize(alignment, bam.reference_sequences, fp);
+        fputc('\n', fp);
     }
     sw.stop();
-    writeln("total time: ", sw.peek().nsecs, "ns");
-    writeln("alignments found: ", count);
-
-	import std.stream;
-	import bamoutput;
-	auto stream = new BufferedFile("tmp.bam", FileMode.Out);
-	bam.rewind();
-	writeBAM(stream, bam.header.text, bam.reference_sequences, bam.alignments);
-	stream.close();
 }

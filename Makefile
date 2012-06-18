@@ -34,11 +34,11 @@ unittests-gdc: $(TESTFILES)
 	gdc $(TESTFILES) -O0 -funittest -o run_unittests -lpthread -fdebug -fversion=serial
 	./run_unittests
 
-test: $(FILES) readbam.d
-	dmd $(FILES) readbam.d -ofreadbam -g -debug
+test: $(FILES) readbam.d jsonserialization.d
+	dmd $(FILES) readbam.d jsonserialization.d -ofreadbam -g -debug -inline
 
-test-gdc: $(FILES) readbam.d
-	gdc $(FILES) readbam.d -o readbam -g -fdebug -lpthread
+test-gdc: $(FILES) readbam.d jsonserialization.d
+	gdc $(FILES) readbam.d jsonserialization.d -o readbam -g -fdebug -lpthread -O3 -frelease -finline -fno-assert -fno-bounds-check
 
 clean:
 	rm *.o
