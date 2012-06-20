@@ -7,8 +7,8 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d
 
-DMDFLAGS=-O -release -inline -version=serial -g
-GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -fversion=serial -funroll-all-loops -finline-limit=8192
+DMDFLAGS=-O -release -inline -g
+GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
 bam2sam-dmd: $(FILES) bam2sam/bam2sam.d
 	mkdir -p build
@@ -25,3 +25,11 @@ bam-fetch-dmd: $(FILES) bam-fetch/bam_fetch.d ../region.d
 bam-fetch-gdc: $(FILES) bam-fetch/bam_fetch.d ../region.d
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) bam-fetch/bam_fetch.d -o build/bam-fetch
+
+bam-count-dmd: $(FILES) bam-count/bam_count.d ../region.d
+	mkdir -p build
+	dmd $(DMDFLAGS) $(FILES) bam-count/bam_count.d -ofbuild/bam-count
+
+bam-count-gdc: $(FILES) bam-count/bam_count.d ../region.d
+	mkdir -p build
+	gdc $(GDCFLAGS) $(FILES) bam-count/bam_count.d -o build/bam-count
