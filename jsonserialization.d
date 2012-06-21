@@ -202,23 +202,18 @@ void jsonSerialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S s
         }
         putstring(stream, `","qual":`);
     }
-    if (alignment.phred_base_quality.length == 0 || 
-        alignment.phred_base_quality[0] == '\xFF')
-    {
-        putstring(stream, `"*","tags":{`);
-    } else {
-        putcharacter(stream, '"');
-        foreach(char c; alignment.phred_base_quality) {
-            char to_write = cast(char)(c + 33);
-            if (to_write == '"')
-                putstring(stream, `\"`);
-            else if (to_write == '\\')
-                putstring(stream, "\\\\");
-            else
-                putcharacter(stream, to_write);
+
+    putcharacter(stream, '[');
+    bool first = true;
+    foreach(ubyte c; alignment.phred_base_quality) {
+        if (!first) {
+            putcharacter(stream, ',');
+        } else {
+            first = false;
         }
-        putstring(stream, `","tags":{`);
+        putinteger(stream, c);
     }
+    putstring(stream, `],"tags":{`);
    
     bool not_first = false;
     foreach (k, v; alignment.tags) {
