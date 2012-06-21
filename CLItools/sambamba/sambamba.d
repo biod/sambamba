@@ -55,6 +55,7 @@ void outputReferenceInfoJson(ref BamFile bam) {
     }
 
     putcharacter(stdout, ']');
+    putcharacter(stdout, '\n');
 }
 
 ubyte quality_threshold = 0;
@@ -137,7 +138,7 @@ int main(string[] args) {
 
         
     } catch (Exception e) {
-        writeln("sambamba", e.msg);
+        writeln("sambamba: ", e.msg);
         return 1;
     }
 
