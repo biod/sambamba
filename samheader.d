@@ -3,6 +3,7 @@ module samheader;
 import std.algorithm;
 import std.conv;
 import std.exception;
+import std.json;
 
 private {
 
