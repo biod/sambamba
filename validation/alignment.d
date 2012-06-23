@@ -128,10 +128,14 @@ abstract class AbstractAlignmentValidator {
         method gets called, and is provided the object where the error occurred,
         and type of the error. Objects are passed by reference so that they
         can be changed (fixed / cleaned up / etc.)
+
+        If onError() returns true, that means to continue validation process
+        for this particular entity. Otherwise, all other validation checks are
+        skipped and next entity is processed.
     */
-    abstract void onError(ref Alignment al, AlignmentError error); 
-    abstract void onError(ref Alignment al, CigarError error); /// ditto
-    abstract void onError(string key, ref Value value, TagError error); /// ditto
+    abstract bool onError(ref Alignment al, AlignmentError error); 
+    abstract bool onError(ref Alignment al, CigarError error); /// ditto
+    abstract bool onError(string key, ref Value value, TagError error); /// ditto
 
 private:
     void _visitAlignment(ref Alignment al) {
@@ -139,26 +143,26 @@ private:
         /// Read name (a.k.a. QNAME) must =~ /^[!-?A-~]{1,255}$/ 
         /// according to specification.
         if (al.read_name.length == 0) {
-            onError(al, AlignmentError.EmptyReadName);
+            if (!onError(al, AlignmentError.EmptyReadName)) return;
         } else if (al.read_name.length > 255) {
-            onError(al, AlignmentError.TooLongReadName);
+            if (!onError(al, AlignmentError.TooLongReadName)) return;
         } else {
             if (!all!"(a >= '!' && a <= '?') || (a >= 'A' && a <= '~')"(al.read_name)) 
             {
-                onError(al, AlignmentError.ReadNameContainsInvalidCharacters);
+                if (!onError(al, AlignmentError.ReadNameContainsInvalidCharacters)) return;
             }
         }
 
         /// Check that position is in range [-1 .. 2^29 - 2]
         if (al.position < -1 || al.position > ((1<<29) - 2)) {
-            onError(al, AlignmentError.PositionIsOutOfRange);
+            if (!onError(al, AlignmentError.PositionIsOutOfRange)) return;
         }
 
         /// Check quality data
         if (!all!"a == 0xFF"(al.phred_base_quality) &&
             !all!"0 <= a && a <= 93"(al.phred_base_quality)) 
         {
-            onError(al, AlignmentError.QualityDataContainsInvalidElements);
+            if (!onError(al, AlignmentError.QualityDataContainsInvalidElements)) return;
         }
         
         /// Check CIGAR string
@@ -169,7 +173,7 @@ private:
         
         void cigarIsBad() {
             if (cigar_is_good) {
-                onError(al, AlignmentError.InvalidCigar);
+                if (!onError(al, AlignmentError.InvalidCigar)) return;
             }
             cigar_is_good = false;
         }
@@ -178,7 +182,7 @@ private:
             if (al.cigar.length > 2 && 
                 any!"a.operation == 'H'"(al.cigar[1..$-1]))
             {
-                onError(al, CigarError.InternalHardClipping); 
+                if (!onError(al, CigarError.InternalHardClipping)) return; 
                 cigarIsBad(); 
             }
 
@@ -199,7 +203,7 @@ private:
                 if (cigar.length > 2 &&
                     any!"a.operation == 'S'"(cigar[1..$-1]))
                 {
-                    onError(al, CigarError.InternalSoftClipping);    
+                    if (!onError(al, CigarError.InternalSoftClipping)) return;    
                     cigarIsBad();
                 }
             }
@@ -213,7 +217,7 @@ private:
                                           filter!`canFind("MIS=X", a.operation)`(
                                             al.cigar))))
             {
-                onError(al, CigarError.InconsistentLength);
+                if (!onError(al, CigarError.InconsistentLength)) return;
                 cigarIsBad();
             }
 
@@ -229,7 +233,7 @@ private:
         
         void someTagIsBad() {
             if (all_tags_are_good) {
-                onError(al, AlignmentError.InvalidTags);
+                if (!onError(al, AlignmentError.InvalidTags)) return;
             }
             all_tags_are_good = false;
         }
@@ -247,7 +251,7 @@ private:
        
         /// Check that all tag keys are distinct.
         if (!allDistinct(keys)) {
-            onError(al, AlignmentError.DuplicateTagKeys);
+            if (!onError(al, AlignmentError.DuplicateTagKeys)) return;
         }
 
     }
@@ -259,29 +263,40 @@ private:
         if (value.is_hexadecimal_string()) {
             auto str = to!string(value);
             if (str.length == 0) {
-                onError(key, value, TagError.EmptyHexadecimalString);
+                if (!onError(key, value, TagError.EmptyHexadecimalString)) {
+                    return false;
+                }
+                result = false;
             }
             /// check that it contains only 0..9a-fA-F characters
             if (!all!(isHexDigit)(str)) {
-                onError(key, value, TagError.InvalidHexadecimalString);
+                if (!onError(key, value, TagError.InvalidHexadecimalString)) {
+                    return false;
+                }
                 result = false;
             }
         } else if (value.is_character()) {
             /// character must be [!-~]
             auto c = to!char(value);
             if (!(c >= '!' && c <= '~')) {
-                onError(key, value, TagError.NonPrintableCharacter);
+                if (!onError(key, value, TagError.NonPrintableCharacter)) {
+                    return false;
+                }
                 result = false;
             }
         } else if (value.is_string()) {
             auto str = to!string(value); 
             if (str.length == 0) {
-                onError(key, value, TagError.EmptyString);
+                if (!onError(key, value, TagError.EmptyString)) {
+                    return false;
+                }
                 result = false;
             }
             /// string must be [ !-~]+
             if (!all!"a >= ' ' && a <= '~'"(str)) {
-                onError(key, value, TagError.NonPrintableString);
+                if (!onError(key, value, TagError.NonPrintableString)) {
+                    return false;
+                }
                 result = false;
             }
         }
@@ -329,7 +344,9 @@ private:
 
         static if (is(PredefinedTagType!s == int)) {
             if (!value.is_integer) {
-                onError(s, value, TagError.ExpectedIntegerValue);
+                if (!onError(s, value, TagError.ExpectedIntegerValue)) {
+                    return false;
+                }
                 result = false;
             }
         } else if (is(PredefinedTagType!s == string)) {
@@ -337,12 +354,16 @@ private:
             // and they are almost unused and therefore are not likely
             // to appear in the future. 
             if (!value.is_string || value.bam_typeid == 'H') {
-                onError(s, value, TagError.ExpectedStringValue);
+                if (!onError(s, value, TagError.ExpectedStringValue)) {
+                    return false;
+                }
                 result = false;
             }
         } else {
             if (value.tag != GetTypeId!(PredefinedTagType!s)) {
-                onError(s, value, TagError.InvalidValueType);
+                if (!onError(s, value, TagError.InvalidValueType)) {
+                    return false;
+                }
                 result = false;
             }
         }
@@ -353,7 +374,9 @@ private:
         static if (staticIndexOf!(s, "CQ", "E2", "OQ", "Q2", "U2") != -1) {
             auto str = to!string(value);
             if (str != "*" && !all!"a >= '!' && a <= '~'"(str)) {
-                onError(s, value, TagError.InvalidQualityString);
+                if (!onError(s, value, TagError.InvalidQualityString)) {
+                    return false;
+                }
                 result = false;
             }
         }
@@ -363,7 +386,9 @@ private:
 
         static if (staticIndexOf!(s, "BQ", "E2") != -1) {
             if (to!string(value).length != al.sequence_length) {
-                onError(s, value, TagError.ExpectedStringWithSameLengthAsSequence);
+                if (!onError(s, value, TagError.ExpectedStringWithSameLengthAsSequence)) {
+                    return false;
+                }
             }
         }
 
@@ -417,33 +442,25 @@ private:
     }
 }
 
-private class BooleanValidator : AbstractAlignmentValidator {
-
-    class BooleanValidationException : Exception {
-        this() { super(""); }
-    }
+final private class BooleanValidator : AbstractAlignmentValidator {
 
     bool result;
 
-    override void validate(ref Alignment al) {
+    final override void validate(ref Alignment al) {
         result = true;
-        try {
-            super.validate(al);
-        } catch (BooleanValidationException e) {
-            result = false;
-        }
+        super.validate(al);
     }
 
-    void onError(ref Alignment al, AlignmentError e) {
-        throw new BooleanValidationException();
+    bool onError(ref Alignment al, AlignmentError e) {
+        return (result = false);
     }
 
-    void onError(ref Alignment al, CigarError e) {
-        throw new BooleanValidationException();
+    bool onError(ref Alignment al, CigarError e) {
+        return (result = false);
     }
 
-    void onError(string key, ref Value val, TagError e) {
-        throw new BooleanValidationException();
+    bool onError(string key, ref Value val, TagError e) {
+        return (result = false);
     }
 
 }

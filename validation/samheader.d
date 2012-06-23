@@ -68,11 +68,14 @@ abstract class AbstractSamHeaderValidator {
         method gets called, and is provided the object where the error occurred,
         and type of the error. Objects are passed by reference so that they
         can be changed (fixed / cleaned up / etc.)
+
+        'False' return value means to stop further validation checks for the 
+        current entity and skip to the next one.
     */
-    abstract void onError(ref SamHeader header, SamHeaderError error);
-    abstract void onError(ref SqLine line, SqLineError error); /// ditto
-    abstract void onError(ref PgLine line, PgLineError error); /// ditto
-    abstract void onError(ref RgLine line, RgLineError error); /// ditto
+    abstract bool onError(ref SamHeader header, SamHeaderError error);
+    abstract bool onError(ref SqLine line, SqLineError error); /// ditto
+    abstract bool onError(ref PgLine line, PgLineError error); /// ditto
+    abstract bool onError(ref RgLine line, RgLineError error); /// ditto
 
 private:
 
@@ -150,39 +153,39 @@ private:
     void _visitHeader(ref SamHeader header) {
 
         foreach (sq; header.sq_lines) {
-            if (!isValid(sq)) onError(header, SamHeaderError.InvalidSqLine);
+            if (!isValid(sq)) if (!onError(header, SamHeaderError.InvalidSqLine)) return;
         }
 
         foreach (rg; header.rg_lines) {
-            if (!isValid(rg)) onError(header, SamHeaderError.InvalidRgLine);
+            if (!isValid(rg)) if (!onError(header, SamHeaderError.InvalidRgLine)) return;
         }
 
         foreach (pg; header.pg_lines) {
-            if (!isValid(pg)) onError(header, SamHeaderError.InvalidPgLine);
+            if (!isValid(pg)) if (!onError(header, SamHeaderError.InvalidPgLine)) return;
         }
 
         if (header.hasHeaderLine()) {
             if (!checkFormatVersion(header.format_version)) {
-                onError(header, SamHeaderError.InvalidFormatVersion);
+                if (!onError(header, SamHeaderError.InvalidFormatVersion)) return;
             }
             if (!checkSortingOrder(header.sorting_order)) {
-                onError(header, SamHeaderError.InvalidSortingOrder);
+                if (!onError(header, SamHeaderError.InvalidSortingOrder)) return;
             }
         }
 
         // check uniqueness of @SQ/SN
         if (!allDistinct(map!"a.sequence_name"(header.sq_lines))) {
-            onError(header, SamHeaderError.NotUniqueSequenceNames);
+            if (!onError(header, SamHeaderError.NotUniqueSequenceNames)) return;
         }
 
         // check uniqueness of @RG/ID
         if (!allDistinct(map!"a.identifier"(header.rg_lines))) {
-            onError(header, SamHeaderError.NotUniqueReadGroupIdentifiers);
+            if (!onError(header, SamHeaderError.NotUniqueReadGroupIdentifiers)) return;
         }
 
         // check uniqueness of @PG/ID
         if (!allDistinct(map!"a.identifier"(header.pg_lines))) {
-            onError(header, SamHeaderError.NotUniqueProgramIdentifiers);
+            if (!onError(header, SamHeaderError.NotUniqueProgramIdentifiers)) return;
         }
 
         // check that each @PG/PP matches some @PG/ID
@@ -191,7 +194,7 @@ private:
                 if (!canFind(map!"a.identifier"(header.pg_lines),
                              pg.previous_program)) 
                 {
-                    onError(pg, PgLineError.NoMatchForPreviousProgram);
+                    if (!onError(pg, PgLineError.NoMatchForPreviousProgram)) return;
                 }
             }
         }
@@ -253,37 +256,29 @@ bool checkSortingOrder(string sorting_order) {
                    sorting_order);
 }
 
-class BooleanValidator : AbstractSamHeaderValidator {
-
-    class BooleanValidationException : Exception {
-        this() { super(""); }
-    }
+final private class BooleanValidator : AbstractSamHeaderValidator {
 
     bool result;
 
     override void validate(ref SamHeader header) {
         result = true;
-        try {
-            super.validate(header);
-        } catch (BooleanValidationException e) {
-            result = false;
-        }
+        super.validate(header);
     }
 
-    void onError(ref SamHeader header, SamHeaderError e) {
-        throw new BooleanValidationException();
+    bool onError(ref SamHeader header, SamHeaderError e) {
+        return (result = false);
     }
 
-    void onError(ref SqLine line, SqLineError e) {
-        throw new BooleanValidationException();
+    bool onError(ref SqLine line, SqLineError e) {
+        return (result = false);
     }
 
-    void onError(ref RgLine header, RgLineError e) {
-        throw new BooleanValidationException();
+    bool onError(ref RgLine header, RgLineError e) {
+        return (result = false);
     }
 
-    void onError(ref PgLine header, PgLineError e) {
-        throw new BooleanValidationException();
+    bool onError(ref PgLine header, PgLineError e) {
+        return (result = false);
     }
 }
 

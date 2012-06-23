@@ -1,21 +1,25 @@
 import bamfile;
 import validation.alignment;
 
+import sam.serialize;
 import std.stdio;
 
 class Validator : AbstractAlignmentValidator {
-    void onError(ref Alignment alignment, AlignmentError e) {
+    bool onError(ref Alignment alignment, AlignmentError e) {
         writeln(e, " in read '", alignment.read_name, "'");
+        return true; // continue checks
     }
 
-    void onError(ref Alignment alignment, CigarError e) {
+    bool onError(ref Alignment alignment, CigarError e) {
         writeln("\tCIGAR error: ", e);
         writeln("\t\t   cigar string: ", alignment.cigarString());
         writeln("\t\tsequence length: ", alignment.sequence_length);
+        return true;
     }
 
-    void onError(string key, ref Value value, TagError e) {
-        writeln("\tTag error: ", e , " ('", key, "' -> '", value.to_sam(), "')");
+    bool onError(string key, ref Value value, TagError e) {
+        writeln("\tTag error: ", e , " ('", key, "' -> '", to_sam(value), "')");
+        return true;
     }
 }
 
