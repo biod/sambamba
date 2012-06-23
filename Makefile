@@ -40,5 +40,8 @@ test: $(FILES) readbam.d
 test-gdc: $(FILES) readbam.d
 	gdc $(FILES) readbam.d -o readbam -g -fdebug -lpthread
 
+testsam: $(FILES) readsam.d samfile.d sam/sam_alignment.d
+	rdmd --compiler=gdmd -O -release -inline --build-only -L-lpthread -g readsam.d
+
 clean:
 	rm *.o

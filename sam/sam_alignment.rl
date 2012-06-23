@@ -21,14 +21,21 @@
     action qname_start { read_name_beg = p - line.ptr; }
     action qname_end { read_name_end = p - line.ptr; }
 
-    qname =  '*' | ([!-?A-~]{1,255} > qname_start % qname_end) ;
+    qname =  '*' | (([!-?A-~]{1,255})** > qname_start % qname_end) ;
 
     action set_flag { flag = to!ushort(int_value); }
     action set_pos { pos = to!uint(int_value); }
     action set_mapping_quality { mapping_quality = to!ubyte(int_value); }
 
     flag = uint % set_flag;
-    rname = '*' | [!-()+-<>-~] [!-~]* ;
+
+    action rname_start { rname_beg = p - line.ptr; }
+    action rname_end {
+        ref_id = header.getReferenceSequenceId(line[rname_beg .. p - line.ptr]); 
+    }
+
+    rname = '*' | (([!-()+-<>-~] [!-~]*) > rname_start % rname_end);
+
     pos = uint % set_pos;
     mapq = uint % set_mapping_quality;
 
@@ -41,10 +48,21 @@
     cigar = '*' | (uint % cigar_set_op_length
                   [MIDNSHPX=] > cigar_set_op_chr % cigar_put_operation)+ ;
 
+    action set_same_mate_ref_id {
+        mate_ref_id = ref_id;
+    }
+   
+    action rnext_start { rnext_beg = p - line.ptr; }
+    action rnext_end {
+        mate_ref_id = header.getReferenceSequenceId(line[rnext_beg .. p - line.ptr]);
+    }
+
+    rnext = '*' | ('=' % set_same_mate_ref_id) | 
+                  (([!-()+-<>-~][!-~]*) > rnext_start % rnext_end) ;
+
     action set_mate_pos { mate_pos = to!uint(int_value); }
     action set_template_length { template_length = to!int(int_value); }
 
-    rnext = '*' | '=' | [!-()+-<>-~][!-~]* ;
     pnext = uint % set_mate_pos;
     tlen = int % set_template_length;
 
@@ -205,6 +223,7 @@
 
 import alignment;
 import tagvalue;
+import samheader;
 
 import std.array;
 import std.conv;
@@ -212,7 +231,7 @@ import std.typecons;
 import std.outbuffer;
 import std.c.stdlib;
 
-Alignment parseAlignmentLine(string line) {
+Alignment parseAlignmentLine(string line, ref SamHeader header) {
     char* p = cast(char*)line.ptr;
     char* pe = p + line.length;
     char* eof = pe;
@@ -253,16 +272,25 @@ Alignment parseAlignmentLine(string line) {
     Value current_tagvalue;
 
     size_t tag_key_beg, tagvalue_beg;
-    // TODO: RNAME, RNEXT
+    size_t rname_beg, rnext_beg;
+
+    int ref_id = -1;
+    int mate_ref_id = -1;
 
     %%write init;
     %%write exec;
 
+    if (read == Alignment.init) {
+        read = Alignment("", "", []);
+    }
+
     read.flag = flag;
     read.mapping_quality = mapping_quality;
-    read.position = pos;
+    read.position = pos - 1; // we use 0-based coordinates, not 1-based
     read.template_length = template_length;
-    read.next_pos = mate_pos;
+    read.next_pos = mate_pos - 1; // also 0-based
+    read.ref_id = ref_id;
+    read.next_ref_id = mate_ref_id;
 
     return read;
 }
@@ -273,17 +301,21 @@ unittest {
 
     auto line = "ERR016155.15021091\t185\t20\t60033\t25\t66S35M\t=\t60033\t0\tAGAAAAAACTGGAAGTTAATAGAGTGGTGACTCAGATCCAGTGGTGGAAGGGTAAGGGATCTTGGAACCCTATAGAGTTGCTGTGTGCCAGGGCCAGATCC\t#####################################################################################################\tX0:i:1\tX1:i:0\tXC:i:35\tMD:Z:17A8A8\tRG:Z:ERR016155\tAM:i:0\tNM:i:2\tSM:i:25\tXT:A:U\tBQ:Z:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\tY0:B:c,1,2,3\tY1:B:f,13.263,-3.1415,52.63461";
 
-    auto alignment = parseAlignmentLine(line);
+    auto header = SamHeader("@SQ\tSN:20\tLN:1234567");
+    auto alignment = parseAlignmentLine(line, header);
     assert(alignment.read_name == "ERR016155.15021091");
     assert(equal(alignment.sequence(), "AGAAAAAACTGGAAGTTAATAGAGTGGTGACTCAGATCCAGTGGTGGAAGGGTAAGGGATCTTGGAACCCTATAGAGTTGCTGTGTGCCAGGGCCAGATCC"));
     assert(alignment.cigarString() == "66S35M");
     assert(alignment.flag == 185);
-    assert(alignment.position == 60033);
+    assert(alignment.position == 60032);
     assert(alignment.mapping_quality == 25);
-    assert(alignment.next_pos == 60033);
+    assert(alignment.next_pos == 60032);
 
-    import std.stdio;
-    import sam.serialize;
+    assert(alignment.ref_id == 0);
+    assert(alignment.next_ref_id == 0);
+
+    //import std.stdio;
+    //import sam.serialize;
 
     assert(to!char(alignment["XT"]) == 'U');
     assert(to!ubyte(alignment["AM"]) == 0);
