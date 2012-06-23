@@ -55,15 +55,39 @@ void jsonSerializeFloat(S)(ref S stream, float f) {
     }
 }
 
+private static char[256] specialCharacterTable = [
+/*   0-15  */    0,0,  0,0,0,0,0,0, 'b','t','n',0, 'f','r',0,  0, 
+/*  16-31  */    0,0,  0,0,0,0,0,0,   0,  0,  0,0,   0,  0,0,  0,
+/*  32-47  */    0,0,'"',0,0,0,0,0,   0,  0,  0,0,   0,  0,0,  0, 
+/*  48-63  */    0,0,  0,0,0,0,0,0,   0,  0,  0,0,   0,  0,0,'/', 
+/*  64-79  */    0,0,  0,0,0,0,0,0,   0,  0,  0,0,   0,  0,0,  0,
+/*  80-95  */    0,0,  0,0,0,0,0,0,   0,  0,  0,0,'\\',  0,0,  0, 
+/*  96-111 */    0,0,  0,0,0,0,0,0,   0,  0,  0,0,   0,  0,0,  0,
+/* 112-127 */    0,0,  0,0,0,0,0,0,   0,  0,  0,0,   0,  0,0,  0,
+
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+                 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0
+];
+
 /// Prints string to $(D stream), with escaping.and quoting.
 void jsonSerializeCharacterRange(S, R)(ref S stream, R chars) 
     if (is(ElementType!R == char) || is(R == string))
 {
     putcharacter(stream, '"');
     foreach (char c; chars) {
-        if (c == '"' || c == '\\')
+        auto sc = specialCharacterTable[cast(ubyte)c];
+        if (sc == 0) {
+            putcharacter(stream, c);
+        } else {
             putcharacter(stream, '\\');
-        putcharacter(stream, c);
+            putcharacter(stream, sc);
+        }
     }
     putcharacter(stream, '"');
 }
