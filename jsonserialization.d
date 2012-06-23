@@ -12,7 +12,9 @@ import std.algorithm;
 import std.typecons;
 import std.stdio;
 import std.traits;
+import std.range;
 import std.c.stdlib;
+import std.math;
 
 import std.array;
 
@@ -34,6 +36,38 @@ string toJson(Value v) {
     return cast(string)buf;
 }
 
+/// JSON doesn't support NaN and +/- infinity.
+/// Therefore the approach taken here is to represent
+/// infinity as 1.0e+1024, and NaN as null.
+void jsonSerializeFloat(S)(ref S stream, float f) {
+    if (isFinite(f)) {
+        append(stream, "%g", f);
+    } else {
+        if (f == float.infinity) {
+            putstring(stream, "1.0e+1024");
+        } else if (f == -float.infinity) {
+            putstring(stream, "-1.0e+1024");
+        } else if (isNaN(f)) {
+            putstring(stream, "null");
+        } else {
+            assert(0);
+        }
+    }
+}
+
+/// Prints string to $(D stream), with escaping.and quoting.
+void jsonSerializeCharacterRange(S, R)(ref S stream, R chars) 
+    if (is(ElementType!R == char) || is(R == string))
+{
+    putcharacter(stream, '"');
+    foreach (char c; chars) {
+        if (c == '"' || c == '\\')
+            putcharacter(stream, '\\');
+        putcharacter(stream, c);
+    }
+    putcharacter(stream, '"');
+}
+
 /// Print SAM representation to FILE* or append it to char[]/char* 
 /// (in char* case it's your responsibility to allocate enough memory)
 void jsonSerialize(S)(Value v, ref S stream) {
@@ -44,7 +78,7 @@ void jsonSerialize(S)(Value v, ref S stream) {
             foreach (t; ArrayElementTagValueTypes) {
                 char[] printexpr = "putinteger(stream, elem);".dup;
                 if (t.ch == 'f') {
-                    printexpr = "append(stream, \"%g\", elem);".dup;
+                    printexpr = "jsonSerializeFloat(stream, elem);".dup;
                 }
                 cases ~= `case '`~t.ch~`':` ~
                          `  putcharacter(stream, '[');`~
@@ -70,26 +104,16 @@ void jsonSerialize(S)(Value v, ref S stream) {
         }
     }
     if (v.is_float) {
-        append(stream, "%g", to!float(v));
+        jsonSerializeFloat(stream, to!float(v));
         return;
     }
     switch (v.bam_typeid) {
         case 'Z', 'H':
-            putcharacter(stream, '"');
-            foreach (char c; cast(string)v) {
-                if (c == '"' || c == '\\')
-                    putcharacter(stream, '\\');
-                putcharacter(stream, c);
-            }
-            putcharacter(stream, '"');
+            jsonSerializeCharacterRange(stream, cast(string)v);
             return;
         case 'A': 
-            putcharacter(stream, '"');
             auto c = to!char(v);
-            if (c == '"' || c == '\\')
-                putcharacter(stream, '\\');
-            putcharacter(stream, c);
-            putcharacter(stream, '"');
+            jsonSerializeCharacterRange(stream, to!string(c));
             return;
         default: assert(0);
     }
@@ -141,17 +165,17 @@ void jsonSerialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S s
         }
     }
    
-    putstring(stream, `{"qname":"`);
-    putstring(stream, alignment.read_name);
-    putstring(stream, `","flag":`);
+    putstring(stream, `{"qname":`);
+    jsonSerializeCharacterRange(stream, alignment.read_name);
+    putstring(stream, `,"flag":`);
     putinteger(stream, alignment.flag);
-    putstring(stream, `,"rname":"`);
+    putstring(stream, `,"rname":`);
 
     if (alignment.ref_id == -1) {
-        putstring(stream, `*","pos":`);
+        putstring(stream, `"*","pos":`);
     } else {
-        putstring(stream, info[alignment.ref_id].name);
-        putstring(stream, `","pos":`);
+        jsonSerializeCharacterRange(stream, info[alignment.ref_id].name);
+        putstring(stream, `,"pos":`);
     }
 
     putinteger(stream, alignment.position + 1);
@@ -182,8 +206,7 @@ void jsonSerialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S s
         {
             putstring(stream, `"*","pnext":`);
         } else {
-            putcharacter(stream, '"');
-            putstring(stream, info[alignment.next_ref_id].name);
+            jsonSerializeCharacterRange(stream, info[alignment.next_ref_id].name);
             putstring(stream, `","pnext":`);
         }
     }
@@ -219,10 +242,12 @@ void jsonSerialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S s
     foreach (k, v; alignment.tags) {
         assert(k.length == 2);
 
-        if (not_first) putstring(stream, `,"`);
-        else putcharacter(stream, '"');
-        putstring(stream, k);
-        putstring(stream, `":`);
+        if (not_first) {
+            putcharacter(stream, ',');
+        }
+
+        jsonSerializeCharacterRange(stream, k);
+        putcharacter(stream, ':');
 
         not_first = true;
 
