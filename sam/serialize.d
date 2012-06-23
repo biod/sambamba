@@ -21,13 +21,13 @@ import std.array;
     Example:
     ----------
     Value v = 2.7;
-    assert(to_sam(v) == "f:2.7");
+    assert(toSam(v) == "f:2.7");
 
     v = [1, 2, 3];
-    assert(to_sam(v) == "B:i,1,2,3");
+    assert(toSam(v) == "B:i,1,2,3");
     ----------
 */
-string to_sam(Value v) {
+string toSam(Value v) {
     char[] buf;
     buf.reserve(16);
     serialize(v, buf);
@@ -94,9 +94,9 @@ void serialize(S)(Value v, ref S stream) {
 /// 
 /// Example:
 /// -------------
-/// to_sam(alignment, bam.reference_sequences);
+/// toSam(alignment, bam.reference_sequences);
 /// -------------
-string to_sam(Alignment alignment, ReferenceSequenceInfo[] info) {
+string toSam(Alignment alignment, ReferenceSequenceInfo[] info) {
     char[] buf;
     buf.reserve(512);
     serialize(alignment, info, buf);

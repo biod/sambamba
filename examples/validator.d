@@ -18,7 +18,7 @@ class Validator : AbstractAlignmentValidator {
     }
 
     bool onError(string key, ref Value value, TagError e) {
-        writeln("\tTag error: ", e , " ('", key, "' -> '", to_sam(value), "')");
+        writeln("\tTag error: ", e , " ('", key, "' -> '", toSam(value), "')");
         return true;
     }
 }
