@@ -27,7 +27,6 @@ private {
         }
         void writeln(SamHeader header) {
             putstring(stdout, header.text);
-            putcharacter(stdout, '\n'); 
         }
     }
 
@@ -35,7 +34,6 @@ private {
         void writeln(Alignment a, ReferenceSequenceInfo[] info) {
             jsonSerialize(a, info, stdout);
             putcharacter(stdout, '\n');
-
         }
 
         void writeln(SamHeader header) {
