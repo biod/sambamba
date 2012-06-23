@@ -29,7 +29,8 @@ void printUsage(string program) {
     writeln("                    output only reference names and lengths in JSON");
     writeln("         -c, --count");
     writeln("                    output only count of matching records, hHI are ignored");
-
+    writeln("         -v, --valid");
+    writeln("                    output only valid alignments");
 }
 
 void outputReferenceInfoJson(ref BamFile bam) {
@@ -65,6 +66,7 @@ bool with_header;
 bool header_only;
 bool reference_info_only;
 bool count_only;
+bool skip_invalid_alignments;
 
 int main(string[] args) {
     try {
@@ -77,7 +79,8 @@ int main(string[] args) {
                "with-header|h",       &with_header,
                "header|H",            &header_only,
                "reference-info|I",    &reference_info_only,
-               "count|c",             &count_only);
+               "count|c",             &count_only,
+               "valid|v",             &skip_invalid_alignments);
         
         if (args.length < 2) {
             printUsage(args[0]);
@@ -109,6 +112,11 @@ int main(string[] args) {
         if (read_group !is null) {
             filter = new AndFilter(filter, 
                                    new ReadGroupFilter(read_group));
+        }
+
+        if (skip_invalid_alignments) {
+            filter = new AndFilter(filter,
+                                   new ValidAlignmentFilter());
         }
 
         static string processAlignments(string s)() {

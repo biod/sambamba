@@ -6,6 +6,7 @@ module filter;
 
 import alignment;
 import tagvalue;
+import validation.alignment;
 
 /// Common interface for all filters
 interface Filter {
@@ -48,6 +49,13 @@ final class ReadGroupFilter : Filter {
             return false;
         }
         return true;
+    }
+}
+
+final class ValidAlignmentFilter : Filter {
+    
+    bool accepts(ref Alignment a) const {
+        return isValid(a);
     }
 }
 
