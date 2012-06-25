@@ -105,7 +105,7 @@ private {
                 sq.object["program_version"] = jv(line.program_version);
                tmp.array[i] = sq;
             }
-            result.object["rg_lines"] = tmp;
+            result.object["pg_lines"] = tmp;
 
             putstring(stdout, toJSON(&result));
             putcharacter(stdout, '\n');
