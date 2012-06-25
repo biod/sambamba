@@ -7,11 +7,8 @@ import std.conv;
 import std.exception;
 import std.json;
 import reference;
-<<<<<<< HEAD
 import std.json;
-=======
 import reference;
->>>>>>> samragel
 
 private {
 

@@ -195,7 +195,7 @@ TODO: this should throw
     foreach (read; bf.alignments) {
         auto line = toSam(read, bf.reference_sequences);
         auto read2 = parseAlignmentLine(line, bf.header);
-        if (read != read2) {
+        if (read != read2 && isValid(read)) {
             writeln(read.read_name);
         }
         assert(read == read2 || !isValid(read));

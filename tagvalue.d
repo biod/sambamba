@@ -335,53 +335,5 @@ struct Value {
 
     /// true if the value represents 'H' tag
     bool is_hexadecimal_string() @property { return (_tag & 0b111) == 0b111; }
-<<<<<<< HEAD
 
-}
-
-unittest {
-    import std.stdio;
-    import std.math;
-
-    import sam.serialize;
-
-    writeln("Testing Value code...");
-    Value v = 5;
-    assert(v.is_integer);
-    assert(toSam(v) == "i:5");
-    v = "abc";
-    assert(v.is_string);
-    assert(toSam(v) == "Z:abc");
-    assert(to!string(v) == "abc");
-    v = [1, 2, 3];
-    assert(v.is_numeric_array);
-    assert(toSam(v) == "B:i,1,2,3");
-    v = [1.5, 2.3, 17.0];
-    assert(v.is_numeric_array);
-    assert(toSam(v) == "B:f,1.5,2.3,17");
-    v = 5.6;
-    assert(v.is_float);
-    assert(toSam(v) == "f:5.6");
-    assert(approxEqual(to!float(v), 5.6));
-    v = -17;
-    assert(v.is_signed);
-    assert(toSam(v) == "i:-17");
-    v = 297u;
-    assert(v.is_unsigned);
-    assert(toSam(v) == "i:297");
-
-    short[] array_of_shorts = [4, 5, 6];
-    v = array_of_shorts;
-    assert(v.is_numeric_array);
-    assert(toSam(v) == "B:s,4,5,6");
-    assert(to!(short[])(v) == array_of_shorts);
-
-    v = null;
-    assert(v.is_nothing);
-
-    v = "0eabcf123";
-    v.setHexadecimalFlag();
-    assert(v.is_hexadecimal_string);    
-=======
->>>>>>> samragel
 }
