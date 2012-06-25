@@ -3,7 +3,8 @@
 */
 module sam.serialize;
 
-import bamfile;
+import alignment;
+import reference;
 import tagvalue;
 import utils.format;
 

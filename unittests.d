@@ -1,5 +1,7 @@
 import samheader;
 import bamfile;
+import samfile;
+import sam.recordparser;
 import bgzfrange;
 
 import validation.samheader;
@@ -13,6 +15,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.exception;
+import std.math;
 
 unittest {
 
@@ -37,6 +40,8 @@ unittest {
     fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
     bf = BamFile(fn);
     auto alignments = bf.alignments;
+
+    {
     auto read = alignments.front;
     assert(equal(read.sequence, "CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA"));
     assert(equal(map!"cast(char)(a + 33)"(read.phred_base_quality),
@@ -50,6 +55,7 @@ unittest {
     alignments.popFront();
     assert(alignments.front.cigarString == "35M");
     assert(toSam(alignments.front, bf.reference_sequences) == "EAS51_64:3:190:727:308	99	chr1	103	99	35M	=	263	195	GGTGCAGAGCCGAGTCACGGGGTTGCCAGCACAGG	<<<<<<<<<<<<<<<<<<<<<<<<<<<::<<<844	MF:i:18	Aq:i:73	NM:i:0	UQ:i:0	H0:i:1	H1:i:0");
+    }
 
     writeln("Testing BamFile methods...");
     bf.rewind();
@@ -133,6 +139,68 @@ TODO: this should throw
     compareWithNaiveApproach(-100, 1000);
     compareWithNaiveApproach(   0, 1900);
     compareWithNaiveApproach(   1,  279);
+
+    writeln("Testing Value code...");
+    Value v = 5;
+    assert(v.is_integer);
+    assert(toSam(v) == "i:5");
+    v = "abc";
+    assert(v.is_string);
+    assert(toSam(v) == "Z:abc");
+    assert(to!string(v) == "abc");
+    v = [1, 2, 3];
+    assert(v.is_numeric_array);
+    assert(toSam(v) == "B:i,1,2,3");
+    v = [1.5, 2.3, 17.0];
+    assert(v.is_numeric_array);
+    assert(toSam(v) == "B:f,1.5,2.3,17");
+    v = 5.6;
+    assert(v.is_float);
+    assert(toSam(v) == "f:5.6");
+    assert(approxEqual(to!float(v), 5.6));
+    v = -17;
+    assert(v.is_signed);
+    assert(toSam(v) == "i:-17");
+    v = 297u;
+    assert(v.is_unsigned);
+    assert(toSam(v) == "i:297");
+
+    short[] array_of_shorts = [4, 5, 6];
+    v = array_of_shorts;
+    assert(v.is_numeric_array);
+    assert(toSam(v) == "B:s,4,5,6");
+    assert(to!(short[])(v) == array_of_shorts);
+
+    v = null;
+    assert(v.is_nothing);
+
+    v = "0eabcf123";
+    v.setHexadecimalFlag();
+    assert(v.is_hexadecimal_string);    
+
+    writeln("Test parseAlignmentLine/toSam functions...");
+    fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
+    bf = BamFile(fn);
+    foreach (read; bf.alignments) {
+        auto line = toSam(read, bf.reference_sequences);
+        auto read2 = parseAlignmentLine(line, bf.header);
+        if (read != read2) {
+            writeln(read.read_name);
+        }
+        assert(read == read2);
+    }
+
+    fn = buildPath(dirName(__FILE__), "test", "data", "tags.bam");
+    bf = BamFile(fn);
+    foreach (read; bf.alignments) {
+        auto line = toSam(read, bf.reference_sequences);
+        auto read2 = parseAlignmentLine(line, bf.header);
+        if (read != read2) {
+            writeln(read.read_name);
+        }
+        assert(read == read2 || !isValid(read));
+    }
+
 }
 
 void main() {

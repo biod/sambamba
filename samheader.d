@@ -1,9 +1,17 @@
 module samheader;
 
+import reference;
+
 import std.algorithm;
 import std.conv;
 import std.exception;
 import std.json;
+import reference;
+<<<<<<< HEAD
+import std.json;
+=======
+import reference;
+>>>>>>> samragel
 
 private {
 
@@ -162,7 +170,14 @@ public:
     }
 
     /// Returns: whether there is a @HD line in the header
-    bool hasHeaderLine() { return _header_line != HdLine.init; }
+    bool hasHeaderLine() const { return _header_line != HdLine.init; }
+
+    /// Returns: index of $(D name) in $(D sq_lines) or -1 if not found.
+    int getReferenceSequenceId(string name) const { 
+        const(size_t)* p_id = name in _sequences;
+        if (p_id is null) return -1;
+        return cast(int)*p_id;
+    }
 
     /// Returns: array of SqLine structs representing @SQ lines
     SqLine[] sq_lines() @property { return _sq_lines; }
@@ -174,11 +189,11 @@ public:
     PgLine[] pg_lines() @property { return _pg_lines; }
 
     /// Returns: format version if present in header, or null
-    string format_version() @property { return _header_line.format_version; }
+    string format_version() @property const { return _header_line.format_version; }
 
     /// Returns: sorting order ('unknown', 'unsorted',
     ///          'queryname', or 'coordinate')
-    string sorting_order() @property { 
+    string sorting_order() @property const { 
         if (!hasHeaderLine()) {
             return "unknown";
         } else {
@@ -205,6 +220,8 @@ private:
 
     string[] _fasta_urls;
 
+    size_t[string] _sequences;
+
     void parse() {
         bool parsed_first_line = false;
 
@@ -221,6 +238,8 @@ private:
             switch (line[0..3]) {
                 case "@SQ":
                     auto sq_line = SqLine.parse(line);
+                    // set unique integer identifier for this sequence
+                    _sequences[sq_line.sequence_name] = sq_lines.length;
                     _sq_lines ~= sq_line;
                     if (sq_line.uri != null) {
                         _fasta_urls_dict[sq_line.uri] = 1;

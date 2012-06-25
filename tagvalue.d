@@ -128,6 +128,7 @@ alias TypeTuple!(TypeId!(char,     0b001_00_1_00),
                  TypeId!(typeof(null), 0b0000_0010))
     TypeIdMap;
 
+private immutable hexStringTag = 0b001_00_1_11;
 
 private template GetType(U) {
     alias U.Type GetType;
@@ -305,10 +306,13 @@ struct Value {
     void setHexadecimalFlag() {
 
         enforce(this.is_string);
-
+      
         bam_typeid = 'H';
-        _tag = 0b111;
-        u.H = u.Z;
+        _tag = hexStringTag;
+
+        if (_tag != 0b111) { 
+            u.H = u.Z;
+        }
     }
 
     bool is_nothing() @property { return _tag == GetTypeId!(typeof(null)); }
@@ -331,6 +335,7 @@ struct Value {
 
     /// true if the value represents 'H' tag
     bool is_hexadecimal_string() @property { return (_tag & 0b111) == 0b111; }
+<<<<<<< HEAD
 
 }
 
@@ -377,4 +382,6 @@ unittest {
     v = "0eabcf123";
     v.setHexadecimalFlag();
     assert(v.is_hexadecimal_string);    
+=======
+>>>>>>> samragel
 }
