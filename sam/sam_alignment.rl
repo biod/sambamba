@@ -1,6 +1,6 @@
 %%{
     machine sam_alignment;
- 
+
     action update_sign { current_sign = fc == '-' ? -1 : 1; }
     action init_integer { int_value = 0; }
     action consume_next_digit { int_value *= 10; int_value += fc - '0'; }
@@ -17,6 +17,8 @@
     }
 
     float = (sign? digit* '.'? digit+ ([eE] sign? digit+)?) > mark_float_start % update_float_value ;
+
+    invalid_field = [^\t]* ; # TODO: make class with onError methods and pass it to parseAlignmentLine
 
     action qname_start { read_name_beg = p - line.ptr; }
     action qname_end { read_name_end = p - line.ptr; }
@@ -98,19 +100,19 @@
         read.phred_base_quality = qual_ptr[0 .. sequence.length];
     }
 
-    mandatoryfields = qname '\t'
-                       flag '\t'
-                      rname '\t'
-                        pos '\t'
-                       mapq '\t'
-                      cigar '\t'
-                      rnext '\t'
-                      pnext '\t'
-                       tlen '\t'
-                       (seq '\t' % create_alignment_struct)
-                      (qual > allocate_quality_array
+    mandatoryfields = (qname | invalid_field) '\t'
+                      (flag  | invalid_field) '\t'
+                      (rname | invalid_field) '\t'
+                      (pos   | invalid_field) '\t'
+                      (mapq  | invalid_field) '\t'
+                      (cigar | invalid_field) '\t'
+                      (rnext | invalid_field) '\t'
+                      (pnext | invalid_field) '\t'
+                      (tlen  | invalid_field) '\t'
+                      ((seq  | invalid_field) '\t' % create_alignment_struct)
+                      ((qual > allocate_quality_array
                             $ convert_next_character_to_prob
-                            % set_quality_data);
+                            % set_quality_data) | invalid_field) ;
 
     action set_charvalue { current_tagvalue = Value(fc); }
     action set_integervalue { 
@@ -213,7 +215,7 @@
     action append_tag_value { read.appendTag(current_tag, current_tagvalue); }
 
     tag = (alpha alnum) > tag_key_start % tag_key_end ;
-    optionalfield = tag ':' tagvalue % append_tag_value ;
+    optionalfield = (tag ':' tagvalue % append_tag_value) | invalid_field ;
     optionalfields = optionalfield ('\t' optionalfield)* ;
 
     alignment := mandatoryfields ('\t' optionalfields)? ;
@@ -310,17 +312,32 @@ unittest {
     assert(alignment.position == 60032);
     assert(alignment.mapping_quality == 25);
     assert(alignment.next_pos == 60032);
-
     assert(alignment.ref_id == 0);
     assert(alignment.next_ref_id == 0);
-
-    //import std.stdio;
-    //import sam.serialize;
-
-    assert(to!char(alignment["XT"]) == 'U');
     assert(to!ubyte(alignment["AM"]) == 0);
     assert(to!ubyte(alignment["SM"]) == 25);
     assert(to!string(alignment["MD"]) == "17A8A8");
     assert(equal(to!(byte[])(alignment["Y0"]), [1, 2, 3]));
     assert(equal!approxEqual(to!(float[])(alignment["Y1"]), [13.263, -3.1415, 52.63461]));
+    assert(to!char(alignment["XT"]) == 'U');
+
+    import std.stdio;
+    import sam.serialize;
+    import reference;
+
+    ReferenceSequenceInfo info;
+    info.name = "20";
+    info.length = 1234567;
+
+    auto invalid_cigar_string = "1\t100\t20\t50000\t30\tMZABC\t=\t50000\t0\tACGT\t####";
+    alignment = parseAlignmentLine(invalid_cigar_string, header);
+    assert(equal(alignment.sequence(), "ACGT"));
+
+    auto invalid_tag_and_qual = "2\t100\t20\t5\t40\t27M30X5D\t=\t3\t10\tACT\t !\n\tX1:i:7\tX3:i:zzz\tX4:i:5";
+    alignment = parseAlignmentLine(invalid_tag_and_qual, header);
+    assert(alignment.phred_base_quality == [255, 255, 255]); // i.e. invalid
+    assert(to!ubyte(alignment["X1"]) == 7);
+    assert(alignment["X3"].is_nothing);
+    assert(to!ubyte(alignment["X4"]) == 5);
+
 }
