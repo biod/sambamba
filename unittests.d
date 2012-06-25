@@ -1,5 +1,7 @@
 import samheader;
 import bamfile;
+import samfile;
+import sam.recordparser;
 import bgzfrange;
 
 import validation.samheader;
@@ -38,6 +40,8 @@ unittest {
     fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
     bf = BamFile(fn);
     auto alignments = bf.alignments;
+
+    {
     auto read = alignments.front;
     assert(equal(read.sequence, "CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA"));
     assert(equal(map!"cast(char)(a + 33)"(read.phred_base_quality),
@@ -51,6 +55,7 @@ unittest {
     alignments.popFront();
     assert(alignments.front.cigarString == "35M");
     assert(to_sam(alignments.front, bf.reference_sequences) == "EAS51_64:3:190:727:308	99	chr1	103	99	35M	=	263	195	GGTGCAGAGCCGAGTCACGGGGTTGCCAGCACAGG	<<<<<<<<<<<<<<<<<<<<<<<<<<<::<<<844	MF:i:18	Aq:i:73	NM:i:0	UQ:i:0	H0:i:1	H1:i:0");
+    }
 
     writeln("Testing BamFile methods...");
     bf.rewind();
@@ -172,6 +177,30 @@ TODO: this should throw
     v = "0eabcf123";
     v.setHexadecimalFlag();
     assert(v.is_hexadecimal_string);    
+
+    writeln("Test parseAlignmentLine/toSam functions...");
+    fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
+    bf = BamFile(fn);
+    foreach (read; bf.alignments) {
+        auto line = to_sam(read, bf.reference_sequences);
+        auto read2 = parseAlignmentLine(line, bf.header);
+        if (read != read2) {
+            writeln(read.read_name);
+        }
+        assert(read == read2);
+    }
+
+    fn = buildPath(dirName(__FILE__), "test", "data", "tags.bam");
+    bf = BamFile(fn);
+    foreach (read; bf.alignments) {
+        auto line = to_sam(read, bf.reference_sequences);
+        auto read2 = parseAlignmentLine(line, bf.header);
+        if (read != read2) {
+            writeln(read.read_name);
+        }
+        assert(read == read2 || !isValid(read));
+    }
+
 }
 
 void main() {

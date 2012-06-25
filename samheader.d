@@ -172,13 +172,13 @@ public:
     }
 
     /// Returns: array of SqLine structs representing @SQ lines
-    const(SqLine[]) sq_lines() @property const { return _sq_lines; }
+    SqLine[] sq_lines() @property { return _sq_lines; }
 
     /// Returns: array of RgLine structs representing @RG lines
-    const(RgLine[]) rg_lines() @property const { return _rg_lines; }
+    RgLine[] rg_lines() @property { return _rg_lines; }
 
     /// Returns: array of PgLine structs representing @PG lines
-    const(PgLine[]) pg_lines() @property const { return _pg_lines; }
+    PgLine[] pg_lines() @property { return _pg_lines; }
 
     /// Returns: format version if present in header, or null
     string format_version() @property const { return _header_line.format_version; }
@@ -194,7 +194,7 @@ public:
     }
 
     /// Returns: urls of all fasta files encountered in @SQ lines
-    const(string[]) fasta_urls() @property const { return _fasta_urls; }
+    string[] fasta_urls() @property { return _fasta_urls; }
 
     /// Returns: raw text of the header
     string text() @property const {

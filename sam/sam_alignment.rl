@@ -16,7 +16,8 @@
         float_value = to!float(line[float_beg .. p - line.ptr]);
     }
 
-    float = (sign? digit* '.'? digit+ ([eE] sign? digit+)?) > mark_float_start % update_float_value ;
+    float = ((sign? ((digit* '.'? digit+ ([eE] sign? digit+)?) | "inf") ) | "nan")
+                > mark_float_start % update_float_value ;
 
     invalid_field = [^\t]* ; # TODO: make class with onError methods and pass it to parseAlignmentLine
 
@@ -233,7 +234,7 @@ import std.typecons;
 import std.outbuffer;
 import std.c.stdlib;
 
-Alignment parseAlignmentLine(string line, ref SamHeader header) {
+Alignment parseAlignmentLine(string line, SamHeader header) {
     char* p = cast(char*)line.ptr;
     char* pe = p + line.length;
     char* eof = pe;

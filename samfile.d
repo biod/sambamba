@@ -7,7 +7,7 @@ import std.string;
 import alignment;
 import samheader;
 import reference;
-import sam.sam_alignment;
+import sam.recordparser;
 
 struct SamFile {
 

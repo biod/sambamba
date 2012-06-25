@@ -5,7 +5,7 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  randomaccessmanager.d virtualoffset.d bai/read.d bai/utils/algo.d \
 	  bai/bin.d bai/chunk.d utils/range.d utils/memoize.d sam/serialize.d \
 	  utils/format.d alignmentrange.d bamoutput.d constants.d bgzfcompress.d \
-	  utils/array.d utils/value.d
+	  utils/array.d utils/value.d samfile.d sam/recordparser.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
