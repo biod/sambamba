@@ -14,7 +14,7 @@ import std.getopt;
 import std.algorithm;
 
 void printUsage(string program) {
-    writeln("Usage: " ~ program ~ " [options] <input.bam> [region1 [...]]");
+    writeln("Usage: " ~ program ~ " [options] <input.bam | input.sam> [region1 [...]]");
     writeln();
     writeln("Options: -q, --quality-threshold=THRESHOLD");
     writeln("                    skip reads with mapping quality < THRESHOLD");
@@ -32,6 +32,9 @@ void printUsage(string program) {
     writeln("                    output only count of matching records, hHI are ignored");
     writeln("         -v, --valid");
     writeln("                    output only valid alignments");
+    writeln("         -S, --sam-input");
+    writeln("                    specify that input is in SAM format");
+    writeln("                    (unnecessary if input file has .sam extension)");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
