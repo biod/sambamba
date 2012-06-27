@@ -11,4 +11,4 @@ alignment-test: recordparser.d
 	rdmd -I../ -unittest --main recordparser.d
 
 clean:
-	rm record-parser.d
+	rm -f recordparser.d

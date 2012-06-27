@@ -7,6 +7,9 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  utils/format.d alignmentrange.d bamoutput.d constants.d bgzfcompress.d \
 	  utils/array.d utils/value.d samfile.d sam/recordparser.d
 
+sam/recordparser.d : sam/sam_alignment.rl
+	cd sam && make recordparser.d
+
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
 
@@ -40,4 +43,5 @@ testsam: $(FILES) readsam.d samfile.d sam/sam_alignment.d
 	rdmd --compiler=gdmd -O -release -inline --build-only -L-lpthread -g readsam.d
 
 clean:
-	rm *.o
+	rm -f *.o 
+	cd sam && make clean
