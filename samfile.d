@@ -28,6 +28,8 @@ struct SamFile {
             this(ref File file, ref SamHeader header) {
                 _header = header;
                 _line_range = file.byLine();
+
+                _build_storage = new AlignmentBuildStorage();
             }
             
             bool empty() @property {
@@ -39,12 +41,17 @@ struct SamFile {
             }
 
             Alignment front() @property {
-                return parseAlignmentLine(cast(string)_line_range.front, _header);
+                return parseAlignmentLine(cast(string)_line_range.front, _header,
+                                          _build_storage);
             }
 
-            alias File.ByLine!(char, char) LineRange;
-            LineRange _line_range;
-            SamHeader _header;
+            private {
+                alias File.ByLine!(char, char) LineRange;
+                LineRange _line_range;
+                SamHeader _header;
+
+                AlignmentBuildStorage _build_storage;
+            }
 
             char[] buffer;
         }

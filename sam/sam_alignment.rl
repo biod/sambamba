@@ -75,12 +75,6 @@
     seq = '*' | ([A-Za-z=.]+ > sequence_start % sequence_end) ;
     qual = [!-~]+ ;
 
-    action create_alignment_struct {
-        read = Alignment(line[read_name_beg .. read_name_end],
-                         sequence,
-                         cigar.data);
-    }
-
     action allocate_quality_array {
         if (sequence.length > 1024) {
             qual_ptr = (new ubyte[sequence.length]).ptr;
@@ -97,10 +91,6 @@
         qual_ptr[qual_index++] = cast(ubyte)(fc - 33);
     }
 
-    action set_quality_data {
-        read.phred_base_quality = qual_ptr[0 .. sequence.length];
-    }
-
     mandatoryfields = (qname | invalid_field) '\t'
                       (flag  | invalid_field) '\t'
                       (rname | invalid_field) '\t'
@@ -110,10 +100,9 @@
                       (rnext | invalid_field) '\t'
                       (pnext | invalid_field) '\t'
                       (tlen  | invalid_field) '\t'
-                      ((seq  | invalid_field) '\t' % create_alignment_struct)
+                      (seq   | invalid_field) '\t'
                       ((qual > allocate_quality_array
-                            $ convert_next_character_to_prob
-                            % set_quality_data) | invalid_field) ;
+                             $ convert_next_character_to_prob) | invalid_field) ;
 
     action set_charvalue { current_tagvalue = Value(fc); }
     action set_integervalue { 
@@ -164,7 +153,8 @@
         // the better idea might be two-pass approach
         // when first pass is for counting commas, and
         // the second is for filling allocated array
-        outbuffer = new OutBuffer();        
+        outbuffer.data.length = 0;
+        outbuffer.offset = 0;
         arraytype = fc;
     }
 
@@ -213,7 +203,7 @@
 
     action tag_key_start { tag_key_beg = p - line.ptr; }
     action tag_key_end   { current_tag = line[tag_key_beg .. p - line.ptr]; }
-    action append_tag_value { read.appendTag(current_tag, current_tagvalue); }
+    action append_tag_value { builder.put(current_tag, current_tagvalue); }
 
     tag = (alpha alnum) > tag_key_start % tag_key_end ;
     optionalfield = (tag ':' tagvalue % append_tag_value) | invalid_field ;
@@ -233,43 +223,68 @@ import std.conv;
 import std.typecons;
 import std.outbuffer;
 import std.c.stdlib;
+import utils.tagstoragebuilder;
 
-Alignment parseAlignmentLine(string line, SamHeader header) {
+class AlignmentBuildStorage {
+    Appender!(CigarOperation[]) cigar_appender;
+    OutBuffer outbuffer;
+    TagStorageBuilder tag_storage_builder;
+
+    this() {
+        cigar_appender = appender!(CigarOperation[])();
+        outbuffer = new OutBuffer();
+        tag_storage_builder = TagStorageBuilder.create();
+    }
+
+    void clear() {
+        cigar_appender.clear();
+        tag_storage_builder.clear();
+        outbuffer.data.length = 0;
+        outbuffer.offset = 0;
+    }
+}
+
+Alignment parseAlignmentLine(string line, SamHeader header, 
+                             AlignmentBuildStorage b=null) {
     char* p = cast(char*)line.ptr;
     char* pe = p + line.length;
     char* eof = pe;
     int cs;
 
+    if (b is null) {
+        b = new AlignmentBuildStorage();
+    } else {
+        b.clear();
+    }
+
     byte current_sign = 1;
 
-    size_t read_name_beg;
-    size_t read_name_end;
+    size_t read_name_beg; // position of beginning of QNAME
+    size_t read_name_end; // position past the end of QNAME
 
-    size_t sequence_beg;
-    string sequence;
+    size_t sequence_beg; // position of SEQ start
+    string sequence;     // SEQ
 
-    uint cigar_op_len;
-    char cigar_op_chr;
+    uint cigar_op_len;   // length of CIGAR operation
+    char cigar_op_chr;   // CIGAR operation
 
-    size_t cigar_op_len_start;
+    size_t cigar_op_len_start; // position of start of CIGAR operation
     
-    auto cigar = appender!(CigarOperation[])();
+    auto cigar = b.cigar_appender;
 
-    long int_value; 
-    float float_value;
-    size_t float_beg;
-    OutBuffer outbuffer;
-    char arraytype;
-
-    Alignment read;
+    long int_value;                      // for storing temporary integers
+    float float_value;                   // for storing temporary floats
+    size_t float_beg;                    // position of start of current float
+    auto outbuffer = b.outbuffer;        // used to build tag values which hold arrays
+    char arraytype;                      // type of last array tag value
 
     ushort flag;
     uint pos;
     uint mate_pos;
     ubyte mapping_quality; 
     int template_length;
-    ubyte* qual_ptr;
-    size_t qual_index;
+    ubyte* qual_ptr = null;
+    size_t qual_index; 
 
     string current_tag;
     Value current_tagvalue;
@@ -279,12 +294,19 @@ Alignment parseAlignmentLine(string line, SamHeader header) {
 
     int ref_id = -1;
     int mate_ref_id = -1;
+    
+    auto builder = b.tag_storage_builder;
 
     %%write init;
     %%write exec;
 
-    if (read == Alignment.init) {
-        read = Alignment("", "", []);
+    auto read = Alignment(line[read_name_beg .. read_name_end], 
+                          sequence,
+                          cigar.data,
+                          builder.data);
+
+    if (qual_ptr !is null && qual_index == sequence.length) {
+        read.phred_base_quality = qual_ptr[0 .. sequence.length];
     }
 
     read.flag = flag;

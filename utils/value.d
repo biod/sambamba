@@ -2,6 +2,18 @@ module utils.value;
 
 import tagvalue;
 import std.exception;
+import std.array;
+
+private {
+    static ubyte* arrayPointer(ref Value v) {
+        // if value contains array, as a tagged union, it has the following layout:
+        //
+        // Value = size_t
+        //         void*
+        //         other stuff...
+        return cast(ubyte*)(*(cast(size_t*)(&v) + 1));
+    }
+}
 
 /// Emplace value at address $(D p).
 /// Assumes that enough memory is allocated at that address.
@@ -11,15 +23,6 @@ void emplaceValue(ubyte* p, ref Value v) {
 
     auto tag = v.tag;
     auto size = tag >> 5; // element size
-
-    static ubyte* arrayPointer(ref Value v) {
-        // if value contains array, as a tagged union, it has the following layout:
-        //
-        // Value = size_t
-        //         void*
-        //         other stuff...
-        return cast(ubyte*)(*(cast(size_t*)(&v) + 1));
-    }
 
     if ((tag & 1) == 0) { // primitive type
         *p++ = cast(ubyte)v.bam_typeid;
@@ -43,6 +46,34 @@ void emplaceValue(ubyte* p, ref Value v) {
             p += uint.sizeof;
 
             p[0 .. bytes] = arrayPointer(v)[0 .. bytes];
+        }
+    }
+}
+
+/// Put a value to an Appender!(ubyte[]) struct
+void emplaceValue(ref Appender!(ubyte[]) appender, ref Value v) {
+    enforce(!v.is_nothing, "null value can't be stored in BAM");
+
+    auto tag = v.tag;
+    auto size = tag >> 5; // element size
+
+    if ((tag & 1) == 0) { // primitive type
+        appender.put(cast(ubyte)v.bam_typeid);
+        appender.put((cast(ubyte*)(&v))[0 .. size]);
+    } else {
+        
+        auto bytes = *cast(size_t*)(&v) * (tag >> 5);
+
+        if (v.is_string) {
+            appender.put(cast(ubyte)v.bam_typeid);
+            appender.put(arrayPointer(v)[0..bytes]); 
+            appender.put(cast(ubyte)0); // trailing zero
+        } else {
+            appender.put(cast(ubyte)'B');
+            appender.put(cast(ubyte)v.bam_typeid);
+            uint number_of_elems = cast(uint)(bytes / size);
+            appender.put((cast(ubyte*)(&number_of_elems))[0..4]);
+            appender.put(arrayPointer(v)[0 .. bytes]);
         }
     }
 }

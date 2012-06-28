@@ -5,10 +5,8 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  randomaccessmanager.d virtualoffset.d bai/read.d bai/utils/algo.d \
 	  bai/bin.d bai/chunk.d utils/range.d utils/memoize.d sam/serialize.d \
 	  utils/format.d alignmentrange.d bamoutput.d constants.d bgzfcompress.d \
-	  utils/array.d utils/value.d samfile.d sam/recordparser.d
-
-sam/recordparser.d : sam/sam_alignment.rl
-	cd sam && make recordparser.d
+	  utils/array.d utils/value.d utils/tagstoragebuilder.d samfile.d \
+	  sam/recordparser.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d
@@ -16,8 +14,10 @@ TESTFILES = $(FILES) unittests.d
 FILESTODOCUMENT = bamfile.d alignment.d reference.d tagvalue.d \
 				  samheader.d validation/samheader.d validation/samheader.d
 
-all:
-	dmd $(LIBFILES) -oflibbam.so -O -release -inline -shared
+all: unittests
+
+sam/recordparser.d : sam/sam_alignment.rl
+	cd sam && make recordparser.d
 
 debug:
 	dmd $(LIBFILES) -oflibbam.so -debug -g -shared
@@ -39,8 +39,9 @@ test: $(FILES) readbam.d jsonserialization.d
 test-gdc: $(FILES) readbam.d jsonserialization.d
 	gdc $(FILES) readbam.d jsonserialization.d -o readbam -g -fdebug -lpthread -O3 -frelease -finline -fno-assert -fno-bounds-check
 
-testsam: $(FILES) readsam.d samfile.d sam/sam_alignment.d
-	rdmd --compiler=gdmd -O -release -inline --build-only -L-lpthread -g readsam.d
+testsam: $(FILES) readsam.d 
+	cd sam && make fastrecordparser && cd ..
+	gdc $(FILES) readsam.d -O3 -frelease -finline -o readsam -funroll-all-loops -finline-limit=8192 -lpthread -fno-assert -fno-bounds-check
 
 clean:
 	rm -f *.o 

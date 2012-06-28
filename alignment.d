@@ -343,7 +343,18 @@ struct Alignment {
             fixTagStorageByteOrder();
         }
     } 
-   
+ 
+    private size_t calculateChunkSize(string read_name, 
+                                      string sequence, 
+                                      in CigarOperation[] cigar)
+    {
+        return 8 * int.sizeof
+                 + (read_name.length + 1) // tailing '\0'
+                 + uint.sizeof * cigar.length
+                 + ubyte.sizeof * ((sequence.length + 1) / 2)
+                 + ubyte.sizeof * sequence.length;
+    }
+
     /// Construct alignment from basic information about it.
     ///
     /// Other fields can be set afterwards.
@@ -355,11 +366,9 @@ struct Alignment {
 
         this._is_slice = false;
 
-        this._chunk = new ubyte[8 * int.sizeof
-                              + (read_name.length + 1) // tailing '\0'
-                              + uint.sizeof * cigar.length
-                              + ubyte.sizeof * ((sequence.length + 1) / 2)
-                              + ubyte.sizeof * sequence.length];
+        if (this._chunk is null) {
+            this._chunk = new ubyte[calculateChunkSize(read_name, sequence, cigar)];
+        }
         
         this._refID      =  -1;         // set default values
         this._pos        =  -1;         // according to SAM/BAM
@@ -387,6 +396,22 @@ struct Alignment {
         _chunk[_offset + read_name.length] = cast(ubyte)'\0';
 
         this.sequence = sequence;
+    }
+
+    /// Low-level constructor for setting tag data on construction.
+    /// This allows to use less reallocations when creating an alignment
+    /// from scratch, by reusing memory for collecting tags.
+    /// Typically, you would use this constructor in conjunction with
+    /// utils.tagstoragebuilder module.
+    this(string read_name, 
+         string sequence, 
+         in CigarOperation[] cigar, 
+         in ubyte[] tag_data)
+    {
+        _chunk = new ubyte[calculateChunkSize(read_name, sequence, cigar) 
+                           + tag_data.length];
+        this(read_name, sequence, cigar);
+        _chunk[_tags_offset .. $] = tag_data;
     }
 
     /// Compare two alignments, including tags 
@@ -821,4 +846,20 @@ unittest {
 
     read["X1"] = Value(42);
     assert(to!int(read["X1"]) == 42);
+
+    // Test tagstoragebuilder
+    import utils.tagstoragebuilder;
+
+    auto builder = new TagStorageBuilder();
+    builder.put("X0", Value(24));
+    builder.put("X1", Value("abcd"));
+    builder.put("X2", Value([1,2,3]));
+
+    read = Alignment("readname", 
+                     "AGCTGACTACGTAATAGCCCTA", 
+                     [CigarOperation(22, 'M')],
+                     builder.data);
+    assert(to!int(read["X0"]) == 24);
+    assert(to!string(read["X1"]) == "abcd");
+    assert(to!(int[])(read["X2"]) == [1,2,3]);
 }

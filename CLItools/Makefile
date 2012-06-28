@@ -6,7 +6,8 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d \
-	  ../jsonserialization.d ../samfile.d ../sam/recordparser.d
+	  ../jsonserialization.d ../samfile.d ../sam/recordparser.d \
+	  ../utils/tagstoragebuilder.d
 
 all: sambamba-dmd
 

@@ -1,6 +1,7 @@
 import samfile;
 import sam.serialize;
-import std.stdio;
+import utils.format;
+import std.c.stdio : stdout;
 
 void main(string[] args) {
 
@@ -8,7 +9,8 @@ void main(string[] args) {
 
     foreach (read; sam.alignments) {
         if (read.read_name != "") {
-            writeln(to_sam(read, sam.reference_sequences));
+            serialize(read, sam.reference_sequences, stdout);
+            putcharacter(stdout, '\n');
         }
     }
 }
