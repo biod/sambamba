@@ -4,6 +4,8 @@ public import std.conv;
 import std.typetuple;
 import std.exception;
 
+import utils.msgpack;
+
 struct CharToType(char c, T) {
     /** symbol */
     enum ch = c;
@@ -336,4 +338,29 @@ struct Value {
     /// true if the value represents 'H' tag
     bool is_hexadecimal_string() @property { return (_tag & 0b111) == 0b111; }
 
+    public void toMsgpack(Packer)(ref Packer packer) const {
+        switch (_tag) {
+            case GetTypeId!byte: packer.pack(*cast(byte*)(&u)); break;
+            case GetTypeId!ubyte: packer.pack(*cast(ubyte*)(&u)); break;
+            case GetTypeId!short: packer.pack(*cast(short*)(&u)); break;
+            case GetTypeId!ushort: packer.pack(*cast(ushort*)(&u)); break;
+            case GetTypeId!int: packer.pack(*cast(int*)(&u)); break;
+            case GetTypeId!uint: packer.pack(*cast(uint*)(&u)); break;
+
+            case GetTypeId!float: packer.pack(*cast(float*)(&u)); break;
+            case GetTypeId!string: packer.pack(*cast(char[]*)(&u)); break;
+            case hexStringTag: packer.pack(*cast(char[]*)(&u)); break;
+            case GetTypeId!char: packer.pack(*cast(ubyte*)(&u)); break;
+
+            case GetTypeId!(byte[]): packer.pack(*cast(byte[]*)(&u)); break;
+            case GetTypeId!(ubyte[]): packer.pack(*cast(ubyte[]*)(&u)); break;
+            case GetTypeId!(short[]): packer.pack(*cast(short[]*)(&u)); break;
+            case GetTypeId!(ushort[]): packer.pack(*cast(ushort[]*)(&u)); break;
+            case GetTypeId!(int[]): packer.pack(*cast(int[]*)(&u)); break;
+            case GetTypeId!(uint[]): packer.pack(*cast(uint[]*)(&u)); break;
+
+            case GetTypeId!(typeof(null)): packer.pack(null); break;
+            default: break;
+        }
+    }
 }
