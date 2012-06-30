@@ -169,7 +169,7 @@ TODO: this should throw
     v = array_of_shorts;
     assert(v.is_numeric_array);
     assert(toSam(v) == "B:s,4,5,6");
-    assert(to!(short[])(v) == array_of_shorts);
+    assert(to!(const(short[]))(v) == array_of_shorts);
 
     v = null;
     assert(v.is_nothing);

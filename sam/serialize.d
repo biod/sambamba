@@ -37,7 +37,7 @@ string toSam(Value v) {
 
 /// Print SAM representation to FILE* or append it to char[]/char* 
 /// (in char* case it's your responsibility to allocate enough memory)
-void serialize(S)(Value v, ref S stream) {
+void serialize(S)(const ref Value v, ref S stream) {
 
     if (v.is_numeric_array) {
         string toSamNumericArrayHelper() {
@@ -50,7 +50,7 @@ void serialize(S)(Value v, ref S stream) {
                 }
                 cases ~= `case '`~t.ch~`':` ~
                          `  putstring(stream, "B:`~t.ch~`");`~
-                         t.ValueType.stringof~`[] arr = cast(`~t.ValueType.stringof~`[])v;`~
+                         `  auto arr = cast(const(`~t.ValueType.stringof~`[]))v;`~
                          `  foreach (elem; arr) {`~loopbody~`}`~
                          `  return;`.dup;
             }

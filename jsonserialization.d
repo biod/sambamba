@@ -94,7 +94,7 @@ void jsonSerializeCharacterRange(S, R)(ref S stream, R chars)
 
 /// Print SAM representation to FILE* or append it to char[]/char* 
 /// (in char* case it's your responsibility to allocate enough memory)
-void jsonSerialize(S)(Value v, ref S stream) {
+void jsonSerialize(S)(const(Value) v, ref S stream) {
 
     if (v.is_numeric_array) {
         string toSamNumericArrayHelper() {
@@ -106,7 +106,7 @@ void jsonSerialize(S)(Value v, ref S stream) {
                 }
                 cases ~= `case '`~t.ch~`':` ~
                          `  putcharacter(stream, '[');`~
-                         t.ValueType.stringof~`[] arr = cast(`~t.ValueType.stringof~`[])v;`~
+                         `  auto arr = cast(const(`~t.ValueType.stringof~`[]))v;`~
                          `  if (arr.length != 0) { { auto elem = arr[0];`~printexpr~`}`~
                          `  foreach (elem; arr[1..$]) { putcharacter(stream, ',');`~printexpr~`}`~
                          `  }putcharacter(stream, ']');`~
