@@ -261,7 +261,7 @@ private:
             all_tags_are_good = false;
         }
 
-        string[] keys;
+        bool all_distinct = true;
 
         /// Check each tag in turn.
         foreach (k, v; al.tags) {
@@ -269,14 +269,26 @@ private:
                 someTagIsBad();
             }
 
-            keys ~= k;
+            if (all_distinct) {
+                // must be exactly one
+                int found = 0;
+                foreach (k2, v2; al.tags) {
+                    if (*cast(ushort*)(k2.ptr) == *cast(ushort*)(k.ptr)) {
+                        if (found == 1) {
+                            all_distinct = false;
+                            break;
+                        } else {
+                            ++found;
+                        }
+                    }
+                }
+            }
         }
        
         /// Check that all tag keys are distinct.
-        if (!allDistinct(keys)) {
+        if (!all_distinct) {
             if (!onError(al, AlignmentError.DuplicateTagKeys)) return;
         }
-
     }
 
     bool isValid(string key, Value value, ref Alignment al) {
@@ -284,7 +296,7 @@ private:
         bool result = true;
 
         if (value.is_hexadecimal_string()) {
-            auto str = to!string(value);
+            auto str = cast(string)value;
             if (str.length == 0) {
                 if (!onError(key, value, TagError.EmptyHexadecimalString)) {
                     return false;
@@ -300,7 +312,7 @@ private:
             }
         } else if (value.is_character()) {
             /// character must be [!-~]
-            auto c = to!char(value);
+            auto c = cast(char)value;
             if (!(c >= '!' && c <= '~')) {
                 if (!onError(key, value, TagError.NonPrintableCharacter)) {
                     return false;
@@ -308,7 +320,7 @@ private:
                 result = false;
             }
         } else if (value.is_string()) {
-            auto str = to!string(value); 
+            auto str = cast(string)value; 
             if (str.length == 0) {
                 if (!onError(key, value, TagError.EmptyString)) {
                     return false;
@@ -395,7 +407,7 @@ private:
         ///    check that all characters are valid 
         
         static if (staticIndexOf!(s, "CQ", "E2", "OQ", "Q2", "U2") != -1) {
-            auto str = to!string(value);
+            auto str = cast(string)value;
             if (str != "*" && !all!"a >= '!' && a <= '~'"(str)) {
                 if (!onError(s, value, TagError.InvalidQualityString)) {
                     return false;
@@ -408,7 +420,7 @@ private:
         ///    of the same length as the read sequence.
 
         static if (staticIndexOf!(s, "BQ", "E2") != -1) {
-            if (to!string(value).length != al.sequence_length) {
+            if ((cast(string)value).length != al.sequence_length) {
                 if (!onError(s, value, TagError.ExpectedStringWithSameLengthAsSequence)) {
                     return false;
                 }
@@ -423,7 +435,7 @@ private:
 
             /// a) check regular expression
 
-            auto s = to!string(value);
+            auto s = cast(string)value;
             bool valid = true;
             if (s.length == 0) valid = false;
             if (!isDigit(s[0])) valid = false;
