@@ -465,9 +465,14 @@ final private class BooleanValidator : AbstractAlignmentValidator {
 
 }
 
+private static BooleanValidator booleanValidator;
+
+static this() {
+    booleanValidator = new BooleanValidator();
+}
+
 /// Check if alignment is valid
 bool isValid(Alignment alignment) {
-    scope validator = new BooleanValidator();
-    validator.validate(alignment);
-    return validator.result;
+    booleanValidator.validate(alignment);
+    return booleanValidator.result;
 }

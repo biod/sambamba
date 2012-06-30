@@ -282,13 +282,18 @@ final private class BooleanValidator : AbstractSamHeaderValidator {
     }
 }
 
+static BooleanValidator booleanValidator;
+
 } // private
+
+static this() {
+    booleanValidator = new BooleanValidator();
+}
 
 /// Check if header is valid
 bool isValid(SamHeader header) {
-    auto validator = new BooleanValidator();
-    validator.validate(header);
-    return validator.result;
+    booleanValidator.validate(header);
+    return booleanValidator.result;
 }
 
 unittest {
