@@ -138,92 +138,115 @@ abstract class AbstractAlignmentValidator {
     abstract bool onError(string key, ref Value value, TagError error); /// ditto
 
 private:
-    void _visitAlignment(ref Alignment al) {
 
-        /// Read name (a.k.a. QNAME) must =~ /^[!-?A-~]{1,255}$/ 
-        /// according to specification.
+    // Method names are a bit misleading,
+    // their return value is NOT whether a field is invalid or not
+    // but rather whether onError() handlers decide to stop validation
+    // when the field is invalid.
+
+    bool invalidReadName(ref Alignment al) {
+        // Read name (a.k.a. QNAME) must =~ /^[!-?A-~]{1,255}$/ 
+        // according to specification.
         if (al.read_name.length == 0) {
-            if (!onError(al, AlignmentError.EmptyReadName)) return;
+            if (!onError(al, AlignmentError.EmptyReadName)) return true;
         } else if (al.read_name.length > 255) {
-            if (!onError(al, AlignmentError.TooLongReadName)) return;
+            if (!onError(al, AlignmentError.TooLongReadName)) return true;
         } else {
             if (!all!"(a >= '!' && a <= '?') || (a >= 'A' && a <= '~')"(al.read_name)) 
             {
-                if (!onError(al, AlignmentError.ReadNameContainsInvalidCharacters)) return;
+                if (!onError(al, AlignmentError.ReadNameContainsInvalidCharacters)) {
+                    return true;
+                }
             }
         }
+        return false;
+    }
 
+    bool invalidPosition(ref Alignment al) {
         /// Check that position is in range [-1 .. 2^29 - 2]
         if (al.position < -1 || al.position > ((1<<29) - 2)) {
-            if (!onError(al, AlignmentError.PositionIsOutOfRange)) return;
+            if (!onError(al, AlignmentError.PositionIsOutOfRange)) {
+                return true;
+            }
         }
+        return false;
+    }
 
+    bool invalidQualityData(ref Alignment al) {
         /// Check quality data
         if (!all!"a == 0xFF"(al.phred_base_quality) &&
             !all!"0 <= a && a <= 93"(al.phred_base_quality)) 
         {
-            if (!onError(al, AlignmentError.QualityDataContainsInvalidElements)) return;
+            if (!onError(al, AlignmentError.QualityDataContainsInvalidElements)) {
+                return true;
+            }
         }
-        
-        /// Check CIGAR string
-        
-        if (al.cigar.length > 0) {
+        return false;
+    }
 
-        bool cigar_is_good = true;
-        
-        void cigarIsBad() {
-            if (cigar_is_good) {
-                if (!onError(al, AlignmentError.InvalidCigar)) return;
-            }
-            cigar_is_good = false;
+    static bool internalHardClipping(ref Alignment al) {
+        return (al.cigar.length > 2 && 
+                any!"a.operation == 'H'"(al.cigar[1..$-1]));
+    }
+
+    static bool internalSoftClipping(ref Alignment al) {
+        if (al.cigar.length <= 2) return false;
+
+        auto cigar = al.cigar;
+
+        /// strip H operations from ends
+        if (cigar[0].operation == 'H') {
+            cigar = cigar[1..$];
+        }
+        if (cigar[$-1].operation == 'H') {
+            cigar = cigar[0..$-1];
         }
 
-            /// 1. H may only be present as first/last operation.
-            if (al.cigar.length > 2 && 
-                any!"a.operation == 'H'"(al.cigar[1..$-1]))
-            {
-                if (!onError(al, CigarError.InternalHardClipping)) return; 
-                cigarIsBad(); 
-            }
+        /// check that S operations are at the ends only
+        return (cigar.length > 2 &&
+                any!"a.operation == 'S'"(cigar[1..$-1]));
+    } 
 
-            /// 2. The same holds for S operations except that
-            ///    H may be before or after them.
-            if (al.cigar.length > 2) {
-                auto cigar = al.cigar;
-
-                /// strip H operations from ends
-                if (cigar[0].operation == 'H') {
-                    cigar = cigar[1..$];
-                }
-                if (cigar[$-1].operation == 'H') {
-                    cigar = cigar[0..$-1];
-                }
-
-                /// check that S operations are at the ends only
-                if (cigar.length > 2 &&
-                    any!"a.operation == 'S'"(cigar[1..$-1]))
-                {
-                    if (!onError(al, CigarError.InternalSoftClipping)) return;    
-                    cigarIsBad();
-                }
-            }
-            
-            /// 3. Sum of M/I/S/=/X operations shall equal sequence length
-            ///    if both sequence and CIGAR string are presented.
-
-            if (al.sequence_length > 0 &&
+    //  Sum of M/I/S/=/X operations must be equal to the sequence length
+    //  if both sequence and CIGAR string are presented.
+    static bool inconsistentLength(ref Alignment al) {
+        return (al.sequence_length > 0 &&
                 al.sequence_length != reduce!`a + b`(0, 
                                         map!`a.length`(
                                           filter!`canFind("MIS=X", a.operation)`(
-                                            al.cigar))))
-            {
-                if (!onError(al, CigarError.InconsistentLength)) return;
-                cigarIsBad();
-            }
+                                            al.cigar))));
+    }
+ 
+    bool invalidCigar(ref Alignment al) {
+        
+        if (al.cigar.length == 0) return false;
 
-        } 
-        /// end of CIGAR checking
+        static string check(string s) {
+            import std.ascii : toUpper;
+            return (`if (`~s.dup~`(al)`~
+                   `    && !onError(al, CigarError.`~(cast(char)(s[0]-32))~s[1..$]~`)`~
+                   `    && (called_on_error || onError(al, AlignmentError.InvalidCigar)))`~
+                   `{`~
+                   `    return true;`~
+                   `}`).idup;
+        }
 
+        bool called_on_error = false;
+
+        mixin(check("internalHardClipping"));
+        mixin(check("internalSoftClipping"));
+        mixin(check("inconsistentLength"));
+
+        return false;
+    }
+    
+    void _visitAlignment(ref Alignment al) {
+
+        if (invalidReadName(al)) return;
+        if (invalidPosition(al)) return;
+        if (invalidQualityData(al)) return;
+        if (invalidCigar(al)) return;
+        
         //-----------------------------------------------------------------
 
         /// Check tags, a lot of them are predefined in the specification
