@@ -152,10 +152,14 @@ private:
         } else if (al.read_name.length > 255) {
             if (!onError(al, AlignmentError.TooLongReadName)) return true;
         } else {
-            if (!all!"(a >= '!' && a <= '?') || (a >= 'A' && a <= '~')"(al.read_name)) 
+            foreach (char c; al.read_name) 
             {
-                if (!onError(al, AlignmentError.ReadNameContainsInvalidCharacters)) {
-                    return true;
+                if ((c < '!') || (c > '~') || (c == '@')) {
+                    if (!onError(al, AlignmentError.ReadNameContainsInvalidCharacters)) {
+                        return true;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
@@ -263,22 +267,45 @@ private:
 
         bool all_distinct = true;
 
-        /// Check each tag in turn.
+        // Optimize for small number of tags
+        ushort[256] keys = void;
+        size_t i = 0;
+
+        // Check each tag in turn.
         foreach (k, v; al.tags) {
             if (!isValid(k, v, al)) {
                 someTagIsBad();
             }
+           
+            if (i < keys.length) {
+                keys[i] = *cast(ushort*)(k.ptr);
 
-            if (all_distinct) {
-                // must be exactly one
-                int found = 0;
-                foreach (k2, v2; al.tags) {
-                    if (*cast(ushort*)(k2.ptr) == *cast(ushort*)(k.ptr)) {
-                        if (found == 1) {
+                if (all_distinct) {
+                    for (size_t j = 0; j < i; ++j) {
+                        debug {
+                            import std.stdio;
+                            writeln(keys[i], " ", keys[j]);
+                        }
+                        if (keys[i] == keys[j]) {
                             all_distinct = false;
                             break;
-                        } else {
-                            ++found;
+                        }
+                    }
+                }
+
+                i += 1;
+            } else {
+                if (all_distinct) {
+                    // must be exactly one
+                    int found = 0;
+                    foreach (k2, v2; al.tags) {
+                        if (*cast(ushort*)(k2.ptr) == *cast(ushort*)(k.ptr)) {
+                            if (found == 1) {
+                                all_distinct = false;
+                                break;
+                            } else {
+                                ++found;
+                            }
                         }
                     }
                 }
