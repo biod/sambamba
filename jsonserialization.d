@@ -231,7 +231,7 @@ void jsonSerialize(S)(Alignment alignment, ReferenceSequenceInfo[] info, ref S s
             putstring(stream, `"*","pnext":`);
         } else {
             jsonSerializeCharacterRange(stream, info[alignment.next_ref_id].name);
-            putstring(stream, `","pnext":`);
+            putstring(stream, `,"pnext":`);
         }
     }
 
