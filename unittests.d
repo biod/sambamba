@@ -144,16 +144,21 @@ TODO: this should throw
     Value v = 5;
     assert(v.is_integer);
     assert(toSam(v) == "i:5");
+    assert(v == 5);
+    assert(v == "5");
     v = "abc";
     assert(v.is_string);
     assert(toSam(v) == "Z:abc");
-    assert(to!string(v) == "abc");
+    assert(v == "abc");
     v = [1, 2, 3];
     assert(v.is_numeric_array);
     assert(toSam(v) == "B:i,1,2,3");
+    assert(v == [1,2,3]);
+    assert(v == "[1, 2, 3]");
     v = [1.5, 2.3, 17.0];
     assert(v.is_numeric_array);
     assert(toSam(v) == "B:f,1.5,2.3,17");
+    assert(approxEqual(to!(float[])(v), [1.5, 2.3, 17]));
     v = 5.6;
     assert(v.is_float);
     assert(toSam(v) == "f:5.6");
@@ -161,15 +166,21 @@ TODO: this should throw
     v = -17;
     assert(v.is_signed);
     assert(toSam(v) == "i:-17");
+    assert(v == -17);
+    assert(v == "-17");
     v = 297u;
     assert(v.is_unsigned);
     assert(toSam(v) == "i:297");
+    assert(v == 297);
+    assert(v == "297");
 
     short[] array_of_shorts = [4, 5, 6];
     v = array_of_shorts;
     assert(v.is_numeric_array);
     assert(toSam(v) == "B:s,4,5,6");
     assert(to!(short[])(v) == array_of_shorts);
+    assert(v == [4,5,6]);
+    assert(v == "[4, 5, 6]");
 
     v = null;
     assert(v.is_nothing);
@@ -177,6 +188,7 @@ TODO: this should throw
     v = "0eabcf123";
     v.setHexadecimalFlag();
     assert(v.is_hexadecimal_string);    
+    assert(v == "0eabcf123");
 
     writeln("Test parseAlignmentLine/toSam functions...");
     fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");

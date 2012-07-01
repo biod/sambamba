@@ -195,33 +195,57 @@ string injectOpAssign() {
 }
 
 string injectOpCast() {
-    char[] cs = `static if `.dup;
-    
+    char[] cs = "static if".dup;
+
+    string injectSwitchPrimitive(string requested_type) 
+    {
+        char[] cs = `switch (_tag) {`.dup;
+              
+        foreach (t2; PrimitiveTagValueTypes) {
+            cs ~= `case GetTypeId!`~t2.ValueType.stringof~`: `~
+                  `    return to!T(u.`~t2.ch~`);`.dup;
+        }
+
+        cs ~= `    default: throw new ConvException("Cannot convert Value to `~
+                                                     requested_type~`");`~
+              `}`;
+        return cs.idup;
+    }
+
+    string injectSwitchArrayElement(string requested_type) 
+    {
+        char[] cs = `switch (_tag) {`.dup;
+              
+        foreach (t2; ArrayElementTagValueTypes) {
+            cs ~= `case GetTypeId!(`~t2.ValueType.stringof~`[]): `~
+                  `    return to!T(u.B`~t2.ch~`);`.dup;
+        }
+
+        cs ~= `    default: throw new ConvException("Cannot convert Value to `~
+                                                     requested_type~`");`~
+              `}`;
+        return cs.idup;
+    }
+
     foreach (t; PrimitiveTagValueTypes) {
         cs ~= `(is(T == `~t.ValueType.stringof~`)) {`~
-              `  if (this._tag != `~to!string(GetTypeId!(t.ValueType))~`) {`~
-              `    throw new ConvException("Cannot convert Value to `~
-                                           t.ValueType.stringof~`");`~
-              `  }`~
-              `  return this.u.`~t.ch~`;`~
-              `} else static if `;
+              injectSwitchPrimitive(t.ValueType.stringof)~
+              `} else static if`.dup;
     }
 
     foreach (t; ArrayElementTagValueTypes) {
         cs ~= `(is(T == ` ~ t.ValueType.stringof ~ `[])) {` ~
-              `  if (this._tag != `~to!string(GetTypeId!(ArrayOf!(t.ValueType)))~`) {`~
-              `    throw new ConvException("Cannot convert Value to `~
-                                           t.ValueType.stringof~`[]");`~
-              `  }`~
-              `  return this.u.B`~t.ch~`;`~
+              injectSwitchArrayElement(t.ValueType.stringof ~ "[]")~
               `} else static if `;
     }
 
     cs ~= `(is(T == string)) {` ~
           `  if (is_string) {`
           `    return bam_typeid == 'Z' ? u.Z : u.H;`~
+          `  } else if (is_integer || is_float || is_character) {`~
+          `    `~injectSwitchPrimitive("string")~
           `  } else {`~
-          `    throw new ConvException("Cannot convert Value to string");`~
+                 injectSwitchArrayElement("string")~
           `  }`~
           `}`.dup;
 
@@ -288,7 +312,7 @@ struct Value {
         _tag = GetTypeId!(typeof(null));
     }
 
-    final bool opEqual(T)(T val) {
+    final bool opEquals(T)(const T val) {
         return to!T(this) == val;
     }
 
