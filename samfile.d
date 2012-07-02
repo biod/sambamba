@@ -63,7 +63,7 @@ private:
 
     ulong _header_end_offset;
 
-    SamHeader _header = void;
+    SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
 
     void _initializeStream(string filename) {
@@ -87,12 +87,12 @@ private:
             }
         }
 
-        _header = SamHeader(cast(string)(header.data));
+        _header = new SamHeader(cast(string)(header.data));
 
-        foreach (sq; _header.sq_lines) {
+        foreach (sq; _header.sequences) {
             ReferenceSequenceInfo seq;
-            seq.name = sq.sequence_name;
-            seq.length = sq.sequence_length;
+            seq.name = sq.name;
+            seq.length = sq.length;
             _reference_sequences ~= seq;
         }
     }

@@ -213,7 +213,7 @@ private:
         _bam.read(l_text);
 
         string text = to!string(_bam.readString(l_text));
-        _header = SamHeader(text);
+        _header = new SamHeader(text);
     }
 
     // initialize _reference_sequences

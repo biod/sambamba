@@ -34,7 +34,7 @@
 
     action rname_start { rname_beg = p - line.ptr; }
     action rname_end {
-        ref_id = header.getReferenceSequenceId(line[rname_beg .. p - line.ptr]); 
+        ref_id = header.getSequenceIndex(line[rname_beg .. p - line.ptr]); 
     }
 
     rname = '*' | (([!-()+-<>-~] [!-~]*) > rname_start % rname_end);
@@ -57,7 +57,7 @@
    
     action rnext_start { rnext_beg = p - line.ptr; }
     action rnext_end {
-        mate_ref_id = header.getReferenceSequenceId(line[rnext_beg .. p - line.ptr]);
+        mate_ref_id = header.getSequenceIndex(line[rnext_beg .. p - line.ptr]);
     }
 
     rnext = '*' | ('=' % set_same_mate_ref_id) | 
@@ -326,7 +326,7 @@ unittest {
 
     auto line = "ERR016155.15021091\t185\t20\t60033\t25\t66S35M\t=\t60033\t0\tAGAAAAAACTGGAAGTTAATAGAGTGGTGACTCAGATCCAGTGGTGGAAGGGTAAGGGATCTTGGAACCCTATAGAGTTGCTGTGTGCCAGGGCCAGATCC\t#####################################################################################################\tX0:i:1\tX1:i:0\tXC:i:35\tMD:Z:17A8A8\tRG:Z:ERR016155\tAM:i:0\tNM:i:2\tSM:i:25\tXT:A:U\tBQ:Z:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\tY0:B:c,1,2,3\tY1:B:f,13.263,-3.1415,52.63461";
 
-    auto header = SamHeader("@SQ\tSN:20\tLN:1234567");
+    auto header = new SamHeader("@SQ\tSN:20\tLN:1234567");
     auto alignment = parseAlignmentLine(line, header);
     assert(alignment.read_name == "ERR016155.15021091");
     assert(equal(alignment.sequence(), "AGAAAAAACTGGAAGTTAATAGAGTGGTGACTCAGATCCAGTGGTGGAAGGGTAAGGGATCTTGGAACCCTATAGAGTTGCTGTGTGCCAGGGCCAGATCC"));
