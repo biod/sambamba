@@ -194,7 +194,13 @@ class HeaderLineDictionary(T, alias getID) {
     }
 
     bool remove(string id) {
-        return _dict.remove(id);
+        version(GNU) {
+            bool result = (id in _dict) !is null;
+            _dict.remove(id);
+            return result;
+        } else {
+            return _dict.remove(id);
+        }
     }
 
     int opApply(int delegate(ref T line) dg) {
@@ -213,7 +219,11 @@ class HeaderLineDictionary(T, alias getID) {
 
     /// Returns: range of lines
     auto values() @property const {
-        return _dict.byValue();
+        version(GNU) {
+            return _dict.values;
+        } else {
+            return _dict.byValue();
+        }
     }
 
     /// Returns: number of stored lines
@@ -224,9 +234,12 @@ class HeaderLineDictionary(T, alias getID) {
     protected T[string] _dict;
 }
 
+private string sqLineGetId(const ref SqLine line) { return line.name; }
+private string rgLineGetId(const ref RgLine line) { return line.identifier; }
+private string pgLineGetId(const ref PgLine line) { return line.identifier; }
+
 /// Dictionary of @SQ lines.
-class SqLineDictionary : HeaderLineDictionary!(SqLine, 
-                                              (const ref SqLine line) { return line.name; })
+class SqLineDictionary : HeaderLineDictionary!(SqLine, sqLineGetId)
 {
 
     invariant() {
@@ -246,7 +259,7 @@ class SqLineDictionary : HeaderLineDictionary!(SqLine,
 
     override bool remove(string sequence_name) {
         auto old_len = _dict.length;
-        if (_dict.remove(sequence_name)) {
+        if (super.remove(sequence_name)) {
 
             auto index = _indices[sequence_name];
             _indices.remove(sequence_name); 
@@ -271,7 +284,7 @@ class SqLineDictionary : HeaderLineDictionary!(SqLine,
         _indices = null;
     }
 
-    ref SqLine getSequence(size_t index) {
+    SqLine getSequence(size_t index) {
         return _dict[_names[index]];
     }
 
@@ -286,16 +299,10 @@ class SqLineDictionary : HeaderLineDictionary!(SqLine,
 }
 
 /// Dictionary of @RG lines
-alias HeaderLineDictionary!(RgLine, 
-                            (const ref RgLine line) { 
-                                return line.identifier; 
-                            }) RgLineDictionary;
+alias HeaderLineDictionary!(RgLine, rgLineGetId) RgLineDictionary;
 
 /// Dictionary of @PG lines
-alias HeaderLineDictionary!(PgLine,
-                            (const ref PgLine line) {
-                                return line.identifier;
-                            }) PgLineDictionary;
+alias HeaderLineDictionary!(PgLine, pgLineGetId) PgLineDictionary;
 
 class SamHeader {
 
@@ -378,7 +385,7 @@ class SamHeader {
         return sequences.getSequenceIndex(sequence_name);
     }
 
-    ref SqLine getSequence(size_t index) {
+    SqLine getSequence(size_t index) {
         return sequences.getSequence(index);
     }
 
@@ -473,7 +480,6 @@ unittest {
     dict["zzz"] = zzz;
     header.sequences = dict;
 
-    writeln(toSam(header));
     assert(toSam(header) == 
       "@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:yay\tLN:111\n@SQ\tSN:zzz\tLN:222\tUR:ftp://nyan.cat\n");
     assert(header.sequences == dict);
