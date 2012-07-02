@@ -26,3 +26,11 @@ sambamba-dmd: $(FILES) $(SAMBAMBA_FILES)
 sambamba-gdc: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FILES) -o build/sambamba
+
+sambamba-dmd-dev: $(FILES) $(SAMBAMBA_FILES)
+	mkdir -p build
+	dmd -g $(FILES) $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
+
+sambamba-gdc-dev: $(FILES) $(SAMBAMBA_FILES)
+	mkdir -p build
+	gdc -g -O0 -lpthread $(FILES) $(SAMBAMBA_FILES) -fversion=development -o build/sambamba

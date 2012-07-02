@@ -8,6 +8,8 @@ import std.exception;
 import std.array;
 import utils.format;
 
+import std.stdio;
+
 private {
 
     struct Field(string _name, string _abbr, T = string) {
@@ -327,7 +329,12 @@ class SamHeader {
             if (!parsed_first_line && line[0..3] == "@HD") {
                 auto header_line = HdLine.parse(line);
                 if (header_line.sorting_order.length > 0) {
-                    sorting_order = to!SortingOrder(header_line.sorting_order);
+                    try {
+                        sorting_order = to!SortingOrder(header_line.sorting_order);
+                    } catch (ConvException e) {
+                        sorting_order = SortingOrder.unknown; 
+                        // FIXME: should we do that silently?
+                    }
                 } else {
                     sorting_order = SortingOrder.unknown;
                 }
@@ -335,13 +342,22 @@ class SamHeader {
             }
             switch (line[0..3]) {
                 case "@SQ":
-                    sequences.add(SqLine.parse(line)); // TODO: add logging
+                    auto sq_line = SqLine.parse(line);
+                    if (!sequences.add(sq_line)) {
+                        stderr.writeln("duplicating @SQ line ",  sq_line.name);
+                    }
                     break;
                 case "@RG":
-                    read_groups.add(RgLine.parse(line)); // ditto
+                    auto rg_line = RgLine.parse(line);
+                    if (!read_groups.add(rg_line)) {
+                        stderr.writeln("duplicating @RG line ",  rg_line.identifier);
+                    }
                     break;
                 case "@PG":
-                    programs.add(PgLine.parse(line)); // ditto
+                    auto pg_line = PgLine.parse(line);
+                    if (!programs.add(pg_line)) {
+                        stderr.writeln("duplicating @PG line ", pg_line.identifier);
+                    }
                     break;
                 case "@HD":
                     break;

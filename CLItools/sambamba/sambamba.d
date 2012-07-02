@@ -104,6 +104,11 @@ int main(string[] args) {
         }
     } catch (Exception e) {
         writeln("sambamba: ", e.msg);
+
+        version(development) {
+            throw e; // rethrow to see detailed message
+        }
+
         return 1;
     }
 }
