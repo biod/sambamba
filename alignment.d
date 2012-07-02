@@ -646,6 +646,24 @@ mixin template TagStorage() {
         emplaceValue(_chunk.ptr + oldlen + 2, value);
     }
 
+    /// Remove all tags
+    void clearAllTags() {
+        _chunk.length = _tags_offset;
+    }
+
+    /// Number of tags
+    size_t tagCount() {
+        size_t result = 0;
+        size_t offset = 0;
+        auto __tags_chunk = _tags_chunk;
+        while (offset + 1 < __tags_chunk.length) {
+            offset += 2;
+            skipValue(offset, __tags_chunk);
+            result += 1;
+        }
+        return result;
+    }
+
     /// replace existing tag
     private void replaceValueAt(size_t offset, Value value) {
         // offset points to the beginning of the value
@@ -847,6 +865,8 @@ unittest {
     read["X1"] = Value(42);
     assert(to!int(read["X1"]) == 42);
 
+    assert(read.tagCount() == 2);
+
     // Test tagstoragebuilder
     import utils.tagstoragebuilder;
 
@@ -862,4 +882,9 @@ unittest {
     assert(to!int(read["X0"]) == 24);
     assert(to!string(read["X1"]) == "abcd");
     assert(to!(int[])(read["X2"]) == [1,2,3]);
+    assert(read.tagCount() == 3);
+
+    read.clearAllTags();
+    assert(read.tagCount() == 0);
+
 }
