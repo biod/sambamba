@@ -5,10 +5,10 @@ import reference;
 import std.algorithm;
 import std.conv;
 import std.exception;
-import std.json;
-import reference;
-import std.json;
-import reference;
+import std.array;
+import utils.format;
+
+import std.stdio;
 
 private {
 
@@ -60,35 +60,66 @@ private {
                 }
                 string contents = field[3..$];
                 switch (field[0..2]) {
-                    mixin(makeSwitchStatements!(Field)());
+                    mixin(makeSwitchStatements!Field());
                 }
             }
             return record;
         }
     }
 
-    mixin template HeaderLineStruct(string struct_name, Field...) {
+    string serializeFields(Field...)() {
+        static if (Field.length > 0) {
+            char[] str = `if (`~Field[0].name~` != `~Field[0].FieldType.stringof~`.init) {`.dup;
+            str ~= `putstring(stream, "\t` ~ Field[0].abbr ~ `:");`.dup;
+            if (Field[0].FieldType.stringof == "string") {
+                str ~= `putstring(stream, `~Field[0].name~`);`.dup;
+            } else {
+                str ~= `putinteger(stream, `~Field[0].name~`);`.dup;
+            }
+            str ~= `}`.dup;
+            return str.idup ~ serializeFields!(Field[1..$]);
+        } else {
+            return "";
+        }
+    }
+
+    /*
+        generates 'serialize' method which converts a struct
+        to SAM header line
+     */
+    mixin template serializeMethod(string line_prefix, Field...) {
+        void serialize(S)(ref S stream) const {
+            putstring(stream, line_prefix);
+            mixin(serializeFields!Field());    
+        }
+    }
+
+    mixin template HeaderLineStruct(string struct_name, 
+                                    string line_prefix,
+                                    Field...) 
+    {
          mixin(`struct `~struct_name~`{ 
                     mixin structFields!Field;
                     mixin parseStaticMethod!(struct_name, Field);
+                    mixin serializeMethod!(line_prefix, Field);
                 }`);
     }
 
 }
 
-mixin HeaderLineStruct!("HdLine",
+mixin HeaderLineStruct!("HdLine", "@HD",
           Field!("format_version", "VN"),
           Field!("sorting_order", "SO"));
 
-mixin HeaderLineStruct!("SqLine", 
-          Field!("sequence_name", "SN"),
-          Field!("sequence_length", "LN", uint),
+mixin HeaderLineStruct!("SqLine", "@SQ",
+          Field!("name", "SN"),
+          Field!("length", "LN", uint),
           Field!("assembly", "AS"),
           Field!("md5", "M5"),
           Field!("species", "SP"),
           Field!("uri", "UR"));
 
-mixin HeaderLineStruct!("RgLine",
+mixin HeaderLineStruct!("RgLine", "@RG",
           Field!("identifier", "ID"),
           Field!("sequencing_center", "CN"),
           Field!("description", "DS"),
@@ -102,12 +133,12 @@ mixin HeaderLineStruct!("RgLine",
           Field!("platform_unit", "PU"),
           Field!("sample", "SM"));
 
-mixin HeaderLineStruct!("PgLine",
+mixin HeaderLineStruct!("PgLine", "@PG",
           Field!("identifier", "ID"),
-          Field!("program_name", "PN"),
+          Field!("name", "PN"),
           Field!("command_line", "CL"),
           Field!("previous_program", "PP"),
-          Field!("program_version", "VN"));
+          Field!("program_version", "VN")); // version is a keyword in D
 
 unittest {
     import std.algorithm;
@@ -120,8 +151,8 @@ unittest {
 
     writeln("Testing @SQ line parsing...");
     auto sq_line = SqLine.parse("@SQ\tSN:NC_007605\tLN:171823\tM5:6743bd63b3ff2b5b8985d8933c53290a\tUR:ftp://.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz\tAS:NCBI37\tSP:HUMAN");
-    assert(sq_line.sequence_name == "NC_007605");
-    assert(sq_line.sequence_length == 171823);
+    assert(sq_line.name == "NC_007605");
+    assert(sq_line.length == 171823);
     assert(sq_line.md5 == "6743bd63b3ff2b5b8985d8933c53290a");
     assert(sq_line.uri.endsWith("hs37d5.fa.gz"));
     assert(sq_line.assembly == "NCBI37");
@@ -140,116 +171,198 @@ unittest {
     writeln("Testing @PG line parsing...");
     auto pg_line = PgLine.parse("@PG\tID:bam_calculate_bq\tPN:samtools\tPP:bam_recalibrate_quality_scores\tVN:0.1.17 (r973:277)\tCL:samtools calmd -Erb $bam_file $reference_fasta > $bq_bam_file");
     assert(pg_line.identifier == "bam_calculate_bq");
-    assert(pg_line.program_name == "samtools");
+    assert(pg_line.name == "samtools");
     assert(pg_line.previous_program == "bam_recalibrate_quality_scores");
     assert(pg_line.program_version == "0.1.17 (r973:277)");
     assert(pg_line.command_line.endsWith("$bq_bam_file"));
 }
 
-/*
-   The structure representing SAM header.
-
-   SqLine, RgLine, and PgLine structs represent
-   types of header lines described in the
-   SAM/BAM specification. They are pretty much
-   self-documented in the code but since they are
-   declared via mixins, DDoc won't recognize them.
- */
-struct SamHeader {
-public:
-
-    /* 
-       Constructor taking header contents as a string
-     */
-    this(string header) {
-        _header = header;
-        parse();
+class HeaderLineDictionary(T, alias getID) {
+    T opIndex(string id) const {
+        return _dict[id];
     }
 
-    /// Returns: whether there is a @HD line in the header
-    bool hasHeaderLine() const { return _header_line != HdLine.init; }
-
-    /// Returns: index of $(D name) in $(D sq_lines) or -1 if not found.
-    int getReferenceSequenceId(string name) const { 
-        const(size_t)* p_id = name in _sequences;
-        if (p_id is null) return -1;
-        return cast(int)*p_id;
+    void opIndexAssign(T line, string id) {
+        _dict[id] = line;
     }
 
-    /// Returns: array of SqLine structs representing @SQ lines
-    SqLine[] sq_lines() @property { return _sq_lines; }
+    bool add(T line) {
+        auto id = getID(line);
+        if (id !in _dict) {
+            _dict[id] = line;
+            return true;
+        }
+        return false;
+    }
 
-    /// Returns: array of RgLine structs representing @RG lines
-    RgLine[] rg_lines() @property { return _rg_lines; }
-
-    /// Returns: array of PgLine structs representing @PG lines
-    PgLine[] pg_lines() @property { return _pg_lines; }
-
-    /// Returns: format version if present in header, or null
-    string format_version() @property const { return _header_line.format_version; }
-
-    /// Returns: sorting order ('unknown', 'unsorted',
-    ///          'queryname', or 'coordinate')
-    string sorting_order() @property const { 
-        if (!hasHeaderLine()) {
-            return "unknown";
+    bool remove(string id) {
+        version(GNU) {
+            bool result = (id in _dict) !is null;
+            _dict.remove(id);
+            return result;
         } else {
-            return _header_line.sorting_order; 
+            return _dict.remove(id);
         }
     }
 
-    /// Returns: urls of all fasta files encountered in @SQ lines
-    string[] fasta_urls() @property { return _fasta_urls; }
-
-    /// Returns: raw text of the header
-    string text() @property const {
-        return _header;
+    int opApply(int delegate(ref T line) dg) {
+        foreach (ref T line; _dict.byValue()) {
+            auto res = dg(line);
+            if (res != 0) {
+                return res;
+            }
+        }
+        return 0;
     }
 
-private:
-    string _header;
+    void clear() {
+        _dict = null;
+    }
 
-    HdLine _header_line;
+    /// Returns: range of lines
+    auto values() @property const {
+        version(GNU) {
+            return _dict.values;
+        } else {
+            return _dict.byValue();
+        }
+    }
 
-    SqLine[] _sq_lines;
-    RgLine[] _rg_lines;
-    PgLine[] _pg_lines;
+    /// Returns: number of stored lines
+    size_t length() @property const {
+        return _dict.length;
+    }
 
-    string[] _fasta_urls;
+    protected T[string] _dict;
+}
 
-    size_t[string] _sequences;
+private string sqLineGetId(const ref SqLine line) { return line.name; }
+private string rgLineGetId(const ref RgLine line) { return line.identifier; }
+private string pgLineGetId(const ref PgLine line) { return line.identifier; }
 
-    void parse() {
+/// Dictionary of @SQ lines.
+class SqLineDictionary : HeaderLineDictionary!(SqLine, sqLineGetId)
+{
+
+    invariant() {
+        import std.algorithm;
+        assert(_indices.length == _dict.length);
+        assert(_names.length == _dict.length);
+    }
+
+    override bool add(SqLine line) {
+        if (super.add(line)) {
+            _indices[line.name] = _names.length;
+            _names ~= line.name;
+            return true;
+        }
+        return false;
+    }
+
+    override bool remove(string sequence_name) {
+        auto old_len = _dict.length;
+        if (super.remove(sequence_name)) {
+
+            auto index = _indices[sequence_name];
+            _indices.remove(sequence_name); 
+
+            for (size_t j = index + 1; j < old_len; ++j) {
+                auto name = _names[j];
+                _names[j - 1] = _names[j];
+                _indices[_names[j - 1]] = j - 1;
+            }
+
+            _names.length = _names.length - 1;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    override void clear() {
+        super.clear();
+        _names.length = 0;
+        _indices = null;
+    }
+
+    SqLine getSequence(size_t index) {
+        return _dict[_names[index]];
+    }
+
+    int getSequenceIndex(string sequence_name) {
+        size_t* ind = sequence_name in _indices;
+        return (ind is null) ? -1 : cast(int)(*ind);
+    }
+        
+    private:
+        string[] _names;
+        size_t[string] _indices;
+}
+
+/// Dictionary of @RG lines
+alias HeaderLineDictionary!(RgLine, rgLineGetId) RgLineDictionary;
+
+/// Dictionary of @PG lines
+alias HeaderLineDictionary!(PgLine, pgLineGetId) PgLineDictionary;
+
+class SamHeader {
+
+    immutable DEFAULT_FORMAT_VERSION = "1.3";
+
+    this() {
+        sequences = new SqLineDictionary();
+        read_groups = new RgLineDictionary();
+        programs = new PgLineDictionary();
+
+        format_version = DEFAULT_FORMAT_VERSION;
+    }
+
+    this(string header_text) {
+        this();
         bool parsed_first_line = false;
 
-        uint[string] _fasta_urls_dict; /// acts like a set
-
-        foreach (line; splitter(_header, '\n')) {
+        foreach (line; splitter(header_text, '\n')) {
             if (line.length < 3) {
                 continue;
             }
             if (!parsed_first_line && line[0..3] == "@HD") {
-                /* parse header line */
-                _header_line = HdLine.parse(line);
+                auto header_line = HdLine.parse(line);
+                if (header_line.sorting_order.length > 0) {
+                    try {
+                        sorting_order = to!SortingOrder(header_line.sorting_order);
+                    } catch (ConvException e) {
+                        sorting_order = SortingOrder.unknown; 
+                        // FIXME: should we do that silently?
+                    }
+                } else {
+                    sorting_order = SortingOrder.unknown;
+                }
+                format_version = header_line.format_version;
             }
             switch (line[0..3]) {
                 case "@SQ":
                     auto sq_line = SqLine.parse(line);
-                    // set unique integer identifier for this sequence
-                    _sequences[sq_line.sequence_name] = sq_lines.length;
-                    _sq_lines ~= sq_line;
-                    if (sq_line.uri != null) {
-                        _fasta_urls_dict[sq_line.uri] = 1;
+                    if (!sequences.add(sq_line)) {
+                        stderr.writeln("duplicating @SQ line ",  sq_line.name);
                     }
                     break;
                 case "@RG":
-                    _rg_lines ~= RgLine.parse(line);
+                    auto rg_line = RgLine.parse(line);
+                    if (!read_groups.add(rg_line)) {
+                        stderr.writeln("duplicating @RG line ",  rg_line.identifier);
+                    }
                     break;
                 case "@PG":
-                    _pg_lines ~= PgLine.parse(line);
+                    auto pg_line = PgLine.parse(line);
+                    if (!programs.add(pg_line)) {
+                        stderr.writeln("duplicating @PG line ", pg_line.identifier);
+                    }
                     break;
                 case "@HD":
+                    break;
                 case "@CO":
+                    comments ~= line[4..$];
                     break;
                 default:
                     assert(0);
@@ -258,6 +371,139 @@ private:
             parsed_first_line = true;
         }
 
-        _fasta_urls = _fasta_urls_dict.keys;
+        if (!parsed_first_line) {
+            format_version = DEFAULT_FORMAT_VERSION;
+        }
     }
+       
+    /// Format version
+    string format_version;
+
+    /// Sorting order
+    SortingOrder sorting_order = SortingOrder.unknown;
+
+    /// Dictionary of @SQ lines. 
+    /// Removal is not allowed, you can only replace the whole dictionary.
+    SqLineDictionary sequences;
+
+    /// Dictionary of @RG lines
+    RgLineDictionary read_groups;
+
+    /// Dictionary of @PG lines
+    PgLineDictionary programs;
+
+    /// Array of @CO lines
+    string[] comments;
+
+    /// Zero-based index of sequence.
+    /// If such sequence does not exist in the header, returns -1.
+    int getSequenceIndex(string sequence_name) {
+        return sequences.getSequenceIndex(sequence_name);
+    }
+
+    SqLine getSequence(size_t index) {
+        return sequences.getSequence(index);
+    }
+
+}
+
+/// Sorting order
+enum SortingOrder {
+    unknown,    ///
+    unsorted,   ///
+    coordinate, ///
+    queryname   ///
+}
+
+string toSam(SamHeader header) {
+    char[] buf;
+    buf.reserve(65536);
+    serialize(header, buf);
+    return cast(string)buf;
+}
+
+void serialize(S)(SamHeader header, ref S stream) {
+    putstring(stream, "@HD\tVN:");
+    putstring(stream, header.format_version);
+    if (header.sorting_order != SortingOrder.unknown) {
+        putstring(stream, "\tSO:");
+        putstring(stream, to!string(header.sorting_order));
+    }
+    putcharacter(stream, '\n');
+   
+    for (size_t i = 0; i < header.sequences.length; i++) {
+        auto sq_line = header.getSequence(i);
+        sq_line.serialize(stream);
+        putcharacter(stream, '\n');
+    }
+
+    foreach (rg_line; header.read_groups) {
+        rg_line.serialize(stream);
+        putcharacter(stream, '\n');
+    }
+
+    foreach (pg_line; header.programs) {
+        pg_line.serialize(stream);
+        putcharacter(stream, '\n');
+    }
+
+    foreach (comment; header.comments) {
+        putstring(stream, "@CO\t");
+        putstring(stream, comment);
+        putcharacter(stream, '\n');
+    }
+}
+
+unittest {
+    auto header = new SamHeader();
+    import std.stdio;
+    assert(toSam(header) == "@HD\tVN:1.3\n");
+
+    auto sequence = SqLine("abc", 123123);
+    header.sequences.add(sequence);
+    assert(toSam(header) == "@HD\tVN:1.3\n@SQ\tSN:abc\tLN:123123\n");
+
+    header.sorting_order = SortingOrder.coordinate;
+    header.format_version = "1.2";
+    assert(toSam(header) == "@HD\tVN:1.2\tSO:coordinate\n@SQ\tSN:abc\tLN:123123\n");
+    assert(header.getSequenceIndex("abc") == 0);
+    assert(header.getSequenceIndex("bcd") == -1);
+
+    header.sequences.clear();
+    sequence = SqLine("bcd", 678);
+    sequence.uri = "http://lorem.ipsum";
+    header.sequences.add(sequence);
+    header.format_version = "1.4";
+    assert(toSam(header) == "@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:bcd\tLN:678\tUR:http://lorem.ipsum\n");
+
+    header.sequences.add(SqLine("def", 321));
+    assert(header.getSequenceIndex("abc") == -1);
+    assert(header.getSequenceIndex("bcd") == 0);
+    assert(header.getSequenceIndex("def") == 1);
+
+    header.sequences.remove("bcd");
+    assert(header.getSequenceIndex("abc") == -1);
+    assert(header.getSequenceIndex("bcd") == -1);
+    assert(header.getSequenceIndex("def") == 0);
+
+    assert(toSam(header) == "@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:def\tLN:321\n");
+
+    auto dict = new SqLineDictionary();
+    dict.add(SqLine("yay", 111));
+    dict.add(SqLine("zzz", 222));
+
+    auto zzz = dict["zzz"];     // TODO: make 'dict["zzz"].uri = ...' work
+    zzz.uri = "ftp://nyan.cat";
+    dict["zzz"] = zzz;
+    header.sequences = dict;
+
+    assert(toSam(header) == 
+      "@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:yay\tLN:111\n@SQ\tSN:zzz\tLN:222\tUR:ftp://nyan.cat\n");
+    assert(header.sequences == dict);
+
+    header.sequences.remove("yay");
+    header.sequences.remove("zzz");
+    header.comments ~= "this is a comment";
+
+    assert(toSam(header) == "@HD\tVN:1.4\tSO:coordinate\n@CO\tthis is a comment\n");
 }

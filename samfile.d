@@ -25,7 +25,8 @@ struct SamFile {
 
     auto alignments() @property {
         struct Result {
-            this(ref File file, ref SamHeader header) {
+            this(File file, ref SamHeader header) {
+                _file = file;
                 _header = header;
                 _line_range = file.byLine();
 
@@ -52,7 +53,9 @@ struct SamFile {
 
                 AlignmentBuildStorage _build_storage;
             }
-
+            
+            private:
+            File _file;
             char[] buffer;
         }
         return Result(_file, _header);
@@ -63,7 +66,7 @@ private:
 
     ulong _header_end_offset;
 
-    SamHeader _header = void;
+    SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
 
     void _initializeStream(string filename) {
@@ -72,7 +75,7 @@ private:
         char[] _buffer;
 
         auto header = appender!(char[])(); 
-        while (!_file.eof()) {
+        while (_file.isOpen && !_file.eof()) {
             _header_end_offset = _file.tell();
             auto read = _file.readln(_buffer);
             auto line = _buffer[0 .. read];
@@ -87,12 +90,12 @@ private:
             }
         }
 
-        _header = SamHeader(cast(string)(header.data));
+        _header = new SamHeader(cast(string)(header.data));
 
-        foreach (sq; _header.sq_lines) {
+        foreach (sq; _header.sequences) {
             ReferenceSequenceInfo seq;
-            seq.name = sq.sequence_name;
-            seq.length = sq.sequence_length;
+            seq.name = sq.name;
+            seq.length = sq.length;
             _reference_sequences ~= seq;
         }
     }

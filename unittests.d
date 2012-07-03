@@ -23,18 +23,18 @@ unittest {
     auto fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
     auto bf = BamFile(fn);
     assert(bf.header.format_version == "1.3");
-    assert(bf.header.sorting_order == "coordinate");
-    assert(bf.header.sq_lines.length == 2);
-    assert(bf.header.sq_lines[0].sequence_name == "chr1");
-    assert(bf.header.sq_lines[1].sequence_length == 1584);
+    assert(bf.header.sorting_order == SortingOrder.coordinate);
+    assert(bf.header.sequences.length == 2);
+    assert(bf.header.getSequenceIndex("chr1") == 0);
+    assert(bf.header.sequences["chr2"].length == 1584);
 
     fn = buildPath(dirName(__FILE__), "test", "data", "bins.bam");
     bf = BamFile(fn);
-    assert(bf.header.sorting_order == "unknown");
-    assert(bf.header.sq_lines.length == 3);
-    assert(bf.header.rg_lines.length == 0);
-    assert(bf.header.sq_lines[2].sequence_name == "large");
-    assert(bf.header.sq_lines[1].sequence_length == 65536);
+    assert(bf.header.sorting_order == SortingOrder.unknown);
+    assert(bf.header.sequences.length == 3);
+    assert(bf.header.read_groups.length == 0);
+    assert(bf.header.getSequenceIndex("large") == 2);
+    assert(bf.header.sequences["small"].length == 65536);
 
     writeln("Testing alignment parsing...");
     fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
@@ -55,6 +55,7 @@ unittest {
     alignments.popFront();
     assert(alignments.front.cigarString == "35M");
     assert(toSam(alignments.front, bf.reference_sequences) == "EAS51_64:3:190:727:308	99	chr1	103	99	35M	=	263	195	GGTGCAGAGCCGAGTCACGGGGTTGCCAGCACAGG	<<<<<<<<<<<<<<<<<<<<<<<<<<<::<<<844	MF:i:18	Aq:i:73	NM:i:0	UQ:i:0	H0:i:1	H1:i:0");
+    assert(bf.header.getSequenceIndex("chr1") == read.ref_id);
     }
 
     writeln("Testing BamFile methods...");

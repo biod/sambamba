@@ -22,11 +22,7 @@ enum SamHeaderError {
     InvalidSqLine,
     InvalidPgLine,
     InvalidRgLine,
-    InvalidFormatVersion,
-    InvalidSortingOrder,
-    NotUniqueSequenceNames,
-    NotUniqueReadGroupIdentifiers,
-    NotUniqueProgramIdentifiers
+    InvalidFormatVersion
 }
 
 /// @SQ line validation error types.
@@ -82,17 +78,17 @@ private:
     bool isValid(ref SqLine sq) {
 
         /// All members of SqLine get initialized.
-        /// Initial value for sequence_name is an empty string,
+        /// Initial value for name is an empty string,
         /// and for sequence_length is 0
 
         bool result = true;
 
-        if (sq.sequence_name.length == 0) {
+        if (sq.name.length == 0) {
             onError(sq, SqLineError.MissingSequenceName);
             result = false;
         } else {
             // check that sequence_name is /^[!-)+-<>-~][!-~]*$/
-            auto first = sq.sequence_name[0];
+            auto first = sq.name[0];
             if (!((first >= '!' && first <= ')') ||
                   (first >= '+' && first <= '<') ||
                   (first >= '>' && first <= '~'))) 
@@ -101,7 +97,7 @@ private:
                 result = false;
             }
             
-            if (!all!"a >= '!' && a <= '~'"(sq.sequence_name[1..$])) {
+            if (!all!"a >= '!' && a <= '~'"(sq.name[1..$])) {
                 onError(sq, SqLineError.InvalidSequenceName);
                 result = false;
             }
@@ -109,7 +105,7 @@ private:
 
         // @SQ/LN must be in range 1 .. (1<<29)-1
         // (sequence_length is uint)
-        if (sq.sequence_length == 0 || sq.sequence_length >= (1<<29)) 
+        if (sq.length == 0 || sq.length >= (1<<29)) 
         {
             onError(sq, SqLineError.SequenceLengthOutOfRange);
             result = false;
@@ -152,46 +148,29 @@ private:
 
     void _visitHeader(ref SamHeader header) {
 
-        foreach (sq; header.sq_lines) {
+        foreach (sq; header.sequences) {
             if (!isValid(sq)) if (!onError(header, SamHeaderError.InvalidSqLine)) return;
         }
 
-        foreach (rg; header.rg_lines) {
+        foreach (rg; header.read_groups) {
             if (!isValid(rg)) if (!onError(header, SamHeaderError.InvalidRgLine)) return;
         }
 
-        foreach (pg; header.pg_lines) {
+        foreach (pg; header.programs) {
             if (!isValid(pg)) if (!onError(header, SamHeaderError.InvalidPgLine)) return;
         }
 
-        if (header.hasHeaderLine()) {
-            if (!checkFormatVersion(header.format_version)) {
-                if (!onError(header, SamHeaderError.InvalidFormatVersion)) return;
-            }
-            if (!checkSortingOrder(header.sorting_order)) {
-                if (!onError(header, SamHeaderError.InvalidSortingOrder)) return;
-            }
+        if (!checkFormatVersion(header.format_version)) {
+            if (!onError(header, SamHeaderError.InvalidFormatVersion)) return;
         }
 
-        // check uniqueness of @SQ/SN
-        if (!allDistinct(map!"a.sequence_name"(header.sq_lines))) {
-            if (!onError(header, SamHeaderError.NotUniqueSequenceNames)) return;
-        }
-
-        // check uniqueness of @RG/ID
-        if (!allDistinct(map!"a.identifier"(header.rg_lines))) {
-            if (!onError(header, SamHeaderError.NotUniqueReadGroupIdentifiers)) return;
-        }
-
-        // check uniqueness of @PG/ID
-        if (!allDistinct(map!"a.identifier"(header.pg_lines))) {
-            if (!onError(header, SamHeaderError.NotUniqueProgramIdentifiers)) return;
-        }
+        // uniqueness of @SQ/SN, @RG/ID, and @PG/ID
+        // is guaranteed by design of HeaderLineDictionary template class
 
         // check that each @PG/PP matches some @PG/ID
-        foreach (pg; header.pg_lines) {
+        foreach (pg; header.programs) {
             if (pg.previous_program.length != 0) {
-                if (!canFind(map!"a.identifier"(header.pg_lines),
+                if (!canFind(map!"a.identifier"(header.programs.values),
                              pg.previous_program)) 
                 {
                     if (!onError(pg, PgLineError.NoMatchForPreviousProgram)) return;
@@ -247,15 +226,6 @@ unittest {
     assert(checkFormatVersion("2.71828.3.5") == false);
 }
 
-/// check @HD/SO
-bool checkSortingOrder(string sorting_order) {
-    return canFind(["unknown",
-                    "unsorted",
-                    "queryname",
-                    "coordinate"],
-                   sorting_order);
-}
-
 final private class BooleanValidator : AbstractSamHeaderValidator {
 
     bool result;
@@ -297,55 +267,43 @@ bool isValid(SamHeader header) {
 }
 
 unittest {
-    auto valid_header = SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr1\tLN:1575");
+    auto valid_header = new SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr1\tLN:1575");
     assert(isValid(valid_header));
 
-    auto empty_seq_name = SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:\tLN:1575");
+    auto empty_seq_name = new SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:\tLN:1575");
     assert(!isValid(empty_seq_name));
 
-    auto missing_seq_name = SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tLN:1575");
+    auto missing_seq_name = new SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tLN:1575");
     assert(!isValid(missing_seq_name));
 
-    auto missing_seq_length = SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr1");
+    auto missing_seq_length = new SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr1");
     assert(!isValid(missing_seq_length));
 
-    auto seq_length_out_of_range = SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr1\tLN:876543210");
+    auto seq_length_out_of_range = new SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr1\tLN:876543210");
     assert(!isValid(seq_length_out_of_range));
 
-    auto invalid_seq_name = SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr \tLN:1575");
+    auto invalid_seq_name = new SamHeader("@HD\tVN:1.3\tSO:coordinate\n@SQ\tSN:chr \tLN:1575");
     assert(!isValid(invalid_seq_name));
 
-    auto missing_version = SamHeader("@HD\tSO:coordinate");
+    auto missing_version = new SamHeader("@HD\tSO:coordinate");
     assert(!isValid(missing_version));
 
-    auto invalid_sorting_order = SamHeader("@HD\tVN:1.3\tSO:quarkoordinate");
-    assert(!isValid(invalid_sorting_order));
-
-    auto invalid_version_format = SamHeader("@HD\tVN:6.7.8");
+    auto invalid_version_format = new SamHeader("@HD\tVN:6.7.8");
     assert(!isValid(invalid_version_format));
 
-    auto unknown_platform = SamHeader("@RG\tID:678\tPL:TROLOLO");
+    auto unknown_platform = new SamHeader("@RG\tID:678\tPL:TROLOLO");
     assert(!isValid(unknown_platform));
 
-    auto not_unique_sequence_names = SamHeader("@SQ\tSN:chr1\tLN:100500\n@SQ\tSN:chr1\tLN:10");
-    assert(!isValid(not_unique_sequence_names));
-
-    auto not_unique_rg_ids = SamHeader("@RG\tID:678\n@RG\tID:567\n@RG\tID:678");
-    assert(!isValid(not_unique_rg_ids));
-
-    auto not_unique_pg_ids = SamHeader("@PG\tID:bwa_index\n@PG\tID:bwa_index");
-    assert(!isValid(not_unique_pg_ids));
-
-    auto missing_rg_id = SamHeader("@RG\tPL:ILLUMINA");
+    auto missing_rg_id = new SamHeader("@RG\tPL:ILLUMINA");
     assert(!isValid(missing_rg_id));
 
-    auto missing_pg_id = SamHeader("@PG\tPN:bwa\tVN:0.5.9-r16");
+    auto missing_pg_id = new SamHeader("@PG\tPN:bwa\tVN:0.5.9-r16");
     assert(!isValid(missing_pg_id));
 
-    auto unknown_previous_program = SamHeader("@PG\tID:bwa_aln_fastq\tPN:bwa\tPP:bwa_index");
+    auto unknown_previous_program = new SamHeader("@PG\tID:bwa_aln_fastq\tPN:bwa\tPP:bwa_index");
     assert(!isValid(unknown_previous_program));
 
-    auto another_valid_header = SamHeader(q"[@HD	VN:1.0	SO:coordinate
+    auto another_valid_header = new SamHeader(q"[@HD	VN:1.0	SO:coordinate
 @SQ	SN:1	LN:249250621	M5:1b22b98cdeb4a9304cb5d48026a85128	UR:ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz        AS:NCBI37       SP:Human
 @SQ	SN:2	LN:243199373	M5:a0d9851da00400dec1098a9255ac712e	UR:ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz        AS:NCBI37       SP:Human
 @SQ	SN:3	LN:198022430	M5:fdfd811849cc2fadebc929bb925902e5	UR:ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz        AS:NCBI37       SP:Human

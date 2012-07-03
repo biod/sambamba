@@ -3,13 +3,15 @@
  */
 module serializer;
 
-import sam.serialize;
-import samheader;
-import jsonserialization;
-import utils.format;
-import std.exception;
 import alignment;
 import reference;
+import samheader;
+import sam.serialize;
+import jsonserialization;
+import utils.format;
+
+import std.exception;
+import std.conv;
 
 private {
     import std.c.stdio : stdout;
@@ -26,7 +28,7 @@ private {
             putcharacter(stdout, '\n');
         }
         void writeln(SamHeader header) {
-            putstring(stdout, header.text);
+            serialize(header, stdout);
         }
     }
 
@@ -53,29 +55,32 @@ private {
             JSONValue result;
             result.type = JSON_TYPE.OBJECT;
 
-            if (header.hasHeaderLine()) {
-                result.object["format_version"] = jv(header.format_version);
-                result.object["sorting_order"] = jv(header.sorting_order);
+            result.object["format_version"] = jv(header.format_version);
+
+            if (header.sorting_order != SortingOrder.unknown) {
+                result.object["sorting_order"] = jv(to!string(header.sorting_order));
             }
 
             JSONValue tmp;
             tmp.type = JSON_TYPE.ARRAY;
-            tmp.array = new JSONValue[header.sq_lines.length];
-            foreach (size_t i, line; header.sq_lines) {
+            tmp.array = new JSONValue[header.sequences.length];
+            size_t i = 0;
+            foreach (line; header.sequences) {
                 JSONValue sq;
                 sq.type = JSON_TYPE.OBJECT;
-                sq.object["sequence_name"] = jv(line.sequence_name);
-                sq.object["sequence_length"] = jv(line.sequence_length);
+                sq.object["sequence_name"] = jv(line.name);
+                sq.object["sequence_length"] = jv(line.length);
                 sq.object["assembly"] = jv(line.assembly);
                 sq.object["md5"] = jv(line.md5);
                 sq.object["species"] = jv(line.species);
                 sq.object["uri"] = jv(line.uri);
-                tmp.array[i] = sq;
+                tmp.array[i++] = sq;
             }
             result.object["sq_lines"] = tmp;
 
-            tmp.array.length = header.rg_lines.length;
-            foreach (size_t i, line; header.rg_lines) {
+            tmp.array.length = header.read_groups.length;
+            i = 0;
+            foreach (line; header.read_groups) {
                 JSONValue sq;
                 sq.type = JSON_TYPE.OBJECT;
                 sq.object["identifier"] = jv(line.identifier);
@@ -90,20 +95,21 @@ private {
                 sq.object["platform"] = jv(line.platform);
                 sq.object["platform_unit"] = jv(line.platform_unit);
                 sq.object["sample"] = jv(line.sample);
-                tmp.array[i] = sq;
+                tmp.array[i++] = sq;
             }
             result.object["rg_lines"] = tmp;
 
-            tmp.array.length = header.pg_lines.length;
-            foreach (size_t i, line; header.pg_lines) {
+            tmp.array.length = header.programs.length;
+            i = 0;
+            foreach (line; header.programs) {
                 JSONValue sq;
                 sq.type = JSON_TYPE.OBJECT;
                 sq.object["identifier"] = jv(line.identifier);
-                sq.object["program_name"] = jv(line.program_name);
+                sq.object["program_name"] = jv(line.name);
                 sq.object["command_line"] = jv(line.command_line);
                 sq.object["previous_program"] = jv(line.previous_program);
                 sq.object["program_version"] = jv(line.program_version);
-               tmp.array[i] = sq;
+                tmp.array[i++] = sq;
             }
             result.object["pg_lines"] = tmp;
 
