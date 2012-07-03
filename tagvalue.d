@@ -313,7 +313,11 @@ struct Value {
     }
 
     final bool opEquals(T)(const T val) {
-        return to!T(this) == val;
+        try {
+            return to!T(this) == val;
+        } catch (ConvException e) {
+            return false;
+        }
     }
 
     /// Conversion to string occurs only when Value stores 

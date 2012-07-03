@@ -618,24 +618,30 @@ mixin template TagStorage() {
     }
 
     /// ditto
-    void opIndexAssign(Value value, string key) {
-        enforce(key.length == 2, "Key length must be 2");
-        auto __tags_chunk = _tags_chunk;
+    void opIndexAssign(T)(T value, string key) 
+        if (is(T == Value) || __traits(compiles, GetTypeId!T)) 
+    {
+        static if(is(T == Value)) {
+            enforce(key.length == 2, "Key length must be 2");
+            auto __tags_chunk = _tags_chunk;
 
-        _dup();
+            _dup();
 
-        size_t offset = 0;
-        while (offset + 1 < __tags_chunk.length) {
-            if (__tags_chunk[offset .. offset + 2] == key) {
-                replaceValueAt(offset + 2, value);
-                return;
-            } else {
-                offset += 2;
-                skipValue(offset, __tags_chunk);
+            size_t offset = 0;
+            while (offset + 1 < __tags_chunk.length) {
+                if (__tags_chunk[offset .. offset + 2] == key) {
+                    replaceValueAt(offset + 2, value);
+                    return;
+                } else {
+                    offset += 2;
+                    skipValue(offset, __tags_chunk);
+                }
             }
-        }
 
-        appendTag(key, value);
+            appendTag(key, value);
+        } else {
+            opIndexAssign(Value(value), key);
+        }
     }
 
     /// Append new tag to the end, skipping check if it already exists.
@@ -853,17 +859,17 @@ unittest {
     read.sequence = "AGCTGGCTACGTAATAGCCCTA";
     assert(equal(read.sequence(), "AGCTGGCTACGTAATAGCCCTA"));
 
-    read["RG"] = Value(15);
-    assert(to!int(read["RG"]) == 15);
+    read["RG"] = 15;
+    assert(read["RG"] == 15);
 
-    read["X1"] = Value([1, 2, 3, 4, 5]);
-    assert(to!(int[])(read["X1"]) == [1, 2, 3, 4, 5]);
+    read["X1"] = [1, 2, 3, 4, 5];
+    assert(read["X1"] == [1, 2, 3, 4, 5]);
 
-    read["RG"] = Value(5.6);
+    read["RG"] = cast(float)5.6;
     assert(approxEqual(to!float(read["RG"]), 5.6));
 
-    read["X1"] = Value(42);
-    assert(to!int(read["X1"]) == 42);
+    read["X1"] = 42;
+    assert(read["X1"] == 42);
 
     assert(read.tagCount() == 2);
 
@@ -879,9 +885,9 @@ unittest {
                      "AGCTGACTACGTAATAGCCCTA", 
                      [CigarOperation(22, 'M')],
                      builder.data);
-    assert(to!int(read["X0"]) == 24);
-    assert(to!string(read["X1"]) == "abcd");
-    assert(to!(int[])(read["X2"]) == [1,2,3]);
+    assert(read["X0"] == 24);
+    assert(read["X1"] == "abcd");
+    assert(read["X2"] == [1,2,3]);
     assert(read.tagCount() == 3);
 
     read.clearAllTags();

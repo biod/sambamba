@@ -147,6 +147,7 @@ TODO: this should throw
     assert(toSam(v) == "i:5");
     assert(v == 5);
     assert(v == "5");
+    assert(v != [1,2,3]);
     v = "abc";
     assert(v.is_string);
     assert(toSam(v) == "Z:abc");
