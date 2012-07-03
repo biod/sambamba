@@ -55,6 +55,7 @@ unittest {
     alignments.popFront();
     assert(alignments.front.cigarString == "35M");
     assert(toSam(alignments.front, bf.reference_sequences) == "EAS51_64:3:190:727:308	99	chr1	103	99	35M	=	263	195	GGTGCAGAGCCGAGTCACGGGGTTGCCAGCACAGG	<<<<<<<<<<<<<<<<<<<<<<<<<<<::<<<844	MF:i:18	Aq:i:73	NM:i:0	UQ:i:0	H0:i:1	H1:i:0");
+    assert(bf.header.getSequenceIndex("chr1") == read.ref_id);
     }
 
     writeln("Testing BamFile methods...");

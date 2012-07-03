@@ -362,7 +362,7 @@ class SamHeader {
                 case "@HD":
                     break;
                 case "@CO":
-                    comments ~= line[0..3];
+                    comments ~= line[4..$];
                     break;
                 default:
                     assert(0);
@@ -448,6 +448,7 @@ void serialize(S)(SamHeader header, ref S stream) {
     }
 
     foreach (comment; header.comments) {
+        putstring(stream, "@CO\t");
         putstring(stream, comment);
         putcharacter(stream, '\n');
     }
@@ -499,4 +500,10 @@ unittest {
     assert(toSam(header) == 
       "@HD\tVN:1.4\tSO:coordinate\n@SQ\tSN:yay\tLN:111\n@SQ\tSN:zzz\tLN:222\tUR:ftp://nyan.cat\n");
     assert(header.sequences == dict);
+
+    header.sequences.remove("yay");
+    header.sequences.remove("zzz");
+    header.comments ~= "this is a comment";
+
+    assert(toSam(header) == "@HD\tVN:1.4\tSO:coordinate\n@CO\tthis is a comment\n");
 }
