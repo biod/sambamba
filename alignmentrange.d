@@ -9,7 +9,8 @@ import std.algorithm;
 import std.system;
 
 struct RawAlignmentBlock {
-    VirtualOffset virtual_offset;
+    VirtualOffset start_virtual_offset;
+    VirtualOffset end_virtual_offset;
     ubyte[] raw_alignment_data;
 }
 
@@ -46,7 +47,9 @@ static if (policy == IteratePolicy.withOffsets) {
         See SAM/BAM specification for details about the structure of alignment blocks.
      */
     RawAlignmentBlock front() @property {
-        return RawAlignmentBlock(_current_voffset, _current_record);
+        return RawAlignmentBlock(_start_voffset, 
+                                 _stream.virtualTell(),
+                                 _current_record);
     }
 } else {
     /**
@@ -69,7 +72,7 @@ private:
     bool _empty = false;
 
 static if (policy == IteratePolicy.withOffsets) {
-    VirtualOffset _current_voffset;
+    VirtualOffset _start_voffset;
 }
 
     /**
@@ -82,7 +85,7 @@ static if (policy == IteratePolicy.withOffsets) {
         }
         
 static if (policy == IteratePolicy.withOffsets) {
-        _current_voffset = _stream.virtualTell();
+        _start_voffset = _stream.virtualTell();
 }
 
         int block_size = void;
@@ -108,7 +111,8 @@ Alignment makeAlignment(ubyte[] chunk) {
 
 /// Tuple of virtual offset of the alignment, and the alignment itself.
 struct AlignmentBlock {
-    VirtualOffset virtual_offset;
+    VirtualOffset start_virtual_offset;
+    VirtualOffset end_virtual_offset;
     Alignment alignment;
 }
 
@@ -120,11 +124,11 @@ auto alignmentRange(ref IChunkInputStream stream) {
 
 /// Returns: lazy range of AlignmentBlock structs constructed from a given stream.
 ///
-/// Provides virtual offsets together with alignments and thus
-/// Useful for random access operations.
+/// Provides start and end virtual offsets together with alignments.
 auto alignmentRangeWithOffsets(ref IChunkInputStream stream) {
     static AlignmentBlock makeAlignmentBlock(RawAlignmentBlock block) {
-        return AlignmentBlock(block.virtual_offset,
+        return AlignmentBlock(block.start_virtual_offset,
+                              block.end_virtual_offset,
                               makeAlignment(block.raw_alignment_data));
     }
 

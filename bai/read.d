@@ -5,6 +5,7 @@ module bai.read;
 
 import bai.chunk;
 import bai.bin;
+import virtualoffset;
 
 import std.stream;
 import std.system;
@@ -15,7 +16,7 @@ import std.path;
 
 struct Index {
     Bin[] bins;
-    ulong[] ioffsets; // virtual file offsets of first alignments in intervals
+    VirtualOffset[] ioffsets; // virtual file offsets of first alignments in intervals
 }
 
 struct BaiFile {
@@ -76,8 +77,11 @@ private:
                 indices[i].bins[j].chunks.length = n_chunk;
                 
                 foreach (k; 0 .. n_chunk) {
-                    _stream.read(indices[i].bins[j].chunks[k].beg);
-                    _stream.read(indices[i].bins[j].chunks[k].end);
+                    ulong tmp;
+                    _stream.read(tmp);
+                    indices[i].bins[j].chunks[k].beg = VirtualOffset(tmp);
+                    _stream.read(tmp);
+                    indices[i].bins[j].chunks[k].end = VirtualOffset(tmp);
                 }
             }
 
@@ -86,7 +90,9 @@ private:
             indices[i].ioffsets.length = n_intv;
 
             foreach (j; 0 .. n_intv) {
-                _stream.read(indices[i].ioffsets[j]);
+                ulong tmp;
+                _stream.read(tmp);
+                indices[i].ioffsets[j] = VirtualOffset(tmp);
             }
         }
     }

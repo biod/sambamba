@@ -1,7 +1,7 @@
 module alignment;
 
 import tagvalue;
-private import bai.bin;
+import bai.bin;
 
 import std.algorithm;
 import std.range;
@@ -102,7 +102,7 @@ struct Alignment {
 
     @property    int ref_id()           const nothrow { return _refID; }
     @property    int position()         const nothrow { return _pos; }
-    @property ushort bin()              const nothrow { return _bin; }
+    @property    Bin bin()              const nothrow { return Bin(_bin); }
     @property  ubyte mapping_quality()  const nothrow { return _mapq; }
     @property ushort flag()             const nothrow { return _flag; }
     @property    int sequence_length()  const nothrow { return _l_seq; }
@@ -193,7 +193,7 @@ struct Alignment {
     }
 
     /// The number of reference bases covered
-    int bases_covered() {
+    int basesCovered() {
 
         if (this.is_unmapped) {
             return 0; // actually, valid alignments should have empty cigar string
@@ -566,7 +566,7 @@ private:
 
     /// Calculates bin number.
     void _recalculate_bin() {
-        _bin = reg2bin(position, position + bases_covered());
+        _bin = reg2bin(position, position + basesCovered());
     }
 }
 

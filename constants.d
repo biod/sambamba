@@ -1,6 +1,7 @@
 module constants;
 
 immutable BAM_MAGIC = "BAM\1";
+immutable BAI_MAGIC = "BAI\1";
 
 immutable ubyte BAM_SI1 = 66;
 immutable ubyte BAM_SI2 = 67;
@@ -39,3 +40,5 @@ immutable ubyte[28] BAM_EOF =
         0, 0, 0, 0, 
         0, 0, 0, 0];
 
+immutable BAI_MAX_BIN_ID = 37449;
+immutable BAI_MAX_NONLEAF_BIN_ID = 4680;

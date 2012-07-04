@@ -1,14 +1,21 @@
 module bai.bin;
 
 import bai.chunk;
+import constants;
 
 /// Distinct bin
 struct Bin {
+
+    /// Construct a bin with an id
+    this(ushort id) nothrow {
+        this.id = id;
+    }
+
     uint id; /// bin number
     Chunk[] chunks; 
 
     /// How deep the bin is in the tree
-    int level() @property {
+    int level() @property const nothrow {
         if (id == 0) return 0;
         if (id < 9) return 1;
         if (id < 73) return 2;
@@ -17,8 +24,13 @@ struct Bin {
         return 5;
     }
 
+    /// Returns whether the bin is a leaf in the B-tree
+    bool is_leaf() @property const nothrow {
+        return id <= BAI_MAX_NONLEAF_BIN_ID;
+    }
+
 	/// Check if bin can overlap with a region
-	bool canOverlapWith(int begin, int end) {
+	bool canOverlapWith(int begin, int end) const nothrow {
 		if (id == 0) return true;
 
 		/// The following code is based on reg2bins() function

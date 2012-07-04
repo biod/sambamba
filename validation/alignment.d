@@ -243,19 +243,11 @@ private:
 
         return false;
     }
-    
-    void _visitAlignment(ref Alignment al) {
+   
+    // Check tags, a lot of them are predefined in the specification
+    // and have to satisfy certain requirements.
+    bool invalidTags(ref Alignment al) {
 
-        if (invalidReadName(al)) return;
-        if (invalidPosition(al)) return;
-        if (invalidQualityData(al)) return;
-        if (invalidCigar(al)) return;
-        
-        //-----------------------------------------------------------------
-
-        /// Check tags, a lot of them are predefined in the specification
-        /// and have to satisfy certain requirements.
-        
         bool all_tags_are_good = true;
         
         void someTagIsBad() {
@@ -264,6 +256,8 @@ private:
             }
             all_tags_are_good = false;
         }
+
+        /// Check that all tag keys are distinct.
 
         bool all_distinct = true;
 
@@ -282,10 +276,6 @@ private:
 
                 if (all_distinct) {
                     for (size_t j = 0; j < i; ++j) {
-                        debug {
-                            import std.stdio;
-                            writeln(keys[i], " ", keys[j]);
-                        }
                         if (keys[i] == keys[j]) {
                             all_distinct = false;
                             break;
@@ -312,10 +302,19 @@ private:
             }
         }
        
-        /// Check that all tag keys are distinct.
         if (!all_distinct) {
-            if (!onError(al, AlignmentError.DuplicateTagKeys)) return;
+            if (!onError(al, AlignmentError.DuplicateTagKeys)) return true;
         }
+
+        return false;
+    }
+
+    void _visitAlignment(ref Alignment al) {
+        if (invalidReadName(al)) return;
+        if (invalidPosition(al)) return;
+        if (invalidQualityData(al)) return;
+        if (invalidCigar(al)) return;
+        if (invalidTags(al)) return;
     }
 
     bool isValid(string key, Value value, ref Alignment al) {

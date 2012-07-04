@@ -113,7 +113,7 @@ TODO: this should throw
         auto naive = array(filter!((Alignment a) { 
                          return bf.reference(a.ref_id).name == "chr1" &&
                                 a.position < end &&
-                                a.position + a.bases_covered() > beg; })
+                                a.position + a.basesCovered() > beg; })
                             (bf.alignments));
         if (!equal(naive, refseq)) {
             writeln(beg);

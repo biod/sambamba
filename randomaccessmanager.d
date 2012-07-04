@@ -101,7 +101,7 @@ class RandomAccessManager {
         beg = max(0, beg);
         int _i = min(beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
                      cast(int)_bai.indices[ref_id].ioffsets.length - 1);
-        auto min_offset = (_i == -1) ? 0 : _bai.indices[ref_id].ioffsets[_i];
+        auto min_offset = (_i == -1) ? VirtualOffset(0) : _bai.indices[ref_id].ioffsets[_i];
 
         auto _stream = new BufferedFile(_filename);
         Stream _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
@@ -173,7 +173,7 @@ private {
                 _current_alignment_block = _alignment_blocks.front;
 
                 /// Are we finished with the current chunk?
-                if (_current_alignment_block.virtual_offset >= _current_chunk.end) {
+                if (_current_alignment_block.start_virtual_offset >= _current_chunk.end) {
                    _chunks.popFront();
                    setupNextStream();
                 }
@@ -193,18 +193,18 @@ private {
         Stream _compressed_stream;
         bool _empty = false;
 
-        /// (VirtualOffset, Alignment) tuples
+        // start and end virtual offsets + alignments
         ReturnType!alignmentRangeWithOffsets _alignment_blocks;
 
         AlignmentBlock _current_alignment_block;
 
-        /// setup new alignment range, starting from a given offset
+        // setup new alignment range, starting from a given offset
         void setupStream(VirtualOffset offset) {
 
-            /// seek coffset in compressed stream
+            // seek coffset in compressed stream
             _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
-            /// setup BgzfRange and ChunkInputStream
+            // setup BgzfRange and ChunkInputStream
             auto bgzf_range = BgzfRange(_compressed_stream);
 
             version(serial) {
@@ -240,7 +240,7 @@ private {
                 _empty = true;
             } else {
                 _current_chunk = _chunks.front;
-                setupStream(VirtualOffset(_current_chunk.beg));
+                setupStream(_current_chunk.beg);
             }
         }
     }
@@ -323,7 +323,7 @@ private {
                 }
 
                 if (_current_alignment.position +
-                    _current_alignment.bases_covered() <= _beg) 
+                    _current_alignment.basesCovered() <= _beg) 
                 {
                     /// ends before beginning of the region
                     ///  [-----------)

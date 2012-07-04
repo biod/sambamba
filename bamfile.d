@@ -96,6 +96,12 @@ struct BamFile {
         }
         return _alignment_range;
     }
+
+    // TODO: think of better design
+    auto alignmentsWithVirtualOffsets() {
+        return alignmentRangeWithOffsets(_decompressed_stream);
+    }
+
     private bool _alignments_first_call = true;
 
     /**
@@ -180,6 +186,8 @@ private:
     BaiFile _bai_file; /// provides access to index file
 
     typeof(alignmentRange(_decompressed_stream)) _alignment_range;
+    typeof(alignmentRangeWithOffsets(_decompressed_stream)) _alignment_range_with_offsets;
+
     RandomAccessManager _random_access_manager;
 
     SamHeader _header;
