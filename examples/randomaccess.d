@@ -22,7 +22,7 @@ void main(string[] args) {
                 to!string(alignment.sequence), " ",
                 alignment.cigarString(),
                 " (begin: ", alignment.position,
-                "; end: ", alignment.position + alignment.bases_covered(),
+                "; end: ", alignment.position + alignment.basesCovered(),
                 ")");
     }
 }
