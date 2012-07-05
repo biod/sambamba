@@ -22,6 +22,18 @@ struct BgzfBlock {
     public uint crc32;
     public uint input_size; /// size of uncompressed data
 
+    hash_t toHash() const pure @safe nothrow {
+        return crc32;
+    }
+
+    bool opEquals(const ref BgzfBlock other) pure @safe nothrow {
+        return crc32 == other.crc32;
+    }
+
+    int opCmp(const ref BgzfBlock other) const pure @safe nothrow {
+        return crc32 < other.crc32 ? -1 :
+               crc32 > other.crc32 ?  1 : 0;
+    }
 }
 
 /**

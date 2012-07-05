@@ -398,6 +398,14 @@ struct Alignment {
         _chunk[_tags_offset .. $] = tag_data;
     }
 
+    /// Deep copy of an alignment.
+    Alignment dup() @property const {
+        Alignment result;
+        result._chunk = this._chunk.dup;
+        result._is_slice = false;
+        return result;
+    }
+
     /// Compare two alignments, including tags 
     /// (they must be in the same order for equality).
     bool opEquals(const ref Alignment other) const pure nothrow {

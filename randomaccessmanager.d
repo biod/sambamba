@@ -83,7 +83,7 @@ class RandomAccessManager {
         IChunkInputStream stream = makeChunkInputStream(decompressed_range);
         stream.readString(offset.uoffset); // TODO: optimize
 
-        return alignmentRange(stream).front;
+        return alignmentRange(stream).front.dup;
     }
 
     bool found_index_file() @property {

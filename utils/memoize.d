@@ -26,6 +26,7 @@ class FifoCache(uint maxItems, K, V) {
     private int items = 0;
     bool full = false;
     private K[maxItems] keys; // cyclic queue
+    private uint removals;
 
     V* lookup(K key) {
         return key in cache;
@@ -36,6 +37,13 @@ class FifoCache(uint maxItems, K, V) {
 
         if (full) {
             cache.remove(keys[items]);
+            removals += 1;
+
+            if (removals % maxItems == 0) {
+                import std.stdio;
+                stderr.writeln("removals: ", removals);
+                cache.rehash;
+            }
         }
 
         keys[items] = key;
@@ -53,6 +61,7 @@ class LuCache(uint maxItems, K, V) {
     private {
         V[K] cache;
         int[K] counter;
+        uint removals;
     }
 
     V* lookup(K key) {
@@ -77,6 +86,12 @@ class LuCache(uint maxItems, K, V) {
             
             cache.remove(min_key);
             counter.remove(min_key);
+            removals += 1;
+
+            if (removals % maxItems == 0) {
+                cache.rehash;
+                counter.rehash;
+            }
         }
         cache[key] = value;
         counter[key] = 1;
@@ -103,19 +118,31 @@ auto memoize(alias func, uint maxItems=1024,
 {
     alias ReturnType!func R; 
 
-    static shared(CacheImpl!(maxItems, Tuple!Args, R)) cache;
+    static if (Args.length == 1) {
+        static shared(CacheImpl!(maxItems, Args, R)) cache;
+    } else {
+        static shared(CacheImpl!(maxItems, Tuple!Args, R)) cache;
+    }
     static shared bool init = false;
 
     if (!init) {
         synchronized {
             if (cache is null) {
-                cache = new shared(CacheImpl!(maxItems, Tuple!Args, R))();
+                static if (Args.length == 1) {
+                    cache = new shared(CacheImpl!(maxItems, Args, R))();
+                } else {
+                    cache = new shared(CacheImpl!(maxItems, Tuple!Args, R))();
+                }
             }
             init = true;
         }
     }
 
-    auto key = tuple(args);
+    static if (Args.length == 1) {
+        auto key = args;
+    } else {
+        auto key = tuple(args);
+    }
 
     R* ret = (cast()cache).lookup(key);
     if (ret !is null) {
