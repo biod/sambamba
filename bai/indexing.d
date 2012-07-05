@@ -8,6 +8,7 @@ import bai.chunk;
 
 import std.stream;
 import std.array;
+import std.algorithm;
 import std.system;
 import std.exception;
 
@@ -98,7 +99,10 @@ void createIndex(ref BamFile bam, ref Stream stream) {
     void dumpCurrentReference() {
         endian_stream.write(cast(int)chunks.length);
 
-        foreach (bin_id, bin_chunks; chunks) {
+        auto bin_ids = chunks.keys;
+        sort(bin_ids);
+        foreach (bin_id; bin_ids) {
+            auto bin_chunks = chunks[bin_id];
             if (bin_chunks.length > 0) {
                 endian_stream.write(bin_id);
                 endian_stream.write(cast(int)bin_chunks.length);
@@ -122,8 +126,28 @@ void createIndex(ref BamFile bam, ref Stream stream) {
     void updateChunks() {
         auto current_chunk_end = prev_block.end_virtual_offset;
 
-        // add chunk
-        chunks[prev_read.bin.id] ~= Chunk(current_chunk_beg, current_chunk_end);
+        auto bin_id = prev_read.bin.id;
+
+        if (bin_id !in chunks) {
+            chunks[bin_id] = [];
+        }
+        auto cs = chunks[bin_id];
+
+        bool canMergeWithPreviousChunk() {
+            assert(cs.length > 0);
+            auto last_chunk = cs[$ - 1];
+
+            if (last_chunk.end.coffset == current_chunk_beg.coffset)
+                return true;
+
+            return false;
+        }
+
+        if (cs.length == 0 || !canMergeWithPreviousChunk()) {
+            chunks[prev_read.bin.id] ~= Chunk(current_chunk_beg, current_chunk_end);
+        } else {
+            chunks[prev_read.bin.id][$ - 1].end = current_chunk_end;
+        }
 
         current_chunk_beg = current_chunk_end;
     }
