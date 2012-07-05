@@ -23,27 +23,26 @@ import std.range;
 import std.traits;
 import std.exception;
 
-private {
-    immutable int LINEAR_INDEX_WINDOW_SIZE_LOG = 14;
+import std.parallelism;
+
+// made public to be accessible from utils.memoize module
+auto decompressTask(BgzfBlock block) {
+    auto t = task!decompressBgzfBlock(block);
+    taskPool.put(t);
+    return t;
 }
 
-    import std.parallelism;
+private alias memoize!(decompressTask, 512, FifoCache, BgzfBlock) memDecompressTask;
 
-    auto decompressTask(BgzfBlock block) {
-        auto t = task!decompressBgzfBlock(block);
-        taskPool.put(t);
-        return t;
-    }
+// made public only to be accessible from std.algorithm
+auto decompressSerial(BgzfBlock block) {
+    return decompress(block).yieldForce();
+}
 
-    alias memoize!(decompressTask, 512, FifoCache, BgzfBlock) memDecompressTask;
-
-    auto decompressSerial(BgzfBlock block) {
-        return decompress(block).yieldForce();
-    }
-
-    auto decompress(BgzfBlock block) { 
-        return memDecompressTask(block);
-    }
+// ditto
+auto decompress(BgzfBlock block) { 
+    return memDecompressTask(block);
+}
 
 debug {
     import std.stdio;
@@ -98,10 +97,7 @@ class RandomAccessManager {
         enforce(found_index_file, "BAM index file (.bai) must be provided");
         enforce(ref_id >= 0 && ref_id < _bai.indices.length, "Invalid reference sequence index");
 
-        beg = max(0, beg);
-        int _i = min(beg >> LINEAR_INDEX_WINDOW_SIZE_LOG, 
-                     cast(int)_bai.indices[ref_id].ioffsets.length - 1);
-        auto min_offset = (_i == -1) ? VirtualOffset(0) : _bai.indices[ref_id].ioffsets[_i];
+        auto min_offset = _bai.indices[ref_id].getMinimumOffset(beg);
 
         auto _stream = new BufferedFile(_filename);
         Stream _compressed_stream = new EndianStream(_stream, Endian.littleEndian);

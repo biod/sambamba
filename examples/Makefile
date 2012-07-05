@@ -28,6 +28,11 @@ rename: $(FILES) rename.d
 rename-gdc: $(FILES) rename.d
 	gdc $(FILES) rename.d -o renamereads $(GDCFLAGS) -fversion=serial
 
+printindex: $(FILES) printindex.d
+	dmd $(FILES) printindex.d -ofprintindex $(DMDFLAGS) -version=serial
+
+printindex-gdc: $(FILES) printindex.d
+	gdc $(FILES) printindex.d -o printindex $(GDCFLAGS) -fversion=serial
 
 clean:
 	rm *.o

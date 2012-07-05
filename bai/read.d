@@ -6,6 +6,7 @@ module bai.read;
 import bai.chunk;
 import bai.bin;
 import virtualoffset;
+import constants;
 
 import std.stream;
 import std.system;
@@ -14,9 +15,46 @@ import std.algorithm;
 import std.file;
 import std.path;
 
+/// Represents index for a single reference
 struct Index {
-    Bin[] bins;
-    VirtualOffset[] ioffsets; // virtual file offsets of first alignments in intervals
+    /// Information about bins
+    Bin[] bins; 
+
+    /// Virtual file offsets of first alignments overlapping 16384-byte windows
+    /// on the reference sequence. This linear index is used to reduce amount
+    /// of file seeks for region queries, since with its help one can reduce the
+    /// number of chunks to be investigated based on their end position.
+    ///
+    ///
+    /// Suppose you have a region [beg, end) and want to do a query.
+    ///
+    /// Here's the reference:
+    /// [....................!..............!.................................]
+    ///                     beg            end
+    ///
+    /// Here's the same reference with 16384-byte long windows:
+    /// [%...........%.......!....%.........!..%...........%...........%......]
+    ///                     beg            end
+    /// [ 1st window][ 2nd window][...
+    ///
+    /// With linear index, we can take the second window, find out what is 
+    /// the minimum virtual offset among alignments overlapping this window,
+    /// and skip all chunks which end position is less or equal to this offset:
+    ///
+    /// [........@...........!..............!.................................]
+    ///   .  ..min. offset   beg           end
+    ///   [  ).        .                              <- this chunk is skipped
+    ///       [        )                              <- this one is not
+    ///
+    VirtualOffset[] ioffsets; 
+
+    // Get virtual offset of the first alignment overlapping $(D position)
+    VirtualOffset getMinimumOffset(int position) {
+        int pos = max(0, position);
+        int _i = min(pos >> BAI_LINEAR_INDEX_SHIFT, cast(int)ioffsets.length - 1);
+        auto min_offset = (_i == -1) ? VirtualOffset(0) : ioffsets[_i];
+        return min_offset;
+    }
 }
 
 struct BaiFile {

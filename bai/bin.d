@@ -34,6 +34,7 @@ struct Bin {
 		if (id == 0) return true;
 
 		/// The following code is based on reg2bins() function
+        if (begin < 0) begin = 0;
 		auto magic_number = 4681;
 		auto b = begin >> 14;
 		auto e = end   >> 14;

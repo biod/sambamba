@@ -64,6 +64,8 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
     ///            Otherwise, memory copying occurs.
     ubyte[] readSlice(size_t n) {
         if (_range.empty()) {
+            _start_offset = _end_offset;
+            _cur = 0;
             readEOF = true;
             return null;
         }
@@ -93,6 +95,8 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
 
         if (_range.empty()) {
             // no more chunks
+            _start_offset = _end_offset;
+            _cur = 0;
             readEOF = true;
             return 0;
         }
@@ -135,6 +139,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
 private:
     ChunkRange _range;
     typeof(_range.front.start_offset) _start_offset;
+    typeof(_range.front.end_offset) _end_offset;
     typeof(_range.front.decompressed_data) _buf;
 
     size_t _len;  // current data length
@@ -142,7 +147,10 @@ private:
 
     void setupStream() {
 
+        _cur = 0;
+
         if (_range.empty()) {
+            _start_offset = _end_offset;
             readEOF = true;
             return;
         }
@@ -151,15 +159,13 @@ private:
                                  /// so extra front() calls
                                  /// can cost a lot
         _start_offset = tmp.start_offset;
+        _end_offset = tmp.end_offset;
         _buf = tmp.decompressed_data;
         _len = _buf.length;
 
         if (_len == 0) {
             readEOF = true;
-            return;
         }
-
-        _cur = 0;
 
         return;
     }

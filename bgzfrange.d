@@ -32,6 +32,7 @@ struct BgzfBlock {
  */
 struct DecompressedBgzfBlock {
     ulong start_offset;
+    ulong end_offset;
     ubyte[] decompressed_data;
 }
 
@@ -39,7 +40,9 @@ struct DecompressedBgzfBlock {
 DecompressedBgzfBlock decompressBgzfBlock(BgzfBlock block) {
 
     if (block.input_size == 0) {
-        return DecompressedBgzfBlock(block.start_offset, cast(ubyte[])[]); // EOF marker
+        return DecompressedBgzfBlock(block.start_offset, 
+                                     block.start_offset + block.bsize + 1,
+                                     cast(ubyte[])[]); // EOF marker
         // TODO: add check for correctness of EOF marker
     }
 
@@ -78,7 +81,9 @@ DecompressedBgzfBlock decompressBgzfBlock(BgzfBlock block) {
 
     assert(block.crc32 == crc32(0, uncompressed));
 
-    return DecompressedBgzfBlock(block.start_offset, cast(ubyte[])uncompressed);
+    return DecompressedBgzfBlock(block.start_offset, 
+                                 block.start_offset + block.bsize + 1,
+                                 cast(ubyte[])uncompressed);
 }
 
 /// Exception type, thrown in case of encountering corrupt BGZF blocks

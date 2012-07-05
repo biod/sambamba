@@ -35,14 +35,22 @@ struct VirtualOffset {
         return voffset & 0xFFFF;
     }
 
-    int opCmp(VirtualOffset other) const nothrow {
+    int opCmp(const ref VirtualOffset other) const nothrow {
         if (this.voffset > other.voffset) { return  1; }
         if (this.voffset < other.voffset) { return -1; }
         return 0;
     }
 
-    int opCmp(ulong voffset) const nothrow {
-        return opCmp(VirtualOffset(voffset));
+    bool opEquals(const ref VirtualOffset other) const nothrow {
+        return this.voffset == other.voffset;
+    }
+
+    bool opEquals(ulong voffset) const nothrow {
+        return opEquals(VirtualOffset(voffset));
+    }
+
+    ulong opCast() const nothrow {
+        return voffset;
     }
 
     /// String representation in format "<coffset>/<uoffset>"
@@ -58,5 +66,6 @@ unittest {
     auto voffset = VirtualOffset(100500, 42);
     assert(voffset.coffset == 100500);
     assert(voffset.uoffset == 42);
+    assert(voffset == (100500UL << 16) + 42UL);
+    assert(cast(ulong)voffset == (100500UL << 16) + 42UL);
 }
-
