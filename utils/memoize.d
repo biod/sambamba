@@ -40,8 +40,6 @@ class FifoCache(uint maxItems, K, V) {
             removals += 1;
 
             if (removals % maxItems == 0) {
-                import std.stdio;
-                stderr.writeln("removals: ", removals);
                 cache.rehash;
             }
         }
