@@ -57,6 +57,8 @@ struct BamFile {
 
         // right after constructing, we are at the beginning
         //                           of the list of alignments
+
+		_alignments_start_voffset = _decompressed_stream.virtualTell();
     }
   
     /// True if associated BAI file was found
@@ -79,45 +81,31 @@ struct BamFile {
     }
 
     /**
-        Returns: range of alignments starting from the current file position.
+        Returns: range of all alignments in the file.
 
-        This is a single range of alignments which is affected by rewind() calls.
-
-        The range operates on the file stream associated with this 
-        BamFile instance. Therefore if you need to use more than one range
-        simultaneously, create several BamFile instances. 
-        However, that's not recommended because disk access performance 
-        is better when the accesses are serial.
+        However, using several ranges is not recommended since it can hurt
+		disk access performance.
      */
     auto alignments() @property {
-        if (_alignments_first_call) {
-            _alignments_first_call = false;
-            _alignment_range = alignmentRange(_decompressed_stream);
-        }
-        return _alignment_range;
+		auto _decompressed_stream = getDecompressedAlignmentStream();
+		return alignmentRange(_decompressed_stream);
     }
 
-    // TODO: think of better design
+	/**
+	  	Returns: range of all alignments in the file together with their
+		start/end virtual offsets (alignmentrange.AlignmentBlock structs)
+	 */
     auto alignmentsWithVirtualOffsets() {
+		auto _decompressed_stream = getDecompressedAlignmentStream();
         return alignmentRangeWithOffsets(_decompressed_stream);
     }
 
-    private bool _alignments_first_call = true;
-
-    /**
-       Closes underlying file stream
-     */
-    void close() {
-        _file.close();
-    }
-    
     /**
       Get an alignment at a given virtual offset.
      */
     Alignment getAlignmentAt(VirtualOffset offset) {
         return _random_access_manager.getAlignmentAt(offset);
     }
-
 
     /**
       Returns reference sequence with id $(D ref_id).
@@ -145,43 +133,14 @@ struct BamFile {
         return null != (ref_name in _reference_sequence_dict);
     }
 
-    /**
-        Seeks to the beginning of the list of alignments.
-        
-        Effect: the range available through alignments() method
-        is refreshed, and its front element is the first element
-        in the file.
-     */
-    void rewind() {
-        initializeStreams();
-        _bam.readString(4); // skip magic
-        int l_text;
-        _bam.read(l_text);
-
-        _bam.readString(l_text); // skip header 
-        // TODO: there should be a faster way, without memory allocations
-
-        int n_ref;
-        _bam.read(n_ref);
-        while (n_ref-- > 0) {
-            int l_name;
-            _bam.read(l_name);
-            _bam.readString(l_name); // TODO: ditto
-            int l_ref;
-            _bam.read(l_ref);
-        } // skip reference sequences information
-
-        _alignment_range = alignmentRange(_decompressed_stream);
-    }
-
 private:
     
     string _filename;
-    Stream _file;
-    Stream _compressed_stream;
-    BgzfRange _bgzf_range;
     IChunkInputStream _decompressed_stream;
     Stream _bam;
+
+	// Virtual offset at which alignment records start.
+	VirtualOffset _alignments_start_voffset;
 
     BaiFile _bai_file; /// provides access to index file
 
@@ -196,22 +155,45 @@ private:
 
     TaskPool _task_pool;
 
+	// get decompressed stream out of compressed BAM file
+	IChunkInputStream getDecompressedStream() {
+		auto file = new BufferedFile(_filename);
+        auto compressed_stream = new EndianStream(file, Endian.littleEndian);
+        auto bgzf_range = BgzfRange(compressed_stream);
+
+        version(serial) {
+            auto chunk_range = map!decompressBgzfBlock(bgzf_range);
+        } else {
+            auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
+        }
+    	
+		return makeChunkInputStream(chunk_range);
+	}
+
+	// get decompressed stream starting from the first alignment record
+	IChunkInputStream getDecompressedAlignmentStream() {
+		enforce(_alignments_start_voffset != 0UL);
+
+		auto file = new BufferedFile(_filename);
+        auto compressed_stream = new EndianStream(file, Endian.littleEndian);
+		compressed_stream.seekCur(_alignments_start_voffset.coffset);
+        auto bgzf_range = BgzfRange(compressed_stream);
+
+        version(serial) {
+            auto chunk_range = map!decompressBgzfBlock(bgzf_range);
+        } else {
+            auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
+        }
+    	
+		auto stream = makeChunkInputStream(chunk_range);
+		stream.readString(_alignments_start_voffset.uoffset);
+		return stream;
+	}
+
     // sets up the streams and ranges
     void initializeStreams() {
         
-        _file = new BufferedFile(_filename);
-        _compressed_stream = new EndianStream(_file, Endian.littleEndian);
-        _bgzf_range = BgzfRange(_compressed_stream);
-
-        version(serial) {
-            auto chunk_range = map!decompressBgzfBlock(_bgzf_range);
-        } else {
-            /* TODO: tweak granularity */
-//            auto chunk_range = parallelTransform!decompressBgzfBlock(_bgzf_range, 25);
-            auto chunk_range = _task_pool.map!decompressBgzfBlock(_bgzf_range, 25);
-        }
-        
-        _decompressed_stream = makeChunkInputStream(chunk_range);
+		_decompressed_stream = getDecompressedStream();
         _bam = new EndianStream(_decompressed_stream, Endian.littleEndian); 
     }
 

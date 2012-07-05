@@ -113,6 +113,7 @@ void createIndex(ref BamFile bam, ref Stream stream) {
 
         // reset data
         linear_offsets[] = 0;
+        linear_offsets_write_length = 0;
         chunks = null;
         current_chunk_beg = prev_block.end_virtual_offset;
     }

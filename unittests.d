@@ -58,14 +58,7 @@ unittest {
     assert(bf.header.getSequenceIndex("chr1") == read.ref_id);
     }
 
-    writeln("Testing BamFile methods...");
-    bf.rewind();
     assert(bf.alignments.front.read_name == "EAS56_57:6:190:289:82");
-    bf.close();
-    /*
-TODO: this should throw
-    bf.alignments.popFront();
-    */
 
     writeln("Testing tag parsing...");
     fn = buildPath(dirName(__FILE__), "test", "data", "tags.bam");
@@ -106,7 +99,6 @@ TODO: this should throw
     bf = BamFile(fn);
 
     void compareWithNaiveApproach(int beg, int end) {
-        bf.rewind();
 
         auto refseq = array(bf["chr1"][beg .. end]);
 
