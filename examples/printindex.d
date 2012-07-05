@@ -1,6 +1,7 @@
 import bamfile;
 import bai.read;
 import std.stdio;
+import std.algorithm;
 import sam.serialize;
 
 void main(string[] args) {
@@ -17,8 +18,8 @@ void main(string[] args) {
                 writeln("\t\t\t[", chunk.beg, ", ", chunk.end, ")");
 				try {
 				writeln("\t\t\t", toSam(bam.getAlignmentAt(chunk.beg),
-										bam.reference_sequences)[0..40], "...");
-				} catch (Exception e) {
+										bam.reference_sequences)[0..min(40, $)], "...");
+				} catch (Throwable e) {
 					writeln("\t\t\t[error]...");
 				}
 				writeln();

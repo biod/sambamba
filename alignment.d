@@ -84,22 +84,6 @@ struct Alignment {
         return this;
     }
 
-    // /////////////////////////////////////////////////////////////////////////
-    //
-    // Layout of Alignment in memory:
-    //
-    // TagStorage      <- tags
-    //     ubyte[]     <- slice of the whole chunk. Must maintain it
-    //         size_t                               because struct cannot hold
-    //         ubyte*                               a pointer to itself in D.
-    //     size_t      <- tags offset in the chunk
-    // ubyte[]         <- _chunk: binary representation of alignment, as in BAM.
-    //     size_t
-    //     ubyte*
-    // bool            <- _is_slice: indicates whether _chunk is a slice or not
-    //
-    // //////////////////////////////////////////////////////////////////////////
-
     @property    int ref_id()           const nothrow { return _refID; }
     @property    int position()         const nothrow { return _pos; }
     @property    Bin bin()              const nothrow { return Bin(_bin); }
