@@ -83,7 +83,6 @@ void createIndex(ref BamFile bam, ref Stream stream) {
 
         auto beg = toLinearIndexOffset(prev_read.position);
         auto end = toLinearIndexOffset(prev_read.position + prev_read.basesCovered());
-        // TODO: think about moving basesCovered() calculation in another thread
 
         foreach (i; beg .. end + 1) {
             if (linear_index[i] == 0UL) {
