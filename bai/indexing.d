@@ -12,8 +12,19 @@ import std.algorithm;
 import std.system;
 import std.exception;
 
+// Suppose we have an alignment which covers bases on a reference,
+// starting from one position and ending at another position.
+// In order to build linear index, we need to find to which windows
+// the two positions correspond. 
+//
+//
+// (K = 16384)
+//
+// [0, K)[K, 2K)[2K, 3K)...         <- windows
+//    [.......)                     <- alignment
+// 
 private size_t toLinearIndexOffset(int position) {
-    return position == 0 ? 0 : (position - 1) >> BAI_LINEAR_INDEX_SHIFT;
+    return position < 0 ? 0 : position / BAI_LINEAR_INDEX_WINDOW_SIZE;
 }
 
 /// Writes BAM index to the $(D stream)
@@ -25,7 +36,7 @@ void createIndex(ref BamFile bam, ref Stream stream) {
     auto nrefs = refs.length;
 
     endian_stream.writeString(BAI_MAGIC);            // write BAI magic string
-    endian_stream.write(cast(int)nrefs);       // and number of references
+    endian_stream.write(cast(int)nrefs);             // and number of references
 
     void writeEmptyReference() {
         endian_stream.write(cast(int)0); // n_bins
@@ -52,9 +63,9 @@ void createIndex(ref BamFile bam, ref Stream stream) {
     auto prev_read = prev_block.alignment;
 
     // array of linear offsets for the current reference entry
-    ulong[BAI_MAX_NONLEAF_BIN_ID + 1] linear_offsets;
-    // (maximum index in linear_offsets where data was written) + 1
-    size_t linear_offsets_write_length;
+    ulong[BAI_MAX_NONLEAF_BIN_ID + 1] linear_index;
+    // (maximum index in linear_index where data was written) + 1
+    size_t linear_index_write_length;
 
     // map: bin ID -> array of chunks
     Chunk[][uint] chunks;
@@ -67,30 +78,27 @@ void createIndex(ref BamFile bam, ref Stream stream) {
         writeEmptyReference();
     }
 
-    void updateLinearOffsets() {
+    void updateLinearIndex() {
         assert(prev_read.ref_id >= 0);
 
-        if (!prev_read.bin.is_leaf) {
+        auto beg = toLinearIndexOffset(prev_read.position);
+        auto end = toLinearIndexOffset(prev_read.position + prev_read.basesCovered());
+        // TODO: think about moving basesCovered() calculation in another thread
 
-            auto beg = toLinearIndexOffset(prev_read.position);
-            auto end = toLinearIndexOffset(prev_read.position + prev_read.basesCovered());
-            // TODO: think about moving basesCovered() calculation in another thread
-
-            foreach (i; beg .. end + 1) {
-                if (linear_offsets[i] == 0UL) {
-                    linear_offsets[i] = cast(ulong)prev_block.start_virtual_offset;
-                }
+        foreach (i; beg .. end + 1) {
+            if (linear_index[i] == 0UL) {
+                linear_index[i] = cast(ulong)prev_block.start_virtual_offset;
             }
+        }
 
-            if (end + 1 > linear_offsets_write_length) {
-                linear_offsets_write_length = end + 1;
-            }
+        if (end + 1 > linear_index_write_length) {
+            linear_index_write_length = end + 1;
         }
     }
 
-    void dumpCurrentLinearOffsets() {
-        endian_stream.write(cast(int)linear_offsets_write_length);
-        foreach (voffset; linear_offsets[0 .. linear_offsets_write_length])
+    void dumpCurrentLinearIndex() {
+        endian_stream.write(cast(int)linear_index_write_length);
+        foreach (voffset; linear_index[0 .. linear_index_write_length])
         {
             endian_stream.write(voffset);
         }
@@ -99,10 +107,7 @@ void createIndex(ref BamFile bam, ref Stream stream) {
     void dumpCurrentReference() {
         endian_stream.write(cast(int)chunks.length);
 
-        auto bin_ids = chunks.keys;
-        sort(bin_ids);
-        foreach (bin_id; bin_ids) {
-            auto bin_chunks = chunks[bin_id];
+        foreach (bin_id, bin_chunks; chunks) {
             if (bin_chunks.length > 0) {
                 endian_stream.write(bin_id);
                 endian_stream.write(cast(int)bin_chunks.length);
@@ -113,11 +118,11 @@ void createIndex(ref BamFile bam, ref Stream stream) {
             }
         }
 
-        dumpCurrentLinearOffsets();
+        dumpCurrentLinearIndex();
 
         // reset data
-        linear_offsets[] = 0;
-        linear_offsets_write_length = 0;
+        linear_index[] = 0;
+        linear_index_write_length = 0;
         chunks = null;
         current_chunk_beg = prev_block.end_virtual_offset;
     }
@@ -158,7 +163,7 @@ void createIndex(ref BamFile bam, ref Stream stream) {
 
         // new reference, so write data for previous one(s)
         if (read.ref_id != prev_read.ref_id) {
-            updateLinearOffsets();
+            updateLinearIndex();
             updateChunks();
             dumpCurrentReference();
             
@@ -193,7 +198,7 @@ void createIndex(ref BamFile bam, ref Stream stream) {
 
         // ---------------------------------------------------------------------
 
-        updateLinearOffsets();
+        updateLinearIndex();
 
         if (read.bin.id != prev_read.bin.id) {
             updateChunks();
@@ -207,7 +212,7 @@ void createIndex(ref BamFile bam, ref Stream stream) {
 
     // after the loop, prev_read is the last read with ref_id >= 0
     assert(prev_read.ref_id >= 0);
-    updateLinearOffsets();
+    updateLinearIndex();
     updateChunks();
     dumpCurrentReference();
 

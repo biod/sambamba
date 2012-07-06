@@ -26,7 +26,7 @@ struct Bin {
 
     /// Returns whether the bin is a leaf in the B-tree
     bool is_leaf() @property const nothrow {
-        return id <= BAI_MAX_NONLEAF_BIN_ID;
+        return id > BAI_MAX_NONLEAF_BIN_ID;
     }
 
 	/// Check if bin can overlap with a region

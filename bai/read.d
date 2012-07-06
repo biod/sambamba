@@ -51,7 +51,7 @@ struct Index {
     // Get virtual offset of the first alignment overlapping $(D position)
     VirtualOffset getMinimumOffset(int position) {
         int pos = max(0, position);
-        int _i = min(pos >> BAI_LINEAR_INDEX_SHIFT, cast(int)ioffsets.length - 1);
+        int _i = min(pos / BAI_LINEAR_INDEX_WINDOW_SIZE, cast(int)ioffsets.length - 1);
         auto min_offset = (_i == -1) ? VirtualOffset(0) : ioffsets[_i];
         return min_offset;
     }

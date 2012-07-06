@@ -42,4 +42,4 @@ immutable ubyte[28] BAM_EOF =
 
 immutable BAI_MAX_BIN_ID = 37449;
 immutable BAI_MAX_NONLEAF_BIN_ID = 4680;
-immutable BAI_LINEAR_INDEX_SHIFT = 14;
+immutable BAI_LINEAR_INDEX_WINDOW_SIZE = 16384;
