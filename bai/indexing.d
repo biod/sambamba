@@ -98,8 +98,23 @@ void createIndex(ref BamFile bam, ref Stream stream) {
 
     void dumpCurrentLinearIndex() {
         endian_stream.write(cast(int)linear_index_write_length);
+
+        //                                                                 
+        // There might be untouched places in linear index                 
+        // with virtual offset equal to zero.                              
+        // However, it's not a good idea to leave those zeros,             
+        // since we can start lookup from the last non-zero virtual offset 
+        // encountered before the untouched window.                        
+        //                                                                 
+        ulong last_voffset = 0;
+
         foreach (voffset; linear_index[0 .. linear_index_write_length])
         {
+            if (voffset == 0) {
+                voffset = last_voffset;
+            } else {
+                last_voffset = voffset;
+            }
             endian_stream.write(voffset);
         }
     }
