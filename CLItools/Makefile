@@ -7,7 +7,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d \
 	  ../jsonserialization.d ../samfile.d ../sam/recordparser.d \
-	  ../utils/tagstoragebuilder.d
+	  ../utils/tagstoragebuilder.d ../bai/indexing.d
 
 all: sambamba-dmd
 
@@ -26,6 +26,14 @@ sambamba-dmd: $(FILES) $(SAMBAMBA_FILES)
 sambamba-gdc: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FILES) -o build/sambamba
+
+sambamba-index-dmd: $(FILES) sambamba-index/index.d
+	mkdir -p build
+	dmd $(DMDFLAGS) $(FILES) sambamba-index/index.d -ofbuild/sambamba-index
+
+sambamba-index-gdc: $(FILES) sambamba-index/index.d
+	mkdir -p build
+	gdc $(GDCFLAGS) $(FILES) sambamba-index/index.d -o build/sambamba-index
 
 sambamba-dmd-dev: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build
