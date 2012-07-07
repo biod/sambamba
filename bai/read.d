@@ -69,7 +69,7 @@ struct BaiFile {
     /// Open BAI file given either filename of BAM file or that of BAI file.
     this(string filename) {
         Stream fstream;
-        if (endsWith(filename, ".bam")) {
+        if (!endsWith(filename, ".bai")) {
             /// Unfortunately, std.path.addExt is going to be deprecated
             if (std.file.exists(filename ~ ".bai")) {
                 fstream = new BufferedFile(absolutePath(filename ~ ".bai"));
