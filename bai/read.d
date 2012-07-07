@@ -12,6 +12,8 @@ import std.stream;
 import std.system;
 import std.exception;
 import std.algorithm;
+import std.conv;
+import std.range;
 import std.file;
 import std.path;
 
@@ -71,15 +73,18 @@ struct BaiFile {
         Stream fstream;
         if (!endsWith(filename, ".bai")) {
             /// Unfortunately, std.path.addExt is going to be deprecated
-            if (std.file.exists(filename ~ ".bai")) {
-                fstream = new BufferedFile(absolutePath(filename ~ ".bai"));
+
+            auto first_filename = filename ~ ".bai";
+            auto second_filename = to!string(retro(find(retro(filename), '.'))) ~ "bai";
+
+            if (std.file.exists(first_filename)) {
+                fstream = new BufferedFile(absolutePath(first_filename));
             } else {
-                filename = filename[0 .. $ - 3] ~ "bai";
-                if (std.file.exists(filename)) {
-                    fstream = new BufferedFile(absolutePath(filename));
+                if (std.file.exists(second_filename)) {
+                    fstream = new BufferedFile(absolutePath(second_filename));
                 } else {
-                    throw new Exception("searched for " ~ filename ~ " or " ~
-                                        filename[0..$-1] ~ "m.bai" ~ ", found neither");
+                    throw new Exception("searched for " ~ first_filename ~ " or " ~
+                                        second_filename ~ ", found neither");
                 }
             }
         } else {
