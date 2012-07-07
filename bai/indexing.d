@@ -81,8 +81,14 @@ void createIndex(ref BamFile bam, ref Stream stream) {
     void updateLinearIndex() {
         assert(prev_read.ref_id >= 0);
 
-        auto beg = toLinearIndexOffset(prev_read.position);
-        auto end = toLinearIndexOffset(prev_read.position + prev_read.basesCovered());
+        size_t beg, end;
+
+        if (prev_read.is_unmapped) {
+            end = beg = toLinearIndexOffset(prev_read.position);
+        } else {
+            beg = toLinearIndexOffset(prev_read.position);
+            end = toLinearIndexOffset(prev_read.position + prev_read.basesCovered() - 1);
+        }
 
         foreach (i; beg .. end + 1) {
             if (linear_index[i] == 0UL) {
