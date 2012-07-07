@@ -94,11 +94,10 @@ int main(string[] args) {
             return 0;
         }
 
-        if (endsWith(args[1], "bam") && !is_sam) {
+        if (!is_sam) {
             auto bam = BamFile(args[1]); 
             return sambambaMain(bam, args);
         } else {
-            is_sam = true;
             auto sam = SamFile(args[1]);
             return sambambaMain(sam, args);
         }
