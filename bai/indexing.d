@@ -213,7 +213,8 @@ void createIndex(ref BamFile bam, ref Stream stream) {
                                 " must be before read '" ~ 
                                 prev_read.read_name ~ 
                                 "' (at virtual offset " ~ 
-                                to!string(prev_block.start_virtual_offset));
+                                to!string(prev_block.start_virtual_offset)~
+                                ")");
         }
 
         // ---------------------------------------------------------------------
