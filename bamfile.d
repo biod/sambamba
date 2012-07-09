@@ -44,7 +44,8 @@ struct BamFile {
             _bai_file = BaiFile(filename);
             _random_access_manager = new RandomAccessManager(_filename, _bai_file);
         } catch (Exception e) {
-            stderr.writeln("Couldn't find index file: ", e.msg);
+            // TODO: logging levels
+            // stderr.writeln("Couldn't find index file: ", e.msg);
             _random_access_manager = new RandomAccessManager(_filename);
         }
 
@@ -133,6 +134,13 @@ struct BamFile {
         return null != (ref_name in _reference_sequence_dict);
     }
 
+    /**
+      Set buffer size for I/O operations.
+     */
+    void setBufferSize(size_t buffer_size) {
+        this.buffer_size = buffer_size;
+    }
+
 private:
     
     string _filename;
@@ -154,10 +162,11 @@ private:
     int[string] _reference_sequence_dict; /// name -> index mapping
 
     TaskPool _task_pool;
+    size_t buffer_size = 8192; // buffer size to be used for I/O
 
 	// get decompressed stream out of compressed BAM file
 	IChunkInputStream getDecompressedStream() {
-		auto file = new BufferedFile(_filename);
+		auto file = new BufferedFile(_filename, FileMode.In, buffer_size);
         auto compressed_stream = new EndianStream(file, Endian.littleEndian);
         auto bgzf_range = BgzfRange(compressed_stream);
 
@@ -174,7 +183,7 @@ private:
 	IChunkInputStream getDecompressedAlignmentStream() {
 		enforce(_alignments_start_voffset != 0UL);
 
-		auto file = new BufferedFile(_filename);
+		auto file = new BufferedFile(_filename, FileMode.In, buffer_size);
         auto compressed_stream = new EndianStream(file, Endian.littleEndian);
 		compressed_stream.seekCur(_alignments_start_voffset.coffset);
         auto bgzf_range = BgzfRange(compressed_stream);

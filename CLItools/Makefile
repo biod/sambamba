@@ -18,6 +18,8 @@ DMDFLAGS=-O -release -inline -g
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
 SAMBAMBA_FILES=sambamba/filter.d sambamba/serializer.d sambamba/sambamba.d
+SAMBAMBA_INDEX_FILES=sambamba-index/index.d
+SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d
 
 sambamba-dmd: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build
@@ -27,13 +29,21 @@ sambamba-gdc: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FILES) -o build/sambamba
 
-sambamba-index-dmd: $(FILES) sambamba-index/index.d
+sambamba-index-dmd: $(FILES) $(SAMBAMBA_INDEX_FILES)
 	mkdir -p build
-	dmd $(DMDFLAGS) $(FILES) sambamba-index/index.d -ofbuild/sambamba-index
+	dmd $(DMDFLAGS) $(FILES) $(SAMBAMBA_INDEX_FILES) -ofbuild/sambamba-index
 
-sambamba-index-gdc: $(FILES) sambamba-index/index.d
+sambamba-index-gdc: $(FILES) $(SAMBAMBA_INDEX_FILES)
 	mkdir -p build
-	gdc $(GDCFLAGS) $(FILES) sambamba-index/index.d -o build/sambamba-index
+	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_INDEX_FILES) -o build/sambamba-index
+
+sambamba-sort-dmd: $(FILES) $(SAMBAMBA_SORT_FILES)
+	mkdir -p build
+	dmd $(DMDFLAGS) $(FILES) $(SAMBAMBA_SORT_FILES) -ofbuild/sambamba-sort
+
+sambamba-sort-gdc: $(FILES) $(SAMBAMBA_SORT_FILES)
+	mkdir -p build
+	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_SORT_FILES) -o build/sambamba-sort
 
 sambamba-dmd-dev: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build

@@ -11,6 +11,7 @@ import std.stream;
 import std.system;
 import std.range;
 import std.algorithm;
+import std.parallelism;
 
 debug {
     import std.stdio;
@@ -73,7 +74,8 @@ void writeBAM(R)(Stream stream,
                  string header, 
                  ReferenceSequenceInfo[] info,
                  R alignments,
-                 int compression_level=-1) 
+                 int compression_level=-1,
+                 TaskPool task_pool=taskPool) 
     if (is(ElementType!R == Alignment))
 {
     // First, pack header and reference sequences.
@@ -216,13 +218,13 @@ void writeBAM(R)(Stream stream,
     }
        
     // helper function
-    static void writeAlignmentBlocks(int n, R)(R chunked_blocks, ref Stream stream) {
+    static void writeAlignmentBlocks(int n, R)(R chunked_blocks, ref Stream stream,
+                                               TaskPool task_pool) {
 
     version(serial) {
         auto bgzf_blocks = map!(makeBgzfCompressor!n)(chunked_blocks);
     } else {
-        import std.parallelism;
-        auto bgzf_blocks = taskPool.map!(makeBgzfCompressor!n)(chunked_blocks);
+        auto bgzf_blocks = task_pool.map!(makeBgzfCompressor!n)(chunked_blocks);
     }
 
         foreach (bgzf_block; bgzf_blocks) {
@@ -231,17 +233,17 @@ void writeBAM(R)(Stream stream,
     }
 
     switch (compression_level) {
-        case -1: writeAlignmentBlocks!(-1)(chunked_blocks, stream); break;
-        case 0: writeAlignmentBlocks!(0)(chunked_blocks, stream); break;
-        case 1: writeAlignmentBlocks!(1)(chunked_blocks, stream); break;
-        case 2: writeAlignmentBlocks!(2)(chunked_blocks, stream); break;
-        case 3: writeAlignmentBlocks!(3)(chunked_blocks, stream); break;
-        case 4: writeAlignmentBlocks!(4)(chunked_blocks, stream); break;
-        case 5: writeAlignmentBlocks!(5)(chunked_blocks, stream); break;
-        case 6: writeAlignmentBlocks!(6)(chunked_blocks, stream); break;
-        case 7: writeAlignmentBlocks!(7)(chunked_blocks, stream); break;
-        case 8: writeAlignmentBlocks!(8)(chunked_blocks, stream); break;
-        case 9: writeAlignmentBlocks!(9)(chunked_blocks, stream); break;
+        case -1: writeAlignmentBlocks!(-1)(chunked_blocks, stream, task_pool); break;
+        case 0: writeAlignmentBlocks!(0)(chunked_blocks, stream, task_pool); break;
+        case 1: writeAlignmentBlocks!(1)(chunked_blocks, stream, task_pool); break;
+        case 2: writeAlignmentBlocks!(2)(chunked_blocks, stream, task_pool); break;
+        case 3: writeAlignmentBlocks!(3)(chunked_blocks, stream, task_pool); break;
+        case 4: writeAlignmentBlocks!(4)(chunked_blocks, stream, task_pool); break;
+        case 5: writeAlignmentBlocks!(5)(chunked_blocks, stream, task_pool); break;
+        case 6: writeAlignmentBlocks!(6)(chunked_blocks, stream, task_pool); break;
+        case 7: writeAlignmentBlocks!(7)(chunked_blocks, stream, task_pool); break;
+        case 8: writeAlignmentBlocks!(8)(chunked_blocks, stream, task_pool); break;
+        case 9: writeAlignmentBlocks!(9)(chunked_blocks, stream, task_pool); break;
         default: assert(0);
     }
 
