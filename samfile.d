@@ -92,11 +92,12 @@ private:
 
         _header = new SamHeader(cast(string)(header.data));
 
+        _reference_sequences = new ReferenceSequenceInfo[_header.sequences.length];
         foreach (sq; _header.sequences) {
             ReferenceSequenceInfo seq;
             seq.name = sq.name;
             seq.length = sq.length;
-            _reference_sequences ~= seq;
+            _reference_sequences[_header.getSequenceIndex(seq.name)] = seq;
         }
     }
 }
