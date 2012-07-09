@@ -11,6 +11,7 @@ import std.ascii;
 import std.parallelism;
 import std.getopt;
 import std.path;
+import std.file;
 import std.stream;
 import std.stdio;
 
@@ -71,10 +72,14 @@ int main(string[] args) {
             return chunk;
         }
 
+        string[] tmpfiles;
+
         auto num_of_chunks = 0;
         foreach (chunk; map!sortChunk(chunks(bam.alignments, memory_limit)))
         {
             auto fn = tmpFile(chunkBaseName(args[1], num_of_chunks), tmpdir);
+            tmpfiles ~= fn;
+
             Stream stream = new BufferedFile(fn, FileMode.Out);
             scope(exit) stream.close();
 
@@ -91,7 +96,7 @@ int main(string[] args) {
 
         // half of memory is for input buffers
         foreach (i, ref range; alignmentranges) {
-            auto bamfile = BamFile(tmpFile(chunkBaseName(args[1], i), tmpdir));
+            auto bamfile = BamFile(tmpfiles[i]);
             bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
             range = bamfile.alignments;
         }
@@ -105,6 +110,12 @@ int main(string[] args) {
                  nWayUnion!compareAlignmentCoordinates(alignmentranges),
                  -1,
                  task_pool);
+
+        // ---------------- remove temporary files -----------------------------
+
+        foreach (tmpfile; tmpfiles) {
+            remove(tmpfile);
+        }
 
         return 0;
     } catch (Throwable e) {
