@@ -6,8 +6,9 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d \
-	  ../jsonserialization.d ../samfile.d ../sam/recordparser.d \
-	  ../utils/tagstoragebuilder.d ../bai/indexing.d
+	  ../jsonserialization.d ../bai/indexing.d
+
+SAMFILES=../samfile.d ../sam/recordparser.d ../utils/tagstoragebuilder.d
 
 all: sambamba-dmd
 
@@ -22,13 +23,13 @@ SAMBAMBA_INDEX_FILES=sambamba-index/index.d
 SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d
 SAMBAMBA_FLAGSTAT_FILES=sambamba-flagstat/flagstat.d
 
-sambamba-dmd: $(FILES) $(SAMBAMBA_FILES)
+sambamba-dmd: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 	mkdir -p build
-	dmd $(DMDFLAGS) $(FILES) $(SAMBAMBA_FILES) -ofbuild/sambamba
+	dmd $(DMDFLAGS) $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -ofbuild/sambamba
 
-sambamba-gdc: $(FILES) $(SAMBAMBA_FILES)
+sambamba-gdc: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 	mkdir -p build
-	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FILES) -o build/sambamba
+	gdc $(GDCFLAGS) $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -o build/sambamba
 
 sambamba-index-dmd: $(FILES) $(SAMBAMBA_INDEX_FILES)
 	mkdir -p build
@@ -54,10 +55,10 @@ sambamba-flagstat-gdc: $(FILES) $(SAMBAMBA_FLAGSTAT_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FLAGSTAT_FILES) -o build/sambamba-flagstat
 
-sambamba-dmd-dev: $(FILES) $(SAMBAMBA_FILES)
+sambamba-dmd-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 	mkdir -p build
-	dmd -g $(FILES) $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
+	dmd -g $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
 
-sambamba-gdc-dev: $(FILES) $(SAMBAMBA_FILES)
+sambamba-gdc-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 	mkdir -p build
-	gdc -g -O0 -lpthread $(FILES) $(SAMBAMBA_FILES) -fversion=development -o build/sambamba
+	gdc -g -O0 -lpthread $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -fversion=development -o build/sambamba
