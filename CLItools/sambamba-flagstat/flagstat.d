@@ -18,7 +18,7 @@ void writeParamWithPercentage(string description, ulong[2] param, ulong[2] total
 
 int main(string[] args) {
     if (args.length == 1 || args.length > 3) {
-        stderr.writeln("Usage: sambamba-flagstat <input.bam> [nthreads=#CPUs]");
+        stderr.writeln("Usage: sambamba-flagstat <input.bam> [nthreads=#cores]");
         return 1;
     }
 
