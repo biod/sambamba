@@ -22,7 +22,8 @@ int main(string[] args) {
         return 1;
     }
 
-    auto threads = args.length == 2 ? totalCPUs : to!int(args[2]);
+    try {
+    auto threads = args.length == 2 ? totalCPUs : to!uint(args[2]);
     auto task_pool = new TaskPool(threads);
     scope(exit) task_pool.finish();
 
@@ -63,6 +64,8 @@ int main(string[] args) {
         writeParam("with mate mapped to a different chr", diff_chr);
         writeParam("with mate mapped to a different chr (mapQ>=5)", diff_high);
     }
-
+    } catch (Throwable e) {
+        stderr.writeln(e.msg);
+    }
     return 0;
 }
