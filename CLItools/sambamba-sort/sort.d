@@ -67,6 +67,8 @@ int main(string[] args) {
 
         // ----------------------- sort chunks -------------------------------------
 
+        stderr.writeln("sorting...");
+
         static Alignment[] sortChunk(Alignment[] chunk) {
             mergeSort!compareAlignmentCoordinates(chunk, true); // threaded
             return chunk;
@@ -91,6 +93,9 @@ int main(string[] args) {
 
         // ---------------------- merge sorted chunks ------------------------------
 
+        stderr.writeln("merging...");
+        stderr.writeln("    setting up alignment ranges...");
+
         alias ReturnType!(BamFile.alignments) AlignmentRange;
         auto alignmentranges = new AlignmentRange[num_of_chunks];
 
@@ -101,6 +106,7 @@ int main(string[] args) {
             range = bamfile.alignments;
         }
 
+        stderr.writeln("    writing...");
         // and another half is for output buffers
         Stream stream = new BufferedFile(output_filename, FileMode.Out,
                                          memory_limit / 2);

@@ -20,6 +20,7 @@ GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funr
 SAMBAMBA_FILES=sambamba/filter.d sambamba/serializer.d sambamba/sambamba.d
 SAMBAMBA_INDEX_FILES=sambamba-index/index.d
 SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d
+SAMBAMBA_FLAGSTAT_FILES=sambamba-flagstat/flagstat.d
 
 sambamba-dmd: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build
@@ -44,6 +45,14 @@ sambamba-sort-dmd: $(FILES) $(SAMBAMBA_SORT_FILES)
 sambamba-sort-gdc: $(FILES) $(SAMBAMBA_SORT_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_SORT_FILES) -o build/sambamba-sort
+
+sambamba-flagstat-dmd: $(FILES) $(SAMBAMBA_FLAGSTAT_FILES)
+	mkdir -p build
+	dmd $(DMDFLAGS) $(FILES) $(SAMBAMBA_FLAGSTAT_FILES) -ofbuild/sambamba-flagstat
+
+sambamba-flagstat-gdc: $(FILES) $(SAMBAMBA_FLAGSTAT_FILES)
+	mkdir -p build
+	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FLAGSTAT_FILES) -o build/sambamba-flagstat
 
 sambamba-dmd-dev: $(FILES) $(SAMBAMBA_FILES)
 	mkdir -p build
