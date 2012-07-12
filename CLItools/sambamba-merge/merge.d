@@ -46,3 +46,75 @@
                   -> writeBAM with merged header and reference sequences info
 
    */
+
+import bamfile;
+import samheader;
+
+import std.stdio;
+import std.algorithm;
+import std.array;
+import std.range;
+import std.typecons;
+
+void printUsage() {
+}
+
+int main(string[] args) {
+
+    if (args.length == 1) {
+        printUsage();
+        return 1;
+    }
+
+    auto filenames = args[1 .. $];
+    auto files = array(map!((string fn) { return BamFile(fn); })(filenames));
+    auto headers = array(map!"a.header"(files));
+
+    auto ref_id_map = new int[int][files.length];
+    auto program_id_map = new string[string][files.length];
+    auto readgroup_id_map = new string[string][files.length];
+
+    auto merged_header = new SamHeader();
+
+    void mergeReadGroups() {
+        auto readgroups_with_file_ids = joiner(
+            map!((size_t i) {
+                    return map!((RgLine line) {
+                                   return tuple(line, i);
+                                })(headers[i].read_groups.values);
+                 })(iota(filenames.length)));                             
+       
+        size_t[][RgLine][string] id_to_record;
+
+        foreach (rg_and_file; readgroups_with_file_ids) {
+            auto rg = rg_and_file[0];
+            auto file_id = rg_and_file[1];
+            id_to_record[rg.identifier][rg] ~= file_id;
+        }
+
+        bool[string] already_used_ids;
+        foreach (rg_id, records_with_same_id; id_to_record) {
+            foreach (rg, file_ids; records_with_same_id) {
+                string new_id = rg_id;
+                if (rg_id !in already_used_ids) {
+                    already_used_ids[rg_id] = true;
+                } else {
+                    for (int i = 1; ; ++i) {
+                        new_id = rg_id ~ "." ~ to!string(i);
+                        if (new_id !in already_used_ids) {
+                            already_used_ids[new_id] = true;
+                            break;
+                        }
+                    }
+                }
+
+                foreach (file_id; file_ids) {
+                    readgroup_id_map[file_id][rg_id] = new_id;
+                }
+            }
+        }
+    }
+
+    mergeReadGroups();
+    return 0;
+}

@@ -6,6 +6,8 @@ import std.algorithm;
 import std.conv;
 import std.exception;
 import std.array;
+import std.range;
+import std.traits;
 import utils.format;
 
 import std.stdio;
@@ -94,24 +96,73 @@ private {
         }
     }
 
+    mixin template toHashMethod(string struct_name, string id_field) {
+        static if (id_field != null) {
+            hash_t toHash() const nothrow @safe {
+                mixin("return typeid(" ~ id_field ~ ").getHash(&" ~ id_field ~");");
+            }
+
+            mixin("int opCmp(const ref " ~ struct_name ~ " other) " ~
+                  "    const pure nothrow @safe" ~
+                  "{" ~
+                  "    return " ~ id_field ~ " < other." ~ id_field ~ " ? -1 : " ~
+                  "           " ~ id_field ~ " > other." ~ id_field ~ " ? 1 : 0;" ~
+                  "}");
+        }
+    }
+
+    string opEqualsExpression(Field...)() {
+        char[] result = Field[0].name ~ " == other.".dup ~ Field[0].name;
+        foreach (t; Field[1..$]) {
+            result ~= " && " ~ t.name ~ " == other.".dup ~ t.name;
+        }
+        return result.idup;
+    }
+
+    mixin template opEqualsMethod(string struct_name, Field...) {
+        mixin("bool opEquals(const ref " ~ struct_name ~ " other)" ~
+              "    pure const @safe nothrow" ~
+              "{" ~
+              "    return " ~ opEqualsExpression!Field() ~ ";" ~
+              "}");
+
+        mixin("bool opEquals(" ~ struct_name ~ " other)" ~
+              "    pure const @safe nothrow" ~
+              "{" ~
+              "    return " ~ opEqualsExpression!Field() ~ ";" ~
+              "}");
+    }
+
+    mixin template getIDMethod(string id_field) {
+        static if (id_field != null) {
+            auto getID() const pure nothrow @safe {
+                mixin("return " ~ id_field ~";");
+            }
+        }
+    }
+
     mixin template HeaderLineStruct(string struct_name, 
                                     string line_prefix,
+                                    string id_field,
                                     Field...) 
     {
          mixin(`struct `~struct_name~`{ 
                     mixin structFields!Field;
                     mixin parseStaticMethod!(struct_name, Field);
                     mixin serializeMethod!(line_prefix, Field);
+                    mixin toHashMethod!(struct_name, id_field);
+                    mixin opEqualsMethod!(struct_name, Field);
+                    mixin getIDMethod!id_field;
                 }`);
     }
 
 }
 
-mixin HeaderLineStruct!("HdLine", "@HD",
+mixin HeaderLineStruct!("HdLine", "@HD", null,
           Field!("format_version", "VN"),
           Field!("sorting_order", "SO"));
 
-mixin HeaderLineStruct!("SqLine", "@SQ",
+mixin HeaderLineStruct!("SqLine", "@SQ", "name",
           Field!("name", "SN"),
           Field!("length", "LN", uint),
           Field!("assembly", "AS"),
@@ -119,7 +170,7 @@ mixin HeaderLineStruct!("SqLine", "@SQ",
           Field!("species", "SP"),
           Field!("uri", "UR"));
 
-mixin HeaderLineStruct!("RgLine", "@RG",
+mixin HeaderLineStruct!("RgLine", "@RG", "identifier",
           Field!("identifier", "ID"),
           Field!("sequencing_center", "CN"),
           Field!("description", "DS"),
@@ -133,7 +184,7 @@ mixin HeaderLineStruct!("RgLine", "@RG",
           Field!("platform_unit", "PU"),
           Field!("sample", "SM"));
 
-mixin HeaderLineStruct!("PgLine", "@PG",
+mixin HeaderLineStruct!("PgLine", "@PG", "identifier",
           Field!("identifier", "ID"),
           Field!("name", "PN"),
           Field!("command_line", "CL"),
@@ -175,9 +226,26 @@ unittest {
     assert(pg_line.previous_program == "bam_recalibrate_quality_scores");
     assert(pg_line.program_version == "0.1.17 (r973:277)");
     assert(pg_line.command_line.endsWith("$bq_bam_file"));
+
+    writeln("Testing toHash()/opEquals() for SQ/RG/PG lines");
+    assert(PgLine.parse("@PG\tID:abc\tPN:def").toHash() == PgLine.parse("@PG\tID:abc\tPN:ghi").toHash());
+    assert(PgLine.parse("@PG\tID:abc\tPN:def") != PgLine.parse("@PG\tID:abc\tPN:ghi"));
 }
 
-class HeaderLineDictionary(T, alias getID) {
+class HeaderLineDictionary(T) {
+
+    /* D doesn't currently support invariant in this class 
+       because values() has type auto :-(
+
+    invariant() {
+        assert(_index_to_id.length == _dict.length);
+        assert(_id_to_index.length == _dict.length);
+        foreach(id, index; _id_to_index) {
+            assert(_index_to_id[index] == id);
+        }
+    }
+    */
+
     T opIndex(string id) const {
         return _dict[id];
     }
@@ -187,27 +255,39 @@ class HeaderLineDictionary(T, alias getID) {
     }
 
     bool add(T line) {
-        auto id = getID(line);
+        auto id = line.getID();
         if (id !in _dict) {
             _dict[id] = line;
+            _id_to_index[id] = _index_to_id.length;
+            _index_to_id ~= id;
             return true;
         }
         return false;
     }
 
     bool remove(string id) {
-        version(GNU) {
-            bool result = (id in _dict) !is null;
+        if (id in _dict) {
+            auto old_len = _dict.length;
+
+            for (auto j = _id_to_index[id]; j < old_len - 1; ++j) {
+                _index_to_id[j] = _index_to_id[j + 1];
+                _id_to_index[_index_to_id[j]] = j;
+            }
+
+            _index_to_id.length = _index_to_id.length - 1;
+
             _dict.remove(id);
-            return result;
-        } else {
-            return _dict.remove(id);
+            _id_to_index.remove(id); 
+
+            return true;
         }
+
+        return false;
     }
 
     int opApply(int delegate(ref T line) dg) {
-        foreach (ref T line; _dict.byValue()) {
-            auto res = dg(line);
+        foreach (size_t i; 0 .. _dict.length) {
+            auto res = dg(_dict[_index_to_id[i]]);
             if (res != 0) {
                 return res;
             }
@@ -217,15 +297,15 @@ class HeaderLineDictionary(T, alias getID) {
 
     void clear() {
         _dict = null;
+        _id_to_index = null;
+        _index_to_id.length = 0;
     }
 
     /// Returns: range of lines
-    auto values() @property const {
-        version(GNU) {
-            return _dict.values;
-        } else {
-            return _dict.byValue();
-        }
+    auto values() @property {
+        return map!((size_t i) {
+                        return _dict[_index_to_id[i]];
+                    })(iota(_dict.length));
     }
 
     /// Returns: number of stored lines
@@ -233,78 +313,31 @@ class HeaderLineDictionary(T, alias getID) {
         return _dict.length;
     }
 
-    protected T[string] _dict;
+    protected {
+        T[string] _dict;
+        string[] _index_to_id;
+        size_t[string] _id_to_index;
+    }
 }
 
-private string sqLineGetId(const ref SqLine line) { return line.name; }
-private string rgLineGetId(const ref RgLine line) { return line.identifier; }
-private string pgLineGetId(const ref PgLine line) { return line.identifier; }
-
 /// Dictionary of @SQ lines.
-class SqLineDictionary : HeaderLineDictionary!(SqLine, sqLineGetId)
+final class SqLineDictionary : HeaderLineDictionary!SqLine
 {
-
-    invariant() {
-        import std.algorithm;
-        assert(_indices.length == _dict.length);
-        assert(_names.length == _dict.length);
-    }
-
-    override bool add(SqLine line) {
-        if (super.add(line)) {
-            _indices[line.name] = _names.length;
-            _names ~= line.name;
-            return true;
-        }
-        return false;
-    }
-
-    override bool remove(string sequence_name) {
-        auto old_len = _dict.length;
-        if (super.remove(sequence_name)) {
-
-            auto index = _indices[sequence_name];
-            _indices.remove(sequence_name); 
-
-            for (size_t j = index + 1; j < old_len; ++j) {
-                auto name = _names[j];
-                _names[j - 1] = _names[j];
-                _indices[_names[j - 1]] = j - 1;
-            }
-
-            _names.length = _names.length - 1;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    override void clear() {
-        super.clear();
-        _names.length = 0;
-        _indices = null;
-    }
-
     SqLine getSequence(size_t index) {
-        return _dict[_names[index]];
+        return _dict[_index_to_id[index]];
     }
 
     int getSequenceIndex(string sequence_name) {
-        size_t* ind = sequence_name in _indices;
+        size_t* ind = sequence_name in _id_to_index;
         return (ind is null) ? -1 : cast(int)(*ind);
     }
-        
-    private:
-        string[] _names;
-        size_t[string] _indices;
 }
 
 /// Dictionary of @RG lines
-alias HeaderLineDictionary!(RgLine, rgLineGetId) RgLineDictionary;
+alias HeaderLineDictionary!RgLine RgLineDictionary;
 
 /// Dictionary of @PG lines
-alias HeaderLineDictionary!(PgLine, pgLineGetId) PgLineDictionary;
+alias HeaderLineDictionary!PgLine PgLineDictionary;
 
 class SamHeader {
 
