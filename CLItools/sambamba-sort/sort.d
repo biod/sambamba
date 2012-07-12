@@ -15,6 +15,8 @@ import std.file;
 import std.stream;
 import std.stdio;
 
+import common.comparators;
+import common.nwayunion : nWayUnion;
 import thirdparty.mergesort;
 
 void printUsage() {
@@ -165,14 +167,6 @@ size_t parseMemory(string str) {
     }
 }
 
-/// Comparison function for alignments
-bool compareAlignmentCoordinates(Alignment a1, Alignment a2) {
-    if (a1.ref_id < a2.ref_id) return true;
-    if (a1.ref_id > a2.ref_id) return false;
-    if (a1.position < a2.position) return true;
-    return false;
-}
-
 /// Base name of the file corresponding to chunk number $(D chunk_num)
 ///
 /// Params:
@@ -262,53 +256,4 @@ struct Chunks(R)
 
 auto chunks(R)(R alignments, size_t chunk_size) {
     return Chunks!R(alignments, chunk_size);
-}
-
-// copy-pasted from std.algorithm. The only difference is that front is not a ref.
-import std.container;
-import std.functional;
-
-struct NWayUnion(alias less, RangeOfRanges)
-{
-    private alias .ElementType!(.ElementType!RangeOfRanges) ElementType;
-    private alias binaryFun!less comp;
-    private RangeOfRanges _ror;
-    static bool compFront(.ElementType!RangeOfRanges a,
-            .ElementType!RangeOfRanges b)
-    {
-        return comp(b.front, a.front);
-    }
-    BinaryHeap!(RangeOfRanges, compFront) _heap;
-
-    this(RangeOfRanges ror)
-    {
-        _ror = remove!("a.empty", SwapStrategy.unstable)(ror);
-        _heap.acquire(_ror);
-    }
-
-    @property bool empty() { return _ror.empty; }
-
-    @property ElementType front() // <-------- the only difference
-    {
-        return _heap.front.front;
-    }
-
-    void popFront()
-    {
-        _heap.removeFront();
-        _ror.back.popFront();
-        if (_ror.back.empty)
-        {
-            _ror.popBack();
-            return;
-        }
-        _heap.conditionalInsert(_ror.back) || assert(false);
-    }
-}
-
-NWayUnion!(less, RangeOfRanges) nWayUnion
-(alias less = "a < b", RangeOfRanges)
-(RangeOfRanges ror)
-{
-    return typeof(return)(ror);
 }

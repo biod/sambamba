@@ -20,7 +20,9 @@ GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funr
 
 SAMBAMBA_FILES=sambamba/filter.d sambamba/serializer.d sambamba/sambamba.d
 SAMBAMBA_INDEX_FILES=sambamba-index/index.d
-SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d
+SAMBAMBA_SORT_MERGE_COMMON_FILES=common/comparators.d common/nwayunion.d
+SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d $(SAMBAMBA_SORT_MERGE_COMMON_FILES)
+SAMBAMBA_MERGE_FILES=sambamba-merge/merge.d $(SAMBAMBA_SORT_MERGE_COMMON_FILES)
 SAMBAMBA_FLAGSTAT_FILES=sambamba-flagstat/flagstat.d
 
 sambamba-dmd: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
@@ -46,6 +48,14 @@ sambamba-sort-dmd: $(FILES) $(SAMBAMBA_SORT_FILES)
 sambamba-sort-gdc: $(FILES) $(SAMBAMBA_SORT_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_SORT_FILES) -o build/sambamba-sort
+
+sambamba-merge-dmd: $(FILES) $(SAMBAMBA_MERGE_FILES)
+	mkdir -p build
+	dmd $(DMDFLAGS) $(FILES) $(SAMBAMBA_MERGE_FILES) -ofbuild/sambamba-merge
+
+sambamba-merge-gdc: $(FILES) $(SAMBAMBA_MERGE_FILES)
+	mkdir -p build
+	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_MERGE_FILES) -o build/sambamba-merge
 
 sambamba-flagstat-dmd: $(FILES) $(SAMBAMBA_FLAGSTAT_FILES)
 	mkdir -p build

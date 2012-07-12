@@ -49,26 +49,34 @@
 
 import bamfile;
 import samheader;
+import bamoutput;
 
 import std.stdio;
 import std.algorithm;
 import std.array;
 import std.range;
 import std.typecons;
+import std.stream;
+
+import common.comparators;
+import common.nwayunion : nWayUnion;
 
 void printUsage() {
 }
 
 int main(string[] args) {
 
-    if (args.length == 1) {
+    if (args.length < 3) {
         printUsage();
         return 1;
     }
 
-    auto filenames = args[1 .. $];
+    auto output_filename = args[1];
+    auto filenames = args[2 .. $];
     auto files = array(map!((string fn) { return BamFile(fn); })(filenames));
     auto headers = array(map!"a.header"(files));
+    // TODO: check that all headers are valid
+    // TODO: check that all files have the same sorting order
 
     auto ref_id_map = new int[int][files.length];
     auto program_id_map = new string[string][files.length];
@@ -76,14 +84,18 @@ int main(string[] args) {
 
     auto merged_header = new SamHeader();
 
+    // TODO: make templated version of this function for @SQ and @PG lines,
+    //       though it's not directly applicable in these cases
     void mergeReadGroups() {
         auto readgroups_with_file_ids = joiner(
             map!((size_t i) {
                     return map!((RgLine line) {
                                    return tuple(line, i);
                                 })(headers[i].read_groups.values);
-                 })(iota(filenames.length)));                             
-       
+                 })(iota(filenames.length))
+        );                             
+      
+        // Map: read group identifier -> read group record -> list of files
         size_t[][RgLine][string] id_to_record;
 
         foreach (rg_and_file; readgroups_with_file_ids) {
@@ -93,12 +105,26 @@ int main(string[] args) {
         }
 
         bool[string] already_used_ids;
+
+        // Loop through all identifiers
         foreach (rg_id, records_with_same_id; id_to_record) {
+
+            // Several read groups can share the common identifier,
+            // each one of them can be presented in several files.
+            // 
+            // If read groups are equal (i.e. all fields are equal)
+            // they are treated as a single read group.
+            // 
+            // Here we iterate over those 'single' read groups and
+            // files where they were seen, renaming identifiers
+            // in order to avoid collisions where necessary.
             foreach (rg, file_ids; records_with_same_id) {
                 string new_id = rg_id;
                 if (rg_id !in already_used_ids) {
                     already_used_ids[rg_id] = true;
                 } else {
+                    // if already used ID is encountered,
+                    // find unused ID by adding ".N" to the old ID
                     for (int i = 1; ; ++i) {
                         new_id = rg_id ~ "." ~ to!string(i);
                         if (new_id !in already_used_ids) {
@@ -108,6 +134,7 @@ int main(string[] args) {
                     }
                 }
 
+                // save mapping
                 foreach (file_id; file_ids) {
                     readgroup_id_map[file_id][rg_id] = new_id;
                 }
@@ -116,5 +143,38 @@ int main(string[] args) {
     }
 
     mergeReadGroups();
+
+    auto alignmentranges_with_file_ids = array(
+        map!((size_t i) {
+                return tuple(files[i].alignments, i); 
+             })(iota(files.length))
+    );
+
+    auto modifiedranges = array(
+        map!((Tuple!(typeof(BamFile.alignments), size_t) alignments_with_file_id) {
+            auto alignments = alignments_with_file_id[0];
+            auto file_id = alignments_with_file_id[1];
+           
+            return map!(
+                (Alignment al) {
+                    auto read_group = al["RG"];
+                    if (!read_group.is_nothing) {
+                        auto rg_str = cast(string)read_group;
+                        al["RG"] = readgroup_id_map[file_id][rg_str];
+                    }
+                    return al;
+                })(alignments);
+        })(alignmentranges_with_file_ids)
+    );
+
+    Stream stream = new BufferedFile(output_filename, FileMode.Out);
+    scope(exit) stream.close();
+    // TODO: modify merged header
+    // TODO: make new reference sequence dictionary
+    writeBAM(stream, 
+             toSam(merged_header), 
+             files[0].reference_sequences,
+             nWayUnion!compareAlignmentCoordinates(modifiedranges));
+
     return 0;
 }

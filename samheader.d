@@ -96,10 +96,21 @@ private {
         }
     }
 
-    mixin template toHashMethod(string struct_name, string id_field) {
+    string generateHashExpression(Field...)() {
+        char[] res;
+        foreach (t; Field) {
+            res ~= "result = 31 * result + " ~
+                   "typeid(" ~ t.name ~ ").getHash(&" ~ t.name ~ ");".dup;
+        }
+        return res.idup;
+    }
+
+    mixin template toHashMethod(string struct_name, string id_field, Field...) {
         static if (id_field != null) {
             hash_t toHash() const nothrow @safe {
-                mixin("return typeid(" ~ id_field ~ ").getHash(&" ~ id_field ~");");
+                hash_t result = 1;
+                mixin(generateHashExpression!Field());    
+                return result;
             }
 
             mixin("int opCmp(const ref " ~ struct_name ~ " other) " ~
@@ -150,7 +161,7 @@ private {
                     mixin structFields!Field;
                     mixin parseStaticMethod!(struct_name, Field);
                     mixin serializeMethod!(line_prefix, Field);
-                    mixin toHashMethod!(struct_name, id_field);
+                    mixin toHashMethod!(struct_name, id_field, Field);
                     mixin opEqualsMethod!(struct_name, Field);
                     mixin getIDMethod!id_field;
                 }`);
@@ -226,10 +237,6 @@ unittest {
     assert(pg_line.previous_program == "bam_recalibrate_quality_scores");
     assert(pg_line.program_version == "0.1.17 (r973:277)");
     assert(pg_line.command_line.endsWith("$bq_bam_file"));
-
-    writeln("Testing toHash()/opEquals() for SQ/RG/PG lines");
-    assert(PgLine.parse("@PG\tID:abc\tPN:def").toHash() == PgLine.parse("@PG\tID:abc\tPN:ghi").toHash());
-    assert(PgLine.parse("@PG\tID:abc\tPN:def") != PgLine.parse("@PG\tID:abc\tPN:ghi"));
 }
 
 class HeaderLineDictionary(T) {
