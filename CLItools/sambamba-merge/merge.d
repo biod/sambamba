@@ -4,6 +4,8 @@
    In order for several BAM files to be merged into one, they must firstly be
    sorted in the same order.
 
+   The algorithms used here are based on those from Picard.
+
    1) Merging headers.
         
         a) Merging sequence dictionaries.
@@ -53,6 +55,7 @@ import bamoutput;
 
 import std.stdio;
 import std.algorithm;
+import std.conv;
 import std.array;
 import std.range;
 import std.typecons;
@@ -78,11 +81,61 @@ int main(string[] args) {
     // TODO: check that all headers are valid
     // TODO: check that all files have the same sorting order
 
-    auto ref_id_map = new int[int][files.length];
+    auto ref_id_map = new size_t[size_t][files.length];
     auto program_id_map = new string[string][files.length];
     auto readgroup_id_map = new string[string][files.length];
 
     auto merged_header = new SamHeader();
+
+    void mergeSequenceDictionaries() {
+        static SqLineDictionary mergeTwoDictionaries(SqLineDictionary d1, SqLineDictionary d2)
+        {
+            auto result = d1;
+            int last_index_of_sequence_found_in_d1 = -1; // for checking order inconsistency
+           
+            foreach (sequence; d2) {
+                auto index_in_d1 = result.getSequenceIndex(sequence.name);
+                if (index_in_d1 == -1) { // not found
+                    result.add(sequence);
+                } else {
+                    if (index_in_d1 < last_index_of_sequence_found_in_d1) {
+                        // can't merge because of issues with sorting order
+                        throw new Exception("can't merge SAM headers: reference sequences " ~
+                                d1.getSequence(index_in_d1).name ~ " and " ~
+                                sequence.name ~ " have inconsistent order");
+                    }
+
+                    last_index_of_sequence_found_in_d1 = index_in_d1; // store last index
+
+                    auto expected_sequence_length = d1.getSequence(index_in_d1).length;
+                    if (expected_sequence_length != sequence.length) {
+                        // those two @SQ lines are highly unlikely to refer to the same
+                        // reference sequence if lengths are different
+                        throw new Exception("can't merge SAM headers: one of references with " ~
+                                "name " ~ sequence.name ~ " has length " ~ 
+                                to!string(expected_sequence_length) ~ 
+                                " while another one with the same name has length " ~ 
+                                to!string(sequence.length));
+                    } 
+                    // TODO: otherwise, it would be nice to merge individual tags for
+                    //       these two @SQ lines
+                }
+            }
+
+            return result;
+        }
+
+        // save new dictionary in merged header
+        merged_header.sequences = reduce!mergeTwoDictionaries(map!"a.sequences"(headers));
+
+        // make mapping
+        foreach (size_t i, header; headers) {
+            foreach (size_t j, sq; header.sequences) {
+                auto new_index = merged_header.sequences.getSequenceIndex(sq.name);
+                ref_id_map[i][j] = to!size_t(new_index);
+            }
+        }
+    }
 
     // TODO: make templated version of this function for @SQ and @PG lines,
     //       though it's not directly applicable in these cases
@@ -138,10 +191,15 @@ int main(string[] args) {
                 foreach (file_id; file_ids) {
                     readgroup_id_map[file_id][rg_id] = new_id;
                 }
+
+                // update merged header
+                rg.identifier = new_id;
+                merged_header.read_groups.add(rg);
             }
         }
     }
 
+    mergeSequenceDictionaries();
     mergeReadGroups();
 
     auto alignmentranges_with_file_ids = array(
@@ -157,10 +215,21 @@ int main(string[] args) {
            
             return map!(
                 (Alignment al) {
+                    auto old_ref_id = al.ref_id;
+                    if (old_ref_id != -1) {
+                        auto new_ref_id = to!int(ref_id_map[file_id][old_ref_id]);
+                        if (new_ref_id != old_ref_id) {
+                            al.ref_id = new_ref_id;
+                        }
+                    }
+
                     auto read_group = al["RG"];
                     if (!read_group.is_nothing) {
                         auto rg_str = cast(string)read_group;
-                        al["RG"] = readgroup_id_map[file_id][rg_str];
+                        auto new_rg = readgroup_id_map[file_id][rg_str];
+                        if (new_rg != rg_str) {
+                            al["RG"] = new_rg;
+                        }
                     }
                     return al;
                 })(alignments);
@@ -169,11 +238,16 @@ int main(string[] args) {
 
     Stream stream = new BufferedFile(output_filename, FileMode.Out);
     scope(exit) stream.close();
-    // TODO: modify merged header
-    // TODO: make new reference sequence dictionary
+
     writeBAM(stream, 
              toSam(merged_header), 
-             files[0].reference_sequences,
+             array(map!((SqLine line) { 
+                            ReferenceSequenceInfo ri;
+                            ri.name = line.name;
+                            ri.length = line.length;
+                            return ri;
+                        })(merged_header.sequences.values)
+             ),
              nWayUnion!compareAlignmentCoordinates(modifiedranges));
 
     return 0;

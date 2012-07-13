@@ -302,6 +302,16 @@ class HeaderLineDictionary(T) {
         return 0;
     }
 
+	int opApply(int delegate(size_t index, ref T line) dg) {
+        foreach (size_t i; 0 .. _dict.length) {
+            auto res = dg(i, _dict[_index_to_id[i]]);
+            if (res != 0) {
+                return res;
+            }
+        }
+        return 0;
+    }
+
     void clear() {
         _dict = null;
         _id_to_index = null;
