@@ -263,6 +263,10 @@ class HeaderLineDictionary(T) {
         _dict[id] = line;
     }
 
+	const(T)* opIn_r(string id) const {
+		return id in _dict;
+	}
+
     bool add(T line) {
         auto id = line.getID();
         if (id !in _dict) {

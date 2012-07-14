@@ -8,6 +8,8 @@ import std.algorithm;
 import std.conv;
 import std.typecons;
 
+import utils.graph;
+
 /// Class encapsulating functionality of merging several SAM headers
 /// into one. (In fact, its role is to just group several variables,
 /// so it could be replaced by a function returning a struct.)
@@ -55,45 +57,47 @@ private:
     size_t _len; // number of headers
 
     void mergeSequenceDictionaries() {
-        static SqLineDictionary mergeTwoDictionaries(SqLineDictionary d1, SqLineDictionary d2)
-        {
-            auto result = d1;
-            int last_index_of_sequence_found_in_d1 = -1; // for checking order inconsistency
-           
-            foreach (sequence; d2) {
-                auto index_in_d1 = result.getSequenceIndex(sequence.name);
-                if (index_in_d1 == -1) { // not found
-                    result.add(sequence);
-                } else {
-                    if (index_in_d1 < last_index_of_sequence_found_in_d1) {
-                        // can't merge because of issues with sorting order
-                        throw new Exception("can't merge SAM headers: reference sequences " ~
-                                d1.getSequence(index_in_d1).name ~ " and " ~
-                                sequence.name ~ " have inconsistent order");
-                    }
+        // make a directed graph out of reference sequences and do a topological sort
+       
+        SqLine[string] dict;
 
-                    last_index_of_sequence_found_in_d1 = index_in_d1; // store last index
-
-                    auto expected_sequence_length = d1.getSequence(index_in_d1).length;
-                    if (expected_sequence_length != sequence.length) {
-                        // those two @SQ lines are highly unlikely to refer to the same
-                        // reference sequence if lengths are different
-                        throw new Exception("can't merge SAM headers: one of references with " ~
-                                "name " ~ sequence.name ~ " has length " ~ 
-                                to!string(expected_sequence_length) ~ 
-                                " while another one with the same name has length " ~ 
-                                to!string(sequence.length));
-                    } 
-                    // TODO: otherwise, it would be nice to merge individual tags for
-                    //       these two @SQ lines
+        void addVerticeToDict(ref SqLine line) {
+            if (line.name in dict) {
+                if (line.length != dict[line.name].length) {
+                    // those two @SQ lines are highly unlikely to refer to the same
+                    // reference sequence if lengths are different
+                    throw new Exception("can't merge SAM headers: one of references with " ~
+                            "name " ~ line.name ~ " has length " ~ 
+                            to!string(dict[line.name].length) ~ 
+                            " while another one with the same name has length " ~ 
+                            to!string(line.length));
                 }
+                // TODO: merge individual tags?
+            } else {
+                dict[line.name] = line;
             }
-
-            return result;
         }
 
-        // save new dictionary in merged header
-        merged_header.sequences = reduce!mergeTwoDictionaries(map!"a.sequences"(_headers));
+        // create a graph
+        auto g = new DirectedGraph();
+        foreach (header; _headers) {
+            auto sequences = header.sequences.values;
+            auto prev = sequences.front;
+            addVerticeToDict(prev);
+            sequences.popFront();
+            while (!sequences.empty) {
+                auto cur = sequences.front;
+                addVerticeToDict(cur);
+                g.addEdge(prev.name, cur.name);
+                prev = cur;
+                sequences.popFront();
+            }
+        }
+
+        // get topologically sorted nodes
+        foreach (v; g.topologicalSort()) {
+            merged_header.sequences.add(dict[v]);
+        }
 
         // make mapping
         foreach (size_t i, header; _headers) {
@@ -104,6 +108,12 @@ private:
         }
     }
 
+    // The reason to pass by reference is that when merging program records,
+    // this function is called in a loop, and we need to keep some structures between calls.
+    //
+    // $(D dict) is a collection of Line structs, which will finally be part of the header;
+    // $(D record_id_map) is an array of mappings (for each header) where old record identifier
+    // is mapped into a new one;
     static void mergeHeaderLines(Line, R)(R records_with_file_ids, size_t file_count,
                                           ref HeaderLineDictionary!Line dict,
                                           ref string[string][] record_id_map)
@@ -119,8 +129,6 @@ private:
             auto file_id = record_and_file[1];
             id_to_record[rec.identifier][rec] ~= file_id;
         }
-
-        bool[string] already_used_ids;
 
         // Loop through all identifiers
         foreach (record_id, records_with_same_id; id_to_record) {
@@ -138,15 +146,12 @@ private:
             // in order to avoid collisions where necessary.
             foreach (rec, file_ids; records_with_same_id) {
                 string new_id = record_id;
-                if (record_id !in already_used_ids) {
-                    already_used_ids[record_id] = true;
-                } else {
+                if (record_id in dict) {
                     // if already used ID is encountered,
                     // find unused ID by adding ".N" to the old ID
                     for (int i = 1; ; ++i) {
                         new_id = record_id ~ "." ~ to!string(i);
-                        if (new_id !in already_used_ids) {
-                            already_used_ids[new_id] = true;
+                        if (new_id !in dict) {
                             break;
                         }
                     }
@@ -174,8 +179,10 @@ private:
         );                             
 
         auto dict = new RgLineDictionary();
+
         mergeHeaderLines(readgroups_with_file_ids, _len,
                          dict, readgroup_id_map);
+
         merged_header.read_groups = dict;
     }
 
@@ -198,23 +205,27 @@ private:
             mergeHeaderLines!PgLine(vertices, _len, dict, program_id_map); 
 
             // find children of current vertices
-            auto old_ids = map!"a[0].identifier"(vertices);
+            auto old_ids = map!"tuple(a[0].identifier, a[1])"(vertices);
             vertices = partition!((Tuple!(PgLine, size_t) a) {
-                                    return canFind(old_ids, a[0].previous_program);
+                                    return !canFind(old_ids, tuple(a[0].previous_program, a[1]));
                                   })(programs_with_file_ids);
             programs_with_file_ids = programs_with_file_ids[0 .. $ - vertices.length];
 
             // update PP tags in children
-            assert(overlap(programs_with_file_ids, vertices));
-
+            
             foreach (ref pg_with_file_id; vertices) {
                 auto pg = pg_with_file_id[0];
                 auto file_id = pg_with_file_id[1];
                
-                if (pg.previous_program !is null) {
-                    pg.previous_program = program_id_map[file_id][pg.previous_program];
+                if (pg.previous_program !is null && 
+                    pg.previous_program in program_id_map[file_id]) 
+                {
+                    auto new_id = program_id_map[file_id][pg.previous_program];
+                    if (new_id != pg.previous_program) {
+                        pg.previous_program = new_id;
+                    }
                 }
-
+                
                 pg_with_file_id = tuple(pg, file_id);
             }
         }
@@ -225,4 +236,92 @@ private:
     void mergeComments() {
         merged_header.comments = join(map!"a.comments"(_headers));
     }
+}
+
+unittest {
+    import std.stdio;
+    import std.algorithm;
+
+    writeln("Testing SAM header merging...");
+    auto h1 = new SamHeader();
+    auto h2 = new SamHeader();
+    auto h3 = new SamHeader();
+    h1.sorting_order = SortingOrder.coordinate;
+    h2.sorting_order = SortingOrder.coordinate;
+    h3.sorting_order = SortingOrder.coordinate;
+ 
+    // ---- fill reference sequence dictionaries -------------------------------
+
+    h1.sequences.add(SqLine("A", 100));
+    h1.sequences.add(SqLine("B", 200));
+    h1.sequences.add(SqLine("C", 300));
+
+    h2.sequences.add(SqLine("D", 100));
+    h2.sequences.add(SqLine("B", 200));
+    h2.sequences.add(SqLine("E", 300));
+
+    h3.sequences.add(SqLine("A", 100));
+    h3.sequences.add(SqLine("E", 300));
+    h3.sequences.add(SqLine("C", 300));
+
+    // expected:        A       B       C
+    //                      D       E
+
+    // ---- add a few read group records ---------------------------------------
+
+    h1.read_groups.add(RgLine("A", "CN1"));
+    h1.read_groups.add(RgLine("C", "CN3"));
+
+    h2.read_groups.add(RgLine("B", "CN2"));
+    h2.read_groups.add(RgLine("C", "CN4"));
+
+    h3.read_groups.add(RgLine("B", "CN2"));
+    h3.read_groups.add(RgLine("A", "CN4"));
+
+    // ---- add some program records with a lot of name clashes ----------------
+
+    h1.programs.add(PgLine("A", "X"));             //        .> C
+    h1.programs.add(PgLine("B", "Y", "", "A"));    //       /
+    h1.programs.add(PgLine("C", "Z", "", "B"));    // A -> B -> D
+    h1.programs.add(PgLine("D", "T", "", "B"));    //
+
+    h2.programs.add(PgLine("B", "Z"));             // B -> A -> C
+    h2.programs.add(PgLine("A", "Y", "", "B"));
+    h2.programs.add(PgLine("C", "T", "", "A"));
+
+    h3.programs.add(PgLine("D", "Y"));             // D -> C -> B
+    h3.programs.add(PgLine("C", "T", "", "D"));
+    h3.programs.add(PgLine("B", "X", "", "C"));
+
+    // expected result:
+    //
+    //            .> C.1
+    //           /
+    //  A -> B.1  -> D.1
+    //
+    //  B -> A.1 -> C.2
+    //
+    //  D -> C -> B.2
+
+    // ---- add some comments - just for the sake of completeness --------------
+
+    h1.comments ~= "abc";
+    h2.comments ~= ["def", "ghi"];
+    
+    // ------------------ merge these three headers ----------------------------
+
+    auto merger = new SamHeaderMerger([h1, h2, h3]);
+    auto h = merger.merged_header;
+
+    assert(equal(h.sequences.values, 
+                 [SqLine("A", 100), SqLine("D", 100), SqLine("B", 200),
+                  SqLine("E", 300), SqLine("C", 300)]));
+
+    assert(h.comments == ["abc", "def", "ghi"]);
+
+    assert(equal(sort(array(map!"a.identifier"(h.programs.values))),
+                 ["A", "A.1", "B", "B.1", "B.2", "C", "C.1", "C.2", "D", "D.1"]));
+
+    assert(equal(sort(array(map!"a.identifier"(h.read_groups.values))),
+                 ["A", "A.1", "B", "C", "C.1"]));
 }

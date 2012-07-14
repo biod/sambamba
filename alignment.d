@@ -14,6 +14,10 @@ import utils.array;
 import utils.value;
 import utils.switchendianness;
 
+version(unittest) {
+    import utils.tagstoragebuilder;
+}
+
 /**
   Represents single CIGAR operation
  */
@@ -866,7 +870,6 @@ unittest {
     assert(read.tagCount() == 2);
 
     // Test tagstoragebuilder
-    import utils.tagstoragebuilder;
 
     auto builder = new TagStorageBuilder();
     builder.put("X0", Value(24));

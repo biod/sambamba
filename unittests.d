@@ -7,6 +7,8 @@ import bgzfrange;
 import validation.samheader;
 import validation.alignment;
 
+import utils.samheadermerger;
+
 import sam.serialize;
 
 import std.path;
