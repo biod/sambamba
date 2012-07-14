@@ -144,7 +144,7 @@ private {
               "}");
     }
 
-    mixin template getIDMethod(string id_field) {
+    mixin template getSetIDMethods(string id_field) {
         static if (id_field != null) {
             auto getID() const pure nothrow @safe {
                 mixin("return " ~ id_field ~";");
@@ -163,7 +163,7 @@ private {
                     mixin serializeMethod!(line_prefix, Field);
                     mixin toHashMethod!(struct_name, id_field, Field);
                     mixin opEqualsMethod!(struct_name, Field);
-                    mixin getIDMethod!id_field;
+                    mixin getSetIDMethods!id_field;
                 }`);
     }
 

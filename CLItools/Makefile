@@ -15,7 +15,7 @@ all: sambamba-dmd
 ../sam/recordparser.d:
 	cd ../sam && make recordparser.d
 
-DMDFLAGS=-O -release -inline -g
+DMDFLAGS=#-O -release -inline -g
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
 SAMBAMBA_FILES=sambamba/filter.d sambamba/serializer.d sambamba/sambamba.d

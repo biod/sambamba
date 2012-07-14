@@ -137,49 +137,49 @@ int main(string[] args) {
         }
     }
 
-    // TODO: make templated version of this function for @SQ and @PG lines,
-    //       though it's not directly applicable in these cases
-    void mergeReadGroups() {
-        auto readgroups_with_file_ids = joiner(
-            map!((size_t i) {
-                    return map!((RgLine line) {
-                                   return tuple(line, i);
-                                })(headers[i].read_groups.values);
-                 })(iota(filenames.length))
-        );                             
-      
-        // Map: read group identifier -> read group record -> list of files
-        size_t[][RgLine][string] id_to_record;
+    static Tuple!(HeaderLineDictionary!Line, string[string][]) 
+    mergeHeaderLines(Line, R)(R records_with_file_ids, size_t file_count)
+        if (is(typeof(Line.identifier) == string) &&
+            is(ElementType!R == Tuple!(Line, size_t)) &&
+            (is(Line == RgLine) || is(Line == PgLine)))
+    {
+        // Map: record identifier -> record -> list of files
+        size_t[][Line][string] id_to_record;
 
-        foreach (rg_and_file; readgroups_with_file_ids) {
-            auto rg = rg_and_file[0];
-            auto file_id = rg_and_file[1];
-            id_to_record[rg.identifier][rg] ~= file_id;
+        foreach (record_and_file; records_with_file_ids) {
+            auto rec = record_and_file[0];
+            auto file_id = record_and_file[1];
+            id_to_record[rec.identifier][rec] ~= file_id;
         }
 
         bool[string] already_used_ids;
 
-        // Loop through all identifiers
-        foreach (rg_id, records_with_same_id; id_to_record) {
+        auto record_id_map = new string[string][file_count];
+        auto dict = new HeaderLineDictionary!Line;
 
-            // Several read groups can share the common identifier,
-            // each one of them can be presented in several files.
+        // Loop through all identifiers
+        foreach (record_id, records_with_same_id; id_to_record) {
+
+            // Several read groups/program records can share the 
+            // common identifier, and each one of them can be 
+            // presented in several files.
             // 
-            // If read groups are equal (i.e. all fields are equal)
-            // they are treated as a single read group.
+            // If read groups/program records are equal 
+            // (i.e. all fields are equal) then they are treated 
+            // as a single read group/program record
             // 
-            // Here we iterate over those 'single' read groups and
-            // files where they were seen, renaming identifiers
+            // Here we iterate over those read groups/program records
+            // and files where they were seen, renaming identifiers
             // in order to avoid collisions where necessary.
-            foreach (rg, file_ids; records_with_same_id) {
-                string new_id = rg_id;
-                if (rg_id !in already_used_ids) {
-                    already_used_ids[rg_id] = true;
+            foreach (rec, file_ids; records_with_same_id) {
+                string new_id = record_id;
+                if (record_id !in already_used_ids) {
+                    already_used_ids[record_id] = true;
                 } else {
                     // if already used ID is encountered,
                     // find unused ID by adding ".N" to the old ID
                     for (int i = 1; ; ++i) {
-                        new_id = rg_id ~ "." ~ to!string(i);
+                        new_id = record_id ~ "." ~ to!string(i);
                         if (new_id !in already_used_ids) {
                             already_used_ids[new_id] = true;
                             break;
@@ -189,14 +189,30 @@ int main(string[] args) {
 
                 // save mapping
                 foreach (file_id; file_ids) {
-                    readgroup_id_map[file_id][rg_id] = new_id;
+                    record_id_map[file_id][record_id] = new_id;
                 }
 
                 // update merged header
-                rg.identifier = new_id;
-                merged_header.read_groups.add(rg);
+                rec.identifier = new_id;
+                dict.add(rec);
             }
         }
+
+        return tuple(dict, record_id_map);
+    }
+
+    void mergeReadGroups() {
+        auto readgroups_with_file_ids = joiner(
+            map!((size_t i) {
+                    return map!((RgLine line) {
+                                   return tuple(line, i);
+                                })(headers[i].read_groups.values);
+                 })(iota(filenames.length))
+        );                             
+
+        auto dict_and_mapping = mergeHeaderLines!RgLine(readgroups_with_file_ids, files.length);
+        merged_header.read_groups = dict_and_mapping[0];
+        readgroup_id_map = dict_and_mapping[1];
     }
 
     mergeSequenceDictionaries();
@@ -215,6 +231,7 @@ int main(string[] args) {
            
             return map!(
                 (Alignment al) {
+                    // change reference ID
                     auto old_ref_id = al.ref_id;
                     if (old_ref_id != -1) {
                         auto new_ref_id = to!int(ref_id_map[file_id][old_ref_id]);
@@ -223,6 +240,7 @@ int main(string[] args) {
                         }
                     }
 
+                    // change reference ID
                     auto read_group = al["RG"];
                     if (!read_group.is_nothing) {
                         auto rg_str = cast(string)read_group;
@@ -235,6 +253,8 @@ int main(string[] args) {
                 })(alignments);
         })(alignmentranges_with_file_ids)
     );
+
+    // write BAM file
 
     Stream stream = new BufferedFile(output_filename, FileMode.Out);
     scope(exit) stream.close();
