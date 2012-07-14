@@ -22,7 +22,7 @@ SAMBAMBA_FILES=sambamba/filter.d sambamba/serializer.d sambamba/sambamba.d
 SAMBAMBA_INDEX_FILES=sambamba-index/index.d
 SAMBAMBA_SORT_MERGE_COMMON_FILES=common/comparators.d common/nwayunion.d
 SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d $(SAMBAMBA_SORT_MERGE_COMMON_FILES)
-SAMBAMBA_MERGE_FILES=sambamba-merge/merge.d $(SAMBAMBA_SORT_MERGE_COMMON_FILES)
+SAMBAMBA_MERGE_FILES=sambamba-merge/merge.d ../utils/samheadermerger.d $(SAMBAMBA_SORT_MERGE_COMMON_FILES)
 SAMBAMBA_FLAGSTAT_FILES=sambamba-flagstat/flagstat.d
 
 sambamba-dmd: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
