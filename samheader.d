@@ -149,6 +149,8 @@ private {
             auto getID() const pure nothrow @safe {
                 mixin("return " ~ id_field ~";");
             }
+
+			mixin("void setID(typeof("~id_field~") id) pure nothrow @safe { " ~ id_field ~ " = id; }");
         }
     }
 
