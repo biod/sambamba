@@ -56,38 +56,38 @@ private:
     SamHeader[] _headers;
     size_t _len; // number of headers
 
+    static void addVerticeToDict(ref SqLine[string] dict, ref SqLine line) {
+        if (line.name in dict) {
+            if (line.length != dict[line.name].length) {
+                // those two @SQ lines are highly unlikely to refer to the same
+                // reference sequence if lengths are different
+                throw new Exception("can't merge SAM headers: one of references with " ~
+                        "name " ~ line.name ~ " has length " ~ 
+                        to!string(dict[line.name].length) ~ 
+                        " while another one with the same name has length " ~ 
+                        to!string(line.length));
+            }
+            // TODO: merge individual tags?
+        } else {
+            dict[line.name] = line;
+        }
+    }
+
     void mergeSequenceDictionaries() {
         // make a directed graph out of reference sequences and do a topological sort
        
         SqLine[string] dict;
-
-        void addVerticeToDict(ref SqLine line) {
-            if (line.name in dict) {
-                if (line.length != dict[line.name].length) {
-                    // those two @SQ lines are highly unlikely to refer to the same
-                    // reference sequence if lengths are different
-                    throw new Exception("can't merge SAM headers: one of references with " ~
-                            "name " ~ line.name ~ " has length " ~ 
-                            to!string(dict[line.name].length) ~ 
-                            " while another one with the same name has length " ~ 
-                            to!string(line.length));
-                }
-                // TODO: merge individual tags?
-            } else {
-                dict[line.name] = line;
-            }
-        }
 
         // create a graph
         auto g = new DirectedGraph();
         foreach (header; _headers) {
             auto sequences = header.sequences.values;
             auto prev = sequences.front;
-            addVerticeToDict(prev);
+            addVerticeToDict(dict, prev);
             sequences.popFront();
             while (!sequences.empty) {
                 auto cur = sequences.front;
-                addVerticeToDict(cur);
+                addVerticeToDict(dict, cur);
                 g.addEdge(prev.name, cur.name);
                 prev = cur;
                 sequences.popFront();
@@ -101,7 +101,7 @@ private:
 
         // make mapping
         foreach (size_t i, header; _headers) {
-            foreach (size_t j, sq; header.sequences) {
+            foreach (size_t j, SqLine sq; header.sequences) {
                 auto new_index = merged_header.sequences.getSequenceIndex(sq.name);
                 ref_id_map[i][j] = to!size_t(new_index);
             }
@@ -171,11 +171,9 @@ private:
 
     void mergeReadGroups() {
         auto readgroups_with_file_ids = joiner(
-            map!((size_t i) {
-                    return map!((RgLine line) {
-                                   return tuple(line, i);
-                                })(_headers[i].read_groups.values);
-                 })(iota(_len))
+            map!((size_t i) { 
+                return zip(_headers[i].read_groups.values, repeat(i));
+            })(iota(_len))
         );                             
 
         auto dict = new RgLineDictionary();
@@ -189,10 +187,8 @@ private:
     void mergeProgramRecords() {
         auto programs_with_file_ids = array(joiner(
             map!((size_t i) {
-                    return map!((PgLine line) {
-                                   return tuple(line, i);
-                                })(_headers[i].programs.values);
-                 })(iota(_len))
+                return zip(_headers[i].programs.values, repeat(i));
+            })(iota(_len))
         ));
 
         auto vertices = partition!"a[0].previous_program !is null"(programs_with_file_ids);

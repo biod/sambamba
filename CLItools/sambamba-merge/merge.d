@@ -4,8 +4,6 @@
    In order for several BAM files to be merged into one, they must firstly be
    sorted in the same order.
 
-   The algorithms used here are based on those from Picard.
-
    1) Merging headers.
         
         a) Merging sequence dictionaries.
@@ -17,6 +15,8 @@
             the same order in the merged list (if that's impossible, 
             throw an exception because one of files needs to be sorted again
             with a different order of reference sequences)
+
+            For that, a graph is created and topological sort is performed.
 
         b) Merging program records.
             
@@ -66,6 +66,60 @@ import common.nwayunion : nWayUnion;
 import utils.samheadermerger;
 
 void printUsage() {
+    stderr.writeln("Usage: sambamba-merge <output.bam> <input1.bam> [<input.bam>..]");
+}
+
+// these variables can be implicitly used in tasks created in writeBAM
+shared(SamHeaderMerger) merger;
+shared(SamHeader) merged_header;
+shared(size_t[size_t][]) ref_id_map;
+shared(string[string][]) program_id_map;
+shared(string[string][]) readgroup_id_map;
+
+Alignment changeAlignment(Tuple!(Alignment, size_t) al_with_file_id) {
+    auto al = al_with_file_id[0];
+    auto file_id = al_with_file_id[1];
+    // change reference ID
+    auto old_ref_id = al.ref_id;
+
+    assert(file_id < ref_id_map.length);
+
+    if (old_ref_id != -1 && old_ref_id in ref_id_map[file_id]) {
+        auto new_ref_id = to!int(ref_id_map[file_id][old_ref_id]);
+        if (new_ref_id != old_ref_id) {
+            al.ref_id = new_ref_id;
+        }
+    } 
+
+    // change PG tag if it exists
+    auto program = al["PG"];
+    if (!program.is_nothing) {
+        auto pg_str = cast(string)program;
+        if (pg_str in program_id_map[file_id]) {
+            auto new_pg = program_id_map[file_id][pg_str];
+            if (new_pg != pg_str) {
+                al["PG"] = cast()new_pg;
+            }
+        }
+    }
+
+    // change read group tag
+    auto read_group = al["RG"];
+    if (!read_group.is_nothing) {
+        auto rg_str = cast(string)read_group;
+        if (rg_str in readgroup_id_map[file_id]) {
+            auto new_rg = readgroup_id_map[file_id][rg_str];
+            if (new_rg != rg_str) {
+                al["RG"] = cast()new_rg;
+            }
+        }
+    }
+    return al;
+}
+
+auto modifyAlignmentRange(Tuple!(typeof(BamFile.alignments), size_t) alignments_with_file_id) {
+    return map!changeAlignment(zip(alignments_with_file_id[0], 
+                                   repeat(alignments_with_file_id[1])));
 }
 
 int main(string[] args) {
@@ -75,80 +129,53 @@ int main(string[] args) {
         return 1;
     }
 
+    try {
+
     auto output_filename = args[1];
     auto filenames = args[2 .. $];
-    auto files = array(map!((string fn) { return BamFile(fn); })(filenames));
+    BamFile[] files;
+    files.length = filenames.length;
+    foreach (i; 0 .. files.length) {
+        files[i] = BamFile(filenames[i]);
+        files[i].setBufferSize(50_000_000 / files.length); //TODO
+    }
     auto headers = array(map!"a.header"(files));
 
-    auto merger = new SamHeaderMerger(headers);
-    auto merged_header = merger.merged_header;
-    auto ref_id_map = merger.ref_id_map;
-    auto readgroup_id_map = merger.readgroup_id_map;
-    auto program_id_map = merger.program_id_map;
+    merger = new shared(SamHeaderMerger)(headers);
+    merged_header = merger.merged_header;
+    ref_id_map = merger.ref_id_map;
+    readgroup_id_map = merger.readgroup_id_map;
+    program_id_map = merger.program_id_map;
 
     // tuples of (alignments, file_id)
     auto alignmentranges_with_file_ids = array(
-        map!((size_t i) {
-                return tuple(files[i].alignments, i); 
-             })(iota(files.length))
+        zip(map!"a.alignments"(files), iota(files.length))
     );
 
     // ranges with replaced reference ID, PG and RG tags
-    auto modifiedranges = array(
-        map!((Tuple!(typeof(BamFile.alignments), size_t) alignments_with_file_id) {
-            auto alignments = alignments_with_file_id[0];
-            auto file_id = alignments_with_file_id[1];
-           
-            return map!(
-                (Alignment al) {
-                    // change reference ID
-                    auto old_ref_id = al.ref_id;
-                    if (old_ref_id != -1) {
-                        auto new_ref_id = to!int(ref_id_map[file_id][old_ref_id]);
-                        if (new_ref_id != old_ref_id) {
-                            al.ref_id = new_ref_id;
-                        }
-                    }
-
-                    // change PG tag if it exists
-                    auto program = al["PG"];
-                    if (!program.is_nothing) {
-                        auto pg_str = cast(string)program;
-                        auto new_pg = program_id_map[file_id][pg_str];
-                        if (new_pg != pg_str) {
-                            al["PG"] = new_pg;
-                        }
-                    }
-
-                    // change reference ID
-                    auto read_group = al["RG"];
-                    if (!read_group.is_nothing) {
-                        auto rg_str = cast(string)read_group;
-                        auto new_rg = readgroup_id_map[file_id][rg_str];
-                        if (new_rg != rg_str) {
-                            al["RG"] = new_rg;
-                        }
-                    }
-                    return al;
-                })(alignments);
-        })(alignmentranges_with_file_ids)
-    );
+    auto modifiedranges = array(map!modifyAlignmentRange(alignmentranges_with_file_ids));
 
     // write BAM file
 
-    Stream stream = new BufferedFile(output_filename, FileMode.Out);
+    Stream stream = new BufferedFile(output_filename, FileMode.Out, 50_000_000); // TODO
     scope(exit) stream.close();
 
+    auto reference_sequences = new ReferenceSequenceInfo[(cast()merged_header).sequences.length];
+    size_t i;
+    foreach (line; (cast()merged_header).sequences.values) {
+        reference_sequences[i].name = line.name;
+        reference_sequences[i].length = line.length;
+        ++i;
+    } 
+
     writeBAM(stream, 
-             toSam(merged_header), 
-             array(map!((SqLine line) { 
-                            ReferenceSequenceInfo ri;
-                            ri.name = line.name;
-                            ri.length = line.length;
-                            return ri;
-                        })(merged_header.sequences.values)
-             ),
+             toSam(cast()merged_header), 
+             reference_sequences,
              nWayUnion!compareAlignmentCoordinates(modifiedranges));
 
+    } catch (Throwable e) {
+        stderr.writeln("sambamba-merge: ", e.msg);
+        return 1;
+    }
     return 0;
 }

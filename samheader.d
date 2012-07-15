@@ -107,7 +107,7 @@ private {
 
     mixin template toHashMethod(string struct_name, string id_field, Field...) {
         static if (id_field != null) {
-            hash_t toHash() const nothrow @safe {
+            hash_t toHash() const {
                 hash_t result = 1;
                 mixin(generateHashExpression!Field());    
                 return result;
@@ -308,7 +308,7 @@ class HeaderLineDictionary(T) {
         return 0;
     }
 
-	int opApply(int delegate(size_t index, ref T line) dg) {
+	int opApply(int delegate(ref size_t index, ref T line) dg) {
         foreach (size_t i; 0 .. _dict.length) {
             auto res = dg(i, _dict[_index_to_id[i]]);
             if (res != 0) {
