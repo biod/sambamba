@@ -58,6 +58,7 @@ import std.conv;
 import std.array;
 import std.range;
 import std.typecons;
+import std.parallelism;
 import std.stream;
 
 import common.comparators;
@@ -75,6 +76,8 @@ shared(SamHeader) merged_header;
 shared(size_t[size_t][]) ref_id_map;
 shared(string[string][]) program_id_map;
 shared(string[string][]) readgroup_id_map;
+
+__gshared static TaskPool task_pool;
 
 Alignment changeAlignment(Tuple!(Alignment, size_t) al_with_file_id) {
     auto al = al_with_file_id[0];
@@ -118,8 +121,14 @@ Alignment changeAlignment(Tuple!(Alignment, size_t) al_with_file_id) {
 }
 
 auto modifyAlignmentRange(Tuple!(typeof(BamFile.alignments), size_t) alignments_with_file_id) {
-    return map!changeAlignment(zip(alignments_with_file_id[0], 
-                                   repeat(alignments_with_file_id[1])));
+    version(serial) {
+        return map!changeAlignment(zip(alignments_with_file_id[0], 
+                                       repeat(alignments_with_file_id[1])));
+    } else {
+        return task_pool.map!changeAlignment(zip(alignments_with_file_id[0],
+                                                 repeat(alignments_with_file_id[1])),
+                                            8192);
+    }
 }
 
 int main(string[] args) {
@@ -131,12 +140,15 @@ int main(string[] args) {
 
     try {
 
+    task_pool = new TaskPool(totalCPUs);
+    scope(exit) task_pool.finish();
+
     auto output_filename = args[1];
     auto filenames = args[2 .. $];
     BamFile[] files;
     files.length = filenames.length;
     foreach (i; 0 .. files.length) {
-        files[i] = BamFile(filenames[i]);
+        files[i] = BamFile(filenames[i], task_pool);
         files[i].setBufferSize(50_000_000 / files.length); //TODO
     }
     auto headers = array(map!"a.header"(files));
@@ -171,7 +183,9 @@ int main(string[] args) {
     writeBAM(stream, 
              toSam(cast()merged_header), 
              reference_sequences,
-             nWayUnion!compareAlignmentCoordinates(modifiedranges));
+             nWayUnion!compareAlignmentCoordinates(modifiedranges),
+             -1,
+             task_pool);
 
     } catch (Throwable e) {
         stderr.writeln("sambamba-merge: ", e.msg);
