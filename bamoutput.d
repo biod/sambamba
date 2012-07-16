@@ -121,7 +121,7 @@ void writeBAM(R)(Stream stream,
         }
 
         ubyte[] front() @property {
-            return _memory_stream.data[0 .. _endian_stream.position];
+            return _memory_stream.data[0 .. cast(size_t)_endian_stream.position];
         }
 
         void popFront() {

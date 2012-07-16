@@ -157,19 +157,19 @@ size_t parseMemory(string str) {
     switch (str) {
         case "K":
         case "KiB":
-            return sz * 1024UL;
+            return sz << 10;
         case "KB":
-            return sz * 1000UL;
+            return sz * 1_000;
         case "M":
         case "MiB":
-            return sz * 1024UL * 1024UL;
+            return sz << 20;
         case "MB":
-            return sz * 1000UL * 1000UL;
+            return sz * 1_000_000;
         case "G":
         case "GiB":
-            return sz * 1024UL * 1024UL * 1024UL;
+            return sz << 30;
         case "GB":
-            return sz * 1000UL * 1000UL * 1000UL;
+            return sz * 1_000_000_000;
         default:
             throw new Exception("couldn't parse ", initial_str);
     }

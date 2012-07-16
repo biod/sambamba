@@ -34,7 +34,7 @@ sambamba-dmd: $(SAMBAMBA_FILES)
 	mkdir -p build
 	dmd $(DMDFLAGSFULL) $(SAMBAMBA_FILES) -ofbuild/sambamba
 
-sambamba-gdc: $(SAMBAMBA_FILES)
+sambamba-gdc: $(SAMBAMBA_FILES) fastrecordparser
 	mkdir -p build
 	gdc $(GDCFLAGSFULL) $(SAMBAMBA_FILES) -o build/sambamba
 
@@ -85,6 +85,9 @@ sambamba-dmd-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 sambamba-gdc-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 	mkdir -p build
 	gdc -g -O0 -lpthread $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -fversion=development -o build/sambamba
+
+fastrecordparser: ../sam/sam_alignment.rl
+	cd ../sam && make fastrecordparser && cd ..
 
 clean:
 	rm -rf build/
