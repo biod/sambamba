@@ -1,3 +1,5 @@
+module sambamba.view;
+
 import bamfile;
 import samfile;
 import region;
@@ -13,8 +15,8 @@ import std.array;
 import std.getopt;
 import std.algorithm;
 
-void printUsage(string program) {
-    writeln("Usage: " ~ program ~ " [options] <input.bam | input.sam> [region1 [...]]");
+void printUsage() {
+    writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
     writeln();
     writeln("Options: -q, --quality-threshold=THRESHOLD");
     writeln("                    skip reads with mapping quality < THRESHOLD");
@@ -63,7 +65,6 @@ void outputReferenceInfoJson(T)(T bam) {
     putcharacter(stdout, '\n');
 }
 
-// global variables hold only program options
 ubyte quality_threshold = 0;
 string read_group = null;
 string format = "sam";
@@ -74,7 +75,13 @@ bool count_only;
 bool skip_invalid_alignments;
 bool is_sam;
 
-int main(string[] args) {
+version(standalone) {
+    int main(string[] args) {
+        return view_main(args);
+    }
+}
+
+int view_main(string[] args) {
     try {
 
         getopt(args,
@@ -90,7 +97,7 @@ int main(string[] args) {
                "sam-input|S",         &is_sam);
         
         if (args.length < 2) {
-            printUsage(args[0]);
+            printUsage();
             return 0;
         }
 

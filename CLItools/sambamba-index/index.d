@@ -1,3 +1,5 @@
+module sambamba.index;
+
 import std.stdio;
 import std.stream;
 import std.parallelism;
@@ -12,7 +14,13 @@ void printUsage() {
     writeln("\tto the name of BAM file");
 }
 
-int main(string[] args) {
+version(standalone) {
+    int main(string[] args) {
+        return index_main(args);
+    }
+}
+
+int index_main(string[] args) {
     try {
         string out_filename = null;
         switch (args.length) {

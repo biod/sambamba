@@ -1,3 +1,5 @@
+module sambamba.flagstat;
+
 /// port of samtools flagstat tool
 import bamfile;
 import std.stdio, std.conv, std.parallelism;
@@ -16,7 +18,13 @@ void writeParamWithPercentage(string description, ulong[2] param, ulong[2] total
              percent(param[0], total[0]), percent(param[1], total[1]));
 }
 
-int main(string[] args) {
+version(standalone) {
+    int main(string[] args) {
+        return flagstat_main(args);
+    }
+}
+
+int flagstat_main(string[] args) {
     if (args.length == 1 || args.length > 3) {
         stderr.writeln("Usage: sambamba-flagstat <input.bam> [nthreads=#cores]");
         return 1;

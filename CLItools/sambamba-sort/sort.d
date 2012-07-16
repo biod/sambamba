@@ -1,3 +1,5 @@
+module sambamba.sort;
+
 import bamfile;
 import bamoutput;
 import samheader;
@@ -30,7 +32,13 @@ void printUsage() {
     writeln("               output file name; if not provided, the result is written to a file with .sorted.bam extension");
 }
 
-int main(string[] args) {
+version(standalone) {
+    int main(string[] args) {
+        return sort_main(args);
+    }
+}
+
+int sort_main(string[] args) {
 
     if (args.length < 2) {
         printUsage();

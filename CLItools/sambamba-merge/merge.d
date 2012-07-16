@@ -1,3 +1,4 @@
+module sambamba.merge;
 /*
    Merging.
 
@@ -131,7 +132,13 @@ auto modifyAlignmentRange(Tuple!(typeof(BamFile.alignments), size_t) alignments_
     }
 }
 
-int main(string[] args) {
+version(standalone) {
+    int main(string[] args) {
+        return merge_main(args);
+    }
+}
+
+int merge_main(string[] args) {
 
     if (args.length < 3) {
         printUsage();
