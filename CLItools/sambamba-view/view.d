@@ -36,7 +36,6 @@ void printUsage() {
     writeln("                    output only valid alignments");
     writeln("         -S, --sam-input");
     writeln("                    specify that input is in SAM format");
-    writeln("                    (unnecessary if input file has .sam extension)");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
