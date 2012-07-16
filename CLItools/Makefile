@@ -25,7 +25,7 @@ SAMBAMBA_VIEW_FILES=sambamba-view/filter.d sambamba-view/serializer.d sambamba-v
 SAMBAMBA_INDEX_FILES=sambamba-index/index.d
 SAMBAMBA_SORT_MERGE_COMMON_FILES=common/comparators.d common/nwayunion.d
 SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d
-SAMBAMBA_MERGE_FILES=sambamba-merge/merge.d ../utils/samheadermerger.d ../utils/graph.d
+SAMBAMBA_MERGE_FILES=sambamba-merge/merge.d ../utils/samheadermerger.d ../utils/graph.d ../validation/samheader.d
 SAMBAMBA_FLAGSTAT_FILES=sambamba-flagstat/flagstat.d
 
 SAMBAMBA_FILES=$(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES) $(SAMBAMBA_INDEX_FILES) $(SAMBAMBA_FLAGSTAT_FILES) $(SAMBAMBA_SORT_MERGE_COMMON_FILES) $(SAMBAMBA_SORT_FILES) $(SAMBAMBA_MERGE_FILES) sambamba/main.d

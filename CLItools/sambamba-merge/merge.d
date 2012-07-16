@@ -61,6 +61,7 @@ import std.range;
 import std.typecons;
 import std.parallelism;
 import std.stream;
+import std.getopt;
 
 import common.comparators;
 import common.nwayunion : nWayUnion;
@@ -68,7 +69,14 @@ import common.nwayunion : nWayUnion;
 import utils.samheadermerger;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-merge <output.bam> <input1.bam> [<input.bam>..]");
+    writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
+    writeln();
+    writeln("Options: -t, --nthreads=NUM_OF_THREADS");
+    writeln("               number of threads to use for compression/decompression");
+    writeln("         -l, --compression-level=COMPRESSION_LEVEL");
+    writeln("               level of compression for merged BAM file, number from 0 to 9");
+    writeln("         -H, --header");
+    writeln("               output merged header to stdout in SAM format, other options are ignored; mainly for debug purposes");
 }
 
 // these variables can be implicitly used in tasks created in writeBAM
@@ -140,14 +148,26 @@ version(standalone) {
 
 int merge_main(string[] args) {
 
-    if (args.length < 3) {
+    int compression_level = -1;
+    int number_of_threads = totalCPUs;
+    bool validate_headers = false;
+    bool header_only = false;
+
+    if (args.length < 4) {
         printUsage();
         return 1;
     }
 
     try {
 
-    task_pool = new TaskPool(totalCPUs);
+    getopt(args,
+           std.getopt.config.caseSensitive,
+           "nthreads|t",            &number_of_threads,
+           "compression-level|l",   &compression_level,
+           "validate-headers|v",    &validate_headers,
+           "header|H",              &header_only);
+
+    task_pool = new TaskPool(number_of_threads);
     scope(exit) task_pool.finish();
 
     auto output_filename = args[1];
@@ -160,11 +180,16 @@ int merge_main(string[] args) {
     }
     auto headers = array(map!"a.header"(files));
 
-    merger = new shared(SamHeaderMerger)(headers);
+    merger = new shared(SamHeaderMerger)(headers, validate_headers);
     merged_header = merger.merged_header;
     ref_id_map = merger.ref_id_map;
     readgroup_id_map = merger.readgroup_id_map;
     program_id_map = merger.program_id_map;
+
+    if (header_only) {
+        writeln(toSam(cast()merged_header));
+        return 0;
+    }
 
     // tuples of (alignments, file_id)
     auto alignmentranges_with_file_ids = array(
@@ -187,12 +212,25 @@ int merge_main(string[] args) {
         ++i;
     } 
 
-    writeBAM(stream, 
-             toSam(cast()merged_header), 
-             reference_sequences,
-             nWayUnion!compareAlignmentCoordinates(modifiedranges),
-             -1,
-             task_pool);
+    switch (merged_header.sorting_order) {
+        case SortingOrder.queryname:
+            writeBAM(stream, 
+                     toSam(cast()merged_header), 
+                     reference_sequences,
+                     nWayUnion!compareReadNames(modifiedranges),
+                     compression_level,
+                     task_pool);
+            break;
+        case SortingOrder.coordinate:
+            writeBAM(stream, 
+                     toSam(cast()merged_header), 
+                     reference_sequences,
+                     nWayUnion!compareAlignmentCoordinates(modifiedranges),
+                     compression_level,
+                     task_pool);
+            break;
+        default: assert(0);
+    }
 
     } catch (Throwable e) {
         stderr.writeln("sambamba-merge: ", e.msg);

@@ -1,12 +1,14 @@
 module utils.samheadermerger;
 
 import samheader;
+import validation.samheader;
 
 import std.array;
 import std.range;
 import std.algorithm;
 import std.conv;
 import std.typecons;
+import std.exception;
 
 import utils.graph;
 
@@ -18,7 +20,7 @@ class SamHeaderMerger {
     /// Takes array of SAM headers as an input.
     ///
     /// WARNING: merger might modify the passed array for better performance.
-    this(SamHeader[] headers) {
+    this(SamHeader[] headers, bool validate_headers=false) {
         _headers = headers;
         _len = _headers.length;
 
@@ -27,8 +29,25 @@ class SamHeaderMerger {
         program_id_map = new string[string][_len];
         readgroup_id_map = new string[string][_len];
 
-        // TODO: check that all headers are valid
-        // TODO: check that all files have the same sorting order
+        if (validate_headers) {
+            // TODO: make custom validator for producing better error message
+            foreach (size_t i, header; _headers) {
+                if (!isValid(header)) {
+                    throw new Exception("header #" ~ to!string(i) ~ " is invalid, can't merge");
+                }
+            }
+        }
+
+        auto expected = _headers[0].sorting_order;
+        if (expected != SortingOrder.coordinate && expected != SortingOrder.queryname) {
+            throw new Exception("file headers indicate that some files are not sorted");
+        }
+        foreach (header; _headers) {
+            if (header.sorting_order != expected) {
+                throw new Exception("sorting orders of files don't agree, can't merge");
+            }
+        }
+        merged_header.sorting_order = expected;
 
         mergeSequenceDictionaries();
         mergeReadGroups();
@@ -308,6 +327,8 @@ unittest {
 
     auto merger = new SamHeaderMerger([h1, h2, h3]);
     auto h = merger.merged_header;
+
+    assert(h.sorting_order == SortingOrder.coordinate);
 
     assert(equal(h.sequences.values, 
                  [SqLine("A", 100), SqLine("D", 100), SqLine("B", 200),

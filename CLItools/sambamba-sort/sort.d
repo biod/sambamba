@@ -30,6 +30,12 @@ void printUsage() {
     writeln("               directory for storing intermediate files; default is system directory for temporary files");
     writeln("         -o, --out=OUTPUTFILE");
     writeln("               output file name; if not provided, the result is written to a file with .sorted.bam extension");
+    writeln("         -n, --sort-by-name");
+    writeln("               sort by read name instead of coordinate");
+    writeln("         -l, --compression-level=COMPRESSION_LEVEL");
+    writeln("               level of compression for sorted BAM, from 0 to 9");
+    writeln("         -u, --uncompressed-chunks");
+    writeln("               write sorted chunks as uncompressed BAM (default is writing with compression level 1), that might be faster in some cases but uses more disk space");
 }
 
 version(standalone) {
@@ -37,6 +43,8 @@ version(standalone) {
         return sort_main(args);
     }
 }
+
+private bool sort_by_name;
 
 int sort_main(string[] args) {
 
@@ -51,12 +59,17 @@ int sort_main(string[] args) {
         size_t memory_limit = 512 * 1024 * 1024;
         string tmpdir = null;
         string output_filename = setExtension(args[1], "sorted.bam");
+        bool uncompressed_chunks;
+        int compression_level = -1;
 
         getopt(args,
                std.getopt.config.caseSensitive,
-               "memory-limit|m", &memory_limit_str,
-               "tmpdir",         &tmpdir,
-               "out|o",          &output_filename);
+               "memory-limit|m",        &memory_limit_str,
+               "tmpdir",                &tmpdir,
+               "out|o",                 &output_filename,
+               "sort-by-name|n",        &sort_by_name,
+               "uncompressed-chunks|u", &uncompressed_chunks,
+               "compression-level|l",   &compression_level);
 
         if (memory_limit_str !is null) {
             memory_limit = parseMemory(memory_limit_str);
@@ -72,15 +85,18 @@ int sort_main(string[] args) {
         // ------------------ set sorting order in the header ----------------------
 
         auto header = bam.header;
-        header.sorting_order = SortingOrder.coordinate;
+        header.sorting_order = sort_by_name ? SortingOrder.queryname :
+                                              SortingOrder.coordinate;
         auto header_text = toSam(header);
 
         // ----------------------- sort chunks -------------------------------------
 
-        stderr.writeln("sorting...");
-
         static Alignment[] sortChunk(Alignment[] chunk) {
-            mergeSort!compareAlignmentCoordinates(chunk, true); // threaded
+            if (!sort_by_name) {
+                mergeSort!compareAlignmentCoordinates(chunk, true); // threaded
+            } else {
+                mergeSort!compareReadNames(chunk, true);
+            }
             return chunk;
         }
 
@@ -96,15 +112,19 @@ int sort_main(string[] args) {
             scope(exit) stream.close();
 
             writeBAM(stream, header_text, bam.reference_sequences, 
-                     chunk, 1, task_pool);
+                     chunk, uncompressed_chunks ? 0 : 1, task_pool);
 
             num_of_chunks += 1;
         }
 
-        // ---------------------- merge sorted chunks ------------------------------
+        scope(exit) {
+            // ---------------- remove temporary files at exit ---------------------
+            foreach (tmpfile; tmpfiles) {
+                remove(tmpfile);
+            }
+        }
 
-        stderr.writeln("merging...");
-        stderr.writeln("    setting up alignment ranges...");
+        // ---------------------- merge sorted chunks ------------------------------
 
         alias ReturnType!(BamFile.alignments) AlignmentRange;
         auto alignmentranges = new AlignmentRange[num_of_chunks];
@@ -116,7 +136,6 @@ int sort_main(string[] args) {
             range = bamfile.alignments;
         }
 
-        stderr.writeln("    writing...");
         // and another half is for output buffers
         Stream stream = new BufferedFile(output_filename, FileMode.Out,
                                          memory_limit / 2);
@@ -124,14 +143,8 @@ int sort_main(string[] args) {
 
         writeBAM(stream, header_text, bam.reference_sequences,
                  nWayUnion!compareAlignmentCoordinates(alignmentranges),
-                 -1,
+                 compression_level,
                  task_pool);
-
-        // ---------------- remove temporary files -----------------------------
-
-        foreach (tmpfile; tmpfiles) {
-            remove(tmpfile);
-        }
 
         return 0;
     } catch (Throwable e) {

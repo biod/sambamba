@@ -12,6 +12,7 @@ import std.system;
 import std.range;
 import std.algorithm;
 import std.parallelism;
+import std.exception;
 
 debug {
     import std.stdio;
@@ -244,7 +245,7 @@ void writeBAM(R)(Stream stream,
         case 7: writeAlignmentBlocks!(7)(chunked_blocks, stream, task_pool); break;
         case 8: writeAlignmentBlocks!(8)(chunked_blocks, stream, task_pool); break;
         case 9: writeAlignmentBlocks!(9)(chunked_blocks, stream, task_pool); break;
-        default: assert(0);
+        default: throw new Exception("compression level must be a number from -1 to 9");
     }
 
     // write EOF block
