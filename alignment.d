@@ -88,6 +88,8 @@ struct Alignment {
         return this;
     }
 
+    // TODO: better names for properties
+
     @property    int ref_id()           const nothrow { return _refID; }
     @property    int position()         const nothrow { return _pos; }
     @property    Bin bin()              const nothrow { return Bin(_bin); }

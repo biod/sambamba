@@ -227,9 +227,11 @@ string injectOpCast() {
         return cs.idup;
     }
 
-    foreach (t; PrimitiveTagValueTypes) {
-        cs ~= `(is(T == `~t.ValueType.stringof~`)) {`~
-              injectSwitchPrimitive(t.ValueType.stringof)~
+    foreach (t; TypeTuple!(byte, ubyte, short, ushort, int, uint,
+                           char, float, double, real, long, ulong))
+    {
+        cs ~= `(is(T == `~t.stringof~`)) {`~
+              injectSwitchPrimitive(t.stringof)~
               `} else static if`.dup;
     }
 
