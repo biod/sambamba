@@ -21,7 +21,7 @@ GDCFLAGSFULL=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -
 DMDFLAGS=$(DMDFLAGSFULL) -version=standalone
 GDCFLAGS=$(GDCFLAGSFULL) -fversion=standalone
 
-SAMBAMBA_VIEW_FILES=sambamba-view/filter.d sambamba-view/serializer.d sambamba-view/view.d
+SAMBAMBA_VIEW_FILES=sambamba-view/filter.d sambamba-view/serializer.d sambamba-view/view.d sambamba-view/queryparser.d ../utils/pratt_parser.d
 SAMBAMBA_INDEX_FILES=sambamba-index/index.d
 SAMBAMBA_SORT_MERGE_COMMON_FILES=common/comparators.d common/nwayunion.d
 SAMBAMBA_SORT_FILES=sambamba-sort/sort.d sambamba-sort/thirdparty/mergesort.d

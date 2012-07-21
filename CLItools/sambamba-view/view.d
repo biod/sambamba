@@ -6,6 +6,7 @@ import region;
 
 import filter;
 import serializer;
+import queryparser;
 
 import utils.format;
 
@@ -22,6 +23,8 @@ void printUsage() {
     writeln("                    skip reads with mapping quality < THRESHOLD");
     writeln("         -r, --read-group=READGROUP");
     writeln("                    output only reads from read group READGROUP");
+    writeln("         -F, --filter=FILTER");
+    writeln("                    set custom filter for alignments");
     writeln("         -f, --format=sam|json");
     writeln("                    specify which format to use for output (default is SAM)");
     writeln("         -h, --with-header");
@@ -67,6 +70,7 @@ void outputReferenceInfoJson(T)(T bam) {
 ubyte quality_threshold = 0;
 string read_group = null;
 string format = "sam";
+string query;
 bool with_header;
 bool header_only;
 bool reference_info_only;
@@ -87,6 +91,7 @@ int view_main(string[] args) {
                std.getopt.config.caseSensitive,
                "quality-threshold|q", &quality_threshold,
                "read-group|r",        &read_group,
+               "filter|F",            &query,
                "format|f",            &format,
                "with-header|h",       &with_header,
                "header|H",            &header_only,
@@ -153,6 +158,17 @@ int sambambaMain(T)(T bam, string[] args)
     if (skip_invalid_alignments) {
         filter = new AndFilter(filter,
                                new ValidAlignmentFilter());
+    }
+
+    if (query !is null) {
+        auto query_grammar = new QueryGrammar();
+        auto node = query_grammar.parse(query);
+        auto condition_node = cast(ConditionNode) node;
+        if (condition_node is null) {
+            stderr.writeln("filter string must represent a condition");
+            return 1;
+        }
+        filter = new AndFilter(filter, condition_node.condition);
     }
 
     static string processAlignments(string s)() {
