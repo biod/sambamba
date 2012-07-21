@@ -5,6 +5,7 @@
 module filter;
 
 import std.regex;
+import std.algorithm;
 import alignment;
 import tagvalue;
 import validation.alignment;
@@ -120,6 +121,22 @@ final class IntegerFieldFilter(string op) : Filter {
     }
 }
 
+final class TagExistenceFilter(string op) : Filter {
+    static assert(op == "==" || op == "!=");
+    private string _tagname;
+    private static bool _should_exist = op == "!=";
+    this(string tagname, typeof(null) dummy) {
+        _tagname = tagname;
+    }
+    bool accepts(ref Alignment a) const {
+        auto v = a[_tagname];
+        if (_should_exist) 
+            return !v.is_nothing;
+        else 
+            return v.is_nothing;
+    }
+}
+
 /// Filtering integer tags
 final class IntegerTagFilter(string op) : Filter {
     private long _value;
@@ -152,7 +169,8 @@ final class StringFieldFilter(string op) : Filter {
     }
     bool accepts(ref Alignment a) const {
         switch(_fieldname) {
-            case "read_name": mixin("return a.read_name " ~ op ~ "_value;");
+            case "read_name": mixin("return a.read_name " ~ op ~ " _value;");
+            case "sequence": mixin("return cmp(a.sequence, _value) " ~ op ~ " 0;");
             default: throw new Exception("unknown string field '" ~ _fieldname ~ "'");
         }
     }

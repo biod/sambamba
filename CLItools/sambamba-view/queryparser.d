@@ -23,6 +23,13 @@ class TagNameNode : Node {
     }
 }
 
+class NullValueNode : Node {
+    static auto value = null;
+    string toString() const {
+        return "null";
+    }
+}
+
 class IntegerNode : Node {
     long value;
     this(long value) {
@@ -86,14 +93,20 @@ class ComparisonNode(T, LeftNodeType, RightNodeType, alias Filter) : ConditionNo
             auto n = node.fieldname;
         }
         auto v = valuenode.value;
-        switch (op) {
-            case ">": condition = new Filter!">"(n, v); break;
-            case "<": condition = new Filter!"<"(n, v); break;
-            case ">=": condition = new Filter!">="(n, v); break;
-            case "<=": condition = new Filter!"<="(n, v); break;
-            case "!=": condition = new Filter!"!="(n, v); break;
-            case "==": condition = new Filter!"=="(n, v); break;
-            default: assert(0); // must be catched before calling constructor
+        static if (is(RightNodeType == NullValueNode)) {
+            if (op == "==") condition = new Filter!"=="(n, v);
+            else if (op == "!=") condition = new Filter!"!="(n, v);
+            else assert(0);
+        } else {
+            switch (op) {
+                case ">": condition = new Filter!">"(n, v); break;
+                case "<": condition = new Filter!"<"(n, v); break;
+                case ">=": condition = new Filter!">="(n, v); break;
+                case "<=": condition = new Filter!"<="(n, v); break;
+                case "!=": condition = new Filter!"!="(n, v); break;
+                case "==": condition = new Filter!"=="(n, v); break;
+                default: assert(0); // must be catched before calling constructor
+            }
         }
     }
 
@@ -106,6 +119,7 @@ alias ComparisonNode!(long, TagNameNode, IntegerNode, IntegerTagFilter) IntegerT
 alias ComparisonNode!(string, TagNameNode, StringNode, StringTagFilter) StringTagConditionNode;
 alias ComparisonNode!(long, IntegerFieldNode, IntegerNode, IntegerFieldFilter) IntegerFieldConditionNode;
 alias ComparisonNode!(string, StringFieldNode, StringNode, StringFieldFilter) StringFieldConditionNode;
+alias ComparisonNode!(typeof(null), TagNameNode, NullValueNode, TagExistenceFilter) TagExistenceConditionNode;
 
 class OrConditionNode : ConditionNode {
     private ConditionNode _a, _b;
@@ -191,6 +205,8 @@ final class QueryGrammar : Grammar!Node {
     this() {
         super("(end)");
 
+        addSymbolToDict("null").setParser((in string str) { return cast(Node) new NullValueNode(); });
+
         static auto makeScanner(string[] values) {
             return (in string str, size_t pos) {
                 foreach (value; values) {
@@ -219,7 +235,7 @@ final class QueryGrammar : Grammar!Node {
             .setScanner(makeScanner(integer_fields))
             .setParser((in string str) { return cast(Node) new IntegerFieldNode(str);});
                
-        auto string_fields = ["read_name"];
+        auto string_fields = ["read_name", "sequence"];
 
         addSymbolToDict("(string field)", 0)
             .setScanner(makeScanner(string_fields))
@@ -297,6 +313,7 @@ final class QueryGrammar : Grammar!Node {
             return (Node a, Node b) { 
                 auto integer = cast(IntegerNode) b;
                 auto str = cast(StringNode) b;
+                auto nil = cast(NullValueNode) b;
 
                 auto tag = cast(TagNameNode) a;
                 if (integer !is null) {
@@ -323,8 +340,13 @@ final class QueryGrammar : Grammar!Node {
                         }
                         return cast(Node) new StringFieldConditionNode(op, field, str);
                     }
+                } else if (nil !is null && (op == "==" || op == "!=")) {
+                    enforce(tag !is null, "only tag value can be compared with null");
+                    auto node = new TagExistenceConditionNode(op, tag, nil);
+                    return cast(Node) node;
                 } else {
-                    assert(0); // no way to get here
+                    throw new Exception("can't compare `" ~ a.toString() ~ "` and `" ~
+                                        b.toString() ~ "`");
                 }
             };
         }
@@ -343,5 +365,5 @@ unittest {
     import std.stdio;
     auto grammar = new QueryGrammar();
     assert(grammar.parse("unmapped and mate_is_unmapped").toString() == "(unmapped) and (mate_is_unmapped)");
-    writeln(grammar.parse("[BQ] >= 'ab\\'asdga' and ([NM] < 12 or unmapped and [PS] == '321') or mapping_quality < 150 and read_name >= 'abcd'").toString());
+//    writeln(grammar.parse("[BQ] >= 'ab\\'asdga' and ([NM] < 12 or unmapped and [PS] == '321') or mapping_quality < 150 and read_name >= 'abcd' and [PG] != null").toString());
 }
