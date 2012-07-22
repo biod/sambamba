@@ -19,11 +19,7 @@ import std.algorithm;
 void printUsage() {
     writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
     writeln();
-    writeln("Options: -q, --quality-threshold=THRESHOLD");
-    writeln("                    skip reads with mapping quality < THRESHOLD");
-    writeln("         -r, --read-group=READGROUP");
-    writeln("                    output only reads from read group READGROUP");
-    writeln("         -F, --filter=FILTER");
+    writeln("Options: -F, --filter=FILTER");
     writeln("                    set custom filter for alignments");
     writeln("         -f, --format=sam|json");
     writeln("                    specify which format to use for output (default is SAM)");
@@ -67,8 +63,6 @@ void outputReferenceInfoJson(T)(T bam) {
     putcharacter(stdout, '\n');
 }
 
-ubyte quality_threshold = 0;
-string read_group = null;
 string format = "sam";
 string query;
 bool with_header;
@@ -89,8 +83,6 @@ int view_main(string[] args) {
 
         getopt(args,
                std.getopt.config.caseSensitive,
-               "quality-threshold|q", &quality_threshold,
-               "read-group|r",        &read_group,
                "filter|F",            &query,
                "format|f",            &format,
                "with-header|h",       &with_header,
@@ -145,19 +137,8 @@ int sambambaMain(T)(T bam, string[] args)
 
     Filter filter = new NullFilter();
 
-    if (quality_threshold != 0) {
-        filter = new AndFilter(filter, 
-                               new MappingQualityFilter(quality_threshold));
-    }
-
-    if (read_group !is null) {
-        filter = new AndFilter(filter, 
-                               new ReadGroupFilter(read_group));
-    }
-
     if (skip_invalid_alignments) {
-        filter = new AndFilter(filter,
-                               new ValidAlignmentFilter());
+        filter = new AndFilter(filter, new ValidAlignmentFilter());
     }
 
     if (query !is null) {

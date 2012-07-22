@@ -23,36 +23,6 @@ final class NullFilter : Filter {
     }
 }
 
-/// Filter which accepts only alignments with big enough mapping quality
-final class MappingQualityFilter : Filter {
-    private ubyte _min_q;
-
-    this(ubyte minimal_quality) {
-        _min_q = minimal_quality;
-    }
-
-    bool accepts(ref Alignment a) const {
-        return a.mapping_quality >= _min_q;
-    }
-}
-
-/// Filter which accepts only alignments with a given read group
-final class ReadGroupFilter : Filter {
-    private string _rg;
-
-    this(string read_group) {
-        _rg = read_group;
-    }
-
-    bool accepts(ref Alignment a) const {
-        auto rg = a["RG"];
-        if (!rg.is_string || (to!string(rg) != _rg)) {
-            return false;
-        }
-        return true;
-    }
-}
-
 /// Validating filter
 final class ValidAlignmentFilter : Filter {
     
