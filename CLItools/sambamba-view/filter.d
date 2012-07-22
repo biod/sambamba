@@ -6,6 +6,7 @@ module filter;
 
 import std.regex;
 import std.algorithm;
+import std.conv;
 import alignment;
 import tagvalue;
 import validation.alignment;
@@ -171,6 +172,7 @@ final class StringFieldFilter(string op) : Filter {
         switch(_fieldname) {
             case "read_name": mixin("return a.read_name " ~ op ~ " _value;");
             case "sequence": mixin("return cmp(a.sequence, _value) " ~ op ~ " 0;");
+            case "cigar": mixin("return a.cigarString() " ~ op ~ " _value;");
             default: throw new Exception("unknown string field '" ~ _fieldname ~ "'");
         }
     }
@@ -196,25 +198,31 @@ final class StringTagFilter(string op) : Filter {
 }
 
 /// Filtering string fields with a regular expression
-final class RegexpFieldFilter(string fieldname) : Filter {
+final class RegexpFieldFilter : Filter {
+    private string _fieldname;
     private Regex!char _pattern;
     
-    this(Regex!char pattern) {
+    this(string fieldname, Regex!char pattern) {
+        _fieldname = fieldname; 
         _pattern = pattern;
     }
 
     bool accepts(ref Alignment a) const {
-        mixin("return !match(a." ~ fieldname ~ ", _pattern).empty;");
+        switch(_fieldname) {
+            case "read_name": return !match(a.read_name, cast()_pattern).empty;
+            case "sequence": return !match(to!string(a.sequence), cast()_pattern).empty;
+            case "cigar": return !match(a.cigarString(), cast()_pattern).empty;
+            default: throw new Exception("unknown string field '" ~ _fieldname ~ "'");
+        }
     }
 }
 
 /// Filtering string tags with a regular expression
 final class RegexpTagFilter : Filter { 
     private string _tagname;
-    alias typeof(regex("")) Regex;
-    private Regex _pattern;
+    private Regex!char _pattern;
     
-    this(string tagname, Regex pattern) {
+    this(string tagname, Regex!char pattern) {
         _tagname = tagname;
         _pattern = pattern;
     }
@@ -224,6 +232,6 @@ final class RegexpTagFilter : Filter {
         if (!v.is_string) {
             return false;
         }
-        mixin("return !match(cast(string)v, cast()_pattern).empty;");
+        return !match(cast(string)v, cast()_pattern).empty;
     }
 }

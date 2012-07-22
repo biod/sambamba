@@ -2,6 +2,7 @@ import filter;
 import utils.pratt_parser;
 
 import std.array;
+import std.regex;
 import std.algorithm;
 import std.conv;
 import std.ascii;
@@ -12,7 +13,7 @@ interface Node {
     string toString() const;
 }
 
-class TagNameNode : Node {
+final class TagNameNode : Node {
     string tagname;
     this(string tagname) {
         this.tagname = tagname;
@@ -23,14 +24,14 @@ class TagNameNode : Node {
     }
 }
 
-class NullValueNode : Node {
+final class NullValueNode : Node {
     static auto value = null;
     string toString() const {
         return "null";
     }
 }
 
-class IntegerNode : Node {
+final class IntegerNode : Node {
     long value;
     this(long value) {
         this.value = value;
@@ -40,7 +41,7 @@ class IntegerNode : Node {
     }
 }
 
-class IntegerFieldNode : Node {
+final class IntegerFieldNode : Node {
     string fieldname;
     this(string fieldname) {
         this.fieldname = fieldname;
@@ -50,7 +51,7 @@ class IntegerFieldNode : Node {
     }
 }
 
-class StringNode : Node {
+final class StringNode : Node {
     string value;
     this(string value) {
         this.value = value;
@@ -60,7 +61,7 @@ class StringNode : Node {
     }
 }
 
-class StringFieldNode : Node {
+final class StringFieldNode : Node {
     string fieldname;
     this(string fieldname) {
         this.fieldname = fieldname;
@@ -70,14 +71,59 @@ class StringFieldNode : Node {
     }
 }
 
+final class RegexpNode : Node {
+    private string _pattern;
+    private string _options;
+    Regex!char regexp;
+    this(string pattern, string options) {
+        _pattern = pattern;
+        _options = options;
+        regexp = regex(_pattern, _options);
+    }
+
+    string toString() const {
+        return "/" ~ replace(_pattern, "/", "\\/") ~ "/" ~ _options;
+    }
+}
+
 abstract class ConditionNode : Node {
     Filter condition;
     abstract string toString() const;
 }
 
+final class RegexpFieldConditionNode : ConditionNode {
+    private StringFieldNode _fieldnode;
+    private RegexpNode _regexpnode;
+   
+    this(StringFieldNode field, RegexpNode regexp) {
+        _fieldnode = field;
+        _regexpnode = regexp;
+        condition = new RegexpFieldFilter(_fieldnode.fieldname, _regexpnode.regexp);
+    }
+
+    override string toString() const {
+        return _fieldnode.toString ~ " =~ " ~ _regexpnode.toString();
+    }
+}
+
+final class RegexpTagConditionNode : ConditionNode {
+    private TagNameNode _tagnode;
+    private RegexpNode _regexpnode;
+
+    this(TagNameNode tag, RegexpNode regexp) {
+        _tagnode = tag;
+        _regexpnode = regexp;
+        condition = new RegexpTagFilter(_tagnode.tagname, _regexpnode.regexp);
+    }
+
+    override string toString() const {
+        return _tagnode.toString() ~ " =~ " ~ _regexpnode.toString();
+    }
+}
+
 /// LeftNodeType refers to TagNameNode, IntegerFieldNode, or StringFieldNode
 /// RightNodeType refers to IntegerNode or StringNode
-class ComparisonNode(T, LeftNodeType, RightNodeType, alias Filter) : ConditionNode {
+final class ComparisonNode(T, LeftNodeType, RightNodeType, alias Filter) : ConditionNode {
     private {
         LeftNodeType _node;
         RightNodeType _valuenode;
@@ -121,7 +167,7 @@ alias ComparisonNode!(long, IntegerFieldNode, IntegerNode, IntegerFieldFilter) I
 alias ComparisonNode!(string, StringFieldNode, StringNode, StringFieldFilter) StringFieldConditionNode;
 alias ComparisonNode!(typeof(null), TagNameNode, NullValueNode, TagExistenceFilter) TagExistenceConditionNode;
 
-class OrConditionNode : ConditionNode {
+final class OrConditionNode : ConditionNode {
     private ConditionNode _a, _b;
     this(Node a, Node b) {
         _a = cast(ConditionNode)a;
@@ -136,7 +182,7 @@ class OrConditionNode : ConditionNode {
     }
 }
 
-class AndConditionNode : ConditionNode {
+final class AndConditionNode : ConditionNode {
     private ConditionNode _a, _b;
     this(Node a, Node b) {
         _a = cast(ConditionNode)a;
@@ -151,7 +197,7 @@ class AndConditionNode : ConditionNode {
     }
 }
 
-class NegateConditionNode : ConditionNode {
+final class NegateConditionNode : ConditionNode {
     private ConditionNode _a;
     this(Node a) {
         _a = cast(ConditionNode)a;
@@ -164,7 +210,7 @@ class NegateConditionNode : ConditionNode {
     }
 }
 
-class FlagConditionNode : ConditionNode {
+final class FlagConditionNode : ConditionNode {
     private string _flagname;
     this(in string flagname) {
         _flagname = flagname;
@@ -235,7 +281,7 @@ final class QueryGrammar : Grammar!Node {
             .setScanner(makeScanner(integer_fields))
             .setParser((in string str) { return cast(Node) new IntegerFieldNode(str);});
                
-        auto string_fields = ["read_name", "sequence"];
+        auto string_fields = ["read_name", "sequence", "cigar"];
 
         addSymbolToDict("(string field)", 0)
             .setScanner(makeScanner(string_fields))
@@ -272,6 +318,7 @@ final class QueryGrammar : Grammar!Node {
                 (in string str) { return cast(Node) new IntegerNode(to!long(str)); }
             );
 
+        // string literal matches /'([^']|\\')*'/
         addSymbolToDict("(string)", 0)
             .setScanner(
                 (in string str, size_t pos) {
@@ -353,6 +400,58 @@ final class QueryGrammar : Grammar!Node {
 
         foreach (op; [">", "<", ">=", "<=", "==", "!="])
             infix(op, 110, makeComparisonOperator(op));
+
+        // regexp literal matches /\/([^\/]|\\/)*\/[gixUms]
+        addSymbolToDict("(regexp)", 0)
+            .setScanner((in string str, size_t pos) {
+                if (pos >= str.length) return pos;
+                if (str[pos] != '/') return pos;
+                size_t i = pos + 1;
+                while (i < str.length) {
+                    if (str[i] == '\\' && i + 1 < str.length && str[i+1] == '/') {
+                        i += 2;
+                    } else if (str[i] == '/') {
+                        i += 1;
+                        break;
+                    } else {
+                        i += 1;
+                    }
+                }
+                if (i == str.length && str[$ - 1] != '/') return pos;
+                while (i < str.length) {
+                    if (isWhite(str[i])) break;
+                    if (canFind("gixUms", str[i])) {
+                        ++i;
+                    } else {
+                        return pos;
+                    }
+                }
+                return i;
+            }).setParser((in string str) {
+                size_t delimiter_pos = str.length - 1;
+                while (str[delimiter_pos] != '/') 
+                    --delimiter_pos;
+                auto pattern = str[1 .. delimiter_pos];
+                auto options = str[delimiter_pos + 1 .. $];
+                return cast(Node) new RegexpNode(pattern, options);
+            });
+
+        infix("=~", 110, 
+            (Node a, Node b) {
+                auto regexp_node = cast(RegexpNode) b;
+                if (regexp_node is null) {
+                    throw new Exception("expected regular expression, not '" ~ b.toString() ~ "'");
+                }
+                auto strfield = cast(StringFieldNode) a;
+                if (strfield !is null) {
+                    return cast(Node) new RegexpFieldConditionNode(strfield, regexp_node);
+                } 
+                auto tag = cast(TagNameNode) a;
+                if (tag !is null) {
+                    return cast(Node) new RegexpTagConditionNode(tag, regexp_node);
+                }
+                throw new Exception("expected string field or tag name, not '" ~ a.toString(), "'");
+            });
 
         infix("and", 80, (Node a, Node b) { return cast(Node) new AndConditionNode(a, b); });
         infix("or", 60, (Node a, Node b) { return cast(Node) new OrConditionNode(a, b);  });
