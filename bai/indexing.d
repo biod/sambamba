@@ -44,8 +44,8 @@ void createIndex(ref BamFile bam, ref Stream stream) {
     }
 
     // BAM file contains no alignments at all or all reads are unmapped
-    if (bam.alignmentsWithVirtualOffsets.empty ||
-        bam.alignmentsWithVirtualOffsets.front.alignment.ref_id < 0) {
+    if (bam.alignments!withOffsets.empty ||
+        bam.alignments!withOffsets.front.alignment.ref_id < 0) {
         foreach (i; 0 .. nrefs) {
             writeEmptyReference();
         }
@@ -54,7 +54,7 @@ void createIndex(ref BamFile bam, ref Stream stream) {
 
     // OK, now let's deal with non-degenerate case
 
-    auto alignment_blocks = bam.alignmentsWithVirtualOffsets;
+    auto alignment_blocks = bam.alignments!withOffsets;
 
     auto prev_block = alignment_blocks.front;
     alignment_blocks.popFront();

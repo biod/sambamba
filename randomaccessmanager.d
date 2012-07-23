@@ -190,7 +190,7 @@ private {
         bool _empty = false;
 
         // start and end virtual offsets + alignments
-        ReturnType!alignmentRangeWithOffsets _alignment_blocks;
+        ReturnType!(alignmentRange!withOffsets) _alignment_blocks;
 
         AlignmentBlock _current_alignment_block;
 
@@ -218,7 +218,7 @@ private {
             /// Setup new alignment range, with offsets.
             /// Offsets are needed to stop when we pass the end of 
             /// the current chunk, and skip to the next one.
-            _alignment_blocks = alignmentRangeWithOffsets(stream);
+            _alignment_blocks = alignmentRange!withOffsets(stream);
             if (!_alignment_blocks.empty) {
                 _current_alignment_block = _alignment_blocks.front;
 

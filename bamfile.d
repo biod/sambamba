@@ -5,7 +5,7 @@ public import reference;
 public import alignment;
 public import virtualoffset;
 public import tagvalue;
-import alignmentrange;
+public import alignmentrange;
 import bgzfrange;
 import chunkinputstream;
 import randomaccessmanager;
@@ -87,18 +87,9 @@ struct BamFile {
         However, using several ranges is not recommended since it can hurt
 		disk access performance.
      */
-    auto alignments() @property {
+    auto alignments(alias IteratePolicy=withoutOffsets)() @property {
 		auto _decompressed_stream = getDecompressedAlignmentStream();
-		return alignmentRange(_decompressed_stream);
-    }
-
-	/**
-	  	Returns: range of all alignments in the file together with their
-		start/end virtual offsets (alignmentrange.AlignmentBlock structs)
-	 */
-    auto alignmentsWithVirtualOffsets() {
-		auto _decompressed_stream = getDecompressedAlignmentStream();
-        return alignmentRangeWithOffsets(_decompressed_stream);
+		return alignmentRange!IteratePolicy(_decompressed_stream);
     }
 
     /**
@@ -151,9 +142,6 @@ private:
 	VirtualOffset _alignments_start_voffset;
 
     BaiFile _bai_file; /// provides access to index file
-
-    typeof(alignmentRange(_decompressed_stream)) _alignment_range;
-    typeof(alignmentRangeWithOffsets(_decompressed_stream)) _alignment_range_with_offsets;
 
     RandomAccessManager _random_access_manager;
 
