@@ -15,7 +15,7 @@ import utils.range;
 import std.stream;
 import std.system;
 import std.stdio;
-import std.algorithm : map;
+import std.algorithm : map, min;
 import std.range : zip;
 import std.conv : to;
 import std.exception : enforce;
@@ -93,6 +93,62 @@ struct BamFile {
     }
 
     /**
+        Returns: range of all alignments in the file, calling $(D progressBarFunc)
+                 for each alignment. 
+
+        This function follows a different approach compared to $(D alignments!withOffsets),
+        the reason being that calculating percentage uses either integer division 
+        operations or float division, and that adds quite a bit of overhead. 
+        By using a function/delegate instead, this evaluation can be done lazily
+        (use lazy float argument type for that).
+
+        $(D progressBarFunc) must be a function with exactly one argument. It will be called
+        each time next alignment is read, with the argument being a number from [0.0, 1.0],
+        which is estimated progress percentage.
+    */
+    auto alignments(alias IteratePolicy=withoutOffsets, alias progressBarFunc)() {
+		auto _decompressed_stream = getDecompressedAlignmentStream();
+        auto alignments_with_offsets = alignmentRange!withOffsets(_decompressed_stream);
+
+        static struct Result(alias IteratePolicy, R, S) {
+            this(R range, S stream) {
+                _range = range;
+                _stream = stream;
+            }
+
+            static if (__traits(identifier, IteratePolicy) == "withOffsets") {
+                auto front() @property {
+                    return _range.front;
+                } 
+            } else static if (__traits(identifier, IteratePolicy) == "withoutOffsets") {
+                auto front() @property {
+                    return _range.front.alignment;
+                }
+            } else static assert(0, __traits(identifier, IteratePolicy));
+
+            bool empty() @property {
+                return _range.empty;
+            }
+
+            void popFront() {
+                _bytes_read += _range.front.alignment.size_in_bytes;
+                _range.popFront();
+                progressBarFunc(min(1.0, 
+                    cast(float)_bytes_read / (_stream.compressed_file_size * 
+                                              _stream.average_compression_ratio)));
+            }
+
+            private R _range;
+            private S _stream;
+            private size_t _bytes_read;
+        }
+
+        return Result!(IteratePolicy, 
+                       typeof(alignments_with_offsets),
+                       typeof(_decompressed_stream))(alignments_with_offsets, _decompressed_stream);
+    }
+
+    /**
       Get an alignment at a given virtual offset.
      */
     Alignment getAlignmentAt(VirtualOffset offset) {
@@ -163,8 +219,12 @@ private:
         } else {
             auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
         }
-    	
-		return makeChunkInputStream(chunk_range);
+   
+         if (compressed_stream.seekable) {
+            return makeChunkInputStream(chunk_range, cast(size_t)file.size);
+        } else {
+            return makeChunkInputStream(chunk_range);
+        }
 	}
 
 	// get decompressed stream starting from the first alignment record
@@ -181,8 +241,9 @@ private:
         } else {
             auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
         }
-    	
-		auto stream = makeChunkInputStream(chunk_range);
+    
+        auto sz = compressed_stream.seekable ? compressed_stream.size : 0;
+		auto stream = makeChunkInputStream(chunk_range, cast(size_t)sz);
 		stream.readString(_alignments_start_voffset.uoffset);
 		return stream;
 	}

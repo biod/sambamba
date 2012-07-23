@@ -24,7 +24,7 @@ mixin template withOffsets() {
     AlignmentBlock front() @property {
         return AlignmentBlock(_start_voffset, 
                               _stream.virtualTell(),
-                              Alignment(_current_record));
+                              _current_record);
     }
 
     private VirtualOffset _start_voffset;
@@ -40,7 +40,7 @@ mixin template withoutOffsets() {
         Returns: current alignment
      */
     Alignment front() @property {
-        return Alignment(_current_record);
+        return _current_record;
     }
 
     private void beforeNextAlignmentLoad() {}
@@ -70,7 +70,7 @@ private:
     IChunkInputStream _stream;
     EndianStream _endian_stream;
 
-    ubyte[] _current_record;
+    Alignment _current_record;
     bool _empty = false;
 
     /**
@@ -85,19 +85,11 @@ private:
         beforeNextAlignmentLoad();
         int block_size = void;
         _endian_stream.read(block_size);
-        _current_record = _stream.readSlice(block_size);
+        _current_record = Alignment(_stream.readSlice(block_size));
     }
-}
-
-/// Returns: an alignment constructed out of given chunk of memory.
-///
-/// No parsing occurs, it is done lazily.
-Alignment makeAlignment(ubyte[] chunk) {
-    return Alignment(chunk);
 }
 
 /// Returns: lazy range of Alignment structs constructed from a given stream.
 auto alignmentRange(alias IteratePolicy=withoutOffsets)(ref IChunkInputStream stream) {
-
     return new AlignmentRange!IteratePolicy(stream);
 }

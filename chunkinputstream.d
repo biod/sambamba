@@ -36,6 +36,12 @@ abstract class IChunkInputStream : Stream {
 
     /// Read a slice from chunk stream.
     abstract ubyte[] readSlice(size_t n);
+
+    /// Average compression so far
+    abstract float average_compression_ratio() @property const;
+
+    /// Size of underlying BAM file (0 if not available).
+    abstract size_t compressed_file_size() @property const;
 }
 
 /**
@@ -48,13 +54,15 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
     static assert(is(ElementType!ChunkRange == DecompressedBgzfBlock));
 
     /// Construct class instance from range of chunks.
-    this(ChunkRange range) 
+    this(ChunkRange range, size_t compressed_file_size=0) 
     {
         _range = range;
         setupStream();
         readable = true;
         writeable = false;
         seekable = false;
+
+        _compressed_file_size = compressed_file_size;
     }
 
     /// Read a slice from chunk stream.
@@ -136,14 +144,28 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
         return VirtualOffset(_start_offset, cast(ushort)_cur);
     }
 
+    float average_compression_ratio() @property const {
+        if (_total_compressed == 0) return 0.0;
+        return cast(float)_total_uncompressed/_total_compressed;
+    }
+
+    size_t compressed_file_size() @property const {
+        return _compressed_file_size;
+    }
+
 private:
     ChunkRange _range;
     typeof(_range.front.start_offset) _start_offset;
     typeof(_range.front.end_offset) _end_offset;
     typeof(_range.front.decompressed_data) _buf;
 
+    size_t _compressed_file_size;
+
     size_t _len;  // current data length
     size_t _cur;  // current position
+
+    size_t _total_compressed; // compressed bytes read so far
+    size_t _total_uncompressed; // uncompressed size of blocks read so far
 
     void setupStream() {
 
@@ -160,8 +182,13 @@ private:
                                  /// can cost a lot
         _start_offset = tmp.start_offset;
         _end_offset = tmp.end_offset;
+
+        _total_compressed += _end_offset - _start_offset;
+
         _buf = tmp.decompressed_data;
         _len = _buf.length;
+
+        _total_uncompressed += _len;
 
         if (_len == 0) {
             readEOF = true;
@@ -185,6 +212,6 @@ private:
 /**
    Returns: input stream wrapping given range of memory chunks
  */
-auto makeChunkInputStream(R)(R range) {
-    return new ChunkInputStream!R(range);
+auto makeChunkInputStream(R)(R range, size_t compressed_file_size=0) {
+    return new ChunkInputStream!R(range, compressed_file_size);
 }
