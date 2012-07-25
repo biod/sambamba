@@ -185,9 +185,7 @@ int sort_main(string[] args) {
                             return (lazy float progress) { 
                                 atomicStore(merging_progress[j], progress);
                                 synchronized (bar) {
-                                    bar.update({ 
-                                        return dotProduct(merging_progress, weights);
-                                        }());
+                                    bar.update(dotProduct(merging_progress, weights));
                                 }
                             };
                         }(i));
