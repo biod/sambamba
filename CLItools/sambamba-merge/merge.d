@@ -59,6 +59,7 @@ import std.conv;
 import std.array;
 import std.range;
 import std.typecons;
+import std.traits;
 import std.parallelism;
 import std.stream;
 import std.getopt;
@@ -129,7 +130,7 @@ Alignment changeAlignment(Tuple!(Alignment, size_t) al_with_file_id) {
     return al;
 }
 
-auto modifyAlignmentRange(Tuple!(typeof(BamFile.alignments), size_t) alignments_with_file_id) {
+auto modifyAlignmentRange(Tuple!(ReturnType!(BamFile.alignments!withoutOffsets), size_t) alignments_with_file_id) {
     version(serial) {
         return map!changeAlignment(zip(alignments_with_file_id[0], 
                                        repeat(alignments_with_file_id[1])));

@@ -96,24 +96,21 @@ struct BamFile {
         Returns: range of all alignments in the file, calling $(D progressBarFunc)
                  for each alignment. 
 
-        This function follows a different approach compared to $(D alignments!withOffsets),
-        the reason being that calculating percentage uses either integer division 
-        operations or float division, and that adds quite a bit of overhead. 
-        By using a function/delegate instead, this evaluation can be done lazily
-        (use lazy float argument type for that).
-
-        $(D progressBarFunc) must be a function with exactly one argument. It will be called
+        $(D progressBarFunc) will be called
         each time next alignment is read, with the argument being a number from [0.0, 1.0],
         which is estimated progress percentage.
     */
-    auto alignments(alias IteratePolicy=withoutOffsets, alias progressBarFunc)() {
+    auto alignmentsWithProgress(alias IteratePolicy=withoutOffsets)
+        (void delegate(lazy float p) progressBarFunc) 
+    {
 		auto _decompressed_stream = getDecompressedAlignmentStream();
         auto alignments_with_offsets = alignmentRange!withOffsets(_decompressed_stream);
 
         static struct Result(alias IteratePolicy, R, S) {
-            this(R range, S stream) {
+            this(R range, S stream, void delegate(lazy float p) progressBarFunc) {
                 _range = range;
                 _stream = stream;
+                _progress_bar_func = progressBarFunc;
             }
 
             static if (__traits(identifier, IteratePolicy) == "withOffsets") {
@@ -133,19 +130,24 @@ struct BamFile {
             void popFront() {
                 _bytes_read += _range.front.alignment.size_in_bytes;
                 _range.popFront();
-                progressBarFunc(min(1.0, 
-                    cast(float)_bytes_read / (_stream.compressed_file_size * 
-                                              _stream.average_compression_ratio)));
+                if (_progress_bar_func !is null) {
+                    _progress_bar_func(min(1.0, 
+                        cast(float)_bytes_read / (_stream.compressed_file_size * 
+                                                  _stream.average_compression_ratio)));
+                }
             }
 
             private R _range;
             private S _stream;
             private size_t _bytes_read;
+            private void delegate(lazy float p) _progress_bar_func;
         }
 
         return Result!(IteratePolicy, 
                        typeof(alignments_with_offsets),
-                       typeof(_decompressed_stream))(alignments_with_offsets, _decompressed_stream);
+                       typeof(_decompressed_stream))(alignments_with_offsets, 
+                                                     _decompressed_stream,
+                                                     progressBarFunc);
     }
 
     /**

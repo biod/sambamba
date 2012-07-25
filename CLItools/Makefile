@@ -6,7 +6,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d \
-	  ../jsonserialization.d ../bai/indexing.d
+	  ../jsonserialization.d ../bai/indexing.d common/progressbar.d
 
 SAMFILES=../samfile.d ../sam/recordparser.d ../utils/tagstoragebuilder.d
 
@@ -15,7 +15,7 @@ all: sambamba-dmd
 ../sam/recordparser.d:
 	cd ../sam && make recordparser.d
 
-DMDFLAGSFULL=-O -release -inline -g
+DMDFLAGSFULL=-g#-O -release -inline -g
 GDCFLAGSFULL=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192 -m32
 
 DMDFLAGS=$(DMDFLAGSFULL) -version=standalone

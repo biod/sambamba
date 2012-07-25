@@ -4,36 +4,20 @@ import std.stdio;
 import std.stream;
 import std.range;
 import std.parallelism;
+import std.getopt;
+
+import common.progressbar;
 
 import bai.indexing;
 import bamfile;
 
 void printUsage() {
-    writeln("Usage: sambamba-index <input.bam> [<output.bai>]");
+    writeln("Usage: sambamba-index [-p|--show-progress] <input.bam> [<output.bai>]");
     writeln();
     writeln("\tIf output filename is not provided, appends '.bai' suffix");
     writeln("\tto the name of BAM file");
-}
-
-void updateProgressBar(lazy float percentage) {
-    static int counter;
-    immutable WIDTH = 78;
-    if (counter == 0) {
-        stderr.write("[", repeat(' ', WIDTH), "]");
-        counter += 1;
-    } else {
-        counter += 1;
-        if (counter % 16384 == 0) {
-            auto progress = cast(int)(WIDTH * percentage + 0.5);
-            if (progress == 0) return;
-            stderr.write("\r[", repeat('=', progress - 1), ">", 
-                                repeat(' ', WIDTH - progress), "]");
-        }
-    }
-}
-
-void showCompletedProgressBar() {
-    stderr.write("\r[", repeat('=', 78), "]");
+    writeln();
+    writeln("\tIf -p option is specified, progressbar is shown in STDERR.");
 }
 
 version(standalone) {
@@ -43,6 +27,13 @@ version(standalone) {
 }
 
 int index_main(string[] args) {
+
+    bool show_progress;
+
+    getopt(args,
+           std.getopt.config.caseSensitive,
+           "show-progress|p", &show_progress);
+
     try {
         string out_filename = null;
         switch (args.length) {
@@ -65,9 +56,14 @@ int index_main(string[] args) {
                 auto bam = BamFile(args[1], task_pool);
                 Stream stream = new BufferedFile(out_filename, FileMode.Out);
                 scope(exit) stream.close();
-                createIndex!updateProgressBar(bam, stream);
-                showCompletedProgressBar();
-                stderr.writeln();
+
+                if (show_progress) {
+                    auto bar = new shared(ProgressBar)();
+                    createIndex(bam, stream, (lazy float p) { bar.update(p); });
+                    bar.finish();
+                } else {
+                    createIndex(bam, stream);
+                }
                 break;
             default:
                 printUsage();

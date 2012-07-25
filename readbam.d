@@ -1,20 +1,22 @@
 import bamfile;
 
-import jsonserialization;
-
 import std.datetime;
 import std.stdio;
 
 void main(string[] args) {
-    StopWatch sw;
-    sw.start();
     auto bam = BamFile(args[1]);
-    auto count = 0;
 
-    FILE* fp = cast(FILE*)stdout.getFP();
+    int[string] tags;
+    char[string] typeids;
+
     foreach (alignment; bam.alignments) {
-        jsonSerialize(alignment, bam.reference_sequences, fp);
-        fputc('\n', fp);
+        foreach (key, value; alignment) {
+            tags[key] += 1;
+            typeids[key] = value.bam_typeid;
+        }
     }
-    sw.stop();
+
+    foreach (key, count; tags) {
+        writeln("[", key, "] - ", count, " (", typeids[key], ")");
+    }
 }

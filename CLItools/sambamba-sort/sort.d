@@ -10,15 +10,19 @@ import std.algorithm;
 import std.traits;
 import std.array;
 import std.ascii;
+import std.numeric;
 import std.parallelism;
 import std.getopt;
 import std.path;
 import std.file;
 import std.stream;
 import std.stdio;
+import core.atomic;
 
 import common.comparators;
 import common.nwayunion : nWayUnion;
+import common.progressbar;
+
 import thirdparty.mergesort;
 
 void printUsage() {
@@ -36,6 +40,8 @@ void printUsage() {
     writeln("               level of compression for sorted BAM, from 0 to 9");
     writeln("         -u, --uncompressed-chunks");
     writeln("               write sorted chunks as uncompressed BAM (default is writing with compression level 1), that might be faster in some cases but uses more disk space");
+    writeln("         -p, --show-progress");
+    writeln("               show progressbar in STDERR");
 }
 
 version(standalone) {
@@ -45,6 +51,11 @@ version(standalone) {
 }
 
 private bool sort_by_name;
+private bool show_progress;
+
+private shared(ProgressBar) bar;
+private shared(float[]) weights;
+private shared(float[]) merging_progress;
 
 int sort_main(string[] args) {
 
@@ -69,7 +80,8 @@ int sort_main(string[] args) {
                "out|o",                 &output_filename,
                "sort-by-name|n",        &sort_by_name,
                "uncompressed-chunks|u", &uncompressed_chunks,
-               "compression-level|l",   &compression_level);
+               "compression-level|l",   &compression_level,
+               "show-progress|p",       &show_progress);
 
         if (memory_limit_str !is null) {
             memory_limit = parseMemory(memory_limit_str);
@@ -101,20 +113,34 @@ int sort_main(string[] args) {
         }
 
         string[] tmpfiles;
-
         auto num_of_chunks = 0;
-        foreach (chunk; map!sortChunk(chunks(bam.alignments, memory_limit)))
-        {
-            auto fn = tmpFile(chunkBaseName(args[1], num_of_chunks), tmpdir);
-            tmpfiles ~= fn;
 
-            Stream stream = new BufferedFile(fn, FileMode.Out);
-            scope(exit) stream.close();
+        void writeSortedChunks(R)(R alignments) {
+            foreach (chunk; map!sortChunk(chunks(alignments, memory_limit)))
+            {
+                auto fn = tmpFile(chunkBaseName(args[1], num_of_chunks), tmpdir);
+                tmpfiles ~= fn;
 
-            writeBAM(stream, header_text, bam.reference_sequences, 
-                     chunk, uncompressed_chunks ? 0 : 1, task_pool);
+                Stream stream = new BufferedFile(fn, FileMode.Out);
+                scope(exit) stream.close();
 
-            num_of_chunks += 1;
+                writeBAM(stream, header_text, bam.reference_sequences, 
+                         chunk, uncompressed_chunks ? 0 : 1, task_pool);
+
+                num_of_chunks += 1;
+            }
+        }
+
+        if (show_progress) {
+            stderr.writeln("Writing sorted chunks to temporary directory...");
+            bar = new shared(ProgressBar)();
+            auto alignments = bam.alignmentsWithProgress(
+                                  (lazy float p){ bar.update(p); }
+                              );
+            writeSortedChunks(alignments);
+            bar.finish();
+        } else {
+            writeSortedChunks(bam.alignments);
         }
 
         scope(exit) {
@@ -126,25 +152,68 @@ int sort_main(string[] args) {
 
         // ---------------------- merge sorted chunks ------------------------------
 
-        alias ReturnType!(BamFile.alignments) AlignmentRange;
-        auto alignmentranges = new AlignmentRange[num_of_chunks];
-
         // half of memory is for input buffers
-        foreach (i, ref range; alignmentranges) {
-            auto bamfile = BamFile(tmpfiles[i]);
-            bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
-            range = bamfile.alignments;
-        }
-
         // and another half is for output buffers
         Stream stream = new BufferedFile(output_filename, FileMode.Out,
                                          memory_limit / 2);
         scope(exit) stream.close();
 
-        writeBAM(stream, header_text, bam.reference_sequences,
-                 nWayUnion!compareAlignmentCoordinates(alignmentranges),
-                 compression_level,
-                 task_pool);
+        if (show_progress) {
+            stderr.writeln("Merging sorted chunks...");
+            weights.length = num_of_chunks;
+            merging_progress.length = num_of_chunks;
+            merging_progress[] = 0.0;
+
+            alias ReturnType!(BamFile.alignmentsWithProgress!withoutOffsets) AlignmentRangePB;
+            auto alignmentranges = new AlignmentRangePB[num_of_chunks];
+
+            bar = new shared(ProgressBar)();
+
+            foreach (i; 0 .. num_of_chunks) {
+                weights[i] = std.file.getSize(tmpfiles[i]); // set file size as weight
+            }
+
+            normalize(weights);
+
+            foreach (i, ref range; alignmentranges) {
+                auto bamfile = BamFile(tmpfiles[i]);
+                bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
+                range = bamfile.alignmentsWithProgress(
+                // WTF is going on here? See this thread:
+                // http://forum.dlang.org/thread/mailman.112.1341467786.31962.digitalmars-d@puremagic.com
+                        (size_t j) { 
+                            return (lazy float progress) { 
+                                atomicStore(merging_progress[j], progress);
+                                synchronized (bar) {
+                                    bar.update({ 
+                                        return dotProduct(merging_progress, weights);
+                                        }());
+                                }
+                            };
+                        }(i));
+            }
+
+            writeBAM(stream, header_text, bam.reference_sequences,
+                     nWayUnion!compareAlignmentCoordinates(alignmentranges),
+                     compression_level,
+                     task_pool);
+
+            bar.finish();
+        } else {
+            alias ReturnType!(BamFile.alignments!withoutOffsets) AlignmentRange;
+            auto alignmentranges = new AlignmentRange[num_of_chunks];
+
+            foreach (i, ref range; alignmentranges) {
+                auto bamfile = BamFile(tmpfiles[i]);
+                bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
+                range = bamfile.alignments;
+            }
+
+            writeBAM(stream, header_text, bam.reference_sequences,
+                     nWayUnion!compareAlignmentCoordinates(alignmentranges),
+                     compression_level,
+                     task_pool);
+        }
 
         return 0;
     } catch (Throwable e) {

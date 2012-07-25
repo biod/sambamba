@@ -10,6 +10,8 @@ import queryparser;
 
 import utils.format;
 
+import common.progressbar;
+
 import std.stdio;
 import std.c.stdio : stdout;
 import std.array;
@@ -35,6 +37,8 @@ void printUsage() {
     writeln("                    output only valid alignments");
     writeln("         -S, --sam-input");
     writeln("                    specify that input is in SAM format");
+    writeln("         -p, --show-progress");
+    writeln("                    show progressbar in STDERR (works only for BAM files with no regions specified)");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
@@ -72,6 +76,8 @@ bool count_only;
 bool skip_invalid_alignments;
 bool is_sam;
 
+bool show_progress;
+
 version(standalone) {
     int main(string[] args) {
         return view_main(args);
@@ -90,7 +96,8 @@ int view_main(string[] args) {
                "reference-info|I",    &reference_info_only,
                "count|c",             &count_only,
                "valid|v",             &skip_invalid_alignments,
-               "sam-input|S",         &is_sam);
+               "sam-input|S",         &is_sam,
+               "show-progress|p",     &show_progress);
         
         if (args.length < 2) {
             printUsage();
@@ -161,9 +168,24 @@ static if (is(T == SamFile)) {
         }
 }
         if (args.length == 2) {
+            
+static if (is(T == BamFile)) {
+            if (show_progress) {
+                auto bar = new shared(ProgressBar)();
+                foreach (read; bam.alignmentsWithProgress((lazy float p) { bar.update(p); })) {
+                    if (filter.accepts(read)) ` ~ s ~ `;
+                }
+                bar.finish();
+            } else {
+                foreach (read; bam.alignments) {
+                    if (filter.accepts(read)) ` ~ s ~ `;
+                }
+            }
+} else {
             foreach (read; bam.alignments) {
                 if (filter.accepts(read)) ` ~ s ~ `;
             }
+}
         } 
 
 // for BAM, random access is available

@@ -27,12 +27,12 @@ private size_t toLinearIndexOffset(int position) {
     return position < 0 ? 0 : position / BAI_LINEAR_INDEX_WINDOW_SIZE;
 }
 
-private void defaultProgressBarFunc(lazy float dummy) {}
+void defaultProgressBarFunc(lazy float dummy) {}
 
 /// Writes BAM index to the $(D stream)
 ///
 /// Accepts optional $(D progressBarFunc)
-void createIndex(alias progressBarFunc=defaultProgressBarFunc)(ref BamFile bam, ref Stream stream) {
+void createIndex(ref BamFile bam, ref Stream stream, void delegate(lazy float p) progressBarFunc=null) {
 
     auto endian_stream = new EndianStream(stream, Endian.littleEndian);
 
@@ -58,7 +58,7 @@ void createIndex(alias progressBarFunc=defaultProgressBarFunc)(ref BamFile bam, 
 
     // OK, now let's deal with non-degenerate case
 
-    auto alignment_blocks = bam.alignments!(withOffsets, progressBarFunc)();
+    auto alignment_blocks = bam.alignmentsWithProgress!withOffsets(progressBarFunc);
 
     auto prev_block = alignment_blocks.front;
     alignment_blocks.popFront();
