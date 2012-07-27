@@ -419,7 +419,7 @@ final class QueryGrammar : Grammar!Node {
                 }
                 if (i == str.length && str[$ - 1] != '/') return pos;
                 while (i < str.length) {
-                    if (isWhite(str[i])) break;
+                    if (isWhite(str[i]) || str[i] == ')') break;
                     if (canFind("gixUms", str[i])) {
                         ++i;
                     } else {

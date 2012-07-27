@@ -112,7 +112,7 @@ int view_main(string[] args) {
             return sambambaMain(sam, args);
         }
     } catch (Exception e) {
-        writeln("sambamba: ", e.msg);
+        writeln("sambamba-view: ", e.msg);
 
         version(development) {
             throw e; // rethrow to see detailed message
