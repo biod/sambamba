@@ -123,11 +123,13 @@ int view_main(string[] args) {
 }
 
 // In fact, $(D bam) is either BAM or SAM file
-int sambambaMain(T)(T bam, string[] args) 
+int sambambaMain(T)(T _bam, string[] args) 
     if (is(T == SamFile) || is(T == BamFile)) 
 {
 
     immutable is_sam = is(T == SamFile);
+
+    auto bam = _bam; // WTF is that? DMD 2.059 can't create a closure otherwise.
 
     auto serializer = new Serializer(format);
 
@@ -159,55 +161,79 @@ int sambambaMain(T)(T bam, string[] args)
         filter = new AndFilter(filter, condition_node.condition);
     }
 
-    static string processAlignments(string s)() {
-        return `
-static if (is(T == SamFile)) {
-        if (args.length > 2) {
-            stderr.writeln("sorry, accessing regions is unavailable for SAM input");
-            return 1;
+    // TODO: when DMD & Phobos won't have any bugs in implementations of
+    //       joiner, map, InputRangeObject, ... (if that happens)
+    //       rewrite this bullsh*t using them.
+    //       
+    //       For now, avoid using InputRange interface in algorithms.
+    //       Not only this is a performance penalty,
+    //       but gives undebuggable segfaults as of now.
+
+    // Closures passed as compile-time arguments give segfault.
+    // Passing delegate as runtime argument gives a performance penalty.
+    // Using string mixins leads to unreadable code.
+    // Let's choose the second option for now...
+    int processAlignments(void delegate(Alignment a) dg) {
+        static if (is(T == SamFile)) {
+            if (args.length > 2) {
+                stderr.writeln("sorry, accessing regions is unavailable for SAM input");
+                return 1;
+            }
         }
-}
+
         if (args.length == 2) {
             
-static if (is(T == BamFile)) {
-            if (show_progress) {
-                auto bar = new shared(ProgressBar)();
-                foreach (read; bam.alignmentsWithProgress((lazy float p) { bar.update(p); })) {
-                    if (filter.accepts(read)) ` ~ s ~ `;
+            static if (is(T == BamFile)) {
+                if (show_progress) {
+                    auto bar = new shared(ProgressBar)();
+                    foreach (read; bam.alignmentsWithProgress((lazy float p) { bar.update(p); })) {
+                        // TODO: use filter + inputRangeObject (when it won't give segfaults)
+                        if (filter.accepts(read))
+                            dg(read);
+                    }
+                    bar.finish();
+                } else {
+                    foreach (read; bam.alignments) {
+                        if (filter.accepts(read))
+                            dg(read);
+                    }
                 }
-                bar.finish();
-            } else {
+            } else { // SamFile
                 foreach (read; bam.alignments) {
-                    if (filter.accepts(read)) ` ~ s ~ `;
+                    if (filter.accepts(read))
+                        dg(read);
                 }
             }
-} else {
-            foreach (read; bam.alignments) {
-                if (filter.accepts(read)) ` ~ s ~ `;
-            }
-}
         } 
 
-// for BAM, random access is available
-static if (is(T == BamFile)) {
-        if (args.length > 2) {
-            auto regions = map!parseRegion(args[2 .. $]);
+        // for BAM, random access is available
+        static if (is(T == BamFile)) {
+            if (args.length > 2) {
+                auto regions = map!parseRegion(args[2 .. $]);
 
-            foreach (ref r; regions) {
-                foreach (read; bam[r.reference][r.beg .. r.end]) {
-                    if (filter.accepts(read)) ` ~ s ~ `;
+                // TODO: use map + joiner + inputRangeObject 
+                //       (when it won't give segfaults)
+                foreach (ref r; regions) {
+                    foreach (read; bam[r.reference][r.beg .. r.end]) {
+                        if (filter.accepts(read))
+                            dg(read);
+                    }
                 }
             }
         }
-}`;
+
+        return 0;
     }
 
     if (count_only) {
         uint count;
-        mixin(processAlignments!"count += 1"());
+        if (processAlignments((Alignment _) { count += 1; }))
+            return 1;
         writeln(count);
     } else {
-        mixin(processAlignments!"serializer.writeln(read, bam.reference_sequences)"());
+        return processAlignments((Alignment read) {
+                    serializer.writeln(read, bam.reference_sequences);
+                });
     }
 
     return 0;
