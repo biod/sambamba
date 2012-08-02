@@ -69,9 +69,10 @@ int sort_main(string[] args) {
 
         size_t memory_limit = 512 * 1024 * 1024;
         string tmpdir = null;
-        string output_filename = setExtension(args[1], "sorted.bam");
         bool uncompressed_chunks;
         int compression_level = -1;
+
+        string output_filename;
 
         getopt(args,
                std.getopt.config.caseSensitive,
@@ -82,6 +83,10 @@ int sort_main(string[] args) {
                "uncompressed-chunks|u", &uncompressed_chunks,
                "compression-level|l",   &compression_level,
                "show-progress|p",       &show_progress);
+
+        if (output_filename is null) {
+            output_filename = setExtension(args[1], "sorted.bam");
+        }
 
         if (memory_limit_str !is null) {
             memory_limit = parseMemory(memory_limit_str);
