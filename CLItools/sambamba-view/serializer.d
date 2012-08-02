@@ -14,7 +14,7 @@ import std.exception;
 import std.conv;
 
 private {
-    import std.c.stdio : stdout;
+    import std.c.stdio;
     import std.json;
 
     interface AlignmentSerializer {
@@ -119,6 +119,29 @@ private {
     }
 }
 
+extern(C)
+{
+    version(Posix) {
+        int isatty(int fd);
+
+        extern(D) {
+            bool isTty(shared FILE* file) {
+                return isatty(fileno(cast(FILE*)file)) != 0;
+            }
+        }
+    }
+
+    version(Windows) {
+        int _isatty(int fd);
+
+        extern(D) {
+            bool isTty(shared FILE* file) {
+                return _isatty(_fileno(cast(FILE*)file)) != 0;
+            }
+        }
+    }
+}
+
 final class Serializer {
     private AlignmentSerializer _serializer;
 
@@ -132,6 +155,13 @@ final class Serializer {
                 throw new Exception("unknown format for serialization: '" ~ format ~ 
                                     "' (expected 'sam' or 'json')");
         }
+
+        if (!isTty(stdout)) {
+            // setup a buffer for stdout for faster output
+            auto output_buf = new char[1_048_576];
+
+            setvbuf(stdout, output_buf.ptr, _IOFBF, output_buf.length);        
+        }
     }
 
     void writeln(Alignment a, ReferenceSequenceInfo[] info) {
@@ -140,5 +170,9 @@ final class Serializer {
 
     void writeln(SamHeader header) {
         _serializer.writeln(header);
+    }
+
+    void flush() {
+        fflush(stdout);
     }
 }

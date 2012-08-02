@@ -132,6 +132,7 @@ int sambambaMain(T)(T _bam, string[] args)
     auto bam = _bam; // WTF is that? DMD 2.059 can't create a closure otherwise.
 
     auto serializer = new Serializer(format);
+    scope(exit) serializer.flush();
 
     if (reference_info_only && !count_only) {
         outputReferenceInfoJson(bam);
