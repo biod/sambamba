@@ -1,0 +1,49 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-INDEX" "1" "August 2012" "" ""
+.
+.SH "NAME"
+\fBsambamba\-index\fR \- tool for building standard index files for BAM data
+.
+.SH "SYNOPSIS"
+\fBsambamba\-index\fR [\fB\-p\fR|\fB\-\-show\-progress\fR] <input\.bam> [<output\.bai>]
+.
+.SH "DESCRIPTION"
+\fBsambamba\-index\fR builds an index for a sorted by coordinate BAM file\. This step is required for effective region querying in most tools for working with BAM data\.
+.
+.P
+An index is by default written to the file with the same filename except \fB\.bai\fR extension added to the end\. The user can, however, override this default by providing desired output filename explicitly as an optional command\-line argument\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-p\fR, \fB\-\-show\-progress\fR
+Show a wget\-like progressbar in STDERR\.
+.
+.SH "EXAMPLES"
+Build index file \fBexample\.bam\.bai\fR given a sorted BAM file \fBexample\.bam\fR:
+.
+.IP "" 4
+.
+.nf
+
+$ sambamba\-index example\.bam
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Build index file at custom location showing progress:
+.
+.IP "" 4
+.
+.nf
+
+$ sambamba\-index \-\-show\-progress example\.bam /tmp/example\.bam\.bai
+.
+.fi
+.
+.IP "" 0
+

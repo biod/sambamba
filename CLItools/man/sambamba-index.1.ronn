@@ -1,0 +1,32 @@
+sambamba-index(1) -- tool for building standard index files for BAM data
+========================================================================
+
+## SYNOPSIS
+
+`sambamba-index` [`-p`|`--show-progress`] <input.bam> [<output.bai>]
+
+## DESCRIPTION
+
+`sambamba-index` builds an index for a sorted by coordinate BAM file.
+This step is required for effective region querying in most tools for working
+with BAM data.
+
+An index is by default written to the file with the same filename except 
+`.bai` extension added to the end. The user can, however, override this default
+by providing desired output filename explicitly as an optional command-line 
+argument.
+
+## OPTIONS
+
+  * `-p`, `--show-progress`:
+    Show a wget-like progressbar in STDERR.
+
+## EXAMPLES
+
+Build index file example.bam.bai given a sorted BAM file example.bam:
+
+    $ sambamba-index example.bam
+
+Build index file at custom location showing progress:
+
+    $ sambamba-index --show-progress example.bam /tmp/example.bam.bai
