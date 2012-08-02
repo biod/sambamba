@@ -94,4 +94,7 @@ except some bugs might go away ;-).
 
 1. Clone the repository.
 2. Download DMD compiler from http://dlang.org/download.html
-3. Compile some examples, read some code. Wiki will come soon.
+3. Install the [Ragel][] state machine compiler.
+4. Compile some examples, read some code. Wiki will come soon.
+
+[Ragel]: http://www.complang.org/ragel/
