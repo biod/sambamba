@@ -208,7 +208,7 @@ private:
     int[string] _reference_sequence_dict; /// name -> index mapping
 
     TaskPool _task_pool;
-    size_t buffer_size = 8192; // buffer size to be used for I/O
+    size_t buffer_size = 1048576; // buffer size to be used for I/O
 
 	// get decompressed stream out of compressed BAM file
 	IChunkInputStream getDecompressedStream() {
