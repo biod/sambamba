@@ -1,0 +1,61 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-SORT" "1" "August 2012" "" ""
+.
+.SH "NAME"
+\fBsambamba\-sort\fR \- tool for sorting BAM files
+.
+.SH "SYNOPSIS"
+\fBsambamba\-sort\fR \fIOPTIONS\fR <input\.bam>
+.
+.SH "DESCRIPTION"
+BAM files can have either \'coordinate\' sort order, or \'qname\' one\.
+.
+.P
+The first one means to sort the file by (integer) reference ID, and for each reference sort corresponding reads by start coordinate\.
+.
+.P
+\'qname\' sorting order is when reads are sorted lexicographically by their names\.
+.
+.P
+\fBsambamba\-sort\fR does an external sort on input file\. That means it reads the source BAM file in chunks that fit into memory, sorts them and writes to a temporary directory, and then merges them\. After merging temporary files are removed automatically\. The sort is stable, and efforts have been done to make it multithreaded\.
+.
+.P
+Both sorting orders are supported\. Default one is \'coordinate\' because this is the one used for building index later\. In order to switch to \'qname\' sorting order, use \fB\-n\fR|\fB\-\-sort\-by\-name\fR flag\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-m\fR, \fB\-\-memory\-limit\fR=\fILIMIT\fR
+Sets an upper bound for used memory\. However, this is very approximate\. Default memory limit is 512MiB\. Increasing it will allow to make chunk sizes larger and also reduce amount of I/O seeks thus improving the overall performance\.
+.
+.IP
+\fILIMIT\fR must be a number with an optional suffix specyfying unit of measumerent\. The following endings are recognized: K, KiB, KB, M, MiB, MB, G, GiB, GB\.
+.
+.TP
+\fB\-\-tmpdir\fR=\fITMPDIR\fR
+Use \fITMPDIR\fR to output sorted chunks\. Default behaviour is to use system temporary directory\.
+.
+.TP
+\fB\-o\fR, \fB\-\-out\fR=\fIOUTPUTFILE\fR
+Output file name\. If not provided, the result is written to a file with \.sorted\.bam extension\.
+.
+.TP
+\fB\-n\fR, \fB\-\-sort\-by\-name\fR
+Sort by read name instead of doing coordinate sort\.
+.
+.TP
+\fB\-l\fR, \fB\-\-compression\-level\fR=\fICOMPRESSION_LEVEL\fR
+Compression level to use for \fIsorted\fR BAM, from 0 (known as uncompressed BAM in samtools) to 9\.
+.
+.TP
+\fB\-u\fR, \fB\-\-uncompressed\-chunks\fR
+Write sorted chunks as uncompressed BAM\. Default behaviour is to write them with compression level 1, because that reduces time spent on I/O, but in some cases using this option can give you a better speed\. Note, however, that the disk space needed for sorting will typically be 3\-4 times more than without enabling this option\.
+.
+.TP
+\fB\-p\fR, \fB\-\-show\-progress\fR
+Show wget\-like progressbar in STDERR (in fact, two of them one after another, first one for sorting, and then another one for merging)\.
+.
+.SH "BUGS"
+At the moment, the memory is used quite ineffectively\.

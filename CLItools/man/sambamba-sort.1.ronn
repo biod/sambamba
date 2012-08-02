@@ -1,0 +1,64 @@
+sambamba-sort(1) -- tool for sorting BAM files
+==============================================
+
+## SYNOPSIS
+
+`sambamba-sort` [OPTIONS] <input.bam>
+
+## DESCRIPTION
+
+BAM files can have either 'coordinate' sort order, or 'qname' one.
+
+The first one means to sort the file by (integer) reference ID, and
+for each reference sort corresponding reads by start coordinate.
+
+'qname' sorting order is when reads are sorted lexicographically by
+their names.
+
+`sambamba-sort` does an external sort on input file. That means it
+reads the source BAM file in chunks that fit into memory, sorts them
+and writes to a temporary directory, and then merges them. After merging
+temporary files are removed automatically. The sort is stable, and efforts 
+have been done to make it multithreaded.
+
+Both sorting orders are supported. Default one is 'coordinate' 
+because this is the one used for building index later. In order to
+switch to 'qname' sorting order, use `-n`|`--sort-by-name` flag.
+
+## OPTIONS
+
+  * `-m`, `--memory-limit`=<LIMIT>:
+    Sets an upper bound for used memory. However, this is very approximate.
+    Default memory limit is 512MiB. Increasing it will allow to make chunk
+    sizes larger and also reduce amount of I/O seeks thus improving the overall
+    performance.
+
+    <LIMIT> must be a number with an optional suffix specyfying unit of measumerent.
+    The following endings are recognized: K, KiB, KB, M, MiB, MB, G, GiB, GB.
+
+  * `--tmpdir`=<TMPDIR>:
+    Use <TMPDIR> to output sorted chunks. Default behaviour is to use system
+    temporary directory.
+
+  * `-o`, `--out`=<OUTPUTFILE>:
+    Output file name. If not provided, the result is written to a file with .sorted.bam extension.
+
+  * `-n`, `--sort-by-name`:
+    Sort by read name instead of doing coordinate sort.
+
+  * `-l`, `--compression-level`=<COMPRESSION_LEVEL>:
+    Compression level to use for *sorted* BAM, from 0 (known as uncompressed BAM in samtools) to 9.
+
+  * `-u`, `--uncompressed-chunks`:
+    Write sorted chunks as uncompressed BAM. 
+    Default behaviour is to write them with compression level 1, because that reduces time spent on I/O,
+    but in some cases using this option can give you a better speed. Note, however, that the disk space
+    needed for sorting will typically be 3-4 times more than without enabling this option.
+    
+  * `-p`, `--show-progress`:
+    Show wget-like progressbar in STDERR (in fact, two of them one after another, first one for sorting,
+    and then another one for merging).
+
+## BUGS
+
+At the moment, the memory is used quite ineffectively.
