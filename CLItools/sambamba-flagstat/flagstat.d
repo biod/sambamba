@@ -80,7 +80,7 @@ int flagstat_main(string[] args) {
             computeFlagStatistics(bam.alignmentsWithProgress((lazy float p) { bar.update(p); }));
             bar.finish();
         } else {
-            computeFlagStatistics(bam.alignments);
+            computeFlagStatistics(bam.alignments!withoutOffsets);
         }
         
         scope(exit) {

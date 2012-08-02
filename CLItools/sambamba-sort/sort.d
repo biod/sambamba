@@ -140,7 +140,7 @@ int sort_main(string[] args) {
             writeSortedChunks(alignments);
             bar.finish();
         } else {
-            writeSortedChunks(bam.alignments);
+            writeSortedChunks(bam.alignments!withoutOffsets);
         }
 
         scope(exit) {
@@ -204,7 +204,7 @@ int sort_main(string[] args) {
             foreach (i, ref range; alignmentranges) {
                 auto bamfile = BamFile(tmpfiles[i]);
                 bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
-                range = bamfile.alignments;
+                range = bamfile.alignments!withoutOffsets;
             }
 
             writeBAM(stream, header_text, bam.reference_sequences,
