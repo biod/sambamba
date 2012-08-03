@@ -1,0 +1,76 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-MERGE" "1" "August 2012" "" ""
+.
+.SH "NAME"
+\fBsambamba\-merge\fR \- tool for merging several BAM files into one
+.
+.SH "SYNOPSIS"
+\fBsambamba\-merge\fR \fIOPTIONS\fR <output\.bam> <input1\.bam> <input2\.bam> [\.\.\.]
+.
+.SH "DESCRIPTION"
+\fBsambamba\-merge\fR is used for merging several sorted BAM files into one\. The sorting order of all the files must be the same, and it is maintained in the output file\.
+.
+.P
+SAM headers are merged automatically like in Picard merging tool\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-t\fR, \fB\-\-nthreads\fR=\fINUM_OF_THREADS\fR:
+.
+.IP "" 4
+.
+.nf
+
+Specify number of threads to use for compression/decompression tasks\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-l\fR, \fB\-\-compression\-level\fR=\fICOMPRESSION_LEVEL\fR:
+.
+.IP "" 4
+.
+.nf
+
+Specify compression level of output file as a number from 0 to 9
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-H\fR, \fB\-\-header\fR:
+.
+.IP "" 4
+.
+.nf
+
+Output only merged header to stdout in SAM format (e\.g\. for debugging purposes)\.
+Other options are ignored\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-p\fR, \fB\-\-show\-progress\fR:
+.
+.IP "" 4
+.
+.nf
+
+Show progressbar in STDERR\.
+.
+.fi
+.
+.IP "" 0
+
+

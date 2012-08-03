@@ -433,11 +433,11 @@ struct Alignment {
         writeTags(stream);
     }
 
-private:
-
     ubyte[] _chunk; /// holds all the data, 
                     /// the access is organized via properties
                     /// (see below)
+
+private:
 
     bool _is_slice; /// indicates whether _chunk is a slice or an allocated array.
 
