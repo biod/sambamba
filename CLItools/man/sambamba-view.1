@@ -1,0 +1,222 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-VIEW" "1" "August 2012" "" ""
+.
+.SH "NAME"
+\fBsambamba\-view\fR \- tool for extracting information from SAM/BAM files
+.
+.SH "SYNOPSIS"
+\fBsambamba\-view\fR \fIOPTIONS\fR <input\.bam | input\.sam> [region1 [\.\.\.]]
+.
+.SH "DESCRIPTION"
+\fBsambamba\-view\fR allows to efficiently filter BAM file for alignments satisfying various conditions, as well as access its SAM header and information about reference sequences\. In order to make these data readily available for consumption by scripts in Perl/Python/Ruby, JSON output is provided\.
+.
+.P
+By default, the tool expects BAM file as an input\. In order to work with SAM file, specify \fB\-S\fR|\fB\-\-sam\-input\fR command\-line option, the tool does NOT try to guess file format from extension\. Beware that when reading SAM, the tool will skip tags which don\'t conform to the SAM/BAM specification, and set invalid fields to their default values\. However, only syntax is checked, use \fB\-\-valid\fR for full validation\.
+.
+.SH "FILTERING"
+Filtering is presented in two ways\. First, you can specify a condition with \fB\-F\fR option, using a special language for filtering, described at
+.
+.P
+https://github\.com/lomereiter/sambamba/wiki/%5Bsambamba\-view%5D\-Filter\-expression\-syntax
+.
+.P
+Second, if you have an indexed BAM file, several regions can be specified as well\. The syntax for regions is the same as in samtools: \fIchr\fR:\fIbeg\fR\-\fIend\fR where \fIbeg\fR and \fIend\fR are 1\-based start and end of a closed\-end interval on the reference \fIchr\fR\.
+.
+.SH "JSON"
+Alignment record JSON representation is a hash with keys \'qname\', \'flag\', \'rname\', \'pos\', \'mapq\', \'cigar\', \'rnext\', \'qual\', \'tags\', e\.g\.
+.
+.P
+{"qname":"EAS56_57:6:190:289:82","flag":69,"rname":"chr1","pos":100,"mapq":0,"cigar":"*","rnext":"=","pnext":100,"tlen":0,"seq":"CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA","qual":[27,27,27,22,27,27,27,26,27,27,27,27,27,27,27,27,23,26,26,27,22,26,19,27,26,27,26,26,26,26,26,24,19,27,26],"tags":{"MF":192}}
+.
+.P
+This format may change in the future versions for performance reasons\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-F\fR, \fB\-\-filter\fR=\fIFILTER\fR:
+.
+.IP "" 4
+.
+.nf
+
+Set custom filter for alignments\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-f\fR, \fB\-\-format\fR=\fIFORMAT\fR:
+.
+.IP "" 4
+.
+.nf
+
+Specify output format\. At the moment, SAM and JSON are supported\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-h\fR, \fB\-\-with\-header\fR:
+.
+.IP "" 4
+.
+.nf
+
+Print SAM header before reads\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-H\fR, \fB\-\-header\fR:
+.
+.IP "" 4
+.
+.nf
+
+Print only SAM header\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-I\fR, \fB\-\-reference\-info\fR:
+.
+.IP "" 4
+.
+.nf
+
+Output reference sequence names and lengths in JSON (see [EXAMPLES][])\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-c\fR, \fB\-\-count\fR:
+.
+.IP "" 4
+.
+.nf
+
+Output only the number of matching records, \-hHI options are ignored\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-v\fR, \fB\-\-valid\fR:
+.
+.IP "" 4
+.
+.nf
+
+Output only valid reads\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-S\fR, \fB\-\-sam\-input\fR:
+.
+.IP "" 4
+.
+.nf
+
+Specify that the input is SAM file (default is BAM for all operations)\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-p\fR, \fB\-\-show\-progress\fR:
+.
+.IP "" 4
+.
+.nf
+
+Show progressbar in STDERR\. Works only for BAM files, and with no regions
+specified, i\.e\. only when reading full file\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.SH "EXAMPLES"
+Print basic reference sequence information:
+.
+.IP "" 4
+.
+.nf
+
+ $ sambamba view \-\-reference\-info ex1_header\.bam
+ [{"name":"chr1","length":1575},{"name":"chr2","length":1584}]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Count reads with mapping quality not less than 50:
+.
+.IP "" 4
+.
+.nf
+
+ $ sambamba view \-c \-F "mapping_quality >= 50" ex1_header\.bam
+ 3124
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Count properly paired reads overlapping 100\.\.200 on chr1:
+.
+.IP "" 4
+.
+.nf
+
+ $ sambamba view \-c \-F "proper_pair" ex1_header\.bam chr1:100\-200
+ 39
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Output header in JSON format:
+.
+.IP "" 4
+.
+.nf
+
+ $ sambamba view \-\-header \-\-format=json ex1_header\.bam
+ {"format_version":"1\.3","rg_lines":[],"sq_lines":[{"sequence_length":1575,"species":"","uri":"","sequence_name":"chr1","assembly":"","md5":""},{"sequence_length":1584,"species":"","uri":"","sequence_name":"chr2","assembly":"","md5":""}],"sorting_order":"coordinate","pg_lines":[]}
+.
+.fi
+.
+.IP "" 0
+.
+.SH "BUGS"
+No BAM output support yet\. Also, no way to see validation error messages or to set validation stringency at the moment\.
