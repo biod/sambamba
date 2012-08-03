@@ -1,0 +1,34 @@
+sambamba-flagstat(1) -- getting flag statistics from BAM file
+=============================================================
+
+## SYNOPSIS
+
+`sambamba-flagstat` [OPTIONS] <input.bam>
+
+## DESCRIPTION
+
+Outputs some statistics drawn from read flags.
+
+First line contains numbers of QC-passed and QC-failed reads.
+Then come pairs of numbers, the former for QC-passed reads, the latter for
+QC-failed ones:
+
+* duplicates
+* mapped reads (plus percentage relative to the numbers from the first line)
+* reads with 'is_paired' flag set
+* paired reads which are first mates
+* paired reads which are second mates
+* paired reads with 'proper_pair' flag set (plus percentage relative to
+  the numbers of QC-passed/failed reads with 'is_paired' flag set)
+* paired reads where both mates are mapped
+* paired reads where read itself is unmapped but mate is mapped
+* paired reads where mate is mapped to a different chromosome
+* the same as previous but mapping quality is not less than 5
+
+## OPTIONS
+
+  * `-n`, `--nthreads`=<NTHREADS>
+        Specify number of threads to use for BAM decompression
+
+  * `-p`, `--show-progress`
+        Show progressbar in STDERR

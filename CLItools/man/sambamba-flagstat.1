@@ -1,0 +1,81 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-FLAGSTAT" "1" "August 2012" "" ""
+.
+.SH "NAME"
+\fBsambamba\-flagstat\fR \- getting flag statistics from BAM file
+.
+.SH "SYNOPSIS"
+\fBsambamba\-flagstat\fR \fIOPTIONS\fR <input\.bam>
+.
+.SH "DESCRIPTION"
+Outputs some statistics drawn from read flags\.
+.
+.P
+First line contains numbers of QC\-passed and QC\-failed reads\. Then come pairs of numbers, the former for QC\-passed reads, the latter for QC\-failed ones:
+.
+.IP "\(bu" 4
+duplicates
+.
+.IP "\(bu" 4
+mapped reads (plus percentage relative to the numbers from the first line)
+.
+.IP "\(bu" 4
+reads with \'is_paired\' flag set
+.
+.IP "\(bu" 4
+paired reads which are first mates
+.
+.IP "\(bu" 4
+paired reads which are second mates
+.
+.IP "\(bu" 4
+paired reads with \'proper_pair\' flag set (plus percentage relative to the numbers of QC\-passed/failed reads with \'is_paired\' flag set)
+.
+.IP "\(bu" 4
+paired reads where both mates are mapped
+.
+.IP "\(bu" 4
+paired reads where read itself is unmapped but mate is mapped
+.
+.IP "\(bu" 4
+paired reads where mate is mapped to a different chromosome
+.
+.IP "\(bu" 4
+the same as previous but mapping quality is not less than 5
+.
+.IP "" 0
+.
+.SH "OPTIONS"
+.
+.IP "\(bu" 4
+\fB\-n\fR, \fB\-\-nthreads\fR=\fINTHREADS\fR
+.
+.IP "" 4
+.
+.nf
+
+Specify number of threads to use for BAM decompression
+.
+.fi
+.
+.IP "" 0
+
+.
+.IP "\(bu" 4
+\fB\-p\fR, \fB\-\-show\-progress\fR
+.
+.IP "" 4
+.
+.nf
+
+Show progressbar in STDERR
+.
+.fi
+.
+.IP "" 0
+
+.
+.IP "" 0
+
