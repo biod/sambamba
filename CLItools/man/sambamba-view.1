@@ -56,7 +56,8 @@ Set custom filter for alignments\.
 .
 .nf
 
-Specify output format\. At the moment, SAM and JSON are supported\.
+Specify output format\. <FORMAT> must be one of sam, bam, or json (in lowercase)\.
+Default one is SAM\.
 .
 .fi
 .
@@ -70,7 +71,7 @@ Specify output format\. At the moment, SAM and JSON are supported\.
 .
 .nf
 
-Print SAM header before reads\.
+Print SAM header before reads\. This is always done for BAM output\.
 .
 .fi
 .
@@ -84,7 +85,8 @@ Print SAM header before reads\.
 .
 .nf
 
-Print only SAM header\.
+Print only SAM header to STDOUT\. If <FORMAT> is sam or bam, its text version is
+printed, otherwise JSON object is written\.
 .
 .fi
 .
@@ -98,7 +100,7 @@ Print only SAM header\.
 .
 .nf
 
-Output reference sequence names and lengths in JSON (see [EXAMPLES][])\.
+Output to STDOUT reference sequence names and lengths in JSON (see [EXAMPLES][])\.
 .
 .fi
 .
@@ -112,7 +114,7 @@ Output reference sequence names and lengths in JSON (see [EXAMPLES][])\.
 .
 .nf
 
-Output only the number of matching records, \-hHI options are ignored\.
+Output to STDOUT only the number of matching records, \-hHI options are ignored\.
 .
 .fi
 .
@@ -156,6 +158,34 @@ Specify that the input is SAM file (default is BAM for all operations)\.
 
 Show progressbar in STDERR\. Works only for BAM files, and with no regions
 specified, i\.e\. only when reading full file\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-l\fR, \fB\-\-compression\-level\fR=\fICOMPRESSION_LEVEL\fR:
+.
+.IP "" 4
+.
+.nf
+
+Set compression level for BAM output, a number from 0 to 9\.
+.
+.fi
+.
+.IP "" 0
+
+.
+.TP
+\fB\-o\fR, \fB\-\-output\-filename\fR=\fIFILENAME\fR:
+.
+.IP "" 4
+.
+.nf
+
+Specify output filename (by default everything is written to STDOUT)\.
 .
 .fi
 .
@@ -219,4 +249,4 @@ Output header in JSON format:
 .IP "" 0
 .
 .SH "BUGS"
-No BAM output support yet\. Also, no way to see validation error messages or to set validation stringency at the moment\.
+There\'s no way to see validation error messages or to set validation stringency at the moment\.

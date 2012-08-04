@@ -46,19 +46,21 @@ This format may change in the future versions for performance reasons.
         Set custom filter for alignments.
 
   * `-f`, `--format`=<FORMAT>:
-        Specify output format. At the moment, SAM and JSON are supported.
+        Specify output format. <FORMAT> must be one of sam, bam, or json (in lowercase).
+        Default one is SAM.
 
   * `-h`, `--with-header`:
-        Print SAM header before reads.
+        Print SAM header before reads. This is always done for BAM output.
 
   * `-H`, `--header`:
-        Print only SAM header.
+        Print only SAM header to STDOUT. If <FORMAT> is sam or bam, its text version is
+        printed, otherwise JSON object is written.
 
   * `-I`, `--reference-info`:
-        Output reference sequence names and lengths in JSON (see [EXAMPLES][]).
+        Output to STDOUT reference sequence names and lengths in JSON (see [EXAMPLES][]).
 
   * `-c`, `--count`:
-        Output only the number of matching records, -hHI options are ignored.
+        Output to STDOUT only the number of matching records, -hHI options are ignored.
 
   * `-v`, `--valid`:
         Output only valid reads.
@@ -69,6 +71,12 @@ This format may change in the future versions for performance reasons.
   * `-p`, `--show-progress`:
         Show progressbar in STDERR. Works only for BAM files, and with no regions
         specified, i.e. only when reading full file.
+
+  * `-l`, `--compression-level`=<COMPRESSION_LEVEL>:
+        Set compression level for BAM output, a number from 0 to 9.
+
+  * `-o`, `--output-filename`=<FILENAME>:
+        Specify output filename (by default everything is written to STDOUT).
 
 ## EXAMPLES
 
@@ -94,5 +102,5 @@ This format may change in the future versions for performance reasons.
 
 ## BUGS
 
-No BAM output support yet. Also, no way to see validation error messages or 
+There's no way to see validation error messages or 
 to set validation stringency at the moment.
