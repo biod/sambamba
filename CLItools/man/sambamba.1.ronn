@@ -1,0 +1,19 @@
+sambamba(1) -- toolkit for working with SAM/BAM files
+=====================================================
+
+## SYNOPSIS
+
+`sambamba` [subcommand] [arguments...]
+
+## DESCRIPTION
+
+`sambamba` unifies several independent tools in one executable:
+
+* sambamba-view(1)
+* sambamba-index(1)
+* sambamba-merge(1)
+* sambamba-sort(1)
+* sambamba-flagstat(1)
+
+Thus available subcommands are *view*, *index*, *merge*, *sort*,
+and *flagstat*. Their use is explained on the corresponding man pages.
