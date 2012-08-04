@@ -199,7 +199,7 @@ int sambambaMain(T)(T _bam, string[] args)
                     processor.process(filtered(reads), bam);
                     bar.finish();
                 } else {
-                    processor.process(filtered(bam.alignments), bam);
+                    processor.process(filtered(bam.alignments!withoutOffsets), bam);
                 }
             } else { // SamFile
                 processor.process(filtered(bam.alignments), bam);
