@@ -1,4 +1,4 @@
-import filter;
+import filtering;
 import utils.pratt_parser;
 
 import std.array;

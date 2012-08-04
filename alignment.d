@@ -419,6 +419,11 @@ struct Alignment {
         return this._chunk == other._chunk;
     }
 
+    /// ditto
+    bool opEqualis(Alignment other) const pure nothrow {
+        return this._chunk == other._chunk;
+    }
+
     /// Size of alignment when output to stream in BAM format.
     /// Includes block_size as well (see SAM/BAM specification)
     @property auto size_in_bytes() const {

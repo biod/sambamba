@@ -10,6 +10,7 @@ import constants;
 import std.stream;
 import std.system;
 import std.range;
+import std.traits;
 import std.algorithm;
 import std.parallelism;
 import std.exception;
@@ -77,7 +78,7 @@ void writeBAM(R)(Stream stream,
                  R alignments,
                  int compression_level=-1,
                  TaskPool task_pool=taskPool) 
-    if (is(ElementType!R == Alignment))
+    if (is(Unqual!(ElementType!R) == Alignment))
 {
     // First, pack header and reference sequences.
     auto header_memory_stream = new MemoryStream();

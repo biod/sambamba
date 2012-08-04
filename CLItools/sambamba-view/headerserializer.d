@@ -1,42 +1,23 @@
-/**
-  Encapsulates switching between various output formats
- */
-module serializer;
+module headerserializer;
 
-import alignment;
-import reference;
 import samheader;
-import sam.serialize;
-import jsonserialization;
+import std.json;
+import std.conv;
+import std.c.stdio;
 import utils.format;
 
-import std.exception;
-import std.conv;
-
 private {
-    import std.c.stdio;
-    import std.json;
-
-    interface AlignmentSerializer {
-        void writeln(Alignment a, ReferenceSequenceInfo[] info);
+    interface IHeaderSerializer {
         void writeln(SamHeader header);
     }
 
-    final class SamSerializer : AlignmentSerializer {
-        void writeln(Alignment a, ReferenceSequenceInfo[] info) {
-            serialize(a, info, stdout);
-            putcharacter(stdout, '\n');
-        }
+    final class HeaderSamSerializer : IHeaderSerializer {
         void writeln(SamHeader header) {
             serialize(header, stdout);
         }
     }
 
-    final class JsonSerializer : AlignmentSerializer {
-        void writeln(Alignment a, ReferenceSequenceInfo[] info) {
-            jsonSerialize(a, info, stdout);
-            putcharacter(stdout, '\n');
-        }
+    final class HeaderJsonSerializer : IHeaderSerializer {
 
         void writeln(SamHeader header) {
             
@@ -119,60 +100,23 @@ private {
     }
 }
 
-extern(C)
-{
-    version(Posix) {
-        int isatty(int fd);
-
-        extern(D) {
-            bool isTty(shared FILE* file) {
-                return isatty(fileno(cast(FILE*)file)) != 0;
-            }
-        }
-    }
-
-    version(Windows) {
-        int _isatty(int fd);
-
-        extern(D) {
-            bool isTty(shared FILE* file) {
-                return _isatty(_fileno(cast(FILE*)file)) != 0;
-            }
-        }
-    }
-}
-
-final class Serializer {
-    private AlignmentSerializer _serializer;
+final class HeaderSerializer {
+    private IHeaderSerializer _serializer;
 
     this(string format) {
         switch(format) {
             case "sam":
-                _serializer = new SamSerializer(); break;
+            case "bam":
+                _serializer = new HeaderSamSerializer(); break;
             case "json":
-                _serializer = new JsonSerializer(); break;
+                _serializer = new HeaderJsonSerializer(); break;
             default:
                 throw new Exception("unknown format for serialization: '" ~ format ~ 
-                                    "' (expected 'sam' or 'json')");
+                                    "' (expected 'sam', 'bam', or 'json')");
         }
-
-        if (!isTty(stdout)) {
-            // setup a buffer for stdout for faster output
-            auto output_buf = new char[1_048_576];
-
-            setvbuf(stdout, output_buf.ptr, _IOFBF, output_buf.length);        
-        }
-    }
-
-    void writeln(Alignment a, ReferenceSequenceInfo[] info) {
-        _serializer.writeln(a, info);
     }
 
     void writeln(SamHeader header) {
         _serializer.writeln(header);
-    }
-
-    void flush() {
-        fflush(stdout);
     }
 }

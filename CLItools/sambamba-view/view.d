@@ -4,8 +4,9 @@ import bamfile;
 import samfile;
 import region;
 
-import filter;
-import serializer;
+import filtering;
+import alignmentrangeprocessor;
+import headerserializer;
 import queryparser;
 
 import utils.format;
@@ -15,6 +16,7 @@ import common.progressbar;
 import std.stdio;
 import std.c.stdio : stdout;
 import std.array;
+import std.traits;
 import std.getopt;
 import std.algorithm;
 
@@ -23,22 +25,26 @@ void printUsage() {
     writeln();
     writeln("Options: -F, --filter=FILTER");
     writeln("                    set custom filter for alignments");
-    writeln("         -f, --format=sam|json");
+    writeln("         -f, --format=sam|bam|json");
     writeln("                    specify which format to use for output (default is SAM)");
     writeln("         -h, --with-header");
-    writeln("                    print header before reads");
+    writeln("                    print header before reads (always done for BAM output)");
     writeln("         -H, --header");
-    writeln("                    output only header");
+    writeln("                    output only header to stdout (if format=bam, the header is printed as SAM)");
     writeln("         -I, --reference-info");
-    writeln("                    output only reference names and lengths in JSON");
+    writeln("                    output to stdout only reference names and lengths in JSON");
     writeln("         -c, --count");
-    writeln("                    output only count of matching records, hHI are ignored");
+    writeln("                    output to stdout only count of matching records, hHI are ignored");
     writeln("         -v, --valid");
     writeln("                    output only valid alignments");
     writeln("         -S, --sam-input");
     writeln("                    specify that input is in SAM format");
     writeln("         -p, --show-progress");
     writeln("                    show progressbar in STDERR (works only for BAM files with no regions specified)");
+    writeln("         -l, --compression-level");
+    writeln("                    specify compression level (from 0 to 9, works only for BAM output)");
+    writeln("         -o, --output-filename");
+    writeln("                    specify output filename");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
@@ -78,6 +84,9 @@ bool is_sam;
 
 bool show_progress;
 
+int compression_level = -1;
+string output_filename;
+
 version(standalone) {
     int main(string[] args) {
         return view_main(args);
@@ -97,7 +106,9 @@ int view_main(string[] args) {
                "count|c",             &count_only,
                "valid|v",             &skip_invalid_alignments,
                "sam-input|S",         &is_sam,
-               "show-progress|p",     &show_progress);
+               "show-progress|p",     &show_progress,
+               "compression-level|l", &compression_level,
+               "output-filename|o",   &output_filename);
         
         if (args.length < 2) {
             printUsage();
@@ -122,6 +133,18 @@ int view_main(string[] args) {
     }
 }
 
+// TODO: mark pure functions/methods with 'pure' attribute
+//       so that it becomes visible that accepts() is pure.
+static __gshared Filter filter; 
+
+bool passing(Alignment read) {
+    return filter.accepts(read);
+}
+
+auto filtered(R)(R reads) {
+    return std.algorithm.filter!passing(reads);
+}
+
 // In fact, $(D bam) is either BAM or SAM file
 int sambambaMain(T)(T _bam, string[] args) 
     if (is(T == SamFile) || is(T == BamFile)) 
@@ -129,10 +152,7 @@ int sambambaMain(T)(T _bam, string[] args)
 
     immutable is_sam = is(T == SamFile);
 
-    auto bam = _bam; // WTF is that? DMD 2.059 can't create a closure otherwise.
-
-    auto serializer = new Serializer(format);
-    scope(exit) serializer.flush();
+    auto bam = _bam; // FIXME: uhm, that was a workaround for some closure-related bug
 
     if (reference_info_only && !count_only) {
         outputReferenceInfoJson(bam);
@@ -140,12 +160,12 @@ int sambambaMain(T)(T _bam, string[] args)
     }
 
     if ((with_header || header_only) && !count_only) {
-        serializer.writeln(bam.header);
+        (new HeaderSerializer(format)).writeln(bam.header);
     }
     
     if (header_only) return 0;
 
-    Filter filter = new NullFilter();
+    filter = new NullFilter();
 
     if (skip_invalid_alignments) {
         filter = new AndFilter(filter, new ValidAlignmentFilter());
@@ -162,19 +182,7 @@ int sambambaMain(T)(T _bam, string[] args)
         filter = new AndFilter(filter, condition_node.condition);
     }
 
-    // TODO: when DMD & Phobos won't have any bugs in implementations of
-    //       joiner, map, InputRangeObject, ... (if that happens)
-    //       rewrite this bullsh*t using them.
-    //       
-    //       For now, avoid using InputRange interface in algorithms.
-    //       Not only this is a performance penalty,
-    //       but gives undebuggable segfaults as of now.
-
-    // Closures passed as compile-time arguments give segfault.
-    // Passing delegate as runtime argument gives a performance penalty.
-    // Using string mixins leads to unreadable code.
-    // Let's choose the second option for now...
-    int processAlignments(void delegate(Alignment a) dg) {
+    int processAlignments(AlignmentRangeProcessor)(AlignmentRangeProcessor processor) {
         static if (is(T == SamFile)) {
             if (args.length > 2) {
                 stderr.writeln("sorry, accessing regions is unavailable for SAM input");
@@ -187,23 +195,14 @@ int sambambaMain(T)(T _bam, string[] args)
             static if (is(T == BamFile)) {
                 if (show_progress) {
                     auto bar = new shared(ProgressBar)();
-                    foreach (read; bam.alignmentsWithProgress((lazy float p) { bar.update(p); })) {
-                        // TODO: use filter + inputRangeObject (when it won't give segfaults)
-                        if (filter.accepts(read))
-                            dg(read);
-                    }
+                    auto reads = bam.alignmentsWithProgress((lazy float p) { bar.update(p); });
+                    processor.process(filtered(reads), bam);
                     bar.finish();
                 } else {
-                    foreach (read; bam.alignments) {
-                        if (filter.accepts(read))
-                            dg(read);
-                    }
+                    processor.process(filtered(bam.alignments), bam);
                 }
             } else { // SamFile
-                foreach (read; bam.alignments) {
-                    if (filter.accepts(read))
-                        dg(read);
-                }
+                processor.process(filtered(bam.alignments), bam);
             }
         } 
 
@@ -212,14 +211,16 @@ int sambambaMain(T)(T _bam, string[] args)
             if (args.length > 2) {
                 auto regions = map!parseRegion(args[2 .. $]);
 
-                // TODO: use map + joiner + inputRangeObject 
-                //       (when it won't give segfaults)
+                alias ReturnType!(ReferenceSequence.opSlice) AlignmentRange;
+                auto alignment_ranges = new AlignmentRange[regions.length];
+
+                size_t i = 0;
                 foreach (ref r; regions) {
-                    foreach (read; bam[r.reference][r.beg .. r.end]) {
-                        if (filter.accepts(read))
-                            dg(read);
-                    }
+                    alignment_ranges[i++] = bam[r.reference][r.beg .. r.end];
                 }
+
+                auto reads = joiner(alignment_ranges);
+                processor.process(filtered(reads), bam);
             }
         }
 
@@ -227,14 +228,23 @@ int sambambaMain(T)(T _bam, string[] args)
     }
 
     if (count_only) {
-        uint count;
-        if (processAlignments((Alignment _) { count += 1; }))
+        auto counter = new ReadCounter();
+
+        if (processAlignments(counter))
             return 1;
-        writeln(count);
+        writeln(counter.number_of_reads);
     } else {
-        return processAlignments((Alignment read) {
-                    serializer.writeln(read, bam.reference_sequences);
-                });
+        switch (format) {
+            case "bam":
+                return processAlignments(new BamSerializer(output_filename, compression_level));
+            case "sam":
+                return processAlignments(new SamSerializer(output_filename));
+            case "json":
+                return processAlignments(new JsonSerializer(output_filename));
+            default:
+                stderr.writeln("output format must be one of sam, bam, json");
+                return 1;
+        }
     }
 
     return 0;

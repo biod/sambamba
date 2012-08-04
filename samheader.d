@@ -461,6 +461,11 @@ class SamHeader {
         return sequences.getSequence(index);
     }
 
+    /// Get header text representation
+    string text() @property {
+        return toSam(this);
+    }
+
 }
 
 /// Sorting order

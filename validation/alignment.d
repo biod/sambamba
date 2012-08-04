@@ -533,7 +533,7 @@ static this() {
 }
 
 /// Check if alignment is valid
-bool isValid(Alignment alignment) {
+bool isValid(Alignment alignment) { 
     booleanValidator.validate(alignment);
     return booleanValidator.result;
 }
