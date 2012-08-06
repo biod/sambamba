@@ -148,7 +148,7 @@ final class StringFieldFilter(string op) : Filter {
     }
 }
 
-/// Filtering string tags
+/// Filtering string and character tags
 final class StringTagFilter(string op) : Filter {
     private string _value;
     private string _tagname;
@@ -160,10 +160,15 @@ final class StringTagFilter(string op) : Filter {
 
     bool accepts(ref Alignment a) const {
         auto v = a[_tagname];
-        if (!v.is_string) {
+        if (v.is_string) {
+            mixin(`return cast(string)v` ~ op ~ `_value;`);
+        } else if (v.is_character) {
+            if (_value.length != 1)
+                return false; // doesn't make sense to compare char with string
+            mixin(`return cast(char)v` ~ op ~ `_value[0];`);
+        } else {
             return false;
         }
-        mixin(`return cast(string)v` ~ op ~ `_value;`);
     }
 }
 
