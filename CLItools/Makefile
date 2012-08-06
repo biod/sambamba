@@ -38,6 +38,10 @@ sambamba-gdc: $(SAMBAMBA_FILES) fastrecordparser
 	mkdir -p build
 	gdc $(GDCFLAGSFULL) $(SAMBAMBA_FILES) -o build/sambamba
 
+sambamba-gdc-32: $(SAMBAMBA_FILES) fastrecordparser
+	mkdir -p build
+	gdc -m32 $(GDCFLAGSFULL) $(SAMBAMBA_FILES) -o build/sambamba
+
 sambamba-view-dmd: $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES)
 	mkdir -p build
 	dmd $(DMDFLAGS) $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES) -ofbuild/sambamba-view
