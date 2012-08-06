@@ -1,9 +1,39 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+require 'github_api'
+require 'highline'
+
+def print_usage
+  puts 'usage: ./makepackage.rb <i386|amd64>'
+  puts '       ./makepackage.rb upload <filename>'
+  puts
+  puts '       first version makes a debian package for specified architecture'
+  puts '       second version uploads specified debian package to Github downloads'
+end
 
 if ARGV.length.zero?
-  puts 'must specify target architecture (i386|amd64)'
+  print_usage
+  exit
+end
+
+if ARGV[0] == 'upload'
+  if ARGV[1].nil?
+    print_usage
+    exit
+  end
+  filename = ARGV[1]
+  hl = HighLine.new
+  login = hl.ask("GitHub login: ")
+  pass = hl.ask("GitHub password: ") {|q| q.echo = '*' }
+  github = Github.new :login => login, :password => pass
+  response = github.repos.downloads.create 'lomereiter', 'sambamba',
+                { :name => filename,
+                  :size => File.stat(filename).size,
+                  :description => '',
+                  :content_type => 'application/x-debian-package'
+                }
+  github.repos.downloads.upload response, filename
   exit
 end
 
