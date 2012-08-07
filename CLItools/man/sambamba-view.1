@@ -28,7 +28,19 @@ Second, if you have an indexed BAM file, several regions can be specified as wel
 Alignment record JSON representation is a hash with keys \'qname\', \'flag\', \'rname\', \'pos\', \'mapq\', \'cigar\', \'rnext\', \'qual\', \'tags\', e\.g\.
 .
 .P
-{"qname":"EAS56_57:6:190:289:82","flag":69,"rname":"chr1","pos":100,"mapq":0,"cigar":"*","rnext":"=","pnext":100,"tlen":0,"seq":"CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA","qual":[27,27,27,22,27,27,27,26,27,27,27,27,27,27,27,27,23,26,26,27,22,26,19,27,26,27,26,26,26,26,26,24,19,27,26],"tags":{"MF":192}}
+{"qname":"EAS56_57:6:190:289:82","flag":69,"rname":"chr1","pos":100,
+.
+.br
+"mapq":0,"cigar":"*","rnext":"=","pnext":100,"tlen":0,
+.
+.br
+"seq":"CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA",
+.
+.br
+"qual":[27,27,27,22,27,27,27,26,27,27,27,27,27,27,27,27,23,26,26,27,
+.
+.br
+22,26,19,27,26,27,26,26,26,26,26,24,19,27,26],"tags":{"MF":192}}
 .
 .P
 This format may change in the future versions for performance reasons\.
@@ -242,7 +254,12 @@ Output header in JSON format:
 .nf
 
  $ sambamba\-view \-\-header \-\-format=json ex1_header\.bam
- {"format_version":"1\.3","rg_lines":[],"sq_lines":[{"sequence_length":1575,"species":"","uri":"","sequence_name":"chr1","assembly":"","md5":""},{"sequence_length":1584,"species":"","uri":"","sequence_name":"chr2","assembly":"","md5":""}],"sorting_order":"coordinate","pg_lines":[]}
+ {"format_version":"1\.3","rg_lines":[],
+  "sq_lines":[{"sequence_length":1575,"species":"","uri":"",
+  "sequence_name":"chr1","assembly":"","md5":""},
+  {"sequence_length":1584,"species":"","uri":"",
+  "sequence_name":"chr2","assembly":"","md5":""}],
+  "sorting_order":"coordinate","pg_lines":[]}
 .
 .fi
 .
