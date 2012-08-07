@@ -14,7 +14,7 @@ validator: $(FILES) validator.d
 	dmd $(FILES) validator.d -ofvalidator $(DMDFLAGS) -version=serial
 
 validator-gdc: $(FILES) validator.d
-	gdc $(FILES) validator.d -o validator $(GDCFLAGS) -fversion=serial
+	gdc $(FILES) validator.d -o validator $(GDCFLAGS)
 
 randomaccess: $(FILES) randomaccess.d
 	dmd $(FILES) randomaccess.d -ofrandomaccess $(DMDFLAGS) -version=serial
