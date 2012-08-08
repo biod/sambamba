@@ -1,0 +1,39 @@
+<tool id="sambamba_filter" name="Filter BAM or SAM" version="0.2.1">
+    <requirements>
+        <requirement type="package">sambamba</requirement>
+    </requirements>
+    <command>
+        #set $input1 = None
+        #set $saminput = ''
+        #if isinstance($input.datatype, $__app__.datatypes_registry.get_datatype_by_extension('bam').__class__):
+            #set $input1 = 'input.bam'
+            ln -s $input $input1 &amp;&amp;
+            ln -s $input.metadata.bam_index input.bai &amp;&amp;
+        #else
+            #set $saminput = '--sam-input'
+            #set $input1 = $input
+        #end if
+sambamba view $saminput $header --filter=$query --format=$format --output-filename=$output $input1
+    </command>
+    <inputs>
+        <param name="input" type="data" format="bam,sam" label="BAM or SAM file to filter"/>
+        <param name="query" type="text">
+            <label>Filter expression</label>
+        </param>
+        <param name="format" type="select">
+            <label>Output format</label>
+            <option value="sam">SAM</option>
+            <option value="bam">BAM</option>
+        </param>
+        <!-- TODO: this should be shown only for SAM -->
+        <param name="header" type="select">
+            <label>Include SAM header in output</label>
+            <option value="-h">Yes</option>
+            <option value="">No</option>
+        </param>
+    </inputs>
+    <outputs>
+        <data name="output" format=$format/>
+    </outputs>
+    <!-- TODO: tests -->
+</tool>
