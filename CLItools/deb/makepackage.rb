@@ -54,10 +54,49 @@ def get_current_version
   $current_version
 end
 
-def generate_debian_binary_file
-  File.open('DEBIAN/debian-binary', 'w+') do |f|
-    f.puts '6.0'
+def generate_copyright_file
+  gpl2_notice =<<GPL
+ This program is free software; you can redistribute it
+ and/or modify it under the terms of the GNU General Public
+ License as published by the Free Software Foundation; either
+ version 2 of the License, or (at your option) any later
+ version.
+ .
+ This program is distributed in the hope that it will be
+ useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ PURPOSE.  See the GNU General Public License for more
+ details.
+ .
+ You should have received a copy of the GNU General Public
+ License along with this package; if not, write to the Free
+ Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+ Boston, MA  02110-1301 USA
+ .
+ On Debian systems, the full text of the GNU General Public
+ License version 2 can be found in the file
+ `/usr/share/common-licenses/GPL-2'.
+GPL
+
+  File.open('usr/share/doc/sambamba/copyright', 'w+') do |f|
+    f.puts 'Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/'
+    f.puts 'Upstream-Name: sambamba'
+    f.puts 'Upstream-Contact: Artem Tarasov <lomereiter@gmail.com>'
+    f.puts 'Source: https://github.com/lomereiter/sambamba'
+    f.puts
+    f.puts 'Files: *'
+    f.puts 'Copyright: 2012 Artem Tarasov'
+    f.puts 'License: GPL-2+'
+    f.puts gpl2_notice
   end
+end
+
+def copy_changelog_to_usr_share_doc_sambamba
+  FileUtils.copy '../DEBIAN_CHANGELOG', 'usr/share/doc/sambamba/changelog'
+end
+
+def gzip_changelog
+  `gzip --best usr/share/doc/sambamba/changelog`
 end
 
 def make_sambamba
@@ -105,17 +144,17 @@ def generate_control_file
   text = <<CONTROL
 Source: sambamba
 Package: sambamba
+Priority: optional
 Version: #{get_current_version}
 Section: science
 Architecture: #{$arch}
 #{get_dependencies}
 Installed-Size: #{compute_installed_size}
 Maintainer: Artem Tarasov <lomereiter@gmail.com>
-Description: Sambamba is a tool for working with SAM/BAM file formats which 
-    are widely used in bioinformatics.
-    It provides viewing, indexing, sorting, and merging utilities 
-    all of which use parallel compression and decompression of BAM files, 
-    wisely using resources of modern multi-core machines.
+Description: tool for working with data in SAM/BAM file formats
+ It provides viewing, indexing, sorting, and merging utilities 
+ all of which use parallel compression and decompression of BAM files, 
+ wisely using resources of modern multi-core machines.
 CONTROL
    
   File.open('DEBIAN/control', 'w+') do |f|
@@ -123,9 +162,16 @@ CONTROL
   end
 end
 
+def add_lintian_override_concerning_embedded_zlib
+  File.open('usr/share/lintian/overrides/sambamba', 'w+') do |f|
+    f.puts '# GDC links with Zlib statically'
+    f.puts 'sambamba binary: embedded-zlib'
+  end
+end
+
 def build_debian_package
   Dir.chdir '..'
-  `dpkg-deb --build #{$rootdir}`
+  `fakeroot dpkg-deb --build #{$rootdir}`
 end
 
 ################################################################################
@@ -138,14 +184,19 @@ Dir.mkdir $rootdir
 Dir.chdir $rootdir
 Dir.mkdir 'DEBIAN'
 FileUtils.mkdir_p 'usr/bin'
+FileUtils.mkdir_p 'usr/share/doc/sambamba'
+FileUtils.mkdir_p 'usr/share/lintian/overrides'
 FileUtils.mkdir_p 'usr/share/man/man1'
 # stay in rootdir
 
-generate_debian_binary_file
+generate_copyright_file
+copy_changelog_to_usr_share_doc_sambamba
+gzip_changelog
 make_sambamba
 copy_sambamba_to_usr_bin
 strip_sambamba_executable
 copy_manpages_to_usr_share_man_man1
 gzip_manpages
 generate_control_file
+add_lintian_override_concerning_embedded_zlib
 build_debian_package
