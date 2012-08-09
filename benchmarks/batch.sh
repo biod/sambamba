@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # use some other file, no http/ftp support yet ;-)
-BAMFILE=../HG00125.chrom20.ILLUMINA.bwa.GBR.low_coverage.20111114.bam
+BAMFILE=../../HG00476.chrom11.ILLUMINA.bwa.CHS.low_coverage.20111114.bam
 
 FILENAME=benchmark.dat
 

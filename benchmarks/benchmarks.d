@@ -28,7 +28,7 @@ auto decompressedRange(string filename) {
     }
 }
 
-auto unparsedAlignmentRange(string filename) {
+auto getAlignmentRange(string filename) {
 
     IChunkInputStream decompressed_stream = makeChunkInputStream(decompressedRange(filename));
     Stream bam = new EndianStream(decompressed_stream, Endian.littleEndian); 
@@ -47,11 +47,7 @@ auto unparsedAlignmentRange(string filename) {
         bam.read(l_ref);
     } // skip reference sequences information
 
-    return unparsedAlignments!(IteratePolicy.withoutOffsets)(decompressed_stream);
-}
-
-auto parsedAlignmentRange(string filename) {
-    return map!makeAlignment(unparsedAlignmentRange(filename));
+    return alignmentRange(decompressed_stream);
 }
 
 import std.datetime;
@@ -95,6 +91,6 @@ void main(string[] args) {
     string filename = args[1];
     measure!("iterating BGZF blocks", bgzfRange)(filename);
     measure!("iterating decompressed BGZF blocks", decompressedRange)(filename);
-    measure!("iterating alignments", parsedAlignmentRange)(filename);
+    measure!("iterating alignments", getAlignmentRange)(filename);
     write("\n");
 }
