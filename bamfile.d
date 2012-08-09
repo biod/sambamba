@@ -40,11 +40,38 @@ import std.conv : to;
 import std.exception : enforce;
 import std.parallelism;
 import std.array : uninitializedArray;
+import core.stdc.stdio;
+import std.string;
 
 /**
   Represents BAM file
  */
 struct BamFile {
+
+    this(Stream stream, TaskPool task_pool = taskPool) {
+        _source_stream = new EndianStream(stream, Endian.littleEndian);
+        _task_pool = task_pool;
+
+        if (stream.seekable) {
+            _stream_is_seekable = true;
+        }
+
+        initializeStreams();
+
+        auto magic = _bam.readString(4);
+        
+        enforce(magic == "BAM\1", "Invalid file format: expected BAM\\1");
+
+        readSamHeader();
+        readReferenceSequencesInfo();
+
+        // right after construction, we are at the beginning
+        //                           of the list of alignments
+
+        if (_stream_is_seekable) {
+            _alignments_start_voffset = _decompressed_stream.virtualTell();
+        }
+    }
 
     /**
       Constructor taking filename of BAM file to open,
@@ -56,8 +83,6 @@ struct BamFile {
     this(string filename, TaskPool task_pool = taskPool) {
 
         _filename = filename;
-        _task_pool = task_pool;
-        initializeStreams();
       
         try {
             _bai_file = BaiFile(filename);
@@ -68,17 +93,8 @@ struct BamFile {
             _random_access_manager = new RandomAccessManager(_filename);
         }
 
-        auto magic = _bam.readString(4);
-        
-        enforce(magic == "BAM\1", "Invalid file format: expected BAM\\1");
-
-        readSamHeader();
-        readReferenceSequencesInfo();
-
-        // right after constructing, we are at the beginning
-        //                           of the list of alignments
-
-		_alignments_start_voffset = _decompressed_stream.virtualTell();
+        _source_stream = getNativeEndianSourceStream();
+        this(_source_stream, task_pool);
     }
   
     /// True if associated BAI file was found
@@ -173,6 +189,7 @@ struct BamFile {
       Get an alignment at a given virtual offset.
      */
     Alignment getAlignmentAt(VirtualOffset offset) {
+        enforce(_random_access_manager !is null);
         return _random_access_manager.getAlignmentAt(offset);
     }
 
@@ -211,9 +228,11 @@ struct BamFile {
 
 private:
     
-    string _filename;
-    IChunkInputStream _decompressed_stream;
-    Stream _bam;
+    string _filename;                       // filename (if available)
+    Stream _source_stream;                  // compressed
+    IChunkInputStream _decompressed_stream; // decompressed
+    Stream _bam;                            // decompressed + endian conversion
+    bool _stream_is_seekable;
 
 	// Virtual offset at which alignment records start.
 	VirtualOffset _alignments_start_voffset;
@@ -229,44 +248,73 @@ private:
     TaskPool _task_pool;
     size_t buffer_size = 8192; // buffer size to be used for I/O
 
+    Stream getNativeEndianSourceStream() {
+        assert(_filename !is null);
+
+        // Issue 8528 workaround
+        auto file = fopen(toStringz(_filename), "rb");
+        return new std.stream.File(core.stdc.stdio.fileno(file), FileMode.In);
+    }
+
+    Stream getSeekableCompressedStream() {
+        if (_stream_is_seekable) {
+            if (_filename !is null) {
+                auto file = getNativeEndianSourceStream();
+                return new EndianStream(file, Endian.littleEndian);
+            } else {
+                _source_stream.seekSet(0);
+                return _source_stream;
+            } 
+        } else {
+            return null;
+        }
+    }
+
 	// get decompressed stream out of compressed BAM file
 	IChunkInputStream getDecompressedStream() {
-		auto file = new BufferedFile(_filename, FileMode.In, buffer_size);
-        auto compressed_stream = new EndianStream(file, Endian.littleEndian);
-        auto bgzf_range = BgzfRange(compressed_stream);
 
+        auto compressed_stream = getSeekableCompressedStream();
+
+        auto bgzf_range = (compressed_stream is null) ? BgzfRange(_source_stream) :
+                                                        BgzfRange(compressed_stream);
         version(serial) {
             auto chunk_range = map!decompressBgzfBlock(bgzf_range);
         } else {
             auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
         }
-   
-         if (compressed_stream.seekable) {
-            return makeChunkInputStream(chunk_range, cast(size_t)file.size);
+
+        if (compressed_stream !is null) {
+            return makeChunkInputStream(chunk_range, cast(size_t)compressed_stream.size);
         } else {
             return makeChunkInputStream(chunk_range);
         }
 	}
 
+
 	// get decompressed stream starting from the first alignment record
 	IChunkInputStream getDecompressedAlignmentStream() {
-		enforce(_alignments_start_voffset != 0UL);
+        auto compressed_stream = getSeekableCompressedStream();
 
-		auto file = new BufferedFile(_filename, FileMode.In, buffer_size);
-        auto compressed_stream = new EndianStream(file, Endian.littleEndian);
-		compressed_stream.seekCur(_alignments_start_voffset.coffset);
-        auto bgzf_range = BgzfRange(compressed_stream);
+        if (compressed_stream !is null) {
+            enforce(_alignments_start_voffset != 0UL);
 
-        version(serial) {
-            auto chunk_range = map!decompressBgzfBlock(bgzf_range);
+            compressed_stream.seekCur(_alignments_start_voffset.coffset);
+            auto bgzf_range = BgzfRange(compressed_stream);
+
+            version(serial) {
+                auto chunk_range = map!decompressBgzfBlock(bgzf_range);
+            } else {
+                auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
+            }
+        
+            auto sz = compressed_stream.size;
+            auto stream = makeChunkInputStream(chunk_range, cast(size_t)sz);
+            stream.readString(_alignments_start_voffset.uoffset);
+            return stream;
         } else {
-            auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
+            // must be initialized in initializeStreams()
+            return _decompressed_stream;
         }
-    
-        auto sz = compressed_stream.seekable ? compressed_stream.size : 0;
-		auto stream = makeChunkInputStream(chunk_range, cast(size_t)sz);
-		stream.readString(_alignments_start_voffset.uoffset);
-		return stream;
 	}
 
     // sets up the streams and ranges

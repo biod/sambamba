@@ -17,8 +17,8 @@ void main(string[] args) {
     auto alignments = map!renamedAlignment(alignments_with_indices);
 
     auto output = new BufferedFile("tmp.bam", FileMode.Out);
+    scope(exit) output.close();
 
-    writeBAM(output, bam.header.text, bam.reference_sequences, alignments);
-    output.close();
+    writeBAM(output, bam.header.text, bam.reference_sequences, alignments, 0);
    
 }
