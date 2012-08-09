@@ -28,6 +28,7 @@ import std.conv;
 import std.exception;
 import std.stream;
 import std.system;
+import std.traits;
 
 import utils.array;
 import utils.value;
@@ -244,12 +245,66 @@ struct Alignment {
         return _chunk[_seq_offset .. _seq_offset + (_l_seq + 1) / 2];
     }
 
-    /// Range of characters
+    private static immutable CHARACTER_MAP = "=ACMGRSVTWYHKDBN";
+
+    /// Random-access range of characters
     @property auto sequence() const {
-        auto even = map!"a>>4"(raw_sequence_data);
-        auto odd  = map!"a&15"(raw_sequence_data);
-        return map!`"=ACMGRSVTWYHKDBN"[a]`(take(roundRobin(even, odd), sequence_length));
+
+        struct Result {
+
+            private ubyte[] _data;
+            private size_t _len;
+            private size_t _index;
+
+            this(const(ubyte[]) data, size_t len) {
+                _data = cast(ubyte[])data;
+                _len = len;
+            }
+
+            @property bool empty() const {
+                return _index >= _len;
+            }
+
+            @property char front() const {
+                return opIndex(0);
+            }
+
+            @property char back() const {
+                return opIndex(_len - 1);
+            }
+
+            auto save() const {
+                return Result(_data[(_index >> 1) .. $], _len - _index);
+            }
+
+            @property char opIndex(size_t i) const {
+                auto pos = _index + i;
+                ubyte raw = _data[pos >> 1];
+                if (pos & 1) {
+                    raw &= 0xF;
+                } else {
+                    raw >>= 4;
+                }
+                return CHARACTER_MAP[raw];
+            }
+
+            void popFront() {
+                ++_index;
+            }
+
+            void popBack() {
+                --_len;
+            }
+
+            @property size_t length() {
+                return _len - _index;
+            }
+        }
+
+        return Result(raw_sequence_data, sequence_length);
     }
+
+    static assert(isRandomAccessRange!(ReturnType!sequence));
 
     /// Set sequence. Must be of the same length as current sequence.
     @property void sequence(string seq) {
@@ -880,6 +935,10 @@ unittest {
 
     read.sequence = "AGCTGGCTACGTAATAGCCCTA";
     assert(equal(read.sequence(), "AGCTGGCTACGTAATAGCCCTA"));
+    assert(retro(read.sequence)[3] == 'C');
+    assert(retro(read.sequence)[1] == 'T');
+    assert(read.sequence[4] == 'G');
+    assert(read.sequence[0] == 'A');
 
     read["RG"] = 15;
     assert(read["RG"] == 15);
