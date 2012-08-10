@@ -231,7 +231,7 @@ unittest {
         }
         assert(read == read2 || !isValid(read));
     }
-    
+
     writeln("Test BAM writing...");
     fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
     bf = BamFile(fn);
@@ -242,6 +242,13 @@ unittest {
     stream.seekSet(0);
     assert(walkLength(BamFile(tmp).alignments!withoutOffsets) == 3270);
     stream.close();
+    }
+
+    writeln("Test SAM reading...");
+    {
+    auto sf = SamFile(buildPath(dirName(__FILE__), "test", "data", "ex1_header.sam"));
+    assert(equal(map!"a.read_name"(sf.alignments), map!"a.read_name"(bf.alignments)));
+    // alignments themselves are not equal because some tags may have different types
     }
 }
 

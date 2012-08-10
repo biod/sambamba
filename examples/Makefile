@@ -23,7 +23,7 @@ randomaccess-gdc: $(FILES) randomaccess.d
 	gdc $(FILES) randomaccess.d -o randomaccess $(GDCFLAGS) -fversion=serial
 
 rename: $(FILES) rename.d
-	dmd $(FILES) rename.d -ofrenamereads $(DMDFLAGS) -version=serial
+	dmd $(FILES) rename.d -ofrenamereads $(DMDFLAGS) -version=parallel
 
 rename-gdc: $(FILES) rename.d
 	gdc $(FILES) rename.d -o renamereads $(GDCFLAGS) -fversion=serial

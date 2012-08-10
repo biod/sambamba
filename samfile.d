@@ -42,48 +42,56 @@ struct SamFile {
         return _reference_sequences;
     }
 
+    private alias File.ByLine!(char, char) LineRange;
+
+    /// Alignments in SAM file. Can be iterated only once.
     auto alignments() @property {
         struct Result {
-            this(File file, ref SamHeader header) {
-                _file = file;
+            this(LineRange lines, ref SamHeader header) {
                 _header = header;
-                _line_range = file.byLine();
+                _line_range = lines;
 
                 _build_storage = new AlignmentBuildStorage();
+                _parseNextLine();
             }
             
             bool empty() @property {
-                return _line_range.empty;
+                return _empty;
             }
             
             void popFront() @property {
                 _line_range.popFront();
+                _parseNextLine();
             }
 
             Alignment front() @property {
-                return parseAlignmentLine(cast(string)_line_range.front, _header,
-                                          _build_storage);
+                return _current_alignment;
             }
 
             private {
-                alias File.ByLine!(char, char) LineRange;
-                LineRange _line_range;
-                SamHeader _header;
+                void _parseNextLine() {
+                    if (_line_range.empty) {
+                        _empty = true;
+                    } else {
+                        _current_alignment = parseAlignmentLine(cast(string)_line_range.front.dup,
+                                                                _header,
+                                                                _build_storage);
+                    }
+                }
 
+                LineRange _line_range;
+                Alignment _current_alignment;
+                bool _empty;
+                SamHeader _header;
                 AlignmentBuildStorage _build_storage;
             }
-            
-            private:
-            File _file;
-            char[] buffer;
         }
-        return Result(_file, _header);
+        return Result(_lines, _header);
     }
 private:
 
     File _file;
-
-    ulong _header_end_offset;
+    LineRange _lines;
 
     SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
@@ -94,18 +102,16 @@ private:
         char[] _buffer;
 
         auto header = appender!(char[])(); 
-        while (_file.isOpen && !_file.eof()) {
-            _header_end_offset = _file.tell();
-            auto read = _file.readln(_buffer);
-            auto line = _buffer[0 .. read];
 
+        _lines = _file.byLine();
+
+        while (!_lines.empty) {
+            auto line = _lines.front;
             if (line.length > 0 && line[0] == '@') {
                 header.put(line);
+                _lines.popFront();
             } else {
-                if (line.length > 0) {
-                    _file.seek(_header_end_offset);
-                    break;
-                }
+                break;
             }
         }
 
