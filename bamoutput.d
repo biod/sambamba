@@ -176,58 +176,6 @@ void writeBAM(R)(Stream stream,
     static auto blockRange(R)(R alignments) {
         return BlockRange!R(alignments);
     }
-        
-    // Takes range of blocks as input and returns
-    // another range where too big blocks, with length
-    // more than $(D max_size) were cut into several smaller blocks
-    static struct ChunkedBlockRange(R) {
-        R _blocks;
-        ElementType!R _current_block;
-        size_t _max_size;
-        bool _empty = false;
-        this(R blocks, size_t max_size) {
-            _blocks = blocks;
-            _max_size = max_size;
-            _loadNextBlock();
-        }
-
-        bool empty() @property {
-            return _empty;
-        }
-
-        ubyte[] front() @property {
-            if (_current_block.length <= _max_size) {
-                return _current_block;
-            } else {
-                return _current_block[0 .. _max_size];
-            }
-        }
-
-        void popFront() {
-            if (_current_block.length <= _max_size) {
-                _loadNextBlock();
-            } else {
-                _current_block = _current_block[_max_size .. $];
-            }
-        }
-
-        void _loadNextBlock() {
-            if (!_blocks.empty) {
-                version(serial) {
-                    _current_block = _blocks.front;
-                } else {
-                    _current_block = _blocks.front.dup;
-                }
-                _blocks.popFront();
-            } else {
-                _empty = true;
-            }
-        }
-    }
-
-    static auto chunkedBlockRange(R)(R blocks, size_t max_size) {
-        return ChunkedBlockRange!R(blocks, max_size);
-    }
 
     auto blocks = blockRange(alignments);
     auto chunked_blocks = chunkedBlockRange(blocks, BGZF_BLOCK_SIZE);
@@ -270,5 +218,72 @@ void writeBAM(R)(Stream stream,
 
     // write EOF block
     stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
-    stream.flush();
+}
+
+private {
+    // Takes range of blocks as input and returns
+    // another range where too big blocks, with length
+    // more than $(D max_size) were cut into several smaller blocks
+    struct ChunkedBlockRange(R) {
+        R _blocks;
+        ElementType!R _current_block;
+        size_t _max_size;
+        bool _empty = false;
+        this(R blocks, size_t max_size) {
+            _blocks = blocks;
+            _max_size = max_size;
+            _loadNextBlock();
+        }
+
+        bool empty() @property {
+            return _empty;
+        }
+
+        ubyte[] front() @property {
+            if (_current_block.length <= _max_size) {
+                return _current_block;
+            } else {
+                version(serial) {
+                    return _current_block[0 .. _max_size];
+                } else {
+                    return _current_block[0 .. _max_size].dup;
+                }
+            }
+        }
+
+        void popFront() {
+            if (_current_block.length <= _max_size) {
+                _loadNextBlock();
+            } else {
+                _current_block = _current_block[_max_size .. $];
+            }
+        }
+
+        void _loadNextBlock() {
+            if (!_blocks.empty) {
+                // dup is required because map.front returns a reference
+                _current_block = _blocks.front.dup;
+                _blocks.popFront();
+            } else {
+                _empty = true;
+            }
+        }
+    }
+
+    auto chunkedBlockRange(R)(R blocks, size_t max_size) {
+        return ChunkedBlockRange!R(blocks, max_size);
+    }
+
+}
+
+unittest {
+    import std.stdio;
+    writeln("Testing chunkedBlockRange...");
+    ubyte[][] blocks = [[1, 2, 3], [4, 5, 6, 7], [8, 9, 10]];
+    assert(equal(chunkedBlockRange(blocks, 2), 
+                 [[1, 2], [3], [4, 5], [6, 7], [8, 9], [10]]));
+    assert(equal(chunkedBlockRange(blocks, 3),
+                 [[1, 2, 3], [4, 5, 6], [7], [8, 9, 10]]));
+    assert(equal(chunkedBlockRange(blocks, 4), blocks));
+    assert(equal(chunkedBlockRange(blocks, 1), map!"[a]"(iota(1, 11))));
 }
