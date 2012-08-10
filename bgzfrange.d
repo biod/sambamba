@@ -209,12 +209,14 @@ struct BgzfRange {
      */
     this(Stream stream) {
         _stream = stream;
+        _seekable = stream.seekable;
         loadNextBlock();
     }
 
     /**
         Returns: offset of the start of the current BGZF block
-                 in underlying stream
+                 in underlying stream. If the stream is non-seekable, 
+                 the result is always 0.
      */
     @property ulong start_offset() { return _start_offset; }
 
@@ -235,6 +237,7 @@ private:
     ulong _start_offset;
 
     bool _empty = false;
+    bool _seekable = false;
 
     BgzfBlock _current_block;
 
@@ -244,7 +247,9 @@ private:
     }
 
     void loadNextBlock() {
-        _start_offset = _stream.position;
+        if (_seekable) {
+            _start_offset = _stream.position;
+        }
 
         if (_stream.eof()) {
             _empty = true; // indicate that range is now empty
@@ -253,20 +258,33 @@ private:
 
         try {
             uint bgzf_magic = void;
-            _stream.read(bgzf_magic);
+           
+            // TODO: fix byte order if needed
+            auto bytes_read = _stream.read((cast(ubyte*)&bgzf_magic)[0 .. 4]);
+
+            if (bytes_read == 0) {
+                _empty = true;
+                return;
+                // TODO: check if last BGZF block was empty, and if not throw a warning
+            }
+
             if (bgzf_magic != BGZF_MAGIC) { 
                 throwBgzfException("wrong BGZF magic");
             }
-           
-            // uint gzip_mod_time = void;
-            // ubyte gzip_extra_flags = void;
-            // ubyte gzip_os = void;
+        
             ushort gzip_extra_length = void;
 
-            // _stream.read(gzip_mod_time);
-            // _stream.read(gzip_extra_flags);
-            // _stream.read(gzip_os);
-            _stream.seekCur(uint.sizeof + 2 * ubyte.sizeof);
+            if (_seekable) {
+                _stream.seekCur(uint.sizeof + 2 * ubyte.sizeof);
+            } else {
+                uint gzip_mod_time = void;
+                ubyte gzip_extra_flags = void;
+                ubyte gzip_os = void;
+                _stream.read(gzip_mod_time);
+                _stream.read(gzip_extra_flags);
+                _stream.read(gzip_os);
+            }
+
             _stream.read(gzip_extra_length);
           
             ushort bsize = void; // total Block SIZE minus 1
@@ -300,11 +318,19 @@ private:
                     found_block_size = true;
 
                     // skip the rest
-                    _stream.seekCur(slen - bsize.sizeof);
+                    if (_seekable) {
+                        _stream.seekCur(slen - bsize.sizeof);
+                    } else {
+                        _stream.readString(slen - bsize.sizeof);
+                    }
                 } else {
                     // this subfield has nothing to do with block size, 
                     // just skip
-                    _stream.seekCur(slen);
+                    if (_seekable) {
+                        _stream.seekCur(slen);
+                    } else {
+                        _stream.readString(slen);
+                    }
                 }
 
                 len += si1.sizeof + si2.sizeof + slen.sizeof + slen;

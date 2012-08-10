@@ -270,4 +270,5 @@ void writeBAM(R)(Stream stream,
 
     // write EOF block
     stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
+    stream.flush();
 }

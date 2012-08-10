@@ -82,6 +82,10 @@ class AlignmentRange(alias IteratePolicy)
     mixin IteratePolicy;
     
     void popFront() {
+        debug {
+            import std.stdio;
+            writeln("popFront");
+        }
         readNext();
     }
 
