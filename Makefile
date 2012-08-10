@@ -9,7 +9,7 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  sam/recordparser.d utils/samheadermerger.d utils/graph.d
 
 LIBFILES = $(FILES) bindings.d
-TESTFILES = $(FILES) unittests.d
+TESTFILES = $(FILES) unittests.d utils/tmpfile.d
 
 FILESTODOCUMENT = bamfile.d alignment.d reference.d tagvalue.d \
 				  samheader.d validation/samheader.d validation/samheader.d

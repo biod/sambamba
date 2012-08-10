@@ -23,6 +23,7 @@ import bamfile;
 import bamoutput;
 import samheader;
 import alignment;
+import utils.tmpfile;
 
 import std.range;
 import std.algorithm;
@@ -287,22 +288,6 @@ size_t parseMemory(string str) {
 ///                                               
 string chunkBaseName(string unsorted_fn, size_t chunk_num) {
     return baseName(unsorted_fn) ~ "." ~ to!string(chunk_num);
-}
-
-/// Absolute path of temporary file.
-///
-/// Params:
-///     filename - base name
-///     tmpdir   - temporary directory
-///                                   
-string tmpFile(string filename, string tmpdir) {
-    if (tmpdir != null) {
-        return buildPath(tmpdir, filename);
-    }
-version(Windows)
-    return buildPath(std.process.getenv("TEMP"), filename);
-else version(Posix)
-    return "/tmp/" ~ filename;
 }
 
 // Constructs range of chunks where total size of alignments

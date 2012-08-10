@@ -95,11 +95,6 @@ body
     buffer[BLOCK_HEADER_LENGTH - 2] = len & 0xFF;         // little endian
     buffer[BLOCK_HEADER_LENGTH - 1] = len >> 8;
 
-    debug {
-        import std.stdio;
-        writeln("len = ", len);
-    }
-
 	// Write the footer
     *(cast(uint*)(buffer.ptr + buffer.length - 8)) = crc32(0, chunk);
     *(cast(uint*)(buffer.ptr + buffer.length - 4)) = cast(uint)chunk.length;

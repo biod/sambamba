@@ -250,7 +250,7 @@ struct Alignment {
     /// Random-access range of characters
     @property auto sequence() const {
 
-        struct Result {
+        static struct Result {
 
             private ubyte[] _data;
             private size_t _len;
@@ -273,7 +273,7 @@ struct Alignment {
                 return opIndex(_len - 1);
             }
 
-            auto save() const {
+            Result save() const {
                 return Result(_data[(_index >> 1) .. $], _len - _index);
             }
 
@@ -494,7 +494,7 @@ struct Alignment {
     }
 
     /// ditto
-    bool opEqualis(Alignment other) const pure nothrow {
+    bool opEquals(Alignment other) const pure nothrow {
         return this._chunk == other._chunk;
     }
 

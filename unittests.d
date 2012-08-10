@@ -19,6 +19,7 @@
 */
 import samheader;
 import bamfile;
+import bamoutput;
 import samfile;
 import sam.recordparser;
 import bgzfrange;
@@ -27,11 +28,14 @@ import validation.samheader;
 import validation.alignment;
 
 import utils.samheadermerger;
+import utils.tmpfile;
 
 import sam.serialize;
 
 import std.path;
+import std.range;
 import std.stdio;
+import std.stream;
 import std.algorithm;
 import std.array;
 import std.conv;
@@ -227,7 +231,18 @@ unittest {
         }
         assert(read == read2 || !isValid(read));
     }
-
+    
+    writeln("Test BAM writing...");
+    fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
+    bf = BamFile(fn);
+    {
+    string tmp = tmpFile("12035913820619231129310.bam");
+    auto stream = new BufferedFile(tmp, FileMode.Out, 8192);
+    writeBAM(stream, bf.header.text, bf.reference_sequences, bf.alignments, 9);
+    stream.seekSet(0);
+    assert(walkLength(BamFile(tmp).alignments!withoutOffsets) == 3270);
+    stream.close();
+    }
 }
 
 void main() {

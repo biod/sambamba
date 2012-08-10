@@ -7,7 +7,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../utils/format.d ../alignmentrange.d ../constants.d ../bamoutput.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d
 
-DMDFLAGS=-O -release -inline
+DMDFLAGS=-g -debug
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
 
 validator: $(FILES) validator.d
