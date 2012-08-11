@@ -22,6 +22,8 @@ module samfile;
 import std.stdio;
 import std.array;
 import std.string;
+import std.algorithm;
+import std.parallelism;
 
 import alignment;
 import samheader;
@@ -46,47 +48,14 @@ struct SamFile {
 
     /// Alignments in SAM file. Can be iterated only once.
     auto alignments() @property {
-        struct Result {
-            this(LineRange lines, ref SamHeader header) {
-                _header = header;
-                _line_range = lines;
+        auto build_storage = new AlignmentBuildStorage();
+        auto lines = map!"a.idup"(_lines);
 
-                _build_storage = new AlignmentBuildStorage();
-                _parseNextLine();
-            }
-            
-            bool empty() @property {
-                return _empty;
-            }
-            
-            void popFront() @property {
-                _line_range.popFront();
-                _parseNextLine();
-            }
-
-            Alignment front() @property {
-                return _current_alignment;
-            }
-
-            private {
-                void _parseNextLine() {
-                    if (_line_range.empty) {
-                        _empty = true;
-                    } else {
-                        _current_alignment = parseAlignmentLine(cast(string)_line_range.front.dup,
-                                                                _header,
-                                                                _build_storage);
-                    }
-                }
-
-                LineRange _line_range;
-                Alignment _current_alignment;
-                bool _empty;
-                SamHeader _header;
-                AlignmentBuildStorage _build_storage;
-            }
+        Alignment parse(string s) {
+            return parseAlignmentLine(s, _header, build_storage);
         }
-        return Result(_lines, _header);
+
+        return map!parse(lines); // TODO: parallelize
     }
 private:
 
