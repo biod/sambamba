@@ -18,18 +18,19 @@
 
 */
 import samfile;
-import sam.serialize;
-import utils.format;
-import std.c.stdio : stdout;
+import std.stdio;
+import std.parallelism;
 
 void main(string[] args) {
 
-    auto sam = SamFile(args[1]);
-
+    auto pool = new TaskPool(totalCPUs);
+    scope(exit) pool.finish();
+    auto sam = SamFile(args[1], pool);
+    int i;
     foreach (read; sam.alignments) {
-        if (read.read_name == "") {
-            serialize(read, sam.reference_sequences, stdout);
-            putcharacter(stdout, '\n');
+        if (read.read_name != "") {
+            i += 1;
         }
     }
+    writeln(i);
 }

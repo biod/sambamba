@@ -25,6 +25,8 @@ import std.string;
 import std.algorithm;
 import std.parallelism;
 
+extern(C) size_t lseek(int fd, size_t offset, int whence);
+
 import alignment;
 import samheader;
 import reference;
@@ -32,8 +34,12 @@ import sam.recordparser;
 
 struct SamFile {
 
-    this(string filename) {
+    this(string filename, TaskPool task_pool=taskPool) {
+        _file = File(filename);
+        _filename = filename;
+        _seekable = lseek(_file.fileno, 0, 0) != ~0;
         _initializeStream(filename);
+        _task_pool = task_pool;
     }
 
     SamHeader header() @property {
@@ -46,30 +52,62 @@ struct SamFile {
 
     private alias File.ByLine!(char, char) LineRange;
 
-    /// Alignments in SAM file. Can be iterated only once.
+    /// Alignments in SAM file. Not thread-safe.
+    /// If file is seekable, starts from the beginning,
+    /// otherwise range starts with the alignment first
+    /// in the stream.
     auto alignments() @property {
-        auto build_storage = new AlignmentBuildStorage();
-        auto lines = map!"a.idup"(_lines);
 
-        Alignment parse(string s) {
-            return parseAlignmentLine(s, _header, build_storage);
+        LineRange _lines;
+        if (_seekable) {
+            File _file;
+            if (_filename is null) {
+                this._file.seek(0);
+                _file = this._file;
+            } else {
+                _file = File(_filename);
+            }
+            _lines = _file.byLine();
+            auto dummy = _lines.front;
+            for (long i = 0; i < _lines_to_skip && !_lines.empty; i++) {
+                _lines.popFront();
+            }
+        } else {
+            _lines = this._lines;
         }
 
-        return map!parse(lines); // TODO: parallelize
+        auto lines = map!"a.idup"(_lines);
+
+        version (serial) {
+
+            auto build_storage = new AlignmentBuildStorage();
+            Alignment parse(string s) {
+                return parseAlignmentLine(s, _header, build_storage);
+            }
+
+            return map!parse(lines);
+
+        } else {
+
+            static __gshared SamHeader header;
+            header = _header;
+            return _task_pool.map!((string s) { return parseAlignmentLine(s, header); })(lines, 1024);
+
+        }
     }
 private:
 
     File _file;
+    string _filename;
+    bool _seekable;
+    long _lines_to_skip;
     LineRange _lines;
+    TaskPool _task_pool;
 
     SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
 
     void _initializeStream(string filename) {
-        _file = File(filename); 
-
-        char[] _buffer;
-
         auto header = appender!(char[])(); 
 
         _lines = _file.byLine();
@@ -78,6 +116,7 @@ private:
             auto line = _lines.front;
             if (line.length > 0 && line[0] == '@') {
                 header.put(line);
+                _lines_to_skip += 1;
                 _lines.popFront();
             } else {
                 break;
