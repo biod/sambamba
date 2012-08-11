@@ -280,7 +280,7 @@ private:
         version(serial) {
             auto chunk_range = map!decompressBgzfBlock(bgzf_range);
         } else {
-            auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 25);
+            auto chunk_range = _task_pool.map!decompressBgzfBlock(bgzf_range, 24);
         }
 
         if (compressed_stream !is null) {

@@ -96,7 +96,9 @@ void writeBAM(R)(Stream stream,
                  ReferenceSequenceInfo[] info,
                  R alignments,
                  int compression_level=-1,
-                 TaskPool task_pool=taskPool) 
+                 TaskPool task_pool=taskPool,
+                 size_t parmapbufsz=32,
+                 size_t parmapwusz=1) 
     if (is(Unqual!(ElementType!R) == Alignment))
 {
     // First, pack header and reference sequences.
@@ -188,12 +190,16 @@ void writeBAM(R)(Stream stream,
        
     // helper function
     static void writeAlignmentBlocks(int n, R)(R chunked_blocks, ref Stream stream,
-                                               TaskPool task_pool) {
+                                               TaskPool task_pool,
+                                               size_t parmapbufsz,
+                                               size_t parmapwusz) {
 
     version(serial) {
         auto bgzf_blocks = map!(makeBgzfCompressor!n)(chunked_blocks);
     } else {
-        auto bgzf_blocks = task_pool.map!(makeBgzfCompressor!n)(chunked_blocks);
+        auto bgzf_blocks = task_pool.map!(makeBgzfCompressor!n)(chunked_blocks,
+                                                                parmapbufsz,
+                                                                parmapwusz);
     }
 
         foreach (bgzf_block; bgzf_blocks) {
@@ -202,17 +208,17 @@ void writeBAM(R)(Stream stream,
     }
 
     switch (compression_level) {
-        case -1: writeAlignmentBlocks!(-1)(chunked_blocks, stream, task_pool); break;
-        case 0: writeAlignmentBlocks!(0)(chunked_blocks, stream, task_pool); break;
-        case 1: writeAlignmentBlocks!(1)(chunked_blocks, stream, task_pool); break;
-        case 2: writeAlignmentBlocks!(2)(chunked_blocks, stream, task_pool); break;
-        case 3: writeAlignmentBlocks!(3)(chunked_blocks, stream, task_pool); break;
-        case 4: writeAlignmentBlocks!(4)(chunked_blocks, stream, task_pool); break;
-        case 5: writeAlignmentBlocks!(5)(chunked_blocks, stream, task_pool); break;
-        case 6: writeAlignmentBlocks!(6)(chunked_blocks, stream, task_pool); break;
-        case 7: writeAlignmentBlocks!(7)(chunked_blocks, stream, task_pool); break;
-        case 8: writeAlignmentBlocks!(8)(chunked_blocks, stream, task_pool); break;
-        case 9: writeAlignmentBlocks!(9)(chunked_blocks, stream, task_pool); break;
+        case -1: writeAlignmentBlocks!(-1)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 0: writeAlignmentBlocks!(0)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 1: writeAlignmentBlocks!(1)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 2: writeAlignmentBlocks!(2)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 3: writeAlignmentBlocks!(3)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 4: writeAlignmentBlocks!(4)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 5: writeAlignmentBlocks!(5)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 6: writeAlignmentBlocks!(6)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 7: writeAlignmentBlocks!(7)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 8: writeAlignmentBlocks!(8)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
+        case 9: writeAlignmentBlocks!(9)(chunked_blocks, stream, task_pool, parmapbufsz, parmapwusz); break;
         default: throw new Exception("compression level must be a number from -1 to 9");
     }
 
