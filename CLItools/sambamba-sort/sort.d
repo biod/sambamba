@@ -179,7 +179,7 @@ int sort_main(string[] args) {
 
         // half of memory is for input buffers
         // and another half is for output buffers
-        Stream stream = new BufferedFile(output_filename, FileMode.Out,
+        Stream stream = new BufferedFile(output_filename, FileMode.OutNew, 
                                          memory_limit / 2);
         scope(exit) stream.close();
 

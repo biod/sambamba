@@ -22,24 +22,23 @@ module samfile;
 import std.stdio;
 import std.array;
 import std.string;
-import std.algorithm;
-import std.parallelism;
-
-extern(C) size_t lseek(int fd, size_t offset, int whence);
 
 import alignment;
 import samheader;
 import reference;
 import sam.recordparser;
 
+private {
+    extern(C) size_t lseek(int, size_t, int);
+}
+
 struct SamFile {
 
-    this(string filename, TaskPool task_pool=taskPool) {
+    this(string filename) {
         _file = File(filename);
         _filename = filename;
         _seekable = lseek(_file.fileno, 0, 0) != ~0;
-        _initializeStream(filename);
-        _task_pool = task_pool;
+        _initializeStream();
     }
 
     SamHeader header() @property {
@@ -52,62 +51,77 @@ struct SamFile {
 
     private alias File.ByLine!(char, char) LineRange;
 
-    /// Alignments in SAM file. Not thread-safe.
-    /// If file is seekable, starts from the beginning,
-    /// otherwise range starts with the alignment first
-    /// in the stream.
+    /// Alignments in SAM file. Can be iterated only once.
     auto alignments() @property {
+        struct Result {
+            this(LineRange lines, ref SamHeader header) {
+                _header = header;
+                _line_range = lines;
 
-        LineRange _lines;
+                _build_storage = new AlignmentBuildStorage();
+                _parseNextLine();
+            }
+            
+            bool empty() @property {
+                return _empty;
+            }
+            
+            void popFront() @property {
+                _line_range.popFront();
+                _parseNextLine();
+            }
+
+            Alignment front() @property {
+                return _current_alignment;
+            }
+
+            private {
+                void _parseNextLine() {
+                    if (_line_range.empty) {
+                        _empty = true;
+                    } else {
+                        _current_alignment = parseAlignmentLine(cast(string)_line_range.front.dup,
+                                                                _header,
+                                                                _build_storage);
+                    }
+                }
+
+                LineRange _line_range;
+                Alignment _current_alignment;
+                bool _empty;
+                SamHeader _header;
+                AlignmentBuildStorage _build_storage;
+            }
+        }
+
+        LineRange lines = _lines;
         if (_seekable) {
-            File _file;
-            if (_filename is null) {
-                this._file.seek(0);
-                _file = this._file;
+            if (_filename !is null) {
+                File file = File(_filename);
+                lines = file.byLine();
             } else {
-                _file = File(_filename);
+                _file.seek(0);
+                lines = _file.byLine();
             }
-            _lines = _file.byLine();
-            auto dummy = _lines.front;
-            for (long i = 0; i < _lines_to_skip && !_lines.empty; i++) {
-                _lines.popFront();
-            }
-        } else {
-            _lines = this._lines;
+            auto dummy = lines.front;
+            for (int i = 0; i < _lines_to_skip; i++)
+                lines.popFront();
         }
 
-        auto lines = map!"a.idup"(_lines);
-
-        version (serial) {
-
-            auto build_storage = new AlignmentBuildStorage();
-            Alignment parse(string s) {
-                return parseAlignmentLine(s, _header, build_storage);
-            }
-
-            return map!parse(lines);
-
-        } else {
-
-            static __gshared SamHeader header;
-            header = _header;
-            return _task_pool.map!((string s) { return parseAlignmentLine(s, header); })(lines, 1024);
-
-        }
+        return Result(lines, _header);
     }
 private:
 
     File _file;
-    string _filename;
     bool _seekable;
-    long _lines_to_skip;
+    string _filename;
     LineRange _lines;
-    TaskPool _task_pool;
+    ulong _lines_to_skip;
 
     SamHeader _header;
     ReferenceSequenceInfo[] _reference_sequences;
 
-    void _initializeStream(string filename) {
+    void _initializeStream() {
         auto header = appender!(char[])(); 
 
         _lines = _file.byLine();
@@ -116,6 +130,7 @@ private:
             auto line = _lines.front;
             if (line.length > 0 && line[0] == '@') {
                 header.put(line);
+                header.put('\n');
                 _lines_to_skip += 1;
                 _lines.popFront();
             } else {

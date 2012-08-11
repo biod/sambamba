@@ -228,7 +228,7 @@ int merge_main(string[] args) {
 
             // write BAM file
 
-            Stream stream = new BufferedFile(output_filename, FileMode.Out, 50_000_000); // TODO
+            Stream stream = new BufferedFile(output_filename, FileMode.OutNew, 50_000_000); // TODO
             scope(exit) stream.close();
 
             auto reference_sequences = new ReferenceSequenceInfo[(cast()merged_header).sequences.length];

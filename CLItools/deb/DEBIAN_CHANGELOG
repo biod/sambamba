@@ -1,3 +1,10 @@
+sambamba (0.2.3) unstable; urgency=low
+
+  * fix bug in BAM output
+  * support for non-seekable streams (like stdin/stdout)
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sat, 11 Aug 2012 16:20:44 +0400
+
 sambamba (0.2.1) unstable; urgency=low
 
   * Initial release

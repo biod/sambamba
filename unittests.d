@@ -115,7 +115,7 @@ unittest {
     fn = buildPath(dirName(__FILE__), "test", "data", "wrong_extra_gzip_length.bam");
     assertThrown!BgzfException(BamFile(fn));
     fn = buildPath(dirName(__FILE__), "test", "data", "wrong_bc_subfield_length.bam");
-    assertThrown!BgzfException(reduce!"a+b.sequence_length"(0,BamFile(fn).alignments));
+    assertThrown!BgzfException(reduce!"a+b.sequence_length"(0,BamFile(fn).alignments!withoutOffsets));
     fn = buildPath(dirName(__FILE__), "test", "data", "corrupted_zlib_archive.bam");
     assertThrown!ZlibException(BamFile(fn));
 
@@ -131,7 +131,7 @@ unittest {
                          return bf.reference(a.ref_id).name == "chr1" &&
                                 a.position < end &&
                                 a.position + a.basesCovered() > beg; })
-                            (bf.alignments));
+                            (bf.alignments!withoutOffsets));
         if (!equal(naive, refseq)) {
             writeln(beg);
             writeln(end);
@@ -238,7 +238,7 @@ unittest {
     {
     string tmp = tmpFile("12035913820619231129310.bam");
     auto stream = new BufferedFile(tmp, FileMode.Out, 8192);
-    writeBAM(stream, bf.header.text, bf.reference_sequences, bf.alignments, 9);
+    writeBAM(stream, bf.header.text, bf.reference_sequences, bf.alignments!withoutOffsets, 9);
     stream.seekSet(0);
     assert(walkLength(BamFile(tmp).alignments!withoutOffsets) == 3270);
     stream.close();
@@ -247,8 +247,8 @@ unittest {
     writeln("Test SAM reading...");
     {
     auto sf = SamFile(buildPath(dirName(__FILE__), "test", "data", "ex1_header.sam"));
-    assert(equal(map!"a.read_name"(sf.alignments), map!"a.read_name"(bf.alignments)));
-    // alignments themselves are not equal because some tags may have different types
+    assert(sf.alignments.front.ref_id == 0);
+    assert(equal(sf.alignments, bf.alignments!withoutOffsets));
     }
 }
 
