@@ -26,12 +26,12 @@ import sambamba.flagstat;
 import std.stdio;
 
 void printUsage() {
-    writeln("sambamba v0.2.3");
-    writeln();
-    writeln("Usage: sambamba [command] [args...]");
-    writeln();
-    writeln("    Available commands: 'view', 'index', 'merge', 'sort', 'flagstat'.");
-    writeln("    To get help on a particular command, just call it without args.");
+    stderr.writeln("sambamba v0.2.3");
+    stderr.writeln();
+    stderr.writeln("Usage: sambamba [command] [args...]");
+    stderr.writeln();
+    stderr.writeln("    Available commands: 'view', 'index', 'merge', 'sort', 'flagstat'.");
+    stderr.writeln("    To get help on a particular command, just call it without args.");
 }
 
 int main(string[] args) {

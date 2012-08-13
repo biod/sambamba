@@ -95,16 +95,16 @@ import common.progressbar;
 import utils.samheadermerger;
 
 void printUsage() {
-    writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
-    writeln();
-    writeln("Options: -t, --nthreads=NUM_OF_THREADS");
-    writeln("               number of threads to use for compression/decompression");
-    writeln("         -l, --compression-level=COMPRESSION_LEVEL");
-    writeln("               level of compression for merged BAM file, number from 0 to 9");
-    writeln("         -H, --header");
-    writeln("               output merged header to stdout in SAM format, other options are ignored; mainly for debug purposes");
-    writeln("         -p, --show-progress");
-    writeln("               show progress bar in STDERR");
+    stderr.writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
+    stderr.writeln();
+    stderr.writeln("Options: -t, --nthreads=NUM_OF_THREADS");
+    stderr.writeln("               number of threads to use for compression/decompression");
+    stderr.writeln("         -l, --compression-level=COMPRESSION_LEVEL");
+    stderr.writeln("               level of compression for merged BAM file, number from 0 to 9");
+    stderr.writeln("         -H, --header");
+    stderr.writeln("               output merged header to stdout in SAM format, other options are ignored; mainly for debug purposes");
+    stderr.writeln("         -p, --show-progress");
+    stderr.writeln("               show progress bar in STDERR");
 }
 
 // these variables can be implicitly used in tasks created in writeBAM

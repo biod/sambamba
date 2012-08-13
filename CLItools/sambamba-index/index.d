@@ -31,12 +31,12 @@ import bai.indexing;
 import bamfile;
 
 void printUsage() {
-    writeln("Usage: sambamba-index [-p|--show-progress] <input.bam> [<output.bai>]");
-    writeln();
-    writeln("\tIf output filename is not provided, appends '.bai' suffix");
-    writeln("\tto the name of BAM file");
-    writeln();
-    writeln("\tIf -p option is specified, progressbar is shown in STDERR.");
+    stderr.writeln("Usage: sambamba-index [-p|--show-progress] <input.bam> [<output.bai>]");
+    stderr.writeln();
+    stderr.writeln("\tIf output filename is not provided, appends '.bai' suffix");
+    stderr.writeln("\tto the name of BAM file");
+    stderr.writeln();
+    stderr.writeln("\tIf -p option is specified, progressbar is shown in STDERR.");
 }
 
 version(standalone) {

@@ -35,8 +35,7 @@
         <param name="query" type="text" size="80">
             <label>Filter expression</label>
             <help>
-The syntax is described at sambamba wiki_.
-				
+The syntax is described at sambamba wiki: https://github.com/lomereiter/sambamba/wiki/%5Bsambamba-view%5D-Filter-expression-syntax
             </help>
         </param>
      
@@ -84,7 +83,6 @@ Filtering by region works only for coordinate-sorted BAM files. For SAM files th
 -----
 
 .. _website: http://github.com/lomereiter/sambamba
-.. _wiki: https://github.com/lomereiter/sambamba/wiki/%5Bsambamba-view%5D-Filter-expression-syntax
 
 
     </help>

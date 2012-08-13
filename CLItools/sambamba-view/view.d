@@ -40,30 +40,30 @@ import std.getopt;
 import std.algorithm;
 
 void printUsage() {
-    writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
-    writeln();
-    writeln("Options: -F, --filter=FILTER");
-    writeln("                    set custom filter for alignments");
-    writeln("         -f, --format=sam|bam|json");
-    writeln("                    specify which format to use for output (default is SAM)");
-    writeln("         -h, --with-header");
-    writeln("                    print header before reads (always done for BAM output)");
-    writeln("         -H, --header");
-    writeln("                    output only header to stdout (if format=bam, the header is printed as SAM)");
-    writeln("         -I, --reference-info");
-    writeln("                    output to stdout only reference names and lengths in JSON");
-    writeln("         -c, --count");
-    writeln("                    output to stdout only count of matching records, hHI are ignored");
-    writeln("         -v, --valid");
-    writeln("                    output only valid alignments");
-    writeln("         -S, --sam-input");
-    writeln("                    specify that input is in SAM format");
-    writeln("         -p, --show-progress");
-    writeln("                    show progressbar in STDERR (works only for BAM files with no regions specified)");
-    writeln("         -l, --compression-level");
-    writeln("                    specify compression level (from 0 to 9, works only for BAM output)");
-    writeln("         -o, --output-filename");
-    writeln("                    specify output filename");
+    stderr.writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
+    stderr.writeln();
+    stderr.writeln("Options: -F, --filter=FILTER");
+    stderr.writeln("                    set custom filter for alignments");
+    stderr.writeln("         -f, --format=sam|bam|json");
+    stderr.writeln("                    specify which format to use for output (default is SAM)");
+    stderr.writeln("         -h, --with-header");
+    stderr.writeln("                    print header before reads (always done for BAM output)");
+    stderr.writeln("         -H, --header");
+    stderr.writeln("                    output only header to stdout (if format=bam, the header is printed as SAM)");
+    stderr.writeln("         -I, --reference-info");
+    stderr.writeln("                    output to stdout only reference names and lengths in JSON");
+    stderr.writeln("         -c, --count");
+    stderr.writeln("                    output to stdout only count of matching records, hHI are ignored");
+    stderr.writeln("         -v, --valid");
+    stderr.writeln("                    output only valid alignments");
+    stderr.writeln("         -S, --sam-input");
+    stderr.writeln("                    specify that input is in SAM format");
+    stderr.writeln("         -p, --show-progress");
+    stderr.writeln("                    show progressbar in STDERR (works only for BAM files with no regions specified)");
+    stderr.writeln("         -l, --compression-level");
+    stderr.writeln("                    specify compression level (from 0 to 9, works only for BAM output)");
+    stderr.writeln("         -o, --output-filename");
+    stderr.writeln("                    specify output filename");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
@@ -142,7 +142,7 @@ int view_main(string[] args) {
             return sambambaMain(sam, args);
         }
     } catch (Exception e) {
-        writeln("sambamba-view: ", e.msg);
+        stderr.writeln("sambamba-view: ", e.msg);
 
         version(development) {
             throw e; // rethrow to see detailed message

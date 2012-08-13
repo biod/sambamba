@@ -46,22 +46,22 @@ import common.progressbar;
 import thirdparty.mergesort;
 
 void printUsage() {
-    writeln("Usage: sambamba-sort [options] <input.bam>");
-    writeln();
-    writeln("Options: -m, --memory-limit=LIMIT");
-    writeln("               approximate memory limit (it's not guaranteed that it won't be exceeded, because of garbage collection)");
-    writeln("         --tmpdir=TMPDIR");
-    writeln("               directory for storing intermediate files; default is system directory for temporary files");
-    writeln("         -o, --out=OUTPUTFILE");
-    writeln("               output file name; if not provided, the result is written to a file with .sorted.bam extension");
-    writeln("         -n, --sort-by-name");
-    writeln("               sort by read name instead of coordinate");
-    writeln("         -l, --compression-level=COMPRESSION_LEVEL");
-    writeln("               level of compression for sorted BAM, from 0 to 9");
-    writeln("         -u, --uncompressed-chunks");
-    writeln("               write sorted chunks as uncompressed BAM (default is writing with compression level 1), that might be faster in some cases but uses more disk space");
-    writeln("         -p, --show-progress");
-    writeln("               show progressbar in STDERR");
+    stderr.writeln("Usage: sambamba-sort [options] <input.bam>");
+    stderr.writeln();
+    stderr.writeln("Options: -m, --memory-limit=LIMIT");
+    stderr.writeln("               approximate memory limit (it's not guaranteed that it won't be exceeded, because of garbage collection)");
+    stderr.writeln("         --tmpdir=TMPDIR");
+    stderr.writeln("               directory for storing intermediate files; default is system directory for temporary files");
+    stderr.writeln("         -o, --out=OUTPUTFILE");
+    stderr.writeln("               output file name; if not provided, the result is written to a file with .sorted.bam extension");
+    stderr.writeln("         -n, --sort-by-name");
+    stderr.writeln("               sort by read name instead of coordinate");
+    stderr.writeln("         -l, --compression-level=COMPRESSION_LEVEL");
+    stderr.writeln("               level of compression for sorted BAM, from 0 to 9");
+    stderr.writeln("         -u, --uncompressed-chunks");
+    stderr.writeln("               write sorted chunks as uncompressed BAM (default is writing with compression level 1), that might be faster in some cases but uses more disk space");
+    stderr.writeln("         -p, --show-progress");
+    stderr.writeln("               show progressbar in STDERR");
 }
 
 version(standalone) {
@@ -346,7 +346,7 @@ struct Chunks(R)
         }
         debug {
             import std.stdio;
-            writeln(total_size);
+            stderr.writeln(total_size);
         }
     }
 }
