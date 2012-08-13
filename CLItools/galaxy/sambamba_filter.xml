@@ -1,6 +1,6 @@
 <tool id="sambamba_filter" name="Filter BAM or SAM" version="0.2.3">
     <requirements>
-        <requirement type="package">sambamba</requirement>
+        <requirement type="binary">sambamba</requirement>
     </requirements>
     <description>
 		on flags, fields, and tags
@@ -34,6 +34,10 @@
         <param name="input" type="data" format="bam,sam" label="BAM or SAM file to filter"/>
         <param name="query" type="text" size="80">
             <label>Filter expression</label>
+            <help>
+The syntax is described at sambamba wiki_.
+				
+            </help>
         </param>
      
         <conditional name="outputformat">
@@ -51,7 +55,11 @@
 			</when>
 			<when value="bam"/>
         </conditional>
-        <param name="region" type="text" size="40" label="Region in format chr:beg-end, works for BAM input only"/>
+        <param name="region" type="text" size="40" label="Region in format chr:beg-end, works for BAM input only">
+			<help>
+				The syntax is the same as in samtools, start and end coordinates are 1-based.
+			</help>
+        </param>
     </inputs>
     <outputs>
 		<data name="outfile" format="bam">
@@ -60,6 +68,25 @@
 			</change_format>	
 		</data>
     </outputs>
-    <!-- TODO: help -->
+    <help>
+**What it does**
+
+This tool uses sambamba view to filter BAM/SAM on flags, fields, tags, and region. 
+In order to install sambamba, visit its website_ and either download
+a Debian package for your architecture, or build the tool from source.
+
+Input is SAM or BAM file, output is chosen by user.
+
+**Note**
+
+Filtering by region works only for coordinate-sorted BAM files. For SAM files this parameter is just ignored.
+
+-----
+
+.. _website: http://github.com/lomereiter/sambamba
+.. _wiki: https://github.com/lomereiter/sambamba/wiki/%5Bsambamba-view%5D-Filter-expression-syntax
+
+
+    </help>
     <!-- TODO: tests -->
 </tool>

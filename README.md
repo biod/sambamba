@@ -1,23 +1,21 @@
 The project aims to develop robust and fast library for working with BAM files.
 
-One might ask, why?! We have Picard, samtools, bamtools, ..., don't we? 
-Why another library? Read below. 
+# Tools
 
-#Features
+There're already some tools developed on top of the library, that are [faster](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools) than samtools
+in many cases. See `CLItools/` directory and manual pages on [wiki][] to see what is available and how to use it.
+
+# Library features
 
 ### Parallelism
 	
 BGZF blocks are unpacked in parallel. 
-This allows to loop over alignments 2-4 times faster, depending on how many cores you have.
+This allows to loop over alignments 2-5 times faster, depending on how many cores you have.
 
 Also, it's easy to implement parallel algorithms in D with <code>std.parallelism</code> module. 
 But be aware that currently D garbage collector is of the stop-the-world type,
 so you should avoid allocating memory on the heap in parallel loops. 
 
-This deficiency of GC is the main reason why you see only '2-4' instead of 9 or 10.
-However, D language development team knows about this problem, and they are working 
-on making their GC better. So in the next couple of years the situation should improve.
-	
 ### You don't pay for what you don't use
 
 Alignments are parsed lazily. So lazily that they're not parsed at all 
@@ -38,6 +36,7 @@ advantages you get with it are more cool language features
 (like uniform function call syntax introduced in version 2.059) and faster compiling times. 
 
 That being said, DMD is recommended for development, and GDC for faster execution times.
+It is GDC which is used for building Debian packages.
 
 ### Small memory footprint
 
@@ -62,7 +61,7 @@ But that's not the only syntax sugar you can use. A simple example:
 	void main() {
         foreach(alignment; BamFile("mybamfile.bam")["chr1"][10_000 .. 12_000]) {
             write(alignment.read_name); 
-            Value read_group = alignment.tags["RG"];
+            Value read_group = alignment["RG"];
             writeln(read_group.is_nothing ? "" : " " ~ to!string(read_group));
         }
     }
@@ -73,16 +72,12 @@ prints read name and contents of 'RG' tag if available. Easy, huh? :-)
 
 <code>Value</code> is a special type for representing tag values which is internally
 just a tagged union, thus the overhead is minimal. 
-Currently, it can be converted only exactly to the type, value of which it contains, 
-but in the future more integer/numeric/string conversions 
-will be added to make working with tag values even easier.
 
 ### Clean and documented code with lots of unittests.
 
 Unittests are yet another D programming language feature. 
 You can be sure that the behaviour of the library won't change over the time,
 except some bugs might go away ;-).
-
 
 ----------------------------------------------------------------------------------------------
 
@@ -95,6 +90,12 @@ except some bugs might go away ;-).
 1. Clone the repository.
 2. Download DMD compiler from http://dlang.org/download.html
 3. Install the [Ragel][] state machine compiler.
-4. Compile some examples, read some code. Wiki will come soon.
+4. Read GitHub [wiki][] of the project.
 
+[wiki]: https://github.com/lomereiter/sambamba/wiki
 [Ragel]: http://www.complang.org/ragel/
+
+# Copyright
+
+This library and tools that come with it are all distributed under GNU Public License v2+.
+
