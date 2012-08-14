@@ -91,9 +91,7 @@ struct BaiFile {
     this(string filename) {
         Stream fstream;
 
-        if (startsWith(filename, "http://") || startsWith(filename, "ftp://"))
-        {
-        } else if (!endsWith(filename, ".bai")) {
+        if (!endsWith(filename, ".bai")) {
             /// Unfortunately, std.path.addExt is going to be deprecated
 
             auto first_filename = filename ~ ".bai";
