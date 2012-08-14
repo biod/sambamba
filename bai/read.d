@@ -90,7 +90,10 @@ struct BaiFile {
     /// Open BAI file given either filename of BAM file or that of BAI file.
     this(string filename) {
         Stream fstream;
-        if (!endsWith(filename, ".bai")) {
+
+        if (startsWith(filename, "http://") || startsWith(filename, "ftp://"))
+        {
+        } else if (!endsWith(filename, ".bai")) {
             /// Unfortunately, std.path.addExt is going to be deprecated
 
             auto first_filename = filename ~ ".bai";

@@ -67,6 +67,15 @@ The syntax is described at sambamba wiki: https://github.com/lomereiter/sambamba
 			</change_format>	
 		</data>
     </outputs>
+    <tests>
+		<test>
+			<param name="input" value="ex1_header.sam" ftype="sam" />
+			<param name="query" value="[H0] == 1 and read_name =~ /^EAS51_62/" />
+			<param name="format" value="bam" />
+			<param name="region" value="" />
+			<output name="outfile" value="ex1_header_filtered.bam" ftype="bam" />
+		</test>
+    </tests>
     <help>
 **What it does**
 

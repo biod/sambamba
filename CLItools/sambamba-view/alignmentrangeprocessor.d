@@ -67,7 +67,7 @@ extern(C)
 }
 
 class TextSerializer {
-    this(string output_filename) {
+    this(string output_filename, bool append=false) {
         if (!isTty(stdout)) {
             // setup a buffer for stdout for faster output
             auto output_buf = new char[1_048_576];
@@ -76,7 +76,7 @@ class TextSerializer {
         }
 
         if (output_filename !is null)
-            freopen(toStringz(output_filename), "w+", stdout);
+            freopen(toStringz(output_filename), append ? "a+" : "w+", stdout);
     }
 
     ~this() {
@@ -85,8 +85,8 @@ class TextSerializer {
 }
 
 final class SamSerializer : TextSerializer {
-    this(string filename) {
-        super(filename);
+    this(string filename, bool append=false) {
+        super(filename, append);
     }
 
     void process(R, SB)(R reads, SB bam) {
@@ -129,8 +129,8 @@ final class BamSerializer {
 }
 
 final class JsonSerializer : TextSerializer {
-    this(string filename) {
-        super(filename);
+    this(string filename, bool append=false) {
+        super(filename, append);
     }
 
     void process(R, SB)(R reads, SB bam) {

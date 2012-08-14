@@ -33,7 +33,8 @@ import utils.format;
 import common.progressbar;
 
 import std.stdio;
-import std.c.stdio : stdout;
+import std.c.stdio : stdout, freopen;
+import std.string;
 import std.array;
 import std.traits;
 import std.getopt;
@@ -179,6 +180,9 @@ int sambambaMain(T)(T _bam, string[] args)
     }
 
     if ((with_header || header_only) && !count_only) {
+        if (with_header && output_filename !is null) {
+            freopen(toStringz(output_filename), "w+", std.c.stdio.stdout);
+        }
         (new HeaderSerializer(format)).writeln(bam.header);
     }
     
@@ -253,13 +257,14 @@ int sambambaMain(T)(T _bam, string[] args)
             return 1;
         writeln(counter.number_of_reads);
     } else {
+        bool append_to_existing_file = with_header; // header is written already (unless output format is BAM)
         switch (format) {
             case "bam":
                 return processAlignments(new BamSerializer(output_filename, compression_level));
             case "sam":
-                return processAlignments(new SamSerializer(output_filename));
+                return processAlignments(new SamSerializer(output_filename, append_to_existing_file));
             case "json":
-                return processAlignments(new JsonSerializer(output_filename));
+                return processAlignments(new JsonSerializer(output_filename, append_to_existing_file));
             default:
                 stderr.writeln("output format must be one of sam, bam, json");
                 return 1;
