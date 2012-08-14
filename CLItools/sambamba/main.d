@@ -26,7 +26,7 @@ import sambamba.flagstat;
 import std.stdio;
 
 void printUsage() {
-    stderr.writeln("sambamba v0.2.3");
+    stderr.writeln("sambamba v0.2.4");
     stderr.writeln();
     stderr.writeln("Usage: sambamba [command] [args...]");
     stderr.writeln();
