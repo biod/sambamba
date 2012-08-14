@@ -1,3 +1,10 @@
+sambamba (0.2.4) unstable; urgency=low
+
+  * fix bug about outputting header to a file in SAM/JSON output
+  * consistent use of stderr for error messages and usage information
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Tue, 14 Aug 2012 21:31:52 +0400
+
 sambamba (0.2.3) unstable; urgency=low
 
   * fix bug in BAM output
