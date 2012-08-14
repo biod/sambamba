@@ -179,8 +179,12 @@ int sambambaMain(T)(T _bam, string[] args)
         return 0;
     }
 
-    if ((with_header || header_only) && !count_only) {
-        if (with_header && output_filename !is null) {
+    if (header_only && !count_only) {
+        // write header to stdout
+        (new HeaderSerializer(format)).writeln(bam.header);
+    } else if (with_header && !count_only && format != "bam") {
+        // for BAM, header will be written by writeBAM function
+        if (output_filename !is null) {
             freopen(toStringz(output_filename), "w+", std.c.stdio.stdout);
         }
         (new HeaderSerializer(format)).writeln(bam.header);

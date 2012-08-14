@@ -16,18 +16,13 @@
 			#set $query = $query.replace('__gt__', chr(62))
 			#set $query = $query.replace('__lt__', chr(60))
 		#end if
-		#if $outputformat.format == 'bam':
-			#set $header = ''
-		#else
-			#set $header = $outputformat.header
-		#end if
         #if isinstance($input.datatype, $__app__.datatypes_registry.get_datatype_by_extension('bam').__class__):
             #set $input1 = 'input.bam'
             ln -s $input $input1 &amp;&amp;
             ln -s $input.metadata.bam_index input.bai &amp;&amp;
-			sambamba view --filter="$query" -f $outputformat.format -o $outfile $input1 $header $region
+			sambamba view -h --filter="$query" -f $outputformat.format -o $outfile $input1 $region
 		#else
-            sambamba view -S --filter="$query" -f $outputformat.format -o $outfile $input $header
+			sambamba view -S -h --filter="$query" -f $outputformat.format -o $outfile $input
         #end if
     </command>
     <inputs>
@@ -46,11 +41,12 @@ The syntax is described at sambamba wiki: https://github.com/lomereiter/sambamba
 				<option value="bam">BAM</option>
 			</param>
 			<when value="sam">
+			<!-- TODO
 				<param name="header" type="select">
 					<label>Include SAM header in output</label>
-					<option value="-h">Yes</option>
-					<option value="">No</option>
-				</param>
+					<option value="yes">Yes</option>
+					<option value="no">No</option>
+				</param>-->
 			</when>
 			<when value="bam"/>
         </conditional>
@@ -79,7 +75,7 @@ The syntax is described at sambamba wiki: https://github.com/lomereiter/sambamba
 			<param name="input" value="c1215_fixmate.bam" ftype="bam" />
 			<param name="query" value="[MD] =~ /^\d+T\d+A\d+/ and first_of_pair" />
 			<param name="format" value="sam" />
-			<param name="header" value="-h" />
+			<!--<param name="header" value="yes" />-->
 			<param name="region" value="AL096846:1000-5000" />
 			<output name="outfile" file="c1215_fixmate_filtered.sam" ftype="sam" />		
 		</test>
@@ -95,7 +91,7 @@ Input is SAM or BAM file, output is chosen by user.
 
 **Note**
 
-Filtering by region works only for coordinate-sorted BAM files. For SAM files this parameter is just ignored.
+Filtering by region works only for coordinate-sorted BAM files. For SAM files this parameter is ignored.
 
 -----
 
