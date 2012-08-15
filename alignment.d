@@ -29,6 +29,7 @@ import std.exception;
 import std.stream;
 import std.system;
 import std.traits;
+import std.array;
 
 import utils.array;
 import utils.value;
@@ -37,6 +38,7 @@ import utils.switchendianness;
 version(unittest) {
     import utils.tagstoragebuilder;
 }
+import utils.msgpack : Packer, unpack;
 
 /**
   Represents single CIGAR operation
@@ -104,7 +106,7 @@ struct Alignment {
     /// This is an absolutely awful hack which allows you to write
     /// alignment.tags["X0"] / foreach(k, v; alignment.tags)
     /// instead of alignment["X0"] / foreach(k, v; alignment)
-    Alignment tags() @property {
+    const(Alignment) tags() @property const {
         return this;
     }
 
@@ -512,6 +514,48 @@ struct Alignment {
         writeTags(stream);
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+    ///
+    /// Packs message in the following format:
+    /// MsgPack array with elements
+    ///     0) read name - string
+    ///     1) flag - ushort
+    ///     2) reference sequence id - int
+    ///     3) leftmost mapping position (1-based) - int
+    ///     4) mapping quality - ubyte
+    ///     5,6) CIGAR:
+    ///             array of lengths (int[])
+    ///             array of operations (ubyte[])
+    ///     7) mate reference sequence id - int
+    ///     8) mate position (1-based) - int
+    ///     9) template length - int
+    ///    10) segment sequence - string
+    ///    11) phred-base quality - array of ubyte
+    ///    12) tags - map: string -> value
+    ///
+    ////////////////////////////////////////////////////////////////////////////
+    void toMsgpack(Packer)(ref Packer packer) const {
+        packer.beginArray(13);
+        packer.pack(cast(ubyte[])read_name);
+        packer.pack(flag);
+        packer.pack(ref_id);
+        packer.pack(position + 1);
+        packer.pack(mapping_quality);
+        packer.pack(array(map!"a.length"(cigar)));
+        packer.pack(array(map!"a.operation"(cigar)));
+        packer.pack(next_ref_id);
+        packer.pack(next_pos);
+        packer.pack(template_length);
+        packer.pack(to!string(sequence)); // TODO FIXME SLOW
+        packer.pack(phred_base_quality);
+
+        packer.beginMap(tagCount());
+        foreach (key, value; tags) {
+            packer.pack(key);
+            packer.pack(value);
+        }
+    }
+    
     ubyte[] _chunk; /// holds all the data, 
                     /// the access is organized via properties
                     /// (see below)
@@ -672,10 +716,10 @@ mixin template TagStorage() {
 
     ////////////////////////////////////////////////////////////////////////////
     ///
-    ///  Hash-like access to tags.
+    ///  Hash-like access to tags. Time complexity is O(#tags).
     ///
     ////////////////////////////////////////////////////////////////////////////
-    Value opIndex(string key) {
+    Value opIndex(string key) const {
         enforce(key.length == 2, "Key length must be 2");
         auto __tags_chunk = _tags_chunk; // _tags_chunk is evaluated lazily
         if (__tags_chunk.length < 4)
@@ -721,7 +765,7 @@ mixin template TagStorage() {
         }
     }
 
-    /// Append new tag to the end, skipping check if it already exists.
+    /// Append new tag to the end, skipping check if it already exists. O(1)
     void appendTag(string key, Value value) {
         auto oldlen = _chunk.length;
         _chunk.length = _chunk.length + sizeInBytes(value) + 2 * char.sizeof;
@@ -763,7 +807,7 @@ mixin template TagStorage() {
     /////////////////////////////////////////////////////////////////////////////
     ///  Provides opportunity to iterate over tags.
     /////////////////////////////////////////////////////////////////////////////
-    int opApply(int delegate(ref string k, ref Value v) dg) {
+    int opApply(int delegate(const ref string k, const ref Value v) dg) const {
         size_t offset = 0;
         auto __tags_chunk = _tags_chunk;
         while (offset + 1 < __tags_chunk.length) {
@@ -776,6 +820,21 @@ mixin template TagStorage() {
             }
         }
         return 0;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    ///  Returns the number of tags. Time complexity is O(#tags)
+    ////////////////////////////////////////////////////////////////////////////
+    size_t tagCount() const {
+        size_t res = 0;
+        size_t offset = 0;
+        auto __tags_chunk = _tags_chunk;
+        while (offset + 1 < __tags_chunk.length) {
+            offset += 2;
+            skipValue(offset, __tags_chunk);
+            res += 1;
+        }
+        return res;
     }
 
     /// Writes auxiliary data to output stream
@@ -791,9 +850,9 @@ mixin template TagStorage() {
 
     ////////////////////////////////////////////////////////////////////////////
     ///  Reads value which starts from (_tags_chunk.ptr + offset) address,
-    ///  and updates offset to the end of value.
+    ///  and updates offset to the end of value. O(1)
     ////////////////////////////////////////////////////////////////////////////
-    private Value readValue(ref size_t offset, const(ubyte)[] tags_chunk) {
+    private Value readValue(ref size_t offset, const(ubyte)[] tags_chunk) const {
 
         string readValueArrayTypeHelper() {
             char[] cases;
@@ -846,9 +905,9 @@ mixin template TagStorage() {
     }
 
     /**
-      Increases offset so that it points to the next value.
+      Increases offset so that it points to the next value. O(1).
     */
-    private void skipValue(ref size_t offset, const(ubyte)[] tags_chunk) {
+    private void skipValue(ref size_t offset, const(ubyte)[] tags_chunk) const {
         char type = cast(char)tags_chunk[offset++];
         if (type == 'Z' || type == 'H') {
             while (tags_chunk[offset++] != 0) {}
@@ -969,6 +1028,20 @@ unittest {
     assert(read["X1"] == "abcd");
     assert(read["X2"] == [1,2,3]);
     assert(read.tagCount() == 3);
+
+    // Test MsgPack serialization/deserialization
+
+    {
+    import std.typecons;
+    auto packer = utils.msgpack.packer(Appender!(ubyte[])());
+    read.toMsgpack(packer);
+    auto data = packer.stream.data;
+    auto rec = unpack(data).via.array;
+    assert(rec[0] == "readname");
+    assert(rec[5].as!(int[]) == [22]);
+    assert(rec[6].as!(ubyte[]) == ['M']);
+    assert(rec[10].as!(ubyte[]) == to!string(read.sequence));
+    }
 
     read.clearAllTags();
     assert(read.tagCount() == 0);
