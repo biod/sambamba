@@ -763,7 +763,7 @@ mixin template TagStorage() {
     /////////////////////////////////////////////////////////////////////////////
     ///  Provides opportunity to iterate over tags.
     /////////////////////////////////////////////////////////////////////////////
-    int opApply(int delegate(ref string k, ref Value v) dg) {
+    int opApply(scope int delegate(ref string k, ref Value v) dg) {
         size_t offset = 0;
         auto __tags_chunk = _tags_chunk;
         while (offset + 1 < __tags_chunk.length) {
