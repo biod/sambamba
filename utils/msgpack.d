@@ -653,9 +653,9 @@ struct Packer(Stream) if (isOutputRange!(Stream, ubyte) && isOutputRange!(Stream
 
 
     /// ditto
-    ref Packer pack(T)(in T array) if (isArray!T)
+    ref Packer pack(T)(in T array) if (isRandomAccessRange!T || isArray!T)
     {
-        alias typeof(T.init[0]) U;
+        alias ElementType!T U;
 
         /*
          * Serializes raw type-information to stream.
@@ -684,11 +684,15 @@ struct Packer(Stream) if (isOutputRange!(Stream, ubyte) && isOutputRange!(Stream
             return packNil();
 
         // Raw bytes
-        static if (isByte!(U) || isSomeChar!(U)) {
+        static if (isArray!T && (isByte!(U) || isSomeChar!(U))) {
             ubyte[] raw = cast(ubyte[])array;
 
             beginRaw(raw.length);
             stream_.put(raw);
+        } else static if (isByte!U) {
+            beginRaw(array.length);
+            foreach (b; array)
+                stream_.put(b);
         } else {
             beginArray(array.length);
             foreach (elem; array)

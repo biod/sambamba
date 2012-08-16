@@ -546,7 +546,7 @@ struct Alignment {
         packer.pack(next_ref_id);
         packer.pack(next_pos);
         packer.pack(template_length);
-        packer.pack(to!string(sequence)); // TODO FIXME SLOW
+        packer.pack(map!"cast(ubyte)a"(sequence));
         packer.pack(phred_base_quality);
 
         packer.beginMap(tagCount());
@@ -807,7 +807,7 @@ mixin template TagStorage() {
     /////////////////////////////////////////////////////////////////////////////
     ///  Provides opportunity to iterate over tags.
     /////////////////////////////////////////////////////////////////////////////
-    int opApply(int delegate(const ref string k, const ref Value v) dg) const {
+    int opApply(scope int delegate(const ref string k, const ref Value v) dg) const {
         size_t offset = 0;
         auto __tags_chunk = _tags_chunk;
         while (offset + 1 < __tags_chunk.length) {
