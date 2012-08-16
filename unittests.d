@@ -251,9 +251,6 @@ unittest {
     assert(equal(sf.alignments, bf.alignments!withoutOffsets));
     }
 
-    writeln("Test MsgPack serialization/deserialization...");
-    {
-    }
 }
 
 void main() {
