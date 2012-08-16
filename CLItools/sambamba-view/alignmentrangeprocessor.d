@@ -70,14 +70,17 @@ class TextSerializer {
     this(string output_filename, bool append=false) {
         if (!isTty(stdout)) {
             // setup a buffer for stdout for faster output
-  //          auto output_buf = new char[1_048_576];
+            if (output_buf is null)
+                output_buf = new char[1_048_576];
 
-//            setvbuf(stdout, output_buf.ptr, _IOFBF, output_buf.length);        
+            setvbuf(stdout, output_buf.ptr, _IOFBF, output_buf.length);        
         }
 
         if (output_filename !is null)
             freopen(toStringz(output_filename), append ? "a+" : "w+", stdout);
     }
+
+    private static __gshared char[] output_buf;
 
     ~this() {
         fflush(stdout);
