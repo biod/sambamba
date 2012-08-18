@@ -1,3 +1,9 @@
+sambamba (0.2.5) unstable; urgency=low
+
+  * fix bug in indexing (worked correctly for < 73Mbp long references)
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sat, 18 Aug 2012 20:02:12 +0400
+
 sambamba (0.2.4) unstable; urgency=low
 
   * fix bug about outputting header to a file in SAM/JSON output
