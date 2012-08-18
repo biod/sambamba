@@ -15,7 +15,7 @@ all: sambamba-dmd
 ../sam/recordparser.d:
 	cd ../sam && make recordparser.d
 
-DMDFLAGSFULL=-g#-O -release -inline -g
+DMDFLAGSFULL=-g -release -inline#-O -release -inline -g
 GDCFLAGSFULL=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
 DMDFLAGS=$(DMDFLAGSFULL) -version=standalone
@@ -41,6 +41,10 @@ sambamba-gdc: $(SAMBAMBA_FILES) fastrecordparser
 sambamba-gdc-32: $(SAMBAMBA_FILES) fastrecordparser
 	mkdir -p build
 	gdc -m32 $(GDCFLAGSFULL) $(SAMBAMBA_FILES) -o build/sambamba
+
+sambamba-dmd-serial: $(SAMBAMBA_FILES)
+	mkdir -p build
+	dmd $(DMDFLAGSFULL) $(SAMBAMBA_FILES) -version=serial -ofbuild/sambamba
 
 sambamba-view-dmd: $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES)
 	mkdir -p build
@@ -92,6 +96,10 @@ sambamba-gdc-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 
 fastrecordparser: ../sam/sam_alignment.rl
 	cd ../sam && make fastrecordparser && cd ..
+
+sambamba-view-dmd-serial: $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES)
+	mkdir -p build
+	dmd $(DMDFLAGS) $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES) -version=serial -ofbuild/sambamba-view
 
 clean:
 	rm -rf build/

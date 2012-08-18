@@ -83,16 +83,6 @@ struct BamFile {
     this(string filename, TaskPool task_pool = taskPool) {
 
         _filename = filename;
-      
-        try {
-            _bai_file = BaiFile(filename);
-            _random_access_manager = new RandomAccessManager(_filename, _bai_file);
-        } catch (Exception e) {
-            // TODO: logging levels
-            // stderr.writeln("Couldn't find index file: ", e.msg);
-            _random_access_manager = new RandomAccessManager(_filename);
-        }
-
         _source_stream = getNativeEndianSourceStream();
         this(_source_stream, task_pool);
     }
@@ -106,6 +96,14 @@ struct BamFile {
        Get SAM header of file.
      */
     SamHeader header() @property {
+        if (_header is null) {
+            synchronized {
+                if (_header is null) {
+                    _header = new SamHeader(_headertext);
+                    _headertext = null;
+                }
+            }
+        }
         return _header;
     }
 
@@ -237,11 +235,49 @@ private:
 	// Virtual offset at which alignment records start.
 	VirtualOffset _alignments_start_voffset;
 
-    BaiFile _bai_file; /// provides access to index file
+    BaiFile _dont_access_me_directly_use_bai_file_for_that;
+    enum BaiStatus {
+        notInitialized,
+        initialized,
+        fileNotFound
+    }
+    BaiStatus _bai_status = BaiStatus.notInitialized;
 
-    RandomAccessManager _random_access_manager;
+    // provides access to index file
+    @property ref BaiFile _bai_file() { // initialized lazily
+        if (_bai_status == BaiStatus.notInitialized) {
+            synchronized {
+                try {
+                    _dont_access_me_directly_use_bai_file_for_that = BaiFile(_filename);
+                    _bai_status = BaiStatus.initialized;
+                } catch (Exception e) {
+                    _bai_status = BaiStatus.fileNotFound;
+                }
+            }
+        }
+        return _dont_access_me_directly_use_bai_file_for_that;
+    }; 
+
+    RandomAccessManager _rndaccssmgr; // unreadable for a purpose
+    @property RandomAccessManager _random_access_manager() {
+        if (_rndaccssmgr is null) {
+            synchronized {
+                auto bai = _bai_file; 
+                // remember that it's lazily initialized,
+                // so we need to do that to get the right BAI status
+
+                if (_bai_status == BaiStatus.initialized) {
+                    _rndaccssmgr = new RandomAccessManager(_filename, bai);
+                } else {
+                    _rndaccssmgr = new RandomAccessManager(_filename);
+                }
+            }
+        }
+        return _rndaccssmgr;
+    }
 
     SamHeader _header;
+    string _headertext; // for lazy SAM header parsing
     ReferenceSequenceInfo[] _reference_sequences;
     int[string] _reference_sequence_dict; /// name -> index mapping
 
@@ -329,8 +365,7 @@ private:
         int l_text;
         _bam.read(l_text);
 
-        string text = to!string(_bam.readString(l_text));
-        _header = new SamHeader(text);
+        _headertext = to!string(_bam.readString(l_text));
     }
 
     // initialize _reference_sequences
