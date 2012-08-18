@@ -86,9 +86,9 @@ sambamba-flagstat-gdc: $(FILES) $(SAMBAMBA_FLAGSTAT_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FLAGSTAT_FILES) -o build/sambamba-flagstat
 
-sambamba-dmd-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
+sambamba-dmd-dev: $(SAMBAMBA_FILES)
 	mkdir -p build
-	dmd -g $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
+	dmd -g -debug $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
 
 sambamba-gdc-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
 	mkdir -p build

@@ -117,7 +117,7 @@ unittest {
     fn = buildPath(dirName(__FILE__), "test", "data", "wrong_bc_subfield_length.bam");
     assertThrown!BgzfException(reduce!"a+b.sequence_length"(0,BamFile(fn).alignments!withoutOffsets));
     fn = buildPath(dirName(__FILE__), "test", "data", "corrupted_zlib_archive.bam");
-    assertThrown!ZlibException(BamFile(fn));
+    assertThrown!ZlibException(walkLength(BamFile(fn).alignments));
 
     writeln("Testing random access...");
     fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");

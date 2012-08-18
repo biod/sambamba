@@ -66,6 +66,10 @@ abstract class IChunkInputStream : Stream {
 /**
   Class for turning range of DecompressedBgzfBlock objects
   into a proper InputStream
+
+  NOTE: an assumption is made that calling empty() on range is cheap.
+  However, front() gets called only once for each element. That fits
+  the philosophy of std.algorithm.map. 
  */
 final class ChunkInputStream(ChunkRange) : IChunkInputStream
 {
@@ -76,10 +80,15 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
     this(ChunkRange range, size_t compressed_file_size=0) 
     {
         _range = range;
-        setupStream();
         readable = true;
         writeable = false;
         seekable = false;
+
+        if (_range.empty) {
+            readEOF = true;
+        }
+
+        _its_time_to_get_next_chunk = true; // defer getting first chunk
 
         _compressed_file_size = compressed_file_size;
     }
@@ -97,6 +106,10 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
             return null;
         }
 
+        if (_its_time_to_get_next_chunk) {
+            setupStream();
+        }
+
         if (_cur + n < _len) {
             // can return a slice, 
             // remaining in the current chunk
@@ -107,7 +120,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
             // end of current chunk
             auto slice = _buf[_cur .. _len];
             _range.popFront();
-            setupStream();
+            _its_time_to_get_next_chunk = true;
             return slice;
         } else {
             // this branch will be executed rarely
@@ -128,6 +141,10 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
             return 0;
         }
 
+        if (_its_time_to_get_next_chunk) {
+            setupStream();
+        }
+
         size_t read = readBlockHelper(buffer, size);
 
         if (read < size) {
@@ -141,9 +158,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
 
         if (_cur == _len) { // end of current chunk
             _range.popFront();
-
-            // that will update readEOF flag if necessary
-            setupStream(); 
+            _its_time_to_get_next_chunk = true;
         }
 
         return read;
@@ -186,11 +201,31 @@ private:
     size_t _total_compressed; // compressed bytes read so far
     size_t _total_uncompressed; // uncompressed size of blocks read so far
 
+    bool _its_time_to_get_next_chunk;
+
+    // Effect:
+    //
+    // _range is untouched (only empty() and front() are used)
+    //
+    // _buf is filled with the contents of _range.front.decompressed_data
+    //
+    // _cur, _start_offset_, end_offset, _total_uncompressed, and
+    // _total_compressed variables are updated appropriately
+    //
+    // If _range.front.decompressed_data.length == 0, readEOF is set
+    // (the reason is that this means we've just encountered a special
+    // BGZF block, indicating end-of-file).
+    //
+    // _its_time_to_get_next_chunk is set back to false
     void setupStream() {
+
+        _its_time_to_get_next_chunk = false;
 
         _cur = 0;
 
-        if (_range.empty()) {
+        // we don't rely on the caller that it will set _start_offset and
+        // _end_offset appropriately
+        if (_range.empty) {
             _start_offset = _end_offset;
             readEOF = true;
             return;

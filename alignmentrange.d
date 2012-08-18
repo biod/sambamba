@@ -26,6 +26,7 @@ import alignment;
 import std.stream;
 import std.algorithm;
 import std.system;
+import utils.switchendianness;
 
 /// Tuple of virtual offset of the alignment, and the alignment itself.
 struct AlignmentBlock {
@@ -96,14 +97,31 @@ private:
       Reads next alignment block from stream.
      */
     void readNext() {
+
+        // In fact, on BAM files containing a special EOF BGZF block
+        // this condition will be always false!
+        //
+        // The reason is that we don't want to unpack next block just
+        // in order to see if it's an EOF one or not.
         if (_stream.eof()) {
             _empty = true;
             return;
         }
-       
-        beforeNextAlignmentLoad();
+      
+
+        // Here's where _empty is really set!
         int block_size = void;
-        _endian_stream.read(block_size);
+        auto _read = _endian_stream.readBlock(&block_size, int.sizeof);
+        if (_read != int.sizeof) {
+            _empty = true;
+            return;
+        } else {
+            if (std.system.endian != Endian.littleEndian) {
+                switchEndianness(&block_size, int.sizeof);
+            }
+        }
+
+        beforeNextAlignmentLoad();
         _current_record = Alignment(_stream.readSlice(block_size));
     }
 }

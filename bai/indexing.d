@@ -86,7 +86,7 @@ void createIndex(ref BamFile bam, ref Stream stream, void delegate(lazy float p)
     auto prev_read = prev_block.alignment;
 
     // array of linear offsets for the current reference entry
-    ulong[BAI_MAX_NONLEAF_BIN_ID + 1] linear_index;
+    ulong[BAI_MAX_BIN_ID - BAI_MAX_NONLEAF_BIN_ID + 1] linear_index;
     // (maximum index in linear_index where data was written) + 1
     size_t linear_index_write_length;
 
@@ -111,6 +111,16 @@ void createIndex(ref BamFile bam, ref Stream stream, void delegate(lazy float p)
         } else {
             beg = toLinearIndexOffset(prev_read.position);
             end = toLinearIndexOffset(prev_read.position + prev_read.basesCovered() - 1);
+        }
+
+        debug {
+            import std.stdio;
+            if (end >= linear_index.length) {
+                writeln("beg: ", beg);
+                writeln("end: ", end);
+                writeln("pos: ", prev_read.position);
+                writeln("bases: ", prev_read.basesCovered());
+            }
         }
 
         foreach (i; beg .. end + 1) {

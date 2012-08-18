@@ -90,6 +90,7 @@ int index_main(string[] args) {
         }
     } catch (Throwable e) {
         stderr.writeln("sambamba-index: ", e.msg);
+        version(development) { throw e; }
         return 1;
     }
     return 0;
