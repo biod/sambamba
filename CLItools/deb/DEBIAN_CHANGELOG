@@ -1,3 +1,9 @@
+sambamba (0.2.6) unstable; urgency=low
+
+  * add output in MessagePack format to sambamba-view
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sun, 19 Aug 2012 19:42:48 +0400
+
 sambamba (0.2.5) unstable; urgency=low
 
   * fix bug in indexing (worked correctly for < 73Mbp long references)
