@@ -24,6 +24,7 @@ import sam.serialize;
 import bamoutput;
 import jsonserialization;
 import utils.format;
+import utils.msgpack;
 
 import std.c.stdio;
 
@@ -140,6 +141,21 @@ final class JsonSerializer : TextSerializer {
         foreach (read; reads) {
             jsonSerialize(read, bam.reference_sequences, stdout);
             putcharacter(stdout, '\n');
+        }
+    }
+}
+
+final class MsgpackSerializer : TextSerializer {
+    this(string filename, bool append=false) {
+        super(filename, append);
+    }
+
+    void process(R, SB)(R reads, SB bam) {
+        auto packer = packer(Appender!(ubyte[])());
+        foreach (read; reads) {
+            packer.pack(read);
+            fwrite(packer.stream.data.ptr, packer.stream.data.length, ubyte.sizeof, stdout);
+            packer.stream.clear();
         }
     }
 }

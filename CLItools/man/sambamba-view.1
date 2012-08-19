@@ -43,7 +43,94 @@ Alignment record JSON representation is a hash with keys \'qname\', \'flag\', \'
 22,26,19,27,26,27,26,26,26,26,26,24,19,27,26],"tags":{"MF":192}}
 .
 .P
-This format may change in the future versions for performance reasons\.
+JSON representation mimics SAM format except quality is given as an array of integers\. This format might change in the future\.
+.
+.SH "MsgPack"
+MessagePack output format is more effective with respect to performance, while almost as easy to parse as JSON representation\. Libraries for parsing MessagePack are available for all popular languages\. See http://msgpack\.org for more information\.
+.
+.P
+Alignment record representation is an array, per\-element description is given below\.
+.
+.IP "" 4
+.
+.nf
+
+[ 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 ]
+.
+.fi
+.
+.IP "" 0
+.
+.IP "\(bu" 4
+0 \- read name (string)
+.
+.IP "\(bu" 4
+1 \- flag (integer)
+.
+.IP "\(bu" 4
+2 \- reference sequence ID (integer)
+.
+.IP "\(bu" 4
+3 \- 1\-based leftmost mapping position (integer)
+.
+.IP "\(bu" 4
+4 \- mapping quality (integer)
+.
+.IP "\(bu" 4
+5 \- lengths of CIGAR operations (array of integers)
+.
+.IP "\(bu" 4
+6 \- types of CIGAR operations (array of chars)
+.
+.IP "\(bu" 4
+7 \- mate reference sequence ID (integer)
+.
+.IP "\(bu" 4
+8 \- 1\-based mate leftmost mapping position (integer)
+.
+.IP "\(bu" 4
+9 \- template length (integer)
+.
+.IP "\(bu" 4
+10 \- segment sequence (string)
+.
+.IP "\(bu" 4
+11 \- phred\-base quality (array of integers)
+.
+.IP "\(bu" 4
+12 \- tags (map : string \-> value)
+.
+.IP "" 0
+.
+.P
+Header representation is also an array containing the following:
+.
+.IP "" 4
+.
+.nf
+
+[ 0 | 1 | 2 | 3 | 4 ]
+.
+.fi
+.
+.IP "" 0
+.
+.IP "\(bu" 4
+0 \- format version (string)
+.
+.IP "\(bu" 4
+1 \- sorting order (string)
+.
+.IP "\(bu" 4
+2 \- @SQ lines (array of maps : string \-> value)
+.
+.IP "\(bu" 4
+3 \- @RG lines (ditto)
+.
+.IP "\(bu" 4
+4 \- @PG lines (ditto)
+.
+.IP "" 0
 .
 .SH "OPTIONS"
 .
@@ -68,7 +155,7 @@ Set custom filter for alignments\.
 .
 .nf
 
-Specify output format\. <FORMAT> must be one of sam, bam, or json (in lowercase)\.
+Specify output format\. <FORMAT> must be one of sam, bam, json, or msgpack (in lowercase)\.
 Default one is SAM\.
 .
 .fi
