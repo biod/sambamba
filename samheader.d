@@ -28,6 +28,7 @@ import std.array;
 import std.range;
 import std.traits;
 import utils.format;
+import utils.msgpack;
 
 import std.stdio;
 
@@ -173,6 +174,22 @@ private {
         }
     }
 
+    string generateToMsgpackMethod(Field...)() {
+        char[] method = "packer.beginMap(" ~ to!string(Field.length) ~ ");".dup;
+        foreach (t; Field) {
+            method ~= "packer.pack(`" ~ t.abbr ~ "`);".dup;
+            method ~= "packer.pack(" ~ t.name ~ ");".dup;
+        }
+        return method.idup;
+    }
+
+    mixin template toMsgpackMethod(Field...) {
+
+        void toMsgpack(Packer)(ref Packer packer) const {
+            mixin(generateToMsgpackMethod!Field());
+        }
+    }
+
     mixin template HeaderLineStruct(string struct_name, 
                                     string line_prefix,
                                     string id_field,
@@ -185,6 +202,7 @@ private {
                     mixin toHashMethod!(struct_name, id_field, Field);
                     mixin opEqualsMethod!(struct_name, Field);
                     mixin getSetIDMethods!id_field;
+                    mixin toMsgpackMethod!Field;
                 }`);
     }
 
@@ -260,6 +278,7 @@ unittest {
     assert(pg_line.command_line.endsWith("$bq_bam_file"));
 }
 
+/// Common class for storing header lines
 class HeaderLineDictionary(T) {
 
     /* D doesn't currently support invariant in this class 
@@ -274,18 +293,22 @@ class HeaderLineDictionary(T) {
     }
     */
 
+    ///
     T opIndex(string id) const {
         return _dict[id];
     }
 
+    ///
     void opIndexAssign(T line, string id) {
         _dict[id] = line;
     }
 
+    ///
 	const(T)* opIn_r(string id) const {
 		return id in _dict;
 	}
 
+    /// Append a line
     bool add(T line) {
         auto id = line.getID();
         if (id !in _dict) {
@@ -297,6 +320,7 @@ class HeaderLineDictionary(T) {
         return false;
     }
 
+    /// Remove a line with identifier $(D id).
     bool remove(string id) {
         if (id in _dict) {
             auto old_len = _dict.length;
@@ -317,7 +341,8 @@ class HeaderLineDictionary(T) {
         return false;
     }
 
-    int opApply(int delegate(ref T line) dg) {
+    ///
+    int opApply(scope int delegate(ref T line) dg) {
         foreach (size_t i; 0 .. _dict.length) {
             auto res = dg(_dict[_index_to_id[i]]);
             if (res != 0) {
@@ -327,7 +352,8 @@ class HeaderLineDictionary(T) {
         return 0;
     }
 
-	int opApply(int delegate(ref size_t index, ref T line) dg) {
+    ///
+	int opApply(scope int delegate(ref size_t index, ref T line) dg) {
         foreach (size_t i; 0 .. _dict.length) {
             auto res = dg(i, _dict[_index_to_id[i]]);
             if (res != 0) {
@@ -337,6 +363,7 @@ class HeaderLineDictionary(T) {
         return 0;
     }
 
+    /// Clear the dictionary
     void clear() {
         _dict = null;
         _id_to_index = null;
@@ -365,10 +392,12 @@ class HeaderLineDictionary(T) {
 /// Dictionary of @SQ lines.
 final class SqLineDictionary : HeaderLineDictionary!SqLine
 {
+    ///
     SqLine getSequence(size_t index) {
         return _dict[_index_to_id[index]];
     }
 
+    ///
     int getSequenceIndex(string sequence_name) {
         size_t* ind = sequence_name in _id_to_index;
         return (ind is null) ? -1 : cast(int)(*ind);
@@ -381,10 +410,13 @@ alias HeaderLineDictionary!RgLine RgLineDictionary;
 /// Dictionary of @PG lines
 alias HeaderLineDictionary!PgLine PgLineDictionary;
 
+/// Represents SAM header
 class SamHeader {
 
+    ///
     immutable DEFAULT_FORMAT_VERSION = "1.3";
 
+    /// Construct empty SAM header
     this() {
         sequences = new SqLineDictionary();
         read_groups = new RgLineDictionary();
@@ -393,6 +425,7 @@ class SamHeader {
         format_version = DEFAULT_FORMAT_VERSION;
     }
 
+    /// Parse SAM header given in plain text.
     this(string header_text) {
         this();
         bool parsed_first_line = false;
@@ -476,6 +509,7 @@ class SamHeader {
         return sequences.getSequenceIndex(sequence_name);
     }
 
+    ///
     SqLine getSequence(size_t index) {
         return sequences.getSequence(index);
     }
@@ -495,6 +529,7 @@ enum SortingOrder {
     queryname   ///
 }
 
+/// Get SAM representation of $(D header)
 string toSam(SamHeader header) {
     char[] buf;
     buf.reserve(65536);
@@ -502,6 +537,7 @@ string toSam(SamHeader header) {
     return cast(string)buf;
 }
 
+/// Serialize $(D header) to $(D stream)
 void serialize(S)(SamHeader header, ref S stream) {
     putstring(stream, "@HD\tVN:");
     putstring(stream, header.format_version);

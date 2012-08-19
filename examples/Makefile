@@ -5,7 +5,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../bai/read.d ../bai/chunk.d ../bai/bin.d ../bai/utils/algo.d \
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d ../alignmentrange.d ../constants.d ../bamoutput.d \
-	  ../bgzfcompress.d ../utils/array.d ../utils/value.d
+	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../utils/msgpack.d
 
 DMDFLAGS=-g -O -release -inline#-g -debug
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
@@ -33,6 +33,12 @@ printindex: $(FILES) printindex.d
 
 printindex-gdc: $(FILES) printindex.d
 	gdc $(FILES) printindex.d -o printindex $(GDCFLAGS) -fversion=serial
+
+msgpackoutput: $(FILES) msgpackoutput.d 
+	dmd $(FILES) msgpackoutput.d -ofmsgpackoutput $(DMDFLAGS) -version=serial
+
+msgpackoutput-gdc: $(FILES) msgpackoutput.d
+	gdc $(FILES) msgpackoutput.d -o msgpackoutput $(GDCFLAGS)
 
 clean:
 	rm *.o

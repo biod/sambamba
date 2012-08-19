@@ -121,7 +121,7 @@ class RandomAccessManager {
         auto _stream = new BufferedFile(_filename);
         Stream _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
 
-version(DigitalMars) {
+version(none){//DigitalMars) {
         return _bai.indices[ref_id].bins
                                    .filter!((Bin b) { return b.canOverlapWith(beg, end); })
                                    .map!((Bin b) { return b.chunks; })

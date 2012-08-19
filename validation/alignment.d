@@ -154,7 +154,7 @@ abstract class AbstractAlignmentValidator {
     */
     abstract bool onError(ref Alignment al, AlignmentError error); 
     abstract bool onError(ref Alignment al, CigarError error); /// ditto
-    abstract bool onError(string key, ref Value value, TagError error); /// ditto
+    abstract bool onError(string key, const ref Value value, TagError error); /// ditto
 
 private:
 
@@ -336,7 +336,7 @@ private:
         if (invalidTags(al)) return;
     }
 
-    bool isValid(string key, Value value, ref Alignment al) {
+    bool isValid(string key, const ref Value value, const ref Alignment al) {
 
         bool result = true;
 
@@ -392,8 +392,8 @@ private:
     // There're some requirements for predefined tags to be checked
     // such as type, length in some cases, or even some regular expression.
     // See page 6 of SAM/BAM specification.
-    bool additionalChecksIfTheTagIsPredefined(string key, Value value,
-                                              ref Alignment al) 
+    bool additionalChecksIfTheTagIsPredefined(string key, const ref Value value,
+                                              const ref Alignment al) 
     {
         bool result = true;
 
@@ -416,7 +416,7 @@ private:
     }
 
     // Supposed to be inlined in the above switch
-    bool checkTagValue(string s)(Value value, ref Alignment al) {
+    bool checkTagValue(string s)(const ref Value value, const ref Alignment al) {
 
         bool result = true;
         
@@ -539,7 +539,7 @@ final private class BooleanValidator : AbstractAlignmentValidator {
         return (result = false);
     }
 
-    bool onError(string key, ref Value val, TagError e) {
+    bool onError(string key, const ref Value val, TagError e) {
         return (result = false);
     }
 

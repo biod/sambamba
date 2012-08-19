@@ -23,6 +23,8 @@ public import std.conv;
 import std.typetuple;
 import std.exception;
 
+import utils.msgpack;
+
 struct CharToType(char c, T) {
     /** symbol */
     enum ch = c;
@@ -270,7 +272,7 @@ string injectOpCast() {
           `  }`~
           `}`.dup;
 
-    return "final T opCast(T)() {" ~ cs.idup ~ "}";
+    return "final T opCast(T)() const {" ~ cs.idup ~ "}";
 }
 
 /**
@@ -316,7 +318,7 @@ struct Value {
     /// Designates the type of currently stored value.
     ///
     /// Supposed to be used externally for checking type with GetTypeId.
-    ubyte tag() @property {
+    ubyte tag() @property const {
         return _tag;
     }
 
@@ -364,25 +366,50 @@ struct Value {
         }
     }
 
-    bool is_nothing() @property { return _tag == GetTypeId!(typeof(null)); }
+    bool is_nothing() @property const { return _tag == GetTypeId!(typeof(null)); }
 
-    bool is_character() @property { return _tag == GetTypeId!char; }
-    bool is_float() @property { return _tag == GetTypeId!float; }
-    bool is_numeric_array() @property { return (_tag & 0b11) == 0b01; }
-    bool is_array_of_integers() @property { return (_tag & 0b111) == 0b001; }
-    bool is_array_of_floats() @property { return (_tag & 0b111) == 0b101; }
-    bool is_integer() @property { return (_tag & 0b1111) == 0; }
+    bool is_character() @property const { return _tag == GetTypeId!char; }
+    bool is_float() @property const { return _tag == GetTypeId!float; }
+    bool is_numeric_array() @property const { return (_tag & 0b11) == 0b01; }
+    bool is_array_of_integers() @property const { return (_tag & 0b111) == 0b001; }
+    bool is_array_of_floats() @property const { return (_tag & 0b111) == 0b101; }
+    bool is_integer() @property const { return (_tag & 0b1111) == 0; }
 
     /// true if the value is unsigned integer
-    bool is_unsigned() @property { return (_tag & 0b11111) == 0; }
+    bool is_unsigned() @property const { return (_tag & 0b11111) == 0; }
 
     /// true if the value is signed integer
-    bool is_signed() @property { return (_tag & 0b11111) == 0b10000; }
+    bool is_signed() @property const { return (_tag & 0b11111) == 0b10000; }
 
     /// true if the value represents 'Z' or 'H' tag
-    bool is_string() @property { return (_tag & 0b11) == 0b11; }
+    bool is_string() @property const { return (_tag & 0b11) == 0b11; }
 
     /// true if the value represents 'H' tag
-    bool is_hexadecimal_string() @property { return (_tag & 0b111) == 0b111; }
+    bool is_hexadecimal_string() @property const { return (_tag & 0b111) == 0b111; }
 
+    public void toMsgpack(Packer)(ref Packer packer) const {
+        switch (_tag) {
+            case GetTypeId!byte: packer.pack(*cast(byte*)(&u)); break;
+            case GetTypeId!ubyte: packer.pack(*cast(ubyte*)(&u)); break;
+            case GetTypeId!short: packer.pack(*cast(short*)(&u)); break;
+            case GetTypeId!ushort: packer.pack(*cast(ushort*)(&u)); break;
+            case GetTypeId!int: packer.pack(*cast(int*)(&u)); break;
+            case GetTypeId!uint: packer.pack(*cast(uint*)(&u)); break;
+
+            case GetTypeId!float: packer.pack(*cast(float*)(&u)); break;
+            case GetTypeId!string: packer.pack(*cast(char[]*)(&u)); break;
+            case hexStringTag: packer.pack(*cast(char[]*)(&u)); break;
+            case GetTypeId!char: packer.pack(*cast(ubyte*)(&u)); break;
+
+            case GetTypeId!(byte[]): packer.pack(*cast(byte[]*)(&u)); break;
+            case GetTypeId!(ubyte[]): packer.pack(*cast(ubyte[]*)(&u)); break;
+            case GetTypeId!(short[]): packer.pack(*cast(short[]*)(&u)); break;
+            case GetTypeId!(ushort[]): packer.pack(*cast(ushort[]*)(&u)); break;
+            case GetTypeId!(int[]): packer.pack(*cast(int[]*)(&u)); break;
+            case GetTypeId!(uint[]): packer.pack(*cast(uint[]*)(&u)); break;
+
+            case GetTypeId!(typeof(null)): packer.pack(null); break;
+            default: break;
+        }
+    }
 }

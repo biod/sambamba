@@ -250,6 +250,7 @@ unittest {
     assert(sf.alignments.front.ref_id == 0);
     assert(equal(sf.alignments, bf.alignments!withoutOffsets));
     }
+
 }
 
 void main() {

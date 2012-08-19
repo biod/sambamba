@@ -22,8 +22,10 @@ module headerserializer;
 import samheader;
 import std.json;
 import std.conv;
+import std.array;
 import std.c.stdio;
 import utils.format;
+import utils.msgpack;
 
 private {
     interface IHeaderSerializer {
@@ -119,6 +121,26 @@ private {
     }
 }
 
+final class HeaderMsgpackSerializer : IHeaderSerializer {
+    void writeln(SamHeader header) {
+        auto packer = packer(Appender!(ubyte[])());
+
+        void packArrayOf(T)(T objs) {
+            packer.beginArray(objs.length);
+            foreach (obj; objs)
+                packer.pack(obj);
+        }
+
+        packer.pack(header.format_version);
+        packer.pack(to!string(header.sorting_order));
+        packArrayOf(header.sequences);
+        packArrayOf(header.read_groups);
+        packArrayOf(header.programs);
+
+        fwrite(packer.stream.data.ptr, packer.stream.data.length, ubyte.sizeof, stdout);
+    }
+}
+
 final class HeaderSerializer {
     private IHeaderSerializer _serializer;
 
@@ -129,9 +151,11 @@ final class HeaderSerializer {
                 _serializer = new HeaderSamSerializer(); break;
             case "json":
                 _serializer = new HeaderJsonSerializer(); break;
+            case "msgpack":
+                _serializer = new HeaderMsgpackSerializer(); break;
             default:
                 throw new Exception("unknown format for serialization: '" ~ format ~ 
-                                    "' (expected 'sam', 'bam', or 'json')");
+                                    "' (expected 'sam', 'bam', 'json', or 'msgpack')");
         }
     }
 

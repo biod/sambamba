@@ -170,8 +170,6 @@ int sambambaMain(T)(T _bam, string[] args)
     if (is(T == SamFile) || is(T == BamFile)) 
 {
 
-    immutable is_sam = is(T == SamFile);
-
     auto bam = _bam; // FIXME: uhm, that was a workaround for some closure-related bug
 
     if (reference_info_only && !count_only) {
@@ -261,7 +259,7 @@ int sambambaMain(T)(T _bam, string[] args)
             return 1;
         writeln(counter.number_of_reads);
     } else {
-        bool append_to_existing_file = with_header; // header is written already (unless output format is BAM)
+        bool append_to_existing_file = with_header; // header is written already? (unless output format is BAM)
         switch (format) {
             case "bam":
                 return processAlignments(new BamSerializer(output_filename, compression_level));
@@ -269,6 +267,8 @@ int sambambaMain(T)(T _bam, string[] args)
                 return processAlignments(new SamSerializer(output_filename, append_to_existing_file));
             case "json":
                 return processAlignments(new JsonSerializer(output_filename, append_to_existing_file));
+            case "msgpack":
+                return processAlignments(new MsgpackSerializer(output_filename, append_to_existing_file));
             default:
                 stderr.writeln("output format must be one of sam, bam, json");
                 return 1;
