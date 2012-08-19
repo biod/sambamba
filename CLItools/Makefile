@@ -1,4 +1,4 @@
-FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
+FILES=../bai/indexing.d ../jsonserialization.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../samheader.d ../reference.d ../alignment.d \
 	  ../tagvalue.d ../utils/switchendianness.d \
 	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
@@ -6,7 +6,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d \
-	  ../jsonserialization.d ../bai/indexing.d common/progressbar.d ../utils/msgpack.d
+	  common/progressbar.d ../utils/msgpack.d
 
 SAMFILES=../samfile.d ../sam/recordparser.d ../utils/tagstoragebuilder.d
 
@@ -82,13 +82,13 @@ sambamba-flagstat-gdc: $(FILES) $(SAMBAMBA_FLAGSTAT_FILES)
 	mkdir -p build
 	gdc $(GDCFLAGS) $(FILES) $(SAMBAMBA_FLAGSTAT_FILES) -o build/sambamba-flagstat
 
-sambamba-dmd-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
+sambamba-dmd-dev: $(SAMBAMBA_FILES)
 	mkdir -p build
-	dmd -g $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
+	dmd -g $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
 
-sambamba-gdc-dev: $(FILES) $(SAMFILES) $(SAMBAMBA_FILES)
+sambamba-gdc-dev: $(SAMBAMBA_FILES)
 	mkdir -p build
-	gdc -g -O0 -lpthread $(FILES) $(SAMFILES) $(SAMBAMBA_FILES) -fversion=development -o build/sambamba
+	gdc -g -O0 -lpthread $(SAMBAMBA_FILES) -fversion=development -o build/sambamba
 
 fastrecordparser: ../sam/sam_alignment.rl
 	cd ../sam && make fastrecordparser && cd ..
