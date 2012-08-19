@@ -407,6 +407,7 @@ struct Value {
             case GetTypeId!(ushort[]): packer.pack(*cast(ushort[]*)(&u)); break;
             case GetTypeId!(int[]): packer.pack(*cast(int[]*)(&u)); break;
             case GetTypeId!(uint[]): packer.pack(*cast(uint[]*)(&u)); break;
+            case GetTypeId!(float[]): packer.pack(*cast(float[]*)(&u)); break;
 
             case GetTypeId!(typeof(null)): packer.pack(null); break;
             default: break;
