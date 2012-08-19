@@ -546,7 +546,7 @@ struct Alignment {
         packer.pack(next_ref_id);
         packer.pack(next_pos);
         packer.pack(template_length);
-        packer.pack(map!"cast(ubyte)a"(sequence));
+        packer.pack(array(sequence));
         packer.pack(phred_base_quality);
 
         packer.beginMap(tagCount());
