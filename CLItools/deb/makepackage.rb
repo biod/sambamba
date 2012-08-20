@@ -22,18 +22,20 @@ if ARGV[0] == 'upload'
     print_usage
     exit
   end
-  filename = ARGV[1]
+  filenames = ARGV[1..-1]
   hl = HighLine.new
   login = hl.ask("GitHub login: ")
   pass = hl.ask("GitHub password: ") {|q| q.echo = '*' }
   github = Github.new :login => login, :password => pass
-  response = github.repos.downloads.create 'lomereiter', 'sambamba',
-                { :name => filename,
-                  :size => File.stat(filename).size,
-                  :description => '',
-                  :content_type => 'application/x-debian-package'
-                }
-  github.repos.downloads.upload response, filename
+  filenames.each do |filename|
+      response = github.repos.downloads.create 'lomereiter', 'sambamba',
+                    { :name => filename,
+                      :size => File.stat(filename).size,
+                      :description => '',
+                      :content_type => 'application/x-debian-package'
+                    }
+      github.repos.downloads.upload response, filename
+  end
   exit
 end
 

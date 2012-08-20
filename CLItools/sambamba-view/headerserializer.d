@@ -131,6 +131,7 @@ final class HeaderMsgpackSerializer : IHeaderSerializer {
                 packer.pack(obj);
         }
 
+        packer.beginArray(5);
         packer.pack(header.format_version);
         packer.pack(to!string(header.sorting_order));
         packArrayOf(header.sequences);
