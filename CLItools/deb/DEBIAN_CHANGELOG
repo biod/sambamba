@@ -1,3 +1,10 @@
+sambamba (0.2.7) unstable; urgency=low
+
+  * fix a stupid bug related to determining end of file
+  * add support for BAM files of size > 2GB (workaround for Phobos bug)
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sun, 16 Sep 2012 14:45:09 +0400
+
 sambamba (0.2.6) unstable; urgency=low
 
   * add output in MessagePack format to sambamba-view
