@@ -653,9 +653,7 @@ struct Packer(Stream) if (isOutputRange!(Stream, ubyte) && isOutputRange!(Stream
 
 
     /// ditto
-    ref Packer pack(T)(T array) if ((is(Unqual!T == struct) 
-                                        && isInputRange!T && hasLength!T) 
-                                        || isArray!T)
+    ref Packer pack(T)(T array) if (isRandomAccessRange!T || isArray!T)
     {
         alias ElementType!T U;
 
@@ -691,15 +689,10 @@ struct Packer(Stream) if (isOutputRange!(Stream, ubyte) && isOutputRange!(Stream
 
             beginRaw(raw.length);
             stream_.put(raw);
-        } else static if (isByte!U || is(U == char)) {
+        } else static if (isByte!U) {
             beginRaw(array.length);
-            static if (__traits(compiles, stream_.put(map!"cast(ubyte)a"(array))))
-            {
-                stream_.put(map!"cast(ubyte)a"(array));
-            } else {
-                foreach (elem; array)
-                    stream_.put(cast(ubyte)elem);
-            }
+            foreach (elem; array)
+                stream_.put(elem);
         } else {
             beginArray(array.length);
             foreach (elem; array)
@@ -815,8 +808,7 @@ struct Packer(Stream) if (isOutputRange!(Stream, ubyte) && isOutputRange!(Stream
 
 
     /// ditto
-    ref Packer pack(T)(auto ref T object) if (is(Unqual!T == struct)
-                                              && !(isInputRange!T && hasLength!T))
+    ref Packer pack(T)(auto ref T object) if (is(Unqual!T == struct))
     {
         static if (__traits(compiles, { T t; t.toMsgpack(this, withFieldName_); })) {
             object.toMsgpack(this, withFieldName_);
