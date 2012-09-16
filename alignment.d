@@ -536,17 +536,17 @@ struct Alignment {
     ////////////////////////////////////////////////////////////////////////////
     void toMsgpack(Packer)(ref Packer packer) const {
         packer.beginArray(13);
-        packer.pack(cast(ubyte[])read_name);
+        packer.pack(read_name);
         packer.pack(flag);
         packer.pack(ref_id);
         packer.pack(position + 1);
         packer.pack(mapping_quality);
-        packer.pack(array(map!"a.length"(cigar)));
-        packer.pack(array(map!"a.operation"(cigar)));
+        packer.pack(map!"a.length"(cigar));
+        packer.pack(map!"a.operation"(cigar));
         packer.pack(next_ref_id);
         packer.pack(next_pos);
         packer.pack(template_length);
-        packer.pack(array(sequence));
+        packer.pack(sequence);
         packer.pack(phred_base_quality);
 
         packer.beginMap(tagCount());

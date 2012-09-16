@@ -111,14 +111,24 @@ private:
 
         // Here's where _empty is really set!
         int block_size = void;
-        auto _read = _endian_stream.readBlock(&block_size, int.sizeof);
-        if (_read != int.sizeof) {
-            _empty = true;
-            return;
-        } else {
-            if (std.system.endian != Endian.littleEndian) {
-                switchEndianness(&block_size, int.sizeof);
+        ubyte* ptr = cast(ubyte*)(&block_size);
+        auto _read = 0;
+        while (_read < int.sizeof) {
+            auto _actually_read = _endian_stream.readBlock(ptr, int.sizeof - _read);
+            if (_actually_read == 0) {
+                version(development) {
+                    import std.stdio;
+                    stderr.writeln("[info][alignment range] empty, read ", _read, " bytes, expected ", int.sizeof);
+                }
+                _empty = true;
+                return;
             }
+            _read += _actually_read;
+            ptr += _actually_read;
+        } 
+
+        if (std.system.endian != Endian.littleEndian) {
+            switchEndianness(&block_size, int.sizeof);
         }
 
         beforeNextAlignmentLoad();

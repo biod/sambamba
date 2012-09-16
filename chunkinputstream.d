@@ -85,7 +85,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
         seekable = false;
 
         if (_range.empty) {
-            readEOF = true;
+            setEOF();
         }
 
         _its_time_to_get_next_chunk = true; // defer getting first chunk
@@ -102,7 +102,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
         if (_range.empty()) {
             _start_offset = _end_offset;
             _cur = 0;
-            readEOF = true;
+            setEOF();
             return null;
         }
 
@@ -137,7 +137,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
             // no more chunks
             _start_offset = _end_offset;
             _cur = 0;
-            readEOF = true;
+            setEOF();
             return 0;
         }
 
@@ -227,7 +227,7 @@ private:
         // _end_offset appropriately
         if (_range.empty) {
             _start_offset = _end_offset;
-            readEOF = true;
+            setEOF();
             return;
         }
 
@@ -245,12 +245,23 @@ private:
         _total_uncompressed += _len;
 
         if (_len == 0) {
-            readEOF = true;
+            setEOF();
         }
 
         return;
     }
 
+    version(development)
+    {
+        final void setEOF() {
+            import std.stdio;
+            std.stdio.stderr.writeln("[info][chunkinputstream] len == 0, start offset = ", _start_offset,
+                                     ", end offset = ", _end_offset);
+            readEOF = true;
+        }
+    } else {
+        final void setEOF() { readEOF = true; }
+    }
     size_t readBlockHelper(void* buffer, size_t size) {
         ubyte* cbuf = cast(ubyte*) buffer;
         if (size + _cur > _len)

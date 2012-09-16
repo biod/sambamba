@@ -8,7 +8,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../utils/msgpack.d
 
 DMDFLAGS=-g -O -release -inline#-g -debug
-GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g
+GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
 validator: $(FILES) validator.d
 	dmd $(FILES) validator.d -ofvalidator $(DMDFLAGS) -version=serial
@@ -35,7 +35,7 @@ printindex-gdc: $(FILES) printindex.d
 	gdc $(FILES) printindex.d -o printindex $(GDCFLAGS) -fversion=serial
 
 msgpackoutput: $(FILES) msgpackoutput.d 
-	dmd $(FILES) msgpackoutput.d -ofmsgpackoutput $(DMDFLAGS) -version=serial
+	dmd $(FILES) msgpackoutput.d -ofmsgpackoutput $(DMDFLAGS)
 
 msgpackoutput-gdc: $(FILES) msgpackoutput.d
 	gdc $(FILES) msgpackoutput.d -o msgpackoutput $(GDCFLAGS)

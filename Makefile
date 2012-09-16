@@ -6,7 +6,8 @@ FILES=bamfile.d chunkinputstream.d bgzfrange.d \
 	  bai/bin.d bai/chunk.d utils/range.d utils/memoize.d sam/serialize.d \
 	  utils/format.d alignmentrange.d bamoutput.d constants.d bgzfcompress.d \
 	  utils/array.d utils/value.d utils/tagstoragebuilder.d samfile.d \
-	  sam/recordparser.d utils/samheadermerger.d utils/graph.d utils/msgpack.d
+	  sam/recordparser.d utils/samheadermerger.d utils/graph.d utils/msgpack.d \
+	  utils/stream.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d utils/tmpfile.d

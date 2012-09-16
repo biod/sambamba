@@ -253,6 +253,10 @@ private:
 
         if (_stream.eof()) {
             _empty = true; // indicate that range is now empty
+            version(development) {
+                import std.stdio;
+                stderr.writeln("[info][BGZF range] EOF, current offset is ", _stream.position);
+            }
             return;
         }
 
@@ -264,6 +268,10 @@ private:
 
             if (bytes_read == 0) {
                 _empty = true;
+                version(development) {
+                    import std.stdio;
+                    stderr.writeln("[info][BGZF range] end of stream, current offset is ", _stream.position);
+                }
                 return;
                 // TODO: check if last BGZF block was empty, and if not throw a warning
             }

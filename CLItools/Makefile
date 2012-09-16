@@ -1,4 +1,4 @@
-FILES=../bai/indexing.d ../jsonserialization.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
+FILES=../bai/indexing.d ../jsonserialization.d ../utils/stream.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../samheader.d ../reference.d ../alignment.d \
 	  ../tagvalue.d ../utils/switchendianness.d \
 	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
@@ -15,7 +15,7 @@ all: sambamba-dmd
 ../sam/recordparser.d:
 	cd ../sam && make recordparser.d
 
-DMDFLAGSFULL=-g -release -inline#-O -release -inline -g
+DMDFLAGSFULL=-g -O -release -inline#-O -release -inline -g
 GDCFLAGSFULL=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
 DMDFLAGS=$(DMDFLAGSFULL) -version=standalone

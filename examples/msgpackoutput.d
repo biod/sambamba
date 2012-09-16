@@ -23,6 +23,7 @@ import std.array;
 //
 void main(string[] args) {
     auto bam = BamFile(args[1]);
+    stdout.setvbuf(1_024_576);
 
     auto packer = packer(Appender!(ubyte[])());
     foreach (read; bam.alignments) {
@@ -30,4 +31,6 @@ void main(string[] args) {
         stdout.rawWrite(packer.stream.data);
         packer.stream.clear();
     }
+
+    stdout.flush();
 }
