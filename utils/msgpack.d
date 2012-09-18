@@ -653,7 +653,7 @@ struct Packer(Stream) if (isOutputRange!(Stream, ubyte) && isOutputRange!(Stream
 
 
     /// ditto
-    ref Packer pack(T)(in T array) if (isRandomAccessRange!T || isArray!T)
+    ref Packer pack(T)(T array) if (isRandomAccessRange!T || isArray!T)
     {
         alias ElementType!T U;
 
@@ -691,8 +691,8 @@ struct Packer(Stream) if (isOutputRange!(Stream, ubyte) && isOutputRange!(Stream
             stream_.put(raw);
         } else static if (isByte!U) {
             beginRaw(array.length);
-            foreach (b; array)
-                stream_.put(b);
+            foreach (elem; array)
+                stream_.put(elem);
         } else {
             beginArray(array.length);
             foreach (elem; array)

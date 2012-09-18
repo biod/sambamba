@@ -31,7 +31,7 @@ import randomaccessmanager;
 import bai.read;
 import utils.range;
 
-import std.stream;
+import utils.stream;
 import std.system;
 import std.stdio;
 import std.algorithm : map, min;
@@ -286,16 +286,17 @@ private:
 
     Stream getNativeEndianSourceStream() {
         assert(_filename !is null);
-
-        // Issue 8528 workaround
-        auto file = fopen(toStringz(_filename), "rb");
-        return new std.stream.File(core.stdc.stdio.fileno(file), FileMode.In);
+        return new utils.stream.File(_filename);
     }
 
     Stream getSeekableCompressedStream() {
         if (_stream_is_seekable) {
             if (_filename !is null) {
                 auto file = getNativeEndianSourceStream();
+                version(development)
+                {
+                    std.stdio.stderr.writeln("[info] file size: ", file.size);
+                }
                 return new EndianStream(file, Endian.littleEndian);
             } else {
                 _source_stream.seekSet(0);

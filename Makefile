@@ -1,4 +1,4 @@
-FILES=bamfile.d chunkinputstream.d bgzfrange.d \
+FILES=utils/stream.d bamfile.d chunkinputstream.d bgzfrange.d \
 	  samheader.d reference.d alignment.d \
 	  tagvalue.d utils/switchendianness.d \
 	  validation/samheader.d validation/alignment.d utils/algo.d \
