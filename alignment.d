@@ -37,6 +37,7 @@ import utils.switchendianness;
 
 version(unittest) {
     import utils.tagstoragebuilder;
+    import std.stdio;
 }
 import utils.msgpack : Packer, unpack;
 
@@ -257,10 +258,12 @@ struct Alignment {
             private ubyte[] _data;
             private size_t _len;
             private size_t _index;
+            private bool _use_first_4_bits;
 
-            this(const(ubyte[]) data, size_t len) {
+            this(const(ubyte[]) data, size_t len, bool use_first_4_bits=true) {
                 _data = cast(ubyte[])data;
                 _len = len;
+                _use_first_4_bits = use_first_4_bits;
             }
 
             @property bool empty() const {
@@ -275,17 +278,59 @@ struct Alignment {
                 return opIndex(_len - 1);
             }
 
+            private auto _getActualPosition(size_t index) const
+            {
+                if (_use_first_4_bits) {
+                    // [0 1] [2 3] [4 5] [6 7] ...
+                    //            |               
+                    //            V               
+                    //   0     1     2     3      
+                    return index >> 1;
+                } else {
+                    // [. 0] [1 2] [3 4] [5 6] ...
+                    //            |               
+                    //            V               
+                    //   0     1     2     3      
+                    return (index >> 1) + (index & 1);
+                }
+            }
+
+            private auto _useFirst4Bits(size_t index) const
+            {
+                auto res = index % 2 == 0;
+                if (!_use_first_4_bits) {
+                    res = !res;
+                }
+                return res;
+            }
+
             Result save() const {
-                return Result(_data[(_index >> 1) .. $], _len - _index);
+                return Result(_data[_getActualPosition(_index) .. $], 
+                              _len - _index, 
+                              _useFirst4Bits(_index));
+            }
+
+            Result opSlice(size_t i, size_t j) const {
+                return Result(_data[_getActualPosition(_index + i) .. $], 
+                              j - i, 
+                              _useFirst4Bits(_index + i));
             }
 
             @property char opIndex(size_t i) const {
                 auto pos = _index + i;
-                ubyte raw = _data[pos >> 1];
-                if (pos & 1) {
-                    raw &= 0xF;
+                ubyte raw = _data[_getActualPosition(pos)];
+                if (_use_first_4_bits) {
+                    if (pos & 1) {
+                        raw &= 0xF;
+                    } else {
+                        raw >>= 4;
+                    }
                 } else {
-                    raw >>= 4;
+                    if (pos & 1) {
+                        raw >>= 4;
+                    } else {
+                        raw &= 0xF;
+                    }
                 }
                 return CHARACTER_MAP[raw];
             }
@@ -298,7 +343,7 @@ struct Alignment {
                 --_len;
             }
 
-            @property size_t length() {
+            @property size_t length() const {
                 return _len - _index;
             }
         }
@@ -967,6 +1012,135 @@ mixin template TagStorage() {
     }
 }
 
+/**
+ *  Tries to reconstruct reference sequence from MD tag and CIGAR.
+ *  If the read has no MD tag, returns null, otherwise returns reference bases.
+ */
+string dna(ref Alignment read)
+{
+    // based on code from Bio::DB::Sam
+    
+    auto md_tag = read["MD"];
+    if (md_tag.is_nothing) {
+        return null;
+    }
+
+    auto md = cast(string)md_tag;
+
+    auto cigar = read.cigar;
+
+    auto seq = "";
+    auto qseq = read.sequence;
+
+    foreach(e; cigar)
+    {
+        if (e.operation == 'M') {
+            seq ~= to!string(qseq[0 .. e.length]);
+            qseq = qseq[e.length .. qseq.length];
+        } else if (e.operation == 'S' || e.operation == 'I') {
+            qseq = qseq[e.length .. qseq.length]; // WTF? $ doesn't work for user-defined types!
+        }
+    }
+
+    size_t start;
+    enum State {
+        NOT_STARTED,
+        NUMBER,
+        START_DELETION,
+        DELETION,
+        INSERTION
+    }
+
+    State current_state = State.NOT_STARTED;
+    string result;
+    ulong num;
+    char base;
+    foreach (c; md)
+    {
+        switch (c) {
+            case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+                final switch(current_state) {
+                    case State.NOT_STARTED:
+                    case State.NUMBER:
+                        num = num * 10 + cast(int)(c - '0');
+                        break;
+                    case State.DELETION:
+                        result ~= base;
+                        num = cast(int)(c - '0');
+                        break;
+                    case State.INSERTION:
+                        result ~= base;
+                        start += 1;
+                        num = cast(int)(c - '0');
+                        break;
+                    case State.START_DELETION:
+                        break; // FIXME: \^\d is an error
+                }
+                current_state = State.NUMBER;
+                break;
+            case '^':
+                final switch(current_state) {
+                    case State.NOT_STARTED:
+                        break;
+                    case State.NUMBER:
+                        result ~= seq[start .. start + num];
+                        start += num;
+                        break;
+                    case State.DELETION:
+                        result ~= base;
+                        break;
+                    case State.INSERTION:
+                        result ~= base;
+                        start += 1;
+                        break;
+                    case State.START_DELETION:
+                        break; // FIXME: \^\^ is also an error
+                }
+                current_state = State.START_DELETION;
+                break;
+            default: // assume it's a base
+                final switch(current_state) {
+                    case State.NOT_STARTED:
+                        current_state = State.INSERTION;
+                        break;
+                    case State.NUMBER:
+                        result ~= seq[start .. start + num];
+                        start += num;
+                        current_state = State.INSERTION;
+                        break;
+                    case State.INSERTION:
+                        result ~= base;
+                        start += 1;
+                        break;
+                    case State.START_DELETION:
+                        current_state = State.DELETION;
+                        break;
+                    case State.DELETION:
+                        result ~= base;
+                        break;
+                }
+                base = c;
+                break;
+        }
+    }
+
+    final switch (current_state)
+    {
+        case State.NOT_STARTED:
+        case State.START_DELETION:
+            break;
+        case State.NUMBER:
+            result ~= seq[start .. start + num];
+            break; 
+        case State.INSERTION:
+        case State.DELETION:
+            result ~= base;
+            break;
+    }
+
+    return result;
+}
+
 unittest {
     import std.algorithm;
     import std.stdio;
@@ -998,6 +1172,9 @@ unittest {
     assert(retro(read.sequence)[1] == 'T');
     assert(read.sequence[4] == 'G');
     assert(read.sequence[0] == 'A');
+    assert(equal(read.sequence[0..8], "AGCTGGCT"));
+    assert(equal(read.sequence[3..5], "TG"));
+    assert(equal(read.sequence[3..9][1..4], "GGC"));
 
     read["RG"] = 15;
     assert(read["RG"] == 15);
@@ -1046,4 +1223,38 @@ unittest {
     read.clearAllTags();
     assert(read.tagCount() == 0);
 
+    // Test reference reconstruction from MD and CIGAR.
+    // (Tests are taken from http://davetang.org/muse/2011/01/28/perl-and-sam/)
+
+    read = Alignment("r1",
+                     "CGATACGGGGACATCCGGCCTGCTCCTTCTCACATG",
+                     [CigarOperation(36, 'M')]);
+    read["MD"] = "1A0C0C0C1T0C0T27";
+    assert(dna(read) == "CACCCCTCTGACATCCGGCCTGCTCCTTCTCACATG");
+
+    read = Alignment("r2",
+                     "GAGACGGGGTGACATCCGGCCTGCTCCTTCTCACAT",
+                     [CigarOperation(6, 'M'),
+                      CigarOperation(1, 'I'),
+                      CigarOperation(29, 'M')]);
+    read["MD"] = "0C1C0C1C0T0C27";
+    assert(dna(read) == "CACCCCTCTGACATCCGGCCTGCTCCTTCTCACAT");
+
+    read = Alignment("r3",
+                     "AGTGATGGGGGGGTTCCAGGTGGAGACGAGGACTCC",
+                     [CigarOperation(9, 'M'),
+                      CigarOperation(9, 'D'),
+                      CigarOperation(27, 'M')]);
+    read["MD"] = "2G0A5^ATGATGTCA27";
+    assert(dna(read) == "AGGAATGGGATGATGTCAGGGGTTCCAGGTGGAGACGAGGACTCC");
+
+    read = Alignment("r4",
+                     "AGTGATGGGAGGATGTCTCGTCTGTGAGTTACAGCA",
+                     [CigarOperation(2, 'M'),
+                      CigarOperation(1, 'I'),
+                      CigarOperation(7, 'M'),
+                      CigarOperation(6, 'D'),
+                      CigarOperation(26, 'M')]);
+    read["MD"] = "3C3T1^GCTCAG26";
+    assert(dna(read) == "AGGCTGGTAGCTCAGGGATGTCTCGTCTGTGAGTTACAGCA");
 }
