@@ -21,12 +21,15 @@ module reconstruct;
 
 import alignment;
 import std.conv;
+import std.range;
+import std.traits;
 
 /**
  *  Tries to reconstruct reference sequence from MD tag and CIGAR.
  *  If the read has no MD tag, returns null, otherwise returns reference bases.
  */
-string dna(ref Alignment read)
+string dna(T)(ref T read)
+    if (is(Unqual!T == Alignment))
 {
     // based on code from Bio::DB::Sam
     
@@ -188,4 +191,141 @@ unittest {
                       CigarOperation(26, 'M')]);
     read["MD"] = "3C3T1^GCTCAG26";
     assert(dna(read) == "AGGCTGGTAGCTCAGGGATGTCTCGTCTGTGAGTTACAGCA");
+}
+
+/**
+ * Returns lazy sequence of reference bases. If some bases can't be determined from reads,
+ * they are replaced with 'N'.
+ *
+ * Reads must be a range of reads aligned to the same reference sequence, sorted by leftmost
+ * coordinate.
+ * Returned reference bases start from the leftmost position of the first read,
+ * and end at the rightmost position of all the reads.
+ */
+auto dna(R)(R reads)
+    if (isInputRange!R && is(Unqual!(ElementType!R) == Alignment))
+{
+    static struct Result {
+        this(R reads) {
+            _reads = reads;
+            while (_chunk.length == 0) {
+                if (_reads.empty) {
+                    _empty = true;
+                    return;
+                }
+                auto read = _reads.front;
+                _chunk = dna(read);
+                _reference_pos = read.position;
+                _reads.popFront();
+            }
+        }
+
+        @property bool empty() const {
+            return _empty;
+        }
+
+        @property char front() const {
+            if (_bases_to_skip > 0) {
+                return 'N';
+            }
+            return _chunk[0];
+        }
+
+        private void setSkipMode(ref Alignment read) {
+            _reads.popFront();
+            _chunk = dna(read);
+            _bases_to_skip = read.position - _reference_pos;
+        }
+
+        void popFront() {
+            _reference_pos += 1;
+
+            if (_bases_to_skip > 0) {
+                --_bases_to_skip;
+                return;
+            }
+
+            _chunk = _chunk[1 .. $];
+
+            /*
+             * If current chunk is empty, get the next one.
+             *                                                                  
+             * Here's the reference:                                            
+             * .........................*.......................................
+             *                          _reference_pos (we are here)            
+             * Last chunk ended just now:                                       
+             *              [..........]                                        
+             * Go through subsequent reads while their leftmost position is     
+             * less or equal to _reference_pos, select the one which covers     
+             * more bases to the right of _reference_pos.                       
+             *               [...............]                                  
+             *                [....]                                            
+             *                  [..........]                                    
+             *                        [.........]  <- this one is the best      
+             */
+            if (_chunk.length == 0) {
+                if (_reads.empty) {
+                    _empty = true;
+                    return;
+                }
+                auto next_read = _reads.front;
+                if (next_read.position > _reference_pos) {
+                    setSkipMode(next_read);
+                    return;
+                }
+                auto best_read = next_read;
+                // read covers half-open [position .. position + basesCovered) interval
+                auto best_end_pos = best_read.basesCovered() + best_read.position;
+                bool found_good = best_end_pos > _reference_pos;
+                while (true) {
+                    if (_reads.empty) {
+                        if (!found_good) {
+                            _empty = true;
+                            return;
+                        }
+                        break;
+                    }
+
+                    auto read = _reads.front;
+
+                    if (read.position > _reference_pos) {
+                        if (!found_good) {
+                            setSkipMode(read);
+                            return;
+                        }
+                        break;
+                    }
+
+                    auto end_pos = read.basesCovered() + read.position;
+                    if (end_pos > _reference_pos) {
+                        found_good = true;
+                        if (end_pos > best_end_pos) {
+                            best_end_pos = end_pos;
+                            best_read = read;
+                        }
+                    }
+                    _reads.popFront();
+                }
+
+                // If we're here, we've found a good read.
+                _chunk = dna(best_read);
+                debug {
+                    import std.stdio;
+                    writeln("_reference_pos = ", _reference_pos, 
+                            "; best_read.position = ", best_read.position,
+                            "; _chunk.length = ", _chunk.length);
+                }
+                // However, we need to strip some bases from the left.
+                _chunk = _chunk[_reference_pos - best_read.position .. $];
+            }
+        }
+
+        private size_t _bases_to_skip;
+        private size_t _reference_pos;
+        private string _chunk;
+        private bool _empty = false;
+        private R _reads;
+    }
+
+    return Result(reads);
 }
