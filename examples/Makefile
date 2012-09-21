@@ -8,10 +8,13 @@ FILES=../utils/stream.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../utils/msgpack.d
 
 DMDFLAGS=-g -debug#-O -release -inline#-g -debug
-GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
+GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192 -I..
 
 coverage: $(FILES) coverage.d ../pileuprange.d
 	dmd $(FILES) coverage.d ../pileuprange.d $(DMDFLAGS) -version=serial
+
+coverage-gdc: $(FILES) coverage.d ../pileuprange.d
+	gdc $(FILES) coverage.d ../pileuprange.d $(GDCFLAGS) -o coverage
 
 validator: $(FILES) validator.d
 	dmd $(FILES) validator.d -ofvalidator $(DMDFLAGS) -version=serial

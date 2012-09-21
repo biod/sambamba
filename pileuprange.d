@@ -43,16 +43,16 @@ auto pileupColumn(R)(ulong position, uint coverage, R reads) {
  */
 class PileupRange(R) {
     private {
-        R _reads;
-        uint _cur_pos;
-        Tree _tree;
-
         static struct PostProcessedRead {
             Alignment read;
             uint end_position;
         }
 
         alias RedBlackTree!(PostProcessedRead, "a.end_position < b.end_position", true) Tree;
+
+        R _reads;
+        uint _cur_pos;
+        Tree _tree;
     }
 
     /**

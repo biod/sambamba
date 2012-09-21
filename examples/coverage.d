@@ -10,7 +10,7 @@ void main(string[] args) {
     foreach (column; filter!"a.coverage >= 300"(
                         pileup(
                             filter!"!a.is_unmapped"(
-                                until!(read => read.ref_id != ref_id)(
+                                until!((Alignment read) { return read.ref_id != ref_id; })(
                                     bam.alignments)))))
     {
         printf("%d %d\n", cast(int)column.position, cast(int)column.coverage);
