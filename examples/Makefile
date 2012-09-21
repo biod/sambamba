@@ -1,4 +1,4 @@
-FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
+FILES=../utils/stream.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../samheader.d ../reference.d ../alignment.d \
 	  ../tagvalue.d ../utils/switchendianness.d \
 	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
@@ -7,7 +7,7 @@ FILES=../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../utils/format.d ../alignmentrange.d ../constants.d ../bamoutput.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../utils/msgpack.d
 
-DMDFLAGS=-g -O -release -inline#-g -debug
+DMDFLAGS=-g -debug#-O -release -inline#-g -debug
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
 validator: $(FILES) validator.d

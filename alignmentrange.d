@@ -107,7 +107,9 @@ private:
             _empty = true;
             return;
         }
-      
+     
+        // In order to get the right virtual offset, we need to do it here.
+        beforeNextAlignmentLoad();
 
         // Here's where _empty is really set!
         int block_size = void;
@@ -131,7 +133,6 @@ private:
             switchEndianness(&block_size, int.sizeof);
         }
 
-        beforeNextAlignmentLoad();
         _current_record = Alignment(_stream.readSlice(block_size));
     }
 }

@@ -175,6 +175,9 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
     /// Returns: current virtual offset
     VirtualOffset virtualTell() {
 		assert(_cur < (1<<16));
+        if (_its_time_to_get_next_chunk) {
+            setupStream();
+        }
         return VirtualOffset(_start_offset, cast(ushort)_cur);
     }
 
