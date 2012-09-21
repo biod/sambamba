@@ -10,6 +10,9 @@ FILES=../utils/stream.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 DMDFLAGS=-g -debug#-O -release -inline#-g -debug
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 
+coverage: $(FILES) coverage.d ../pileuprange.d
+	dmd $(FILES) coverage.d ../pileuprange.d $(DMDFLAGS) -version=serial
+
 validator: $(FILES) validator.d
 	dmd $(FILES) validator.d -ofvalidator $(DMDFLAGS) -version=serial
 
