@@ -95,6 +95,21 @@ struct CigarOperation {
 
         return "MIDNSHP=X"[raw & 0xF];
     }
+
+    // Each pair of bits has first bit set iff the operation is query consuming,
+    // and second bit set iff it is reference consuming.
+    //                                            X  =  P  H  S  N  D  I  M
+    private static immutable uint CIGAR_TYPE = 0b11_11_00_00_01_10_10_01_11;
+
+    /// True iff operation is one of M, =, X, I, S
+    bool is_query_consuming() @property {
+        return (CIGAR_TYPE >> ((raw & 0xF) * 2)) & 1;
+    }
+
+    /// True iff operation is one of M, =, X, D, N
+    bool is_reference_consuming() @property {
+        return (CIGAR_TYPE >> ((raw & 0xF) * 2)) & 3;
+    }
 }
 
 /** 

@@ -23,6 +23,7 @@ import bamfile;
 import bamoutput;
 import samheader;
 import alignment;
+import splitter;
 import utils.tmpfile;
 
 import std.range;
@@ -290,67 +291,7 @@ string chunkBaseName(string unsorted_fn, size_t chunk_num) {
     return baseName(unsorted_fn) ~ "." ~ to!string(chunk_num);
 }
 
-// Constructs range of chunks where total size of alignments
-// in a chunk does not exceed given amount of bytes.
-struct Chunks(R) 
-    if (isInputRange!R && is(Unqual!(ElementType!R) == Alignment))
-{
-    this(R range, size_t size) {
-        _range = range;
-        _size = size;
-        _appender = appender!(Alignment[])();
-        getNextChunk();
-    }
-
-    private {
-        R _range;
-        bool _empty;
-        size_t _size;
-        Appender!(Alignment[]) _appender;
-    }
-
-    bool empty() @property {
-        return _empty;
-    }
-
-    Alignment[] front() @property {
-        return _appender.data.dup;
-    }
-
-    void popFront() {
-        _appender.clear();
-        getNextChunk(); 
-    }
-
-    private void getNextChunk() {
-        if (_range.empty) {
-            _empty = true;
-            return;
-        } 
-
-        auto first_read = _range.front;
-        _range.popFront();
-
-        size_t total_size = first_read.size_in_bytes;
-        auto average_size_estimate = total_size + Alignment.sizeof * 3/2;
-
-        _appender.reserve(_size / average_size_estimate);
-        _appender.put(first_read);
-
-        while (total_size <= _size && !_range.empty) {
-            auto read = _range.front;
-            total_size += Alignment.sizeof * 3 / 2 + // for mergesort
-                          read.size_in_bytes;
-            _appender.put(read);
-            _range.popFront();
-        }
-        debug {
-            import std.stdio;
-            stderr.writeln(total_size);
-        }
-    }
-}
-
-auto chunks(R)(R alignments, size_t chunk_size) {
-    return Chunks!R(alignments, chunk_size);
+auto chunks(R)(R reads, size_t size_in_bytes) {
+    return AlignmentRangeSplitter!(R, "Alignment.sizeof * 3 / 2 + read.size_in_bytes")
+                (reads, size_in_bytes);
 }

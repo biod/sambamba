@@ -47,11 +47,11 @@ string dna(T)(ref T read)
 
     foreach(e; cigar)
     {
-        if (e.operation == 'M') {
+        if (e.operation == 'M' || e.operation == '=' || e.operation == 'X') {
             seq ~= to!string(qseq[0 .. e.length]);
             qseq = qseq[e.length .. qseq.length];
         } else if (e.operation == 'S' || e.operation == 'I') {
-            qseq = qseq[e.length .. qseq.length]; // WTF? $ doesn't work for user-defined types!
+            qseq = qseq[e.length .. qseq.length];
         }
     }
 
