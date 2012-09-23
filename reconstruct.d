@@ -20,141 +20,150 @@
 module reconstruct;
 
 import alignment;
+import md.core;
+
 import std.conv;
 import std.range;
 import std.traits;
+import std.algorithm;
+import std.range;
 
-/**
- *  Tries to reconstruct reference sequence from MD tag and CIGAR.
- *  If the read has no MD tag, returns null, otherwise returns reference bases.
- */
-string dna(T)(ref T read)
+/// Reconstruct read DNA.
+/// Returns lazy sequence.
+auto dna(T)(ref T read) 
     if (is(Unqual!T == Alignment))
 {
-    // based on code from Bio::DB::Sam
+
+    static struct QueryChunk(S) {
+        S sequence;
+        CigarOperation operation;
+    }
+
+    // Get read sequence chunks corresponding to query-consuming operations in read.sequence
+    static auto queryChunks(ref T read) {
+        static struct Result(R, S) {
+            this(R ops, S seq) {
+                _seq = seq;
+                _ops = ops;
+            }
+        
+            auto front() @property {
+                auto op = _ops.front;
+                return QueryChunk!S(_seq[0 .. op.length], op);
+            }
+
+            bool empty() @property {
+                return _ops.empty;    
+            }
+
+            void popFront() {
+                _seq = _seq[_ops.front.length .. _seq.length];
+                _ops.popFront();
+            }
+
+            private R _ops;
+            private S _seq;
+        }
+
+        static auto getResult(R, S)(S sequence, R cigar) {
+            return Result!(R, S)(cigar, sequence);
+        }
+
+        return getResult(read.sequence, filter!"a.is_query_consuming"(read.cigar));
+    }
+
+    auto _read = read;
+
+    auto query_chunks = queryChunks(_read);
+
+    static struct Result(R, M) {
+        this(ref T read, R query_sequence, M md_operations) {
+            _qseq = query_sequence; 
+            _md = md_operations;
+            _fetchNextMdOperation();
+        }
+
+        bool empty() @property {
+            return _empty;            
+        }
+
+        /*
+        MD operations -> match(N)    ? consume N characters from query
+                         mismatch(C) ? consume a character from query and replace it with C
+                         deletion(S) ? consume S from MD
+        */
+
+        char front() @property {
+            final switch (_cur_md_op.type) {
+                case MdOperationType.Match:
+                    return cast(char)_qseq.front;
+                case MdOperationType.Mismatch:
+                    return _cur_md_op.mismatch;
+                case MdOperationType.Deletion:
+                    return cast(char)_cur_md_op.deletion.front;
+            }
+        }
+
+        private void _fetchNextMdOperation() {
+            if (_md.empty) {
+                _empty = true;
+                return;
+            }
+            _cur_md_op = _md.front;
+            _md.popFront();
+        }
+
+        void popFront() {
+            final switch (_cur_md_op.type) {
+                case MdOperationType.Mismatch:
+                    _qseq.popFront();
+                    _fetchNextMdOperation();
+                    break;
+                case MdOperationType.Match:
+                    --_cur_md_op.match;
+                    _qseq.popFront();
+                    if (_cur_md_op.match == 0) {
+                        _fetchNextMdOperation();
+                    }
+                    break;
+                case MdOperationType.Deletion:
+                    _cur_md_op.deletion = _cur_md_op.deletion[1..$];
+                    if (_cur_md_op.deletion.empty) {
+                        _fetchNextMdOperation();
+                    }
+                    break;
+            }
+        }
+
+        private {
+            R _qseq;
+            M _md;
+      
+            bool _empty;
+            MdOperation _cur_md_op;
+        }
+    }
+  
+    auto md = _read["MD"];
+    string md_str;
+    if (!md.is_nothing) {
+        md_str = cast(string)_read["MD"];
+    }
     
-    auto md_tag = read["MD"];
-    if (md_tag.is_nothing) {
-        return null;
+    static auto getResult(R, M)(ref T read, R query, M md_ops) {
+        return Result!(R, M)(read, query, md_ops);
     }
 
-    auto md = cast(string)md_tag;
-
-    auto cigar = read.cigar;
-
-    auto seq = "";
-    auto qseq = read.sequence;
-
-    foreach(e; cigar)
-    {
-        if (e.operation == 'M' || e.operation == '=' || e.operation == 'X') {
-            seq ~= to!string(qseq[0 .. e.length]);
-            qseq = qseq[e.length .. qseq.length];
-        } else if (e.operation == 'S' || e.operation == 'I') {
-            qseq = qseq[e.length .. qseq.length];
-        }
-    }
-
-    size_t start;
-    enum State {
-        NOT_STARTED,
-        NUMBER,
-        START_DELETION,
-        DELETION,
-        INSERTION
-    }
-
-    State current_state = State.NOT_STARTED;
-    string result;
-    ulong num;
-    char base;
-    foreach (c; md)
-    {
-        switch (c) {
-            case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-                final switch(current_state) {
-                    case State.NOT_STARTED:
-                    case State.NUMBER:
-                        num = num * 10 + cast(int)(c - '0');
-                        break;
-                    case State.DELETION:
-                        result ~= base;
-                        num = cast(int)(c - '0');
-                        break;
-                    case State.INSERTION:
-                        result ~= base;
-                        start += 1;
-                        num = cast(int)(c - '0');
-                        break;
-                    case State.START_DELETION:
-                        break; // FIXME: \^\d is an error
-                }
-                current_state = State.NUMBER;
-                break;
-            case '^':
-                final switch(current_state) {
-                    case State.NOT_STARTED:
-                        break;
-                    case State.NUMBER:
-                        result ~= seq[start .. start + num];
-                        start += num;
-                        break;
-                    case State.DELETION:
-                        result ~= base;
-                        break;
-                    case State.INSERTION:
-                        result ~= base;
-                        start += 1;
-                        break;
-                    case State.START_DELETION:
-                        break; // FIXME: \^\^ is also an error
-                }
-                current_state = State.START_DELETION;
-                break;
-            default: // assume it's a base
-                final switch(current_state) {
-                    case State.NOT_STARTED:
-                        current_state = State.INSERTION;
-                        break;
-                    case State.NUMBER:
-                        result ~= seq[start .. start + num];
-                        start += num;
-                        current_state = State.INSERTION;
-                        break;
-                    case State.INSERTION:
-                        result ~= base;
-                        start += 1;
-                        break;
-                    case State.START_DELETION:
-                        current_state = State.DELETION;
-                        break;
-                    case State.DELETION:
-                        result ~= base;
-                        break;
-                }
-                base = c;
-                break;
-        }
-    }
-
-    final switch (current_state)
-    {
-        case State.NOT_STARTED:
-        case State.START_DELETION:
-            break;
-        case State.NUMBER:
-            result ~= seq[start .. start + num];
-            break; 
-        case State.INSERTION:
-        case State.DELETION:
-            result ~= base;
-            break;
-    }
-
-    return result;
+    return getResult(_read, 
+                     joiner(map!"a.sequence"(filter!"a.operation.is_reference_consuming"(query_chunks))),
+                     mdOperations(md_str));
 }
 
 unittest {
+
+    import std.stdio;
+    writeln("Testing reconstruction of reference from MD tags and CIGAR");
+
     // Test reference reconstruction from MD and CIGAR.
     // (Tests are taken from http://davetang.org/muse/2011/01/28/perl-and-sam/)
 
@@ -164,7 +173,9 @@ unittest {
                      "CGATACGGGGACATCCGGCCTGCTCCTTCTCACATG",
                      [CigarOperation(36, 'M')]);
     read["MD"] = "1A0C0C0C1T0C0T27";
-    assert(dna(read) == "CACCCCTCTGACATCCGGCCTGCTCCTTCTCACATG");
+
+
+    assert(equal(dna(read), "CACCCCTCTGACATCCGGCCTGCTCCTTCTCACATG"));
 
     read = Alignment("r2",
                      "GAGACGGGGTGACATCCGGCCTGCTCCTTCTCACAT",
@@ -172,7 +183,8 @@ unittest {
                       CigarOperation(1, 'I'),
                       CigarOperation(29, 'M')]);
     read["MD"] = "0C1C0C1C0T0C27";
-    assert(dna(read) == "CACCCCTCTGACATCCGGCCTGCTCCTTCTCACAT");
+
+    assert(equal(dna(read), "CACCCCTCTGACATCCGGCCTGCTCCTTCTCACAT"));
 
     read = Alignment("r3",
                      "AGTGATGGGGGGGTTCCAGGTGGAGACGAGGACTCC",
@@ -180,7 +192,7 @@ unittest {
                       CigarOperation(9, 'D'),
                       CigarOperation(27, 'M')]);
     read["MD"] = "2G0A5^ATGATGTCA27";
-    assert(dna(read) == "AGGAATGGGATGATGTCAGGGGTTCCAGGTGGAGACGAGGACTCC");
+    assert(equal(dna(read), "AGGAATGGGATGATGTCAGGGGTTCCAGGTGGAGACGAGGACTCC"));
 
     read = Alignment("r4",
                      "AGTGATGGGAGGATGTCTCGTCTGTGAGTTACAGCA",
@@ -190,7 +202,7 @@ unittest {
                       CigarOperation(6, 'D'),
                       CigarOperation(26, 'M')]);
     read["MD"] = "3C3T1^GCTCAG26";
-    assert(dna(read) == "AGGCTGGTAGCTCAGGGATGTCTCGTCTGTGAGTTACAGCA");
+    assert(equal(dna(read), "AGGCTGGTAGCTCAGGGATGTCTCGTCTGTGAGTTACAGCA"));
 }
 
 /**
@@ -208,27 +220,25 @@ auto dna(R)(R reads)
     static struct Result {
         this(R reads) {
             _reads = reads;
-            while (_chunk.length == 0) {
-                if (_reads.empty) {
-                    _empty = true;
-                    return;
-                }
-                auto read = _reads.front;
-                _chunk = dna(read);
-                _reference_pos = read.position;
-                _reads.popFront();
+            if (_reads.empty) {
+                _empty = true;
+                return;
             }
+            auto read = _reads.front;
+            _chunk = dna(read);
+            _reference_pos = read.position;
+            _reads.popFront();
         }
 
-        @property bool empty() const {
+        @property bool empty() {
             return _empty;
         }
 
-        @property char front() const {
+        @property char front() {
             if (_bases_to_skip > 0) {
                 return 'N';
             }
-            return _chunk[0];
+            return _chunk.front;
         }
 
         private void setSkipMode(ref Alignment read) {
@@ -245,7 +255,7 @@ auto dna(R)(R reads)
                 return;
             }
 
-            _chunk = _chunk[1 .. $];
+            _chunk.popFront();
 
             /*
              * If current chunk is empty, get the next one.
@@ -263,7 +273,7 @@ auto dna(R)(R reads)
              *                  [..........]                                    
              *                        [.........]  <- this one is the best      
              */
-            if (_chunk.length == 0) {
+            if (_chunk.empty) {
                 if (_reads.empty) {
                     _empty = true;
                     return;
@@ -310,22 +320,64 @@ auto dna(R)(R reads)
                 // If we're here, we've found a good read.
                 _chunk = dna(best_read);
                 debug {
+                    /*
                     import std.stdio;
                     writeln("_reference_pos = ", _reference_pos, 
                             "; best_read.position = ", best_read.position,
-                            "; _chunk.length = ", _chunk.length);
+                            "; _chunk length = ", best_read.basesCovered());
+                            */
                 }
                 // However, we need to strip some bases from the left.
-                _chunk = _chunk[_reference_pos - best_read.position .. $];
+                popFrontN(_chunk, _reference_pos - best_read.position);
             }
         }
 
         private size_t _bases_to_skip;
         private size_t _reference_pos;
-        private string _chunk;
+        private typeof(dna(_reads.front)) _chunk;
         private bool _empty = false;
         private R _reads;
     }
 
     return Result(reads);
+}
+
+unittest {
+
+    // reads are taken from HG00110.chrom20.ILLUMINA.bwa.GBR.exome.20111114.bam 
+
+    auto r1 = Alignment("r1",
+                        "AGGTTTTGTGAGTGGGACAGTTGCAGCAAAACACAACCATAGGTGCCCATCCACCAAGGCAGGCTCTCCATCTTGCTCAGAGTGGCTCTA",
+                        [CigarOperation(89, 'M'),
+                         CigarOperation(1, 'S')]);
+    r1.position = 60246;
+    r1["MD"] = "89";
+
+    auto r2 = Alignment("r2",
+                        "TGTGAGTGGGACAGTTGCAGCAAAACACAACCATAGGTGCCCATCCACCAAGGCAGGCTCTCCATCTTGCTCAGAGTGGCTCCAGCCCTT",
+                        [CigarOperation(83, 'M'),
+                         CigarOperation(7, 'S')]);
+    r2.position = 60252;
+    r2["MD"] = "82T0";
+    
+    auto r3 = Alignment("r3",
+                        "CATAGGTGCCCATCCACCAAGGCAGGCTCTCCATCTTGCTCAGAGTGGCTCTAGCCCTTGCTGACTGCTGGGCAGGGAGAGAGCAGAGCT",
+                        [CigarOperation(90, 'M')]);
+    r3.position = 60283;
+    r3["MD"] = "90";
+
+    auto r4 = Alignment("r4",
+                        "CCCTTGCTGACTGCTGGGCAGGGAGAGAGCAGAGCTAACTTCCTCATGGGACCTGGGTGTGTCTGATCTGTGCACACCACTATCCAACCG",
+                        [CigarOperation(90, 'M')]);
+    r4.position = 60337;
+    r4["MD"] = "90";
+
+    auto r5 = Alignment("r5",
+                        "GAGGCTCCACCCTGGCCACTCTTGTGTGCACACAGCACAGCCTCTACTGCTACACCTGAGTACTTTGCCAGTGGCCTGGAAGCACTTTGT",
+                        [CigarOperation(90, 'M')]);
+    r5.position = 60432;
+    r5["MD"] = "90";
+
+    auto reads = [r1, r2, r3, r4, r5];
+    assert(equal(dna(reads), "AGGTTTTGTGAGTGGGACAGTTGCAGCAAAACACAACCATAGGTGCCCATCCACCAAGGCAGGCTCTCCATCTTGCTCAGAGTGGCTCTAGCCCTTGCTGACTGCTGGGCAGGGAGAGAGCAGAGCTAACTTCCTCATGGGACCTGGGTGTGTCTGATCTGTGCACACCACTATCCAACCGNNNNNGAGGCTCCACCCTGGCCACTCTTGTGTGCACACAGCACAGCCTCTACTGCTACACCTGAGTACTTTGCCAGTGGCCTGGAAGCACTTTGT"));
 }

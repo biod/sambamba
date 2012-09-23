@@ -102,13 +102,13 @@ struct CigarOperation {
     private static immutable uint CIGAR_TYPE = 0b11_11_00_00_01_10_10_01_11;
 
     /// True iff operation is one of M, =, X, I, S
-    bool is_query_consuming() @property {
-        return (CIGAR_TYPE >> ((raw & 0xF) * 2)) & 1;
+    bool is_query_consuming() @property const {
+        return ((CIGAR_TYPE >> ((raw & 0xF) * 2)) & 1) != 0;
     }
 
     /// True iff operation is one of M, =, X, D, N
-    bool is_reference_consuming() @property {
-        return (CIGAR_TYPE >> ((raw & 0xF) * 2)) & 3;
+    bool is_reference_consuming() @property const {
+        return ((CIGAR_TYPE >> ((raw & 0xF) * 2)) & 2) != 0;
     }
 }
 
@@ -129,9 +129,17 @@ struct Alignment {
     // TODO: better names for properties
 
     @property    int ref_id()           const nothrow { return _refID; }
+
+    /// 0-based leftmost coordinate of the first matching base
     @property    int position()         const nothrow { return _pos; }
+
+    /// Indexing bin which this read belongs to.
     @property    Bin bin()              const nothrow { return Bin(_bin); }
+
+    /// Mapping quality. Equals to 255 if not available, otherwise
+    /// equals to rounded -10 * log10(P {mapping position is wrong}).
     @property  ubyte mapping_quality()  const nothrow { return _mapq; }
+
     @property ushort flag()             const nothrow { return _flag; }
     @property    int sequence_length()  const nothrow { return _l_seq; }
     @property    int next_ref_id()      const nothrow { return _next_refID; }
@@ -227,21 +235,7 @@ struct Alignment {
             return 0; // actually, valid alignments should have empty cigar string
         }
 
-        int n = 0;
-        foreach (c; cigar) {
-            switch (c.operation) {
-                case 'M':
-                case '=':
-                case 'X':
-                case 'D':
-                case 'N':
-                    n += c.length;
-                    break;
-                default:
-                    break;
-            }
-        }
-        return n;
+        return reduce!"a + b.length"(0, filter!"a.is_reference_consuming"(cigar));
     }
 
     /// Human-readable representation of CIGAR string

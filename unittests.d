@@ -23,6 +23,7 @@ import bamoutput;
 import samfile;
 import sam.recordparser;
 import bgzfrange;
+import reconstruct;
 
 import validation.samheader;
 import validation.alignment;
