@@ -1,9 +1,38 @@
-The project aims to develop robust and fast library for working with BAM files.
+# Sambamba
 
-# Tools
+Sambamba is a modern robust and fast tool (and library) for working
+with BAM files.  Currently functionality is an important subset of
+samtools functionality. 
 
-There're already some tools developed on top of the library, that are [faster](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools) than samtools
-in many cases. See `CLItools/` directory and manual pages on [wiki][] to see what is available and how to use it.
+In many cases Sambamba is already
+[faster](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools)
+than samtools. More importantly, the code base is
+clean and designed for future development, with improved error
+handling, and experimentation, especially with regard to parallel
+computing.
+
+Currently we are experimenting with SNP calling and mpileup.
+
+Sambamba filtering is part of the Galaxy [tool
+shed](http://toolshed.g2.bx.psu.edu/repos/lomereiter/sambamba_filter).
+
+See `CLItools/` directory and manual
+pages on [wiki][] to see what is available and how to use it.
+
+For more information please contact Artem Tarasov and Pjotr Prins.
+
+# Quick install
+
+Dependencies are a D2 compiler (dmd) and ragel. E.g. from the source
+tree on Debian/Ubuntu
+
+  apt-get install gdc ragel
+  make unittests
+  cd CLItools
+  make
+
+where the binaries reside in ./CLItools/build, including sambamba,
+sambamba-index and sambamba-flagstat.
 
 # Library features
 
