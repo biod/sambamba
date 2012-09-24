@@ -292,6 +292,6 @@ string chunkBaseName(string unsorted_fn, size_t chunk_num) {
 }
 
 auto chunks(R)(R reads, size_t size_in_bytes) {
-    return AlignmentRangeSplitter!(R, "Alignment.sizeof * 3 / 2 + read.size_in_bytes")
+    return AlignmentRangeSplitter!(R, (Alignment read) { return Alignment.sizeof * 3 / 2 + read.size_in_bytes;})
                 (reads, size_in_bytes);
 }

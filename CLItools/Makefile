@@ -6,7 +6,7 @@ FILES=../bai/indexing.d ../jsonserialization.d ../utils/stream.d ../bamfile.d ..
 	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
 	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d \
-	  common/progressbar.d ../utils/msgpack.d splitter.d
+	  common/progressbar.d ../utils/msgpack.d ../splitter.d
 
 SAMFILES=../samfile.d ../sam/recordparser.d ../utils/tagstoragebuilder.d
 
