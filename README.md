@@ -1,25 +1,28 @@
 # Sambamba
 
-Sambamba is a modern robust and fast tool (and library) for working
-with BAM files.  Currently functionality is an important subset of
+Sambamba is a high performance modern robust and fast tool (and
+library), written in the D programming language, for working
+with BAM files.  Current functionality is an important subset of
 samtools functionality. 
 
 In many cases Sambamba is already
 [faster](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools)
 than samtools. More importantly, the code base is
-clean and designed for future development, with improved error
-handling, and experimentation, especially with regard to parallel
+clean and designed for future development, e.g. clean code with improved error
+handling; and for experimentation, especially with regard to parallel
 computing.
 
 Currently we are experimenting with SNP calling and mpileup.
 
-Sambamba filtering is part of the Galaxy [tool
-shed](http://toolshed.g2.bx.psu.edu/repos/lomereiter/sambamba_filter).
+Sambamba is free and open source software. Sambamba filtering is part of the Galaxy [tool
+shed](http://toolshed.g2.bx.psu.edu/repos/lomereiter/sambamba_filter)
+and will be part of [CloudBiolinux](http://cloudbiolinux.org/) soon.
+A Debian package is available for download.
 
 See `CLItools/` directory and manual
 pages on [wiki][] to see what is available and how to use it.
 
-For more information please contact Artem Tarasov and Pjotr Prins.
+For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 # Quick install
 
