@@ -34,16 +34,6 @@ unittests-gdc: $(TESTFILES)
 	gdc $(TESTFILES) -O0 -funittest -o run_unittests -lpthread -fdebug -fversion=serial
 	./run_unittests
 
-test: $(FILES) readbam.d jsonserialization.d
-	dmd $(FILES) readbam.d jsonserialization.d -ofreadbam -g -debug -inline
-
-test-gdc: $(FILES) readbam.d jsonserialization.d
-	gdc $(FILES) readbam.d jsonserialization.d -o readbam -g -fdebug -lpthread -O3 -frelease -finline -fno-assert -fno-bounds-check
-
-testsam: $(FILES) readsam.d 
-	cd sam && make fastrecordparser && cd ..
-	gdc $(FILES) readsam.d -O3 -frelease -finline -o readsam -funroll-all-loops -finline-limit=8192 -lpthread -fno-assert -fno-bounds-check
-
 clean:
 	rm -f *.o 
 	cd sam && make clean
