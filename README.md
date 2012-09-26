@@ -5,9 +5,9 @@ library), written in the D programming language, for working
 with BAM files.  Current functionality is an important subset of
 samtools functionality. 
 
-In many cases Sambamba is already
+In many cases Sambamba is much faster
 than samtools. For example indexing an 18 Gb BAM file on a fast 8 core
-machine (utilizes all cores at 45% CPU)
+machine utilizes all cores at 45% CPU:
 
     time ~/sambamba index /scratch/HG00119.mapped.ILLUMINA.bwa.GBR.exome.20111114.bam            
       real    1m42.930s
@@ -21,7 +21,7 @@ meanwhile samtools
       user    5m9.127s
       sys     0m13.605s
 
-it can make a difference dealing with 1000 genomes (or more).
+Such a speedup can make a difference dealing with 1000 genomes (or more).
 
 See also further
 [comparison](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools).
