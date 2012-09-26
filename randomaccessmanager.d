@@ -34,7 +34,7 @@ import bai.utils.algo;
 import utils.memoize;
 import utils.range;
 
-import std.stream;
+import utils.stream;
 import std.system;
 import std.algorithm;
 import std.array;
@@ -92,7 +92,7 @@ class RandomAccessManager {
     /// Every time new stream is used.
     Alignment getAlignmentAt(VirtualOffset offset) {
 
-        auto _stream = new BufferedFile(_filename);
+        auto _stream = new utils.stream.File(_filename);
         auto _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
         _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
@@ -118,7 +118,7 @@ class RandomAccessManager {
 
         auto min_offset = _bai.indices[ref_id].getMinimumOffset(beg);
 
-        auto _stream = new BufferedFile(_filename);
+        auto _stream = new utils.stream.File(_filename);
         Stream _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
 
 version(none){//DigitalMars) {
