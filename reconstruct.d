@@ -34,6 +34,12 @@ auto dna(T)(ref T read)
     if (is(Unqual!T == Alignment))
 {
 
+    debug {
+        import std.stdio;
+        stderr.writeln("[dna] processing read ", read.read_name);
+        stderr.flush();
+    }
+
     static struct QueryChunk(S) {
         S sequence;
         CigarOperation operation;
@@ -78,6 +84,9 @@ auto dna(T)(ref T read)
 
     static struct Result(R, M) {
         this(ref T read, R query_sequence, M md_operations) {
+            debug {
+                _initial_qseq = to!string(query_sequence);
+            }
             _qseq = query_sequence; 
             _md = md_operations;
             _fetchNextMdOperation();
@@ -113,13 +122,32 @@ auto dna(T)(ref T read)
             _md.popFront();
         }
 
+        private bool _qseqIsSuddenlyEmpty() {
+            if (!_qseq.empty) {
+                return false;
+            }
+
+            /* MD and CIGAR don't match */
+            debug {
+                import std.stdio;
+                stderr.writeln("Current MD operation: ", _cur_md_op);
+                stderr.writeln("Query sequence: ", _initial_qseq);
+            }
+
+            return true;
+        }
+
         void popFront() {
             final switch (_cur_md_op.type) {
                 case MdOperationType.Mismatch:
+                    if (_qseqIsSuddenlyEmpty())
+                        break;
                     _qseq.popFront();
                     _fetchNextMdOperation();
                     break;
                 case MdOperationType.Match:
+                    if (_qseqIsSuddenlyEmpty())
+                        break;
                     --_cur_md_op.match;
                     _qseq.popFront();
                     if (_cur_md_op.match == 0) {
@@ -136,6 +164,9 @@ auto dna(T)(ref T read)
         }
 
         private {
+            debug {
+                string _initial_qseq;
+            }
             R _qseq;
             M _md;
       
@@ -154,9 +185,23 @@ auto dna(T)(ref T read)
         return Result!(R, M)(read, query, md_ops);
     }
 
-    return getResult(_read, 
-                     joiner(map!"a.sequence"(filter!"a.operation.is_reference_consuming"(query_chunks))),
-                     mdOperations(md_str));
+    auto result =  getResult(_read, 
+                             joiner(map!"a.sequence"(filter!"a.operation.is_reference_consuming"(query_chunks))),
+                             mdOperations(md_str));
+
+    debug {
+        import std.stdio;
+        if (result.empty) {
+            stderr.writeln("[dna] empty DNA!");
+            stderr.writeln("      read name: ", read.read_name);
+            stderr.writeln("      read sequence: ", read.sequence);
+            stderr.writeln("      read CIGAR: ", read.cigarString());
+            stderr.writeln("      read MD tag: ", read["MD"]);
+            stderr.flush();
+        }
+    }
+
+    return result;
 }
 
 unittest {
@@ -173,7 +218,6 @@ unittest {
                      "CGATACGGGGACATCCGGCCTGCTCCTTCTCACATG",
                      [CigarOperation(36, 'M')]);
     read["MD"] = "1A0C0C0C1T0C0T27";
-
 
     assert(equal(dna(read), "CACCCCTCTGACATCCGGCCTGCTCCTTCTCACATG"));
 
@@ -203,6 +247,28 @@ unittest {
                       CigarOperation(26, 'M')]);
     read["MD"] = "3C3T1^GCTCAG26";
     assert(equal(dna(read), "AGGCTGGTAGCTCAGGGATGTCTCGTCTGTGAGTTACAGCA"));
+
+    read = Alignment("r5",
+                     "AAGACAGCATACAGGATCCTGACATAGGAGAGAATAATAAGGATAACATCCAGTAACAAGAGAGATATGTTGCCAA",
+                     [CigarOperation(76, 'M')]);
+    read["MD"] = "76";
+
+    import std.stdio;
+    writeln(dna(read));
+
+    read = Alignment("r6",
+                     "AAGACAGCATACAGGATCCTGACATAGGAGAGAATAATAAGGATAACATCCAGTAACAAGAGAGATATGTTGCCAA",
+                     [CigarOperation(76, 'M')]);
+    read["MD"] = "76";
+
+    writeln(dna(read));
+
+    read = Alignment("r7",
+                     "AAGACAGCATACAGGATCCTGACATAGGAGAGAATAATAAGGATAACATCCAGTAACAAGAGAGATATGCTGCTAA",
+                     [CigarOperation(57, 'M'),
+                      CigarOperation(19, 'S')]);
+    read["MD"] = "57";
+    writeln(dna(read));
 }
 
 /**
@@ -217,8 +283,8 @@ unittest {
 auto dna(R)(R reads)
     if (isInputRange!R && is(Unqual!(ElementType!R) == Alignment))
 {
-    static struct Result {
-        this(R reads) {
+    static struct Result(F) {
+        this(F reads) {
             _reads = reads;
             if (_reads.empty) {
                 _empty = true;
@@ -336,10 +402,11 @@ auto dna(R)(R reads)
         private size_t _reference_pos;
         private typeof(dna(_reads.front)) _chunk;
         private bool _empty = false;
-        private R _reads;
+        private F _reads;
     }
 
-    return Result(reads);
+    auto nonempty = filter!"a.basesCovered() > 0"(reads);
+    return Result!(typeof(nonempty))(nonempty);
 }
 
 unittest {
