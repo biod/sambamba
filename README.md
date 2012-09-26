@@ -29,10 +29,10 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 Dependencies are a D2 compiler (dmd) and ragel. E.g. from the source
 tree on Debian/Ubuntu
 
-  apt-get install gdc ragel
-  make unittests
-  cd CLItools
-  make
+    apt-get install gdc ragel
+    make unittests
+    cd CLItools
+    make
 
 where the binaries reside in ./CLItools/build, including sambamba,
 sambamba-index and sambamba-flagstat.
