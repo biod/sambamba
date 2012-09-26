@@ -1,3 +1,10 @@
+sambamba (0.2.8) unstable; urgency=low
+
+  * fix segfault on opening unexistent file
+  * fix random-access for files >2GB
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Wed, 26 Sep 2012 17:17:03 +0400
+
 sambamba (0.2.7) unstable; urgency=low
 
   * fix a stupid bug related to determining end of file
