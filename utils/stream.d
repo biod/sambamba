@@ -11,6 +11,10 @@ final class File: std.stream.File {
     this(string filename) {
         // Issue 8528 workaround
         auto file = fopen(toStringz(filename), "rb");
+        if (file == null) {
+            throw new OpenException(cast(string) ("Cannot open or create file '"
+                                            ~ filename ~ "'"));
+        }
         super(core.stdc.stdio.fileno(file), FileMode.In);
     }
 

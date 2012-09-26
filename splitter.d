@@ -59,10 +59,6 @@ struct AlignmentRangeSplitter(R, alias fn)
             _appender.put(read);
             _range.popFront();
         }
-        debug {
-            import std.stdio;
-            stderr.writeln(total_size);
-        }
     }
 }
 
