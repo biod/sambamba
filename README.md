@@ -23,9 +23,11 @@ meanwhile samtools
 
 Such a speedup can make a difference dealing with 1000 genomes (or more).
 
-See also further
-[comparison](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools).
-More importantly, the code base is
+See also a further
+[comparison](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools)
+on more limited hardware.
+
+More important than raw speed, we think, is that the code base is
 clean and designed for future development, e.g. clean code with improved error
 handling; and for experimentation, especially with regard to parallel
 computing.
