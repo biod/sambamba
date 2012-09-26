@@ -46,16 +46,21 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 # Quick install
 
-Dependencies are a D2 compiler (dmd) and ragel. E.g. from the source
-tree on Debian/Ubuntu
+Dependencies are a D2 compiler (dmd >= 2.060) and ragel. E.g. from the source
+tree on 64-bit Debian/Ubuntu
 
-    apt-get install gdc ragel
+    wget http://ftp.digitalmars.com/dmd_2.060-0_amd64.deb
+    sudo dpkg -i dmd_2.060-0_amd64.deb
+    sudo apt-get install ragel
     make unittests
     cd CLItools
     make
 
-where the binaries reside in ./CLItools/build, including sambamba,
-sambamba-index and sambamba-flagstat.
+where the binaries reside in ./CLItools/build
+
+## Note
+
+Use the latest version of DMD. Older ones may have bugs causing segfaults.
 
 # Library features
 
