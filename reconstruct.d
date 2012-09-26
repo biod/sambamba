@@ -248,27 +248,6 @@ unittest {
     read["MD"] = "3C3T1^GCTCAG26";
     assert(equal(dna(read), "AGGCTGGTAGCTCAGGGATGTCTCGTCTGTGAGTTACAGCA"));
 
-    read = Alignment("r5",
-                     "AAGACAGCATACAGGATCCTGACATAGGAGAGAATAATAAGGATAACATCCAGTAACAAGAGAGATATGTTGCCAA",
-                     [CigarOperation(76, 'M')]);
-    read["MD"] = "76";
-
-    import std.stdio;
-    writeln(dna(read));
-
-    read = Alignment("r6",
-                     "AAGACAGCATACAGGATCCTGACATAGGAGAGAATAATAAGGATAACATCCAGTAACAAGAGAGATATGTTGCCAA",
-                     [CigarOperation(76, 'M')]);
-    read["MD"] = "76";
-
-    writeln(dna(read));
-
-    read = Alignment("r7",
-                     "AAGACAGCATACAGGATCCTGACATAGGAGAGAATAATAAGGATAACATCCAGTAACAAGAGAGATATGCTGCTAA",
-                     [CigarOperation(57, 'M'),
-                      CigarOperation(19, 'S')]);
-    read["MD"] = "57";
-    writeln(dna(read));
 }
 
 /**
