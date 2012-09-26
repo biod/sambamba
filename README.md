@@ -1,9 +1,61 @@
-The project aims to develop robust and fast library for working with BAM files.
+# Sambamba
 
-# Tools
+Sambamba is a high performance modern robust and fast tool (and
+library), written in the D programming language, for working
+with BAM files.  Current functionality is an important subset of
+samtools functionality. 
 
-There're already some tools developed on top of the library, that are [faster](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools) than samtools
-in many cases. See `CLItools/` directory and manual pages on [wiki][] to see what is available and how to use it.
+In many cases Sambamba is much faster
+than samtools. For example indexing an 18 Gb BAM file on a fast 8 core
+machine utilizes all cores at 45% CPU:
+
+    time ~/sambamba index /scratch/HG00119.mapped.ILLUMINA.bwa.GBR.exome.20111114.bam            
+      real    1m42.930s
+      user    6m19.964s
+      sys     0m32.362s
+
+meanwhile samtools
+
+    time ~/samtools index /scratch/HG00119.mapped.ILLUMINA.bwa.GBR.exome.20111114.bam 
+      real    5m37.669s
+      user    5m9.127s
+      sys     0m13.605s
+
+Such a speedup can make a difference dealing with 1000 genomes (or more).
+
+See also a further
+[comparison](https://github.com/lomereiter/sambamba/wiki/Comparison-with-samtools)
+on more limited hardware.
+
+More important than raw speed, we think, is that the code base is
+clean and designed for future development, e.g. clean code with improved error
+handling; and for experimentation, especially with regard to parallel
+computing.
+
+Currently we are experimenting with SNP calling and mpileup.
+
+Sambamba is free and open source software. Sambamba filtering is part of the Galaxy [tool
+shed](http://toolshed.g2.bx.psu.edu/repos/lomereiter/sambamba_filter)
+and will be part of [CloudBiolinux](http://cloudbiolinux.org/) soon.
+A Debian package is available for download.
+
+See `CLItools/` directory and manual
+pages on [wiki][] to see what is available and how to use it.
+
+For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
+
+# Quick install
+
+Dependencies are a D2 compiler (dmd) and ragel. E.g. from the source
+tree on Debian/Ubuntu
+
+    apt-get install gdc ragel
+    make unittests
+    cd CLItools
+    make
+
+where the binaries reside in ./CLItools/build, including sambamba,
+sambamba-index and sambamba-flagstat.
 
 # Library features
 
