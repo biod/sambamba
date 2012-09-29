@@ -7,11 +7,16 @@ FILES=../utils/stream.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../utils/format.d ../alignmentrange.d ../constants.d ../bamoutput.d \
 	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../utils/msgpack.d
 
-DMDFLAGS=-g -debug#-O -release -inline#-g -debug
+DMDFLAGS=-g -O -release -inline#-g -debug
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192 -I..
 
+DCOLLECTIONS_FILES=../dcollections/LinkList.d ../dcollections/model/List.d \
+				   ../dcollections/model/Addable.d ../dcollections/model/Iterator.d \
+				   ../dcollections/Link.d ../dcollections/DefaultFunctions.d \
+				   ../dcollections/DefaultAllocator.d
+
 coverage: $(FILES) coverage.d ../pileuprange.d
-	dmd $(FILES) coverage.d ../pileuprange.d $(DMDFLAGS) -version=serial
+	dmd $(FILES) coverage.d ../pileuprange.d $(DCOLLECTIONS_FILES) $(DMDFLAGS) -ofcoverage -version=serial
 
 coverage-gdc: $(FILES) coverage.d ../pileuprange.d
 	gdc $(FILES) coverage.d ../pileuprange.d $(GDCFLAGS) -o coverage

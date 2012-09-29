@@ -2,6 +2,7 @@ module pileuprange;
 
 import alignment;
 import std.algorithm;
+import std.conv;
 import std.exception;
 
 static if (__traits(compiles, {import dcollections.LinkList;})) {
@@ -29,9 +30,11 @@ import dcollections.LinkList;
 struct PileupRead(Read=Alignment) {
 
     /// Read
-    const ref Read read() @property const {
+    ref Read read() @property {
         return _read;
     }
+
+	alias read this;
   
     /// Current CIGAR operation. Cannot be 'P' as padding operators are skipped.
     CigarOperation cigar_operation() @property const {
@@ -89,7 +92,6 @@ struct PileupRead(Read=Alignment) {
 
         this(Read read) {
             _read = read;
-            _cur_op_start_pos = _read.position;
 
             // find first M/=/X/D operation
             auto cigar = _read.cigar;
@@ -153,7 +155,7 @@ struct PileupColumn(R) {
     }
 
     /// Coverage at this position (equals to number of reads)
-    uint coverage() const @property {
+    ulong coverage() const @property {
         return _reads.length;
     }
 
@@ -177,13 +179,12 @@ auto pileupColumn(R)(ulong position, R reads) {
  * The class for iterating reference bases together with reads overlapping them.
  */
 class PileupRange(R) {
-    alias LinkList!EagerAlignment ReadList;
+    alias LinkList!(PileupRead!EagerAlignment) ReadList;
     alias PileupColumn!ReadList Column;
 
     private {
         R _reads;
         Column _column;
-        uint _cur_pos;
     }
 
     /**
@@ -199,15 +200,14 @@ class PileupRange(R) {
             auto read = _reads.front;
 
             _column._position = read.position;
+            _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
 
             _reads.popFront();
 
             while (!_reads.empty) {
                 read = _reads.front;
-                if (read.position == _cur_pos) {
-                    _column._reads.add(EagerAlignment(read));
-                    auto cursor = _column._reads[].end();
-                    cursor.front.
+                if (read.position == _column._position) {
+                    _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
 
                     _reads.popFront();
                 } else {
@@ -218,28 +218,31 @@ class PileupRange(R) {
     }
 
     /// Returns PileupColumn struct corresponding to the current position.
-    const ref Column front() @property {
+    ref Column front() @property {
         return _column;
     }
 
     /// Whether all reads have been processed.
-    auto empty() @property {
-        return _reads.empty && _column._reads.empty;
+    bool empty() @property {
+        return _reads.empty && _column._reads[].empty;
     }
 
     /// Move to next position on the reference.
     void popFront() {
         ++_column._position;
 
-        foreach (ref bool remove, ref EagerAlignment _read; &_column._reads.purge) 
+        foreach (ref remove, ref _read; &_column._reads.purge) 
         {
-            if (_read.end_position <= _column._position)
+            if (_read.end_position <= _column._position) {
                 remove = true;
+			} else {
+				_read.incrementPosition();
+			}
         }
 
-        while (!_reads.empty && _reads.front.position == _cur_pos) {
+        while (!_reads.empty && _reads.front.position == _column._position) {
             auto read = _reads.front;
-            _column._reads.add(EagerAlignment(read));
+            _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
             _reads.popFront();
         }
     }
