@@ -13,8 +13,6 @@ void main(string[] args) {
                                 until!((Alignment read) { return read.ref_id != ref_id; })(
                                     bam.alignments)))))
     {
-        if (column.coverage > 0) {
-            printf("%d %d\n", cast(int)column.position, cast(int)column.coverage);
-        }
+        printf("%d %d\n", cast(int)column.position, cast(int)column.coverage);
     }
 }

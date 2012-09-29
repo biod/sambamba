@@ -16,10 +16,11 @@ DCOLLECTIONS_FILES=../dcollections/LinkList.d ../dcollections/model/List.d \
 				   ../dcollections/DefaultAllocator.d
 
 coverage: $(FILES) coverage.d ../pileuprange.d
-	dmd $(FILES) coverage.d ../pileuprange.d $(DCOLLECTIONS_FILES) $(DMDFLAGS) -ofcoverage -version=serial
+	dmd $(FILES) coverage.d ../pileuprange.d $(DCOLLECTIONS_FILES) $(DMDFLAGS) -ofcoverage
 
+# segfaults :-((( perhaps, it's possible to tweak the file order somehow...
 coverage-gdc: $(FILES) coverage.d ../pileuprange.d
-	gdc $(FILES) coverage.d ../pileuprange.d $(GDCFLAGS) -o coverage
+	gdc $(FILES) $(DCOLLECTIONS_FILES) ../pileuprange.d coverage.d $(GDCFLAGS) -o coverage
 
 validator: $(FILES) validator.d
 	dmd $(FILES) validator.d -ofvalidator $(DMDFLAGS) -version=serial
