@@ -29,11 +29,7 @@ import dcollections.LinkList;
 /// Represents a read aligned to a column
 struct PileupRead(Read=Alignment) {
 
-    /// Read
-    ref Read read() @property {
-        return _read;
-    }
-
+    Read read;
 	alias read this;
   
     /// Current CIGAR operation. Cannot be 'P' as padding operators are skipped.
@@ -45,7 +41,7 @@ struct PileupRead(Read=Alignment) {
     /// at the current column. Otherwise, returns 'N'.
     char base() @property const {
         if (_cur_op.is_query_consuming && _cur_op.is_reference_consuming) {
-            return _read.sequence[_query_offset];
+            return read.sequence[_query_offset];
         } else {
             return 'N';
         }
@@ -56,7 +52,7 @@ struct PileupRead(Read=Alignment) {
     /// Otherwise, returns 255.
     ubyte quality() @property const {
         if (_cur_op.is_query_consuming && _cur_op.is_reference_consuming) {
-            return _read.phred_base_quality[_query_offset];
+            return read.phred_base_quality[_query_offset];
         } else {
             return 255;
         }
@@ -74,15 +70,11 @@ struct PileupRead(Read=Alignment) {
     }
 
     private {    
-        Read _read;
-
         // index of current CIGAR operation in _read.cigar
         uint _cur_op_index;
 
         // current CIGAR operation
-        CigarOperation _cur_op() @property const {
-            return _read.cigar[_cur_op_index];
-        }
+        CigarOperation _cur_op;
 
         // number of bases consumed from the current CIGAR operation
         uint _cur_op_offset;
@@ -91,13 +83,14 @@ struct PileupRead(Read=Alignment) {
         uint _query_offset;
 
         this(Read read) {
-            _read = read;
+            this.read = read;
 
             // find first M/=/X/D operation
-            auto cigar = _read.cigar;
+            auto cigar = read.cigar;
             for (_cur_op_index = 0; _cur_op_index < cigar.length; ++_cur_op_index) {
                 assertCigarIndexIsValid();
 
+                _cur_op = cigar[_cur_op_index];
                 if (_cur_op.is_reference_consuming) {
                     if (_cur_op.operation != 'N') {     
                         break;
@@ -112,15 +105,17 @@ struct PileupRead(Read=Alignment) {
 
         // move one base to the right on the reference
         void incrementPosition() {
-            _cur_op_offset += 1;
+            ++_cur_op_offset;
             ++_query_offset;
 
             if (_cur_op_offset >= _cur_op.length) {
 
                 _cur_op_offset = 0; // reset CIGAR operation offset
 
+                auto cigar = read.cigar;
                 // get next reference-consuming CIGAR operation (M/=/X/D/N)
-                for (++_cur_op_index; _cur_op_index < _read.cigar.length; ++_cur_op_index) {
+                for (++_cur_op_index; _cur_op_index < cigar.length; ++_cur_op_index) {
+                    _cur_op = cigar[_cur_op_index];
                     if (_cur_op.is_reference_consuming) {
                         break;
                     }
@@ -135,9 +130,9 @@ struct PileupRead(Read=Alignment) {
         }
 
         void assertCigarIndexIsValid() {
-            assert(_cur_op_index < cigar.length, "Invalid read " ~ _read.read_name 
-                                                 ~ " - CIGAR " ~ _read.cigarString()
-                                                 ~ ", sequence " ~ to!string(_read.sequence));
+            assert(_cur_op_index < read.cigar.length, "Invalid read " ~ read.read_name 
+                                                      ~ " - CIGAR " ~ read.cigarString()
+                                                      ~ ", sequence " ~ to!string(read.sequence));
         }
     }
 }
@@ -229,18 +224,18 @@ class PileupRange(R) {
 
     /// Move to next position on the reference.
     void popFront() {
-        ++_column._position;
+        auto pos = ++_column._position;
 
         foreach (ref remove, ref _read; &_column._reads.purge) 
         {
-            if (_read.end_position <= _column._position) {
-                remove = true;
-			} else {
+            if (_read.end_position > pos) {
 				_read.incrementPosition();
+			} else {
+                remove = true;
 			}
         }
-
-        while (!_reads.empty && _reads.front.position == _column._position) {
+        
+        while (!_reads.empty && _reads.front.position == pos) {
             auto read = _reads.front;
             _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
             _reads.popFront();
