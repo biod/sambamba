@@ -1103,3 +1103,42 @@ unittest {
     read.clearAllTags();
     assert(read.tagCount() == 0);
 }
+
+/// Alignment wrapper which precomputes offsets of frequently accessed fields.
+///
+/// Alignment struct is meant to be very lightweight, and as such it computes
+/// offsets of all fields lazily. If there are few accesses to each read,
+/// the impact on speed is not visible. But if a read is accessed a substantial 
+/// number of times, that might become noticeable.
+/// Computation of basesCovered() requires quite a few cycles as well.
+///
+/// This struct makes some accesses faster at the expense of larger struct size.
+/// E.g. on Linux 64-bit, Alignment.sizeof is 24 whereas EagerAlignment.sizeof is 96.
+/// (On 32-bit system the numbers are 12 and 48).
+///
+/// The idea is that this should be a drop-in replacement for Alignment in algorithms,
+/// as the struct uses 'alias this' construction for the wrapped read.
+struct EagerAlignment {
+    this(Alignment read) {
+        this.read = read;
+        this.cigar = read.cigar;
+        this.sequence = read.sequence;
+        this.position = read.position;
+        this.end_position = read.position + read.basesCovered();
+    }
+
+    ///
+    Alignment read;
+    ///
+    alias read this;
+ 
+    ///
+    int position;
+    ///
+    const(CigarOperation)[] cigar;
+    ///
+    typeof(read.sequence) sequence;
+
+    /// End position on the reference, computed as position + basesCovered().
+    int end_position;
+}

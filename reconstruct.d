@@ -149,6 +149,7 @@ auto dna(T)(ref T read)
                     if (_qseqIsSuddenlyEmpty())
                         break;
                     --_cur_md_op.match;
+                    if (!_assertQseqNotEmpty()) break;
                     _qseq.popFront();
                     if (_cur_md_op.match == 0) {
                         _fetchNextMdOperation();

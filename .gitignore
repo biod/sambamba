@@ -1,3 +1,4 @@
 CLItools/build/
 run_unittests
 sam/recordparser.d
+dcollections/
