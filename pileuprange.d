@@ -3,6 +3,7 @@ module pileuprange;
 import alignment;
 import std.algorithm;
 import std.conv;
+import std.array;
 import std.exception;
 
 static if (__traits(compiles, {import dcollections.LinkList;})) {
@@ -40,6 +41,7 @@ struct PileupRead(Read=Alignment) {
     /// If current CIGAR operation is one of 'M', '=', or 'X', returns read base
     /// at the current column. Otherwise, returns 'N'.
     char base() @property const {
+        assert(_query_offset <= read.sequence_length);
         if (_cur_op.is_query_consuming && _cur_op.is_reference_consuming) {
             return read.sequence[_query_offset];
         } else {
@@ -51,6 +53,7 @@ struct PileupRead(Read=Alignment) {
     /// Phred-scaled read base quality at the correct column.
     /// Otherwise, returns 255.
     ubyte quality() @property const {
+        assert(_query_offset <= read.sequence_length);
         if (_cur_op.is_query_consuming && _cur_op.is_reference_consuming) {
             return read.phred_base_quality[_query_offset];
         } else {
@@ -62,6 +65,7 @@ struct PileupRead(Read=Alignment) {
     /// index of current base in the read sequence. 
     /// Otherwise, returns -1.
     int read_sequence_offset() @property const {
+        assert(_query_offset <= read.sequence_length);
         if (_cur_op.is_query_consuming && _cur_op.is_reference_consuming) {
             return _query_offset;
         } else {
@@ -106,7 +110,11 @@ struct PileupRead(Read=Alignment) {
         // move one base to the right on the reference
         void incrementPosition() {
             ++_cur_op_offset;
-            ++_query_offset;
+
+            // if current CIGAR operation is D or N, query offset is untouched
+            if (_cur_op.is_query_consuming) {
+                ++_query_offset;
+            }
 
             if (_cur_op_offset >= _cur_op.length) {
 
@@ -160,8 +168,8 @@ struct PileupColumn(R) {
     }
 
     /// Reads overlapping the position
-    auto reads() @property const {
-        return _reads;
+    auto reads() @property {
+        return _reads[];
     }
 }
 
@@ -246,4 +254,70 @@ class PileupRange(R) {
 /// Creates a pileup range from a range of reads.
 auto pileup(R)(R reads) {
     return new PileupRange!R(reads);
+}
+
+unittest {
+    import std.algorithm;
+    import std.range;
+    import std.array;
+
+    // the set of reads below was taken from 1000 Genomes BAM file
+    // NA20828.mapped.ILLUMINA.bwa.TSI.low_coverage.20101123.bam
+    // (region 20:1127810-1127819)
+    auto readnames = array(iota(10).map!(i => "r" ~ to!string(i))());
+
+    auto sequences = ["ATTATGGACATTGTTTCCGTTATCATCATCATCATCATCATCATCATTATCATC",
+                      "GACATTGTTTCCGTTATCATCATCATCATCATCATCATCATCATCATCATCATC",
+                      "ATTGTTTCCGTTATCATCATCATCATCATCATCATCATCATCATCATCATCACC",
+                      "TGTTTCCGTTATCATCATCATCATCATCATCATCATCATCATCATCATCACCAC",
+                      "TCCGTTATCATCATCATCATCATCATCATCATCATCATCATCATCACCACCACC",
+                      "GTTATCATCATCATCATCATCATCATCATCATCATCATCATCATCGTCACCCTG",
+                      "TCATCATCATCATAATCATCATCATCATCATCATCATCGTCACCCTGTGTTGAG",
+                      "TCATCATCATCGTCACCCTGTGTTGAGGACAGAAGTAATTTCCCTTTCTTGGCT",
+                      "TCATCATCATCATCACCACCACCACCCTGTGTTGAGGACAGAAGTAATATCCCT",
+                      "CACCACCACCCTGTGTTGAGGACAGAAGTAATTTCCCTTTCTTGGCTGGTCACC"];
+
+    auto cigars = [[CigarOperation(54, 'M')],
+                   [CigarOperation(54, 'M')],
+                   [CigarOperation(50, 'M'), CigarOperation(3, 'I'), CigarOperation(1, 'M')],
+                   [CigarOperation(54, 'M')],
+                   [CigarOperation(54, 'M')],
+                   [CigarOperation(54, 'M')],
+                   [CigarOperation(2, 'S'), CigarOperation(52, 'M')],
+                   [CigarOperation(16, 'M'), CigarOperation(15, 'D'), CigarOperation(38, 'M')],
+                   [CigarOperation(13, 'M'), CigarOperation(3, 'I'), CigarOperation(38, 'M')],
+                   [CigarOperation(54, 'M')]];
+
+    auto positions = [758, 764, 767, 769, 773, 776, 785, 795, 804, 817];
+    Alignment[] reads = array(iota(10).map!(i => Alignment(readnames[i], sequences[i], cigars[i]))());
+
+    foreach (i; iota(10)) {
+        reads[i].position = positions[i];
+        reads[i].ref_id = 0;
+    }
+
+    foreach (column; pileup(reads)) {
+        switch (column.position) {
+            case 796:
+                assert(equal(map!(r => r.base)(column.reads), "CCCCCCAC"));
+                break;
+            case 805:
+                assert(equal(map!(r => r.base)(column.reads), "TCCCCCCCC"));
+                break;
+            case 806:
+                assert(equal(map!(r => r.base)(column.reads), "AAAAAAAGA"));
+                break;
+            case 821:
+                assert(equal(map!(r => r.base)(column.reads), "AAGGNAA"));
+                break;
+            case 826:
+                assert(equal(map!(r => r.base)(column.reads), "CCCCCC"));
+                break;
+            case 849:
+                assert(equal(map!(r => r.base)(column.reads), "TAT"));
+                break;
+            default:
+                break;
+        }
+    }
 }
