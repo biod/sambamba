@@ -1,7 +1,10 @@
 module pileuprange;
 
 import alignment;
+import reconstruct;
+
 import std.algorithm;
+import std.range;
 import std.conv;
 import std.array;
 import std.exception;
@@ -181,13 +184,24 @@ auto pileupColumn(R)(ulong position, R reads) {
 /**
  * The class for iterating reference bases together with reads overlapping them.
  */
-class PileupRange(R) {
+class PileupRange(R, alias TColumn=PileupColumn) {
     alias LinkList!(PileupRead!EagerAlignment) ReadList;
-    alias PileupColumn!ReadList Column;
+    alias TColumn!ReadList Column;
 
     private {
         R _reads;
         Column _column;
+    }
+
+    protected {
+        // This is extracted into a method not only to reduce duplication
+        // (not so much of it), but to allow to override it!
+        // For that reason it is not marked as final. Overhead of virtual 
+        // function is negligible compared to computations in EagerAlignment
+        // constructor together with inserting a new node to the list.
+        void add(ref Alignment read) {
+            _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
+        }
     }
 
     /**
@@ -203,15 +217,14 @@ class PileupRange(R) {
             auto read = _reads.front;
 
             _column._position = read.position;
-            _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
+            add(read);
 
             _reads.popFront();
 
             while (!_reads.empty) {
                 read = _reads.front;
                 if (read.position == _column._position) {
-                    _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
-
+                    add(read);
                     _reads.popFront();
                 } else {
                     break;
@@ -245,7 +258,7 @@ class PileupRange(R) {
         
         while (!_reads.empty && _reads.front.position == pos) {
             auto read = _reads.front;
-            _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
+            add(read);
             _reads.popFront();
         }
     }
@@ -254,6 +267,152 @@ class PileupRange(R) {
 /// Creates a pileup range from a range of reads.
 auto pileup(R)(R reads) {
     return new PileupRange!R(reads);
+}
+
+/// The same as pileup but allows to access bases of the reference.
+/// That is, the current column has additional property reference_base().
+///
+/// NOTE: you can use this function only if reads have MD tags correctly set!
+auto pileupWithReferenceBases(R)(R reads) {
+
+    // The basic idea is:
+    //   take PileupColumn, extend it using alias this (+reference_base());
+    //   take PileupRange, extend it (override popFront()/add());
+    //
+    // What is the new functionality of add()? 
+    //
+    //  It will check length of the newly added read and track the read which
+    //  end position on the reference is the largest. 
+    //
+    //  When reconstructed reference chunk will become empty, next one will be
+    //  constructed from that read. This algorithm allows to minimize the number
+    //  of reads for which MD tag will be decoded.
+    //
+    // What is the new functionality of popFront()?
+    //
+    //  It will pop an element off the reference chunk, and if it is empty,
+    //  update the structure appropriately.
+
+    static struct PileupColumnWithRefBases(R) {
+        PileupColumn!R column;
+        alias column this;
+
+        this(ulong position, R reads) {
+            column = PileupColumn!R(position, reads);
+        }
+
+        char reference_base() @property const {
+            // zero coverage
+            if (_reads[].empty) {
+                return 'N';
+            }
+
+            // otherwise, the base must be set by PileupRangeWithRefBases code
+            return _reference_base;
+        }
+
+        private char _reference_base;
+    }
+
+    final static class PileupRangeWithRefBases : 
+        PileupRange!(R, PileupColumnWithRefBases) 
+    {
+
+        // The code is similar to that in reconstruct.d but here we can't make
+        // an assumption about any particular read having non-zero length on reference.
+
+        // current chunk of reference
+        private typeof(dna(_reads.front)) _chunk;
+
+        // end position of the current chunk on reference (assuming half-open interval)
+        private uint _chunk_end_position;
+
+        // next read from which we will extract reference chunk
+        //
+        // More precisely, 
+        // _next_chunk_provider = argmax (read => read.end_position) 
+        //                 {reads overlapping current column}
+        private typeof(_column._reads[].front) _next_chunk_provider;
+
+        private bool _has_next_chunk_provider = false;
+
+        this(R reads) {
+            super(reads);
+
+            if (!reads.empty) {
+                auto _read = _column._reads[].back;
+
+                // prepare first chunk
+                _chunk = dna(_read.read.read); // two layers of wrapping 
+
+                // set up _next_chunk_provider explicitly
+                _next_chunk_provider = _read;
+                _chunk_end_position = _read.end_position;
+                _has_next_chunk_provider = true;
+
+                _column._reference_base = _chunk.front;
+                _chunk.popFront();
+            }
+        }
+
+        protected override void add(ref Alignment read) {
+            super.add(read);
+
+            // get wrapped read
+            auto _read = _column._reads[].back;
+
+            // two subsequent next_chunk_providers must overlap
+            if (_read.position > _chunk_end_position) {
+                return;
+            }
+
+            // compare with previous candidate and replace if this one is better
+            if (_read.end_position > _chunk_end_position) {
+                if (!_has_next_chunk_provider) {
+                    _has_next_chunk_provider = true;
+                    _next_chunk_provider = _read;
+                } else if (_read.end_position > _next_chunk_provider.end_position) {
+                    _next_chunk_provider = _read;
+                }
+            }
+        }
+
+        void popFront() {
+            if (!_chunk.empty) {
+                // update current reference base
+                _column._reference_base = _chunk.front;
+
+                _chunk.popFront();
+            }
+
+            // the order is important - maybe we will obtain new next_chunk_provider
+            // during this call to popFront()
+            super.popFront();
+
+            if (_chunk.empty && _has_next_chunk_provider) {
+                _chunk = dna(_next_chunk_provider.read.read);
+
+                debug {
+                    /*
+                    import std.stdio;
+                    writeln();
+                    writeln("next chunk: ", to!string(_chunk));
+                    */
+                }
+
+                _chunk_end_position = _next_chunk_provider.end_position;
+
+                _has_next_chunk_provider = false;
+
+                _chunk.popFrontN(_column.position - _next_chunk_provider.position);
+
+                _column._reference_base = _chunk.front;
+                _chunk.popFront();
+            }
+        }
+    }
+
+    return new PileupRangeWithRefBases(reads);
 }
 
 unittest {
@@ -289,14 +448,28 @@ unittest {
                    [CigarOperation(54, 'M')]];
 
     auto positions = [758, 764, 767, 769, 773, 776, 785, 795, 804, 817];
+
+    auto md_tags = ["47C6", "54", "51", "50T3", "46T7", "45A0C7", "11C24A0C14", 
+                    "11A3T0^CATCATCATCACCAC38", "15T29T5", "2T45T5"];
+
     Alignment[] reads = array(iota(10).map!(i => Alignment(readnames[i], sequences[i], cigars[i]))());
 
     foreach (i; iota(10)) {
         reads[i].position = positions[i];
         reads[i].ref_id = 0;
+        reads[i]["MD"] = md_tags[i];
     }
 
-    foreach (column; pileup(reads)) {
+    auto first_read_position = reads.front.position;
+    auto reference = to!string(dna(reads));
+
+    import std.stdio;
+    writeln("Testing pileup...");
+
+    foreach (column; pileupWithReferenceBases(reads)) {
+        // check that DNA is built correctly from MD tags and CIGAR
+        assert(column.reference_base == reference[column.position - first_read_position]);
+
         switch (column.position) {
             case 796:
                 assert(equal(map!(r => r.base)(column.reads), "CCCCCCAC"));

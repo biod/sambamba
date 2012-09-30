@@ -30,7 +30,7 @@ import std.range;
 
 /// Reconstruct read DNA.
 /// Returns lazy sequence.
-auto dna(T)(ref T read) 
+auto dna(T)(T read) 
     if (is(Unqual!T == Alignment))
 {
 
