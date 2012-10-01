@@ -42,20 +42,20 @@ struct PileupRead(Read=Alignment) {
     }
 
     /// If current CIGAR operation is one of 'M', '=', or 'X', returns read base
-    /// at the current column. Otherwise, returns 'N'.
-    char base() @property const {
+    /// at the current column. Otherwise, returns '-'.
+    char current_base() @property const {
         assert(_query_offset <= read.sequence_length);
         if (_cur_op.is_query_consuming && _cur_op.is_reference_consuming) {
             return read.sequence[_query_offset];
         } else {
-            return 'N';
+            return '-';
         }
     }
 
     /// If current CIGAR operation is one of 'M', '=', or 'X', returns
     /// Phred-scaled read base quality at the correct column.
     /// Otherwise, returns 255.
-    ubyte quality() @property const {
+    ubyte current_base_quality() @property const {
         assert(_query_offset <= read.sequence_length);
         if (_cur_op.is_query_consuming && _cur_op.is_reference_consuming) {
             return read.phred_base_quality[_query_offset];
@@ -173,6 +173,21 @@ struct PileupColumn(R) {
     /// Reads overlapping the position
     auto reads() @property {
         return _reads[];
+    }
+
+    /// Shortcut for map!(read => read.current_base)(reads)
+    auto bases() @property {
+        return map!"a.current_base"(reads);
+    }
+
+    /// Shortcut for map!(read => read.current_base_quality)(reads)
+    auto base_qualities() @property {
+        return map!"a.current_base_quality"(reads);
+    }
+
+    /// Shortcut for map!(read => read.mapping_quality)(reads)
+    auto read_qualities() @property {
+        return map!"a.mapping_quality"(reads);
     }
 }
 
@@ -478,22 +493,22 @@ unittest {
 
         switch (column.position) {
             case 796:
-                assert(equal(map!(r => r.base)(column.reads), "CCCCCCAC"));
+                assert(equal(column.bases, "CCCCCCAC"));
                 break;
             case 805:
-                assert(equal(map!(r => r.base)(column.reads), "TCCCCCCCC"));
+                assert(equal(column.bases, "TCCCCCCCC"));
                 break;
             case 806:
-                assert(equal(map!(r => r.base)(column.reads), "AAAAAAAGA"));
+                assert(equal(column.bases, "AAAAAAAGA"));
                 break;
             case 821:
-                assert(equal(map!(r => r.base)(column.reads), "AAGGNAA"));
+                assert(equal(column.bases, "AAGG-AA"));
                 break;
             case 826:
-                assert(equal(map!(r => r.base)(column.reads), "CCCCCC"));
+                assert(equal(column.bases, "CCCCCC"));
                 break;
             case 849:
-                assert(equal(map!(r => r.base)(column.reads), "TAT"));
+                assert(equal(column.bases, "TAT"));
                 break;
             default:
                 break;
