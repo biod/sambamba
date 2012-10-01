@@ -29,24 +29,24 @@ import std.range;
 /// is presented here.
 class DirectedGraph {
 
-	void addEdge(string a, string b) {
-		auto indA = addNode(a);
-		auto indB = addNode(b);
-		_edges[indA] ~= indB;
-	}
+    void addEdge(string a, string b) {
+        auto indA = addNode(a);
+        auto indB = addNode(b);
+        _edges[indA] ~= indB;
+    }
 
-	/// Returns: unique integer identifier of node
-	size_t addNode(string a) {
-		if (a !in _indices) {
-			_nodes ~= a;
+    /// Returns: unique integer identifier of node
+    size_t addNode(string a) {
+        if (a !in _indices) {
+            _nodes ~= a;
             _edges.length = _nodes.length;
-			return _indices[a] = _nodes.length - 1;
-		} else {
-			return _indices[a];
-		}
-	}
+            return _indices[a] = _nodes.length - 1;
+        } else {
+            return _indices[a];
+        }
+    }
 
-	string[] topologicalSort() {
+    string[] topologicalSort() {
         auto predecessor_count = new size_t[_nodes.length];
         foreach (node_neighbours; _edges) {
             foreach (neighbour; node_neighbours) 
@@ -77,10 +77,10 @@ class DirectedGraph {
         }
 
         return result;
-	}
+    }
 
 private:
-	string[] _nodes;
-	size_t[string] _indices;
-	size_t[][] _edges;
+    string[] _nodes;
+    size_t[string] _indices;
+    size_t[][] _edges;
 }

@@ -564,7 +564,7 @@ struct Alignment {
     /// and auxiliary data.
     void write(EndianStream stream) {
         stream.write(cast(int)(_chunk.length));
-		stream.writeExact(_chunk.ptr, _tags_offset);
+        stream.writeExact(_chunk.ptr, _tags_offset);
         writeTags(stream);
     }
 
@@ -893,13 +893,13 @@ mixin template TagStorage() {
 
     /// Writes auxiliary data to output stream
     private void writeTags(Stream stream) {
-		if (std.system.endian == Endian.littleEndian) {
-			stream.writeExact(_tags_chunk.ptr, _tags_chunk.length);
-		} else {
-			fixTagStorageByteOrder();                                // FIXME: should modify on-the-fly
-			stream.writeExact(_tags_chunk.ptr, _tags_chunk.length);  // during writing to the stream
-			fixTagStorageByteOrder();                                
-		}
+        if (std.system.endian == Endian.littleEndian) {
+            stream.writeExact(_tags_chunk.ptr, _tags_chunk.length);
+        } else {
+            fixTagStorageByteOrder();                                // FIXME: should modify on-the-fly
+            stream.writeExact(_tags_chunk.ptr, _tags_chunk.length);  // during writing to the stream
+            fixTagStorageByteOrder();                                
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////

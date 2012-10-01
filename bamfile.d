@@ -118,11 +118,11 @@ struct BamFile {
         Returns: range of all alignments in the file.
 
         However, using several ranges is not recommended since it can hurt
-		disk access performance.
+        disk access performance.
      */
     auto alignments(alias IteratePolicy=withoutOffsets)() @property {
-		auto _decompressed_stream = getDecompressedAlignmentStream();
-		return alignmentRange!IteratePolicy(_decompressed_stream);
+        auto _decompressed_stream = getDecompressedAlignmentStream();
+        return alignmentRange!IteratePolicy(_decompressed_stream);
     }
 
     /**
@@ -136,7 +136,7 @@ struct BamFile {
     auto alignmentsWithProgress(alias IteratePolicy=withoutOffsets)
         (void delegate(lazy float p) progressBarFunc) 
     {
-		auto _decompressed_stream = getDecompressedAlignmentStream();
+        auto _decompressed_stream = getDecompressedAlignmentStream();
         auto alignments_with_offsets = alignmentRange!withOffsets(_decompressed_stream);
 
         static struct Result(alias IteratePolicy, R, S) {
@@ -232,8 +232,8 @@ private:
     Stream _bam;                            // decompressed + endian conversion
     bool _stream_is_seekable;
 
-	// Virtual offset at which alignment records start.
-	VirtualOffset _alignments_start_voffset;
+    // Virtual offset at which alignment records start.
+    VirtualOffset _alignments_start_voffset;
 
     BaiFile _dont_access_me_directly_use_bai_file_for_that;
     enum BaiStatus {
@@ -307,8 +307,8 @@ private:
         }
     }
 
-	// get decompressed stream out of compressed BAM file
-	IChunkInputStream getDecompressedStream() {
+    // get decompressed stream out of compressed BAM file
+    IChunkInputStream getDecompressedStream() {
 
         auto compressed_stream = getSeekableCompressedStream();
 
@@ -325,11 +325,11 @@ private:
         } else {
             return makeChunkInputStream(chunk_range);
         }
-	}
+    }
 
 
-	// get decompressed stream starting from the first alignment record
-	IChunkInputStream getDecompressedAlignmentStream() {
+    // get decompressed stream starting from the first alignment record
+    IChunkInputStream getDecompressedAlignmentStream() {
         auto compressed_stream = getSeekableCompressedStream();
 
         if (compressed_stream !is null) {
@@ -352,12 +352,12 @@ private:
             // must be initialized in initializeStreams()
             return _decompressed_stream;
         }
-	}
+    }
 
     // sets up the streams and ranges
     void initializeStreams() {
         
-		_decompressed_stream = getDecompressedStream();
+        _decompressed_stream = getDecompressedStream();
         _bam = new EndianStream(_decompressed_stream, Endian.littleEndian); 
     }
 

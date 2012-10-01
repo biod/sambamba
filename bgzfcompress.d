@@ -56,16 +56,16 @@ body
     // write header
     buffer[0 .. BLOCK_HEADER_LENGTH - ushort.sizeof] = BLOCK_HEADER_START[];
 
-	etc.c.zlib.z_stream zs;
+    etc.c.zlib.z_stream zs;
 
-	zs.zalloc = null;
+    zs.zalloc = null;
     zs.zfree = null;
 
-	zs.next_in  = cast(ubyte*)chunk.ptr;
-	zs.avail_in = cast(uint)chunk.length;
+    zs.next_in  = cast(ubyte*)chunk.ptr;
+    zs.avail_in = cast(uint)chunk.length;
 
-	zs.next_out = buffer.ptr + BLOCK_HEADER_LENGTH;
-	zs.avail_out = cast(int)(buffer.length - BLOCK_HEADER_LENGTH - BLOCK_FOOTER_LENGTH);
+    zs.next_out = buffer.ptr + BLOCK_HEADER_LENGTH;
+    zs.avail_out = cast(int)(buffer.length - BLOCK_HEADER_LENGTH - BLOCK_FOOTER_LENGTH);
 
     auto err = etc.c.zlib.deflateInit2(&zs, /* compression level */ level, 
                                             /* deflated compression method */ Z_DEFLATED, 
@@ -95,7 +95,7 @@ body
     buffer[BLOCK_HEADER_LENGTH - 2] = len & 0xFF;         // little endian
     buffer[BLOCK_HEADER_LENGTH - 1] = len >> 8;
 
-	// Write the footer
+    // Write the footer
     *(cast(uint*)(buffer.ptr + buffer.length - 8)) = crc32(0, chunk);
     *(cast(uint*)(buffer.ptr + buffer.length - 4)) = cast(uint)chunk.length;
 

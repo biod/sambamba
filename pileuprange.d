@@ -10,7 +10,7 @@ import std.array;
 import std.exception;
 
 static if (__traits(compiles, {import dcollections.LinkList;})) {
-import dcollections.LinkList;
+    import dcollections.LinkList;
 } else {
     pragma(msg, "
     Pileup module uses containers from `dcollections` library.
@@ -34,7 +34,7 @@ import dcollections.LinkList;
 struct PileupRead(Read=Alignment) {
 
     Read read;
-	alias read this;
+    alias read this;
   
     /// Current CIGAR operation. Cannot be 'P' as padding operators are skipped.
     CigarOperation cigar_operation() @property const {
@@ -250,10 +250,10 @@ class PileupRange(R, alias TColumn=PileupColumn) {
         foreach (ref remove, ref _read; &_column._reads.purge) 
         {
             if (_read.end_position > pos) {
-				_read.incrementPosition();
-			} else {
+                _read.incrementPosition();
+            } else {
                 remove = true;
-			}
+            }
         }
         
         while (!_reads.empty && _reads.front.position == pos) {

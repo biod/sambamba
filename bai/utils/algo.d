@@ -36,7 +36,7 @@ struct NonOverlappingChunks(R) {
     }
 
     auto front() @property {
-        return _front;			
+        return _front;
     }
 
     void popFront() {
@@ -81,7 +81,7 @@ private:
 ///      range of non-overlapping chunks, covering the same subset
 ///      as original chunks
 auto nonOverlappingChunks(R)(R r) 
-	if (is(ElementType!R == Chunk)) 
+    if (is(ElementType!R == Chunk)) 
 {
     return NonOverlappingChunks!R(r);
 }

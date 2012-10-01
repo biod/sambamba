@@ -103,7 +103,7 @@ unittest {
         if (read_name != value) {
             writeln("tag: ", tag, "\tread_name: ", read_name, "\tvalue: ", value);
             writeln("value bam_typeid: ", alignment.tags[tag.idup].bam_typeid);
-		}
+        }
 
         assert(read_name == value);
     }

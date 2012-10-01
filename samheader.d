@@ -170,7 +170,7 @@ private {
                 mixin("return " ~ id_field ~";");
             }
 
-			mixin("void setID(typeof("~id_field~") id) pure nothrow @safe { " ~ id_field ~ " = id; }");
+            mixin("void setID(typeof("~id_field~") id) pure nothrow @safe { " ~ id_field ~ " = id; }");
         }
     }
 
@@ -304,9 +304,9 @@ class HeaderLineDictionary(T) {
     }
 
     ///
-	const(T)* opIn_r(string id) const {
-		return id in _dict;
-	}
+    const(T)* opIn_r(string id) const {
+        return id in _dict;
+    }
 
     /// Append a line
     bool add(T line) {
@@ -353,7 +353,7 @@ class HeaderLineDictionary(T) {
     }
 
     ///
-	int opApply(scope int delegate(ref size_t index, ref T line) dg) {
+    int opApply(scope int delegate(ref size_t index, ref T line) dg) {
         foreach (size_t i; 0 .. _dict.length) {
             auto res = dg(i, _dict[_index_to_id[i]]);
             if (res != 0) {
