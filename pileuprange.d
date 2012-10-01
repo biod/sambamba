@@ -356,13 +356,17 @@ auto pileupWithReferenceBases(R)(R reads) {
         }
 
         protected override void add(ref Alignment read) {
+            // the behaviour depends on whether a new contig starts here or not
+            bool had_zero_coverage = _column.coverage == 0;
+
             super.add(read);
 
             // get wrapped read
             auto _read = _column._reads[].back;
 
             // two subsequent next_chunk_providers must overlap
-            if (_read.position > _chunk_end_position) {
+            // unless (!) there was a region with zero coverage in-between
+            if (_read.position > _chunk_end_position && !had_zero_coverage) {
                 return;
             }
 
@@ -389,6 +393,8 @@ auto pileupWithReferenceBases(R)(R reads) {
             // during this call to popFront()
             super.popFront();
 
+            // If we have consumed the whole current chunk,
+            // we need to obtain the next one if it's possible.
             if (_chunk.empty && _has_next_chunk_provider) {
                 _chunk = dna(_next_chunk_provider.read.read);
 
@@ -493,4 +499,31 @@ unittest {
                 break;
         }
     }
+
+    // another set of reads, the same file, region 20:12360032-12360050
+    // test the case when reference has some places with zero coverage
+
+    reads = [Alignment("r1", "CCCACATAGAAAGCTTGCTGTTTCTCTGTGGGAAGTTTTAACTTAGGTCAGCTT",
+                       [CigarOperation(54, 'M')]),
+             Alignment("r2", "TAGAAAGCTTGCTGTTTCTCTGTGGGAAGTTTTAACTTAGGTTAGCTTCATCTA",
+                       [CigarOperation(54, 'M')]),
+             Alignment("r3", "TTTTTCTTTCTTTCTTTGAAGAAGGCAGATTCCTGGTCCTGCCACTCAAATTTT",
+                       [CigarOperation(54, 'M')]),
+             Alignment("r4", "TTTCTTTCTTTCTTTGAAGAAGGCAGATTCCTGGTCCTGCCACTCAAATTTTCA",
+                       [CigarOperation(54, 'M')])];
+
+    reads[0].position = 979;
+    reads[0]["MD"] = "54";
+
+    reads[1].position = 985;
+    reads[1]["MD"] = "42C7C3";
+
+    reads[2].position = 1046;
+    reads[2]["MD"] = "54";
+
+    reads[3].position = 1048;
+    reads[3]["MD"] = "54";
+
+    assert(equal(dna(reads), 
+                 map!(c => c.reference_base)(pileupWithReferenceBases(reads))));
 }
