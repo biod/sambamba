@@ -351,6 +351,9 @@ auto pileupWithReferenceBases(R)(R reads) {
 
         private bool _has_next_chunk_provider = false;
 
+        // coverage at the previous location
+        private ulong _prev_coverage;
+
         this(R reads) {
             super(reads);
 
@@ -372,7 +375,7 @@ auto pileupWithReferenceBases(R)(R reads) {
 
         protected override void add(ref Alignment read) {
             // the behaviour depends on whether a new contig starts here or not
-            bool had_zero_coverage = _column.coverage == 0;
+            bool had_zero_coverage = _prev_coverage == 0;
 
             super.add(read);
 
@@ -404,6 +407,9 @@ auto pileupWithReferenceBases(R)(R reads) {
                 _chunk.popFront();
             }
 
+            // update _prev_coverage
+            _prev_coverage = _column.coverage;
+
             // the order is important - maybe we will obtain new next_chunk_provider
             // during this call to popFront()
             super.popFront();
@@ -414,11 +420,12 @@ auto pileupWithReferenceBases(R)(R reads) {
                 _chunk = dna(_next_chunk_provider.read.read);
 
                 debug {
-                    /*
+                    
                     import std.stdio;
                     writeln();
+                    writeln("position: ", _next_chunk_provider.position);
                     writeln("next chunk: ", to!string(_chunk));
-                    */
+                    
                 }
 
                 _chunk_end_position = _next_chunk_provider.end_position;

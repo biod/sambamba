@@ -66,3 +66,21 @@ static if (!__traits(compiles, any!"a == 2"([1,2,3]))) {
         return false;
     }
 }
+
+import std.functional;
+
+auto argmax(alias func, S)(S set) {
+    auto best_elem = set.front;
+    auto best_value = unaryFun!func(best_elem);
+
+    set.popFront();
+    foreach (elem; set) {
+        auto value = unaryFun!func(elem);
+        if (value > best_value) {
+            best_value = value;
+            best_elem = elem;
+        }
+    }
+
+    return best_elem;
+}
