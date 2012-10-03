@@ -1,19 +1,18 @@
 module snpcallers.simple;
 
-import snpcallers.common;
 import pileuprange;
 
 import std.algorithm;
 import utils.algo;
 
-struct SimpleSnpSettings {
+struct SimpleCallerSettings {
     int minimum_coverage = 5;
     int minimum_witnesses = 2;
 }
 
-SimpleSnpSettings defaultSettings;
+SimpleCallerSettings defaultSettings;
 
-bool isSNP(C)(C column, ref SimpleSnpSettings settings)
+bool isSNP(C)(C column, ref SimpleCallerSettings settings)
 {
     if (column.coverage < settings.minimum_coverage) {
         return false;
@@ -41,7 +40,7 @@ bool isSNP(C)(C column, ref SimpleSnpSettings settings)
     return consensus != column.reference_base;
 }
 
-auto findSNPs(R)(R reads, ref SimpleSnpSettings settings=defaultSettings) {
+auto findSNPs(R)(R reads, ref SimpleCallerSettings settings=defaultSettings) {
     auto columns = pileupWithReferenceBases(reads);
 
     return filter!(column => isSNP(column, settings))(filter!"a.coverage > 0"(columns));
