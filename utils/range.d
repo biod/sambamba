@@ -35,14 +35,14 @@ import std.array;
 /// is being decorated, because it allows to keep a certain amount
 /// of them being executed simultaneously, utilizing all
 /// CPU cores.
-auto prefetch(Range)(Range r, uint amount) {
+auto prefetch(Range)(Range r, size_t amount) {
 
     enforce(amount > 0, "Amount of elements to prefetch must be positive");
 
     struct Result {
         alias ElementType!Range E;
 
-        this(Range range, uint amount) {
+        this(Range range, size_t amount) {
             _elements = new E[amount];
             _range = range;
             _amount = amount;
@@ -78,9 +78,9 @@ auto prefetch(Range)(Range r, uint amount) {
         }
     private:
         Range _range;
-        int _read = 0;
-        int _consumed = 0;
-        uint _amount;
+        size_t _read = 0;
+        size_t _consumed = 0;
+        size_t _amount;
         E[] _elements = void;
     }
 
