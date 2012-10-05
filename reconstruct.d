@@ -35,9 +35,11 @@ auto dna(T)(T read)
 {
 
     debug {
+        /*
         import std.stdio;
         stderr.writeln("[dna] processing read ", read.read_name);
         stderr.flush();
+        */
     }
 
     static struct QueryChunk(S) {

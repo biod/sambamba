@@ -249,8 +249,7 @@ struct RefBuffer
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     static assert(isOutputRange!(RefBuffer, ubyte) &&
                   isOutputRange!(RefBuffer, ubyte[]));
 
@@ -989,8 +988,7 @@ version (unittest)
     }
 }
 
-unittest
-{
+version(DigitalMars) unittest{
     { // unique value
         mixin DefinePacker;
 
@@ -2377,8 +2375,7 @@ struct Unpacker
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     { // unique
         mixin DefinePacker;
 
@@ -3168,8 +3165,7 @@ struct Value
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     // nil
     Value value = Value();
     Value other = Value();
@@ -3445,8 +3441,7 @@ struct Unpacked
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     static assert(isForwardRange!Unpacked);
     static assert(hasLength!Unpacked);
 }
@@ -3943,8 +3938,7 @@ struct StreamingUnpacker
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     // serialize
     mixin DefinePacker;
 
@@ -4068,8 +4062,7 @@ void callbackBool(ref Value value, bool boolean)
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     Value value;
 
     // Unsigned integer
@@ -4171,8 +4164,7 @@ ubyte[] pack(bool withFieldName = false, Args...)(in Args args)
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     auto serialized = pack(false);
 
     assert(serialized[0] == Format.FALSE);
@@ -4230,8 +4222,7 @@ void unpack(Args...)(in ubyte[] buffer, ref Args args)
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     { // stream
         auto result = unpack(pack(false));
 
@@ -4394,8 +4385,7 @@ mixin template MessagePackable(Members...)
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     { // all members
         /*
          * Comment out because "src/msgpack.d(4048): Error: struct msgpack.__unittest16.S no size yet for forward reference" occurs
@@ -4564,8 +4554,7 @@ template isByte(T)
 }
 
 
-unittest
-{
+version(DigitalMars) unittest{
     static assert(isByte!(byte));
     static assert(isByte!(const(byte)));
     static assert(isByte!(ubyte));
@@ -4666,8 +4655,7 @@ version (LittleEndian)
     }
 
 
-    unittest
-    {
+    version(DigitalMars) unittest    {
         assert(convertEndianTo!16(0x0123)             == 0x2301);
         assert(convertEndianTo!32(0x01234567)         == 0x67452301);
         assert(convertEndianTo!64(0x0123456789abcdef) == 0xefcdab8967452301);
@@ -4686,8 +4674,7 @@ version (LittleEndian)
     }
 
 
-    unittest
-    {
+    version(DigitalMars) unittest    {
         foreach (Integer; TypeTuple!(ubyte, ushort, uint, ulong)) {
             assert(take8from!8 (cast(Integer)0x01)               == 0x01);
             assert(take8from!16(cast(Integer)0x0123)             == 0x23);
@@ -4724,8 +4711,7 @@ else
     }
 
 
-    unittest
-    {
+    version(DigitalMars) unittest    {
         assert(convertEndianTo!16(0x0123)       == 0x0123);
         assert(convertEndianTo!32(0x01234567)   == 0x01234567);
         assert(convertEndianTo!64(0x0123456789) == 0x0123456789);
@@ -4756,8 +4742,7 @@ else
     }
 
 
-    unittest
-    {
+    version(DigitalMars) unittest    {
         foreach (Integer; TypeTuple!(ubyte, ushort, uint, ulong)) {
             assert(take8from!8 (cast(Integer)0x01)               == 0x01);
             assert(take8from!16(cast(Integer)0x0123)             == 0x23);

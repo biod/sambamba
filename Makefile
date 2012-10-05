@@ -31,7 +31,7 @@ unittests: $(TESTFILES)
 	./run_unittests
 
 unittests-gdc: $(TESTFILES)
-	gdc $(TESTFILES) -O0 -funittest -o run_unittests -lpthread -fdebug -fversion=serial
+	gdc $(TESTFILES) -O0 -g -funittest -o run_unittests -lpthread -fdebug -fversion=serial
 	./run_unittests
 
 clean:

@@ -115,8 +115,8 @@ class RandomAccessManager {
     /// to a start of an alignment record.
     auto getAlignmentsBetween(VirtualOffset from, VirtualOffset to) {
         IChunkInputStream stream = createStreamStartingFrom(from);
-        return until!((AlignmentBlock record) { return record.end_virtual_offset > to; })
-                     (alignmentRange!withOffsets(stream));
+        return until!(function (AlignmentBlock record, VirtualOffset vo) { return record.end_virtual_offset > vo; })
+                     (alignmentRange!withOffsets(stream), to);
     }
 
     bool found_index_file() @property {
@@ -218,16 +218,20 @@ public:
     // (1) : Chunk -> [BgzfBlock]
     auto chunkToBgzfRange(Chunk chunk) {
         auto stream = new utils.stream.File(_filename);
-        auto end_offset = chunk.end.coffset;
 
         stream.seekSet(cast(size_t)chunk.beg.coffset);
 
-        return until!((BgzfBlock block) { return block.start_offset > end_offset; })(BgzfRange(stream));
+        return until!(function (BgzfBlock block, ulong offset) { return block.start_offset > offset; })
+                     (BgzfRange(stream), chunk.end.coffset);
     }
 
     // (2) : Chunk[] -> [BgzfBlock]
     auto getJoinedBgzfRange(Chunk[] bai_chunks) {
-        auto bgzf_ranges = array(map!((Chunk chunk) { return chunkToBgzfRange(chunk); })(bai_chunks));
+        ReturnType!chunkToBgzfRange[] bgzf_ranges;
+        bgzf_ranges.length = bai_chunks.length;
+        foreach (i, ref range; bgzf_ranges) {
+            range = chunkToBgzfRange(bai_chunks[i]);
+        }
         auto bgzf_blocks = joiner(bgzf_ranges);
         return bgzf_blocks;
     }
