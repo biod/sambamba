@@ -25,6 +25,8 @@ import virtualoffset;
 import std.stream;
 import std.range;
 import std.array;
+import std.traits;
+import std.algorithm;
 
 /// Interface on top of Stream, which glues decompressed blocks
 /// together and provides virtualTell() method for determining
@@ -63,8 +65,21 @@ abstract class IChunkInputStream : Stream {
     abstract size_t compressed_file_size() @property const;
 }
 
+/// Extends DecompressedBgzfBlock with skip_start and skip_end members.
+struct AugmentedDecompressedBgzfBlock {
+    DecompressedBgzfBlock block;
+    alias block this;
+    ushort skip_start; /// how many bytes to skip from start
+    ushort skip_end;   /// how many bytes to skip from end
+}
+
+/// Convenience function for making decompressed blocks compatible with ChunkInputStream.
+AugmentedDecompressedBgzfBlock makeAugmentedBlock(DecompressedBgzfBlock block) {
+    return AugmentedDecompressedBgzfBlock(block, 0, 0);
+}
+
 /**
-  Class for turning range of DecompressedBgzfBlock objects
+  Class for turning range of AugmentedDecompressedBgzfBlock objects
   into a proper InputStream
 
   NOTE: an assumption is made that calling empty() on range is cheap.
@@ -74,7 +89,7 @@ abstract class IChunkInputStream : Stream {
 final class ChunkInputStream(ChunkRange) : IChunkInputStream
 {
 
-    static assert(is(ElementType!ChunkRange == DecompressedBgzfBlock));
+    static assert(is(ElementType!ChunkRange == AugmentedDecompressedBgzfBlock));
 
     /// Construct class instance from range of chunks.
     this(ChunkRange range, size_t compressed_file_size=0) 
@@ -237,12 +252,27 @@ private:
         auto tmp = _range.front; /// _range might be lazy, 
                                  /// so extra front() calls
                                  /// can cost a lot
+
+        debug {
+            /*
+            import std.stdio;
+            if (tmp.skip_start != 0 || tmp.skip_end != 0) {
+                writeln("reading partial decompressed block: ");
+                writeln("   skip_start   = ", tmp.skip_start);
+                writeln("   skip_end     = ", tmp.skip_end);
+                writeln("   start_offset = ", tmp.start_offset);
+                writeln("   end_offset   = ", tmp.end_offset);
+            }
+            */
+        }
+
+        _cur = tmp.skip_start;
         _start_offset = tmp.start_offset;
         _end_offset = tmp.end_offset;
 
-        _total_compressed += _end_offset - _start_offset;
+        _total_compressed += _end_offset - _start_offset - tmp.skip_start - tmp.skip_end;
 
-        _buf = tmp.decompressed_data;
+        _buf = tmp.decompressed_data[0 .. $ - tmp.skip_end];
         _len = _buf.length;
 
         _total_uncompressed += _len;
@@ -280,6 +310,15 @@ private:
 /**
    Returns: input stream wrapping given range of memory chunks
  */
-auto makeChunkInputStream(R)(R range, size_t compressed_file_size=0) {
+auto makeChunkInputStream(R)(R range, size_t compressed_file_size=0) 
+    if (is(Unqual!(ElementType!R) == AugmentedDecompressedBgzfBlock))
+{
     return new ChunkInputStream!R(range, compressed_file_size);
+}
+
+/// ditto
+auto makeChunkInputStream(R)(R range, size_t compressed_file_size=0)
+    if (is(Unqual!(ElementType!R) == DecompressedBgzfBlock))
+{
+    return makeChunkInputStream(map!makeAugmentedBlock(range), compressed_file_size);
 }

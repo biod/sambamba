@@ -33,6 +33,7 @@ struct AlignmentBlock {
     VirtualOffset start_virtual_offset;
     VirtualOffset end_virtual_offset;
     Alignment alignment;
+    alias alignment this;
 }
 
 /// Policies for alignmentRange

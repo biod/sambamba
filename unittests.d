@@ -121,15 +121,16 @@ unittest {
     assertThrown!ZlibException(walkLength(BamFile(fn).alignments));
 
     writeln("Testing random access...");
-    fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
+    fn = buildPath(dirName(__FILE__), "test", "data", "bins.bam");
     bf = BamFile(fn);
 
     void compareWithNaiveApproach(int beg, int end) {
 
-        auto refseq = array(bf["chr1"][beg .. end]);
+        auto refseq = array(bf["large"][beg .. end]);
 
         auto naive = array(filter!((Alignment a) { 
-                         return bf.reference(a.ref_id).name == "chr1" &&
+                         return a.ref_id != -1 &&
+                                bf.reference(a.ref_id).name == "large" &&
                                 a.position < end &&
                                 a.position + a.basesCovered() > beg; })
                             (bf.alignments!withoutOffsets));
@@ -158,6 +159,9 @@ unittest {
     compareWithNaiveApproach(-100, 1000);
     compareWithNaiveApproach(   0, 1900);
     compareWithNaiveApproach(   1,  279);
+    for (auto i = 50_000; i < 1_000_000; i += 50_000) {
+        compareWithNaiveApproach(i, i + 100);
+    }
 
     writeln("Testing Value code...");
     Value v = 5;

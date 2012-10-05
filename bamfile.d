@@ -29,6 +29,7 @@ import bgzfrange;
 import chunkinputstream;
 import randomaccessmanager;
 import bai.read;
+import bai.chunk;
 import utils.range;
 
 import utils.stream;
@@ -189,6 +190,33 @@ struct BamFile {
     Alignment getAlignmentAt(VirtualOffset offset) {
         enforce(_random_access_manager !is null);
         return _random_access_manager.getAlignmentAt(offset);
+    }
+
+    /**
+      Get all alignments between two virtual offsets.
+
+      First offset must point to the start of an alignment record,
+      and be strictly less than the second one.
+
+      For decompression, uses task pool specified at BamFile construction.
+
+      Doesn't work when the stream is non-seekable.
+     */ 
+    auto getAlignmentsBetween(VirtualOffset from, VirtualOffset to) {
+        enforce(from < to, "First offset must be strictly less than second");
+        enforce(_random_access_manager !is null);
+        
+        return _random_access_manager.getAlignmentsBetween(from, to);
+    }
+
+    /**
+      Get BAI chunks containing all reads overlapping specified region.
+     */
+    Chunk[] getChunks(int ref_id, int beg, int end) {
+        enforce(_random_access_manager !is null);
+        enforce(beg < end);
+
+        return _random_access_manager.getChunks(ref_id, beg, end);
     }
 
     /**
