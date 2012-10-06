@@ -200,10 +200,6 @@ class RandomAccessManager {
         IChunkInputStream stream = makeChunkInputStream(augmented_blocks);          // (5)
         auto alignments = alignmentRange(stream);
         return filterAlignments(alignments, ref_id, beg, end);                      // (6)
-
-        //auto alignments = disjointChunkAlignmentRange(disjoint_chunks, _compressed_stream);
-
-        //return filterAlignments(alignments, ref_id, beg, end);
     }
 
 private:

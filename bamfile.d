@@ -222,7 +222,7 @@ struct BamFile {
     /**
       Returns reference sequence with id $(D ref_id).
      */
-    auto reference(int ref_id) {
+    ReferenceSequence reference(int ref_id) {
         enforce(ref_id < _reference_sequences.length, "Invalid reference index");
         return ReferenceSequence(_random_access_manager, 
                                  ref_id,
@@ -232,7 +232,7 @@ struct BamFile {
     /**
       Returns reference sequence named $(D ref_name).
      */
-    auto opIndex(string ref_name) {
+    ReferenceSequence opIndex(string ref_name) {
         enforce(hasReference(ref_name), "Reference with name " ~ ref_name ~ " does not exist");
         auto ref_id = _reference_sequence_dict[ref_name];
         return reference(ref_id);

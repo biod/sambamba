@@ -57,6 +57,11 @@ struct ReferenceSequence {
         return _info.length;
     }
 
+    /// Reference ID
+    int id() @property {
+        return _ref_id;
+    }
+
     /// Get alignments overlapping [start, end)
     auto opSlice(int start, int end) {
         enforce(start < end, "start must be less than end");
