@@ -1,3 +1,9 @@
+sambamba (0.2.9) unstable; urgency=low
+
+  * random access speedup
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sun, 08 Oct 2012 01:39:26 +0400
+
 sambamba (0.2.8) unstable; urgency=low
 
   * fix segfault on opening unexistent file
