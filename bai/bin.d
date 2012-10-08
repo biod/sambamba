@@ -51,6 +51,7 @@ struct Bin {
     /// Check if bin can overlap with a region
     bool canOverlapWith(int begin, int end) const nothrow {
         if (id == 0) return true;
+        if (id > BAI_MAX_BIN_ID) return false;
 
         /// The following code is based on reg2bins() function
         if (begin < 0) begin = 0;
