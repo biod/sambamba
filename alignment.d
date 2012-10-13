@@ -19,6 +19,8 @@
 */
 module alignment;
 
+import BioD.Base;
+
 import tagvalue;
 import bai.bin;
 
@@ -341,7 +343,7 @@ struct Alignment {
                         raw &= 0xF;
                     }
                 }
-                return CHARACTER_MAP[raw];
+                return Base.fromInternalCode(raw).asCharacter;
             }
 
             void popFront() {
@@ -369,38 +371,14 @@ struct Alignment {
 
         _dup();
 
-        /// Translates sequence character to its internal representation.
-        static ubyte toHalfByte(char c) {
-            /// The table is taken from samtools/bam_import.c
-            static ubyte[256] table = [
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                 1, 2, 4, 8, 15,15,15,15, 15,15,15,15, 15, 0 /*=*/,15,15,
-                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
-                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
-                15, 1,14, 2, 13,15,15, 4, 11,15,15,12, 15, 3,15,15,
-                15,15, 5, 6,  8,15, 7, 9, 15,10,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
-                15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15
-            ];
-            return table[c];
-        }
-
         auto _raw_length = (seq.length + 1) / 2;
         // set sequence
         ubyte[] _seq = _chunk[_seq_offset .. _seq_offset + _raw_length];
         for (size_t i = 0; i < _raw_length; ++i) {
-            _seq[i] = cast(ubyte)(toHalfByte(seq[2 * i]) << 4);
+            _seq[i] = cast(ubyte)(Base(seq[2 * i]).internal_code << 4);
 
             if (seq.length > 2 * i + 1)
-                _seq[i] |= cast(ubyte)(toHalfByte(seq[2 * i + 1]));
+                _seq[i] |= cast(ubyte)(Base(seq[2 * i + 1]).internal_code);
         }
     }
 

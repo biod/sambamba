@@ -1,5 +1,5 @@
 FILES=../utils/stream.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
-	  ../samheader.d ../reference.d ../alignment.d \
+	  ../samheader.d ../reference.d ../BioD/Base.d ../alignment.d \
 	  ../tagvalue.d ../utils/switchendianness.d \
 	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
 	  ../bai/read.d ../bai/chunk.d ../bai/bin.d ../bai/utils/algo.d \
