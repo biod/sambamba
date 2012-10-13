@@ -165,45 +165,66 @@ struct Alignment {
   
     /// Template having multiple segments in sequencing
     @property bool is_paired()                const nothrow { return cast(bool)(flag & 0x1); }
+    /// ditto
+    @property void is_paired(bool b)                { _setFlag( 0, b); }
+
     /// Each segment properly aligned according to the aligner
     @property bool proper_pair()              const nothrow { return cast(bool)(flag & 0x2); }
+    /// ditto
+    @property void proper_pair(bool b)              { _setFlag( 1, b); }
+
     /// Segment unmapped
     @property bool is_unmapped()              const nothrow { return cast(bool)(flag & 0x4); }
+    /// ditto
+    @property void is_unmapped(bool b)              { _setFlag( 2, b); }
+
     /// Next segment in the template unmapped
     @property bool mate_is_unmapped()         const nothrow { return cast(bool)(flag & 0x8); }
+    /// ditto
+    @property void mate_is_unmapped(bool b)         { _setFlag( 3, b); } 
+
     /// Sequence being reverse complemented
     @property bool is_reverse_strand()        const nothrow { return cast(bool)(flag & 0x10); }
+    /// ditto
+    @property void is_reverse_strand(bool b)        { _setFlag( 4, b); } 
+
     /// Sequence of the next segment in the template being reversed
     @property bool mate_is_reverse_strand()   const nothrow { return cast(bool)(flag & 0x20); }
+    /// ditto
+    @property void mate_is_reverse_strand(bool b)   { _setFlag( 5, b); } 
+
     /// The first segment in the template
     @property bool is_first_of_pair()         const nothrow { return cast(bool)(flag & 0x40); }
+    /// ditto
+    @property void is_first_of_pair(bool b)         { _setFlag( 6, b); } 
+
     /// The last segment in the template
     @property bool is_second_of_pair()        const nothrow { return cast(bool)(flag & 0x80); }
+    /// ditto
+    @property void is_second_of_pair(bool b)        { _setFlag( 7, b); } 
+
     /// Secondary alignment
     @property bool is_secondary_alignment()   const nothrow { return cast(bool)(flag & 0x100); }
+    /// ditto
+    @property void is_secondary_alignment(bool b)   { _setFlag( 8, b); } 
+
     /// Not passing quality controls
     @property bool failed_quality_control()   const nothrow { return cast(bool)(flag & 0x200); }
+    /// ditto
+    @property void failed_quality_control(bool b)   { _setFlag( 9, b); } 
+
     /// PCR or optical duplicate
     @property bool is_duplicate()             const nothrow { return cast(bool)(flag & 0x400); }
-
-    // flag setters
-    @property void is_paired(bool b)                { _setFlag( 0, b); }
-    @property void proper_pair(bool b)              { _setFlag( 1, b); }
-    @property void is_unmapped(bool b)              { _setFlag( 2, b); }
-    @property void mate_is_unmapped(bool b)         { _setFlag( 3, b); } 
-    @property void is_reverse_strand(bool b)        { _setFlag( 4, b); } 
-    @property void mate_is_reverse_strand(bool b)   { _setFlag( 5, b); } 
-    @property void is_first_of_pair(bool b)         { _setFlag( 6, b); } 
-    @property void is_second_of_pair(bool b)        { _setFlag( 7, b); } 
-    @property void is_secondary_alignment(bool b)   { _setFlag( 8, b); } 
-    @property void failed_quality_control(bool b)   { _setFlag( 9, b); } 
+    /// ditto
     @property void is_duplicate(bool b)             { _setFlag(10, b); } 
 
+    /// Read name
     @property string read_name() const nothrow {
         // notice -1: the string is zero-terminated, so we should strip that '\0'
         return cast(string)(_chunk[_read_name_offset .. _read_name_offset + _l_read_name - 1]);
     }
 
+    /// ditto
     @property void read_name(string name) {
         enforce(name.length >= 1 && name.length <= 255, "name length must be in 1-255 range");
         _dup();
@@ -219,6 +240,7 @@ struct Alignment {
                                              _n_cigar_op * CigarOperation.sizeof]);
     }
 
+    /// ditto
     @property void cigar(const(CigarOperation)[] c) {
         _dup();
         utils.array.replaceSlice(_chunk,
