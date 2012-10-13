@@ -10,14 +10,14 @@ struct DiploidGenotype {
 
     private ubyte _code;
 
-    private immutable ubyte[16] _nt16_to_nt5 = [4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4];
-    private immutable ubyte[5] _nt5_to_nt16 = [1, 2, 4, 8, 15];
-    private immutable _nt5_to_char = "ACGTN";
+    immutable ubyte[16] nt16_to_nt5 = [4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4];
+    immutable ubyte[5] nt5_to_nt16 = [1, 2, 4, 8, 15];
+    immutable nt5_to_char = "ACGTN";
 
     private static ubyte _getCode(Base b1, Base b2) {
-        auto c1 = _nt16_to_nt5[b1.internal_code];
-        auto c2 = _nt16_to_nt5[b2.internal_code];
-        return cast(ubyte)(c1 * _nt5_to_char.length + c2);
+        auto c1 = nt16_to_nt5[b1.internal_code];
+        auto c2 = nt16_to_nt5[b2.internal_code];
+        return cast(ubyte)(c1 * nt5_to_char.length + c2);
     }
 
     /// Construct a genotype from two bases
@@ -40,12 +40,12 @@ struct DiploidGenotype {
 
     /// First allele
     Base base1() @property const {
-        return Base.fromInternalCode(_nt5_to_nt16[_code / _nt5_to_char.length]);
+        return Base.fromInternalCode(nt5_to_nt16[_code / nt5_to_char.length]);
     }
 
     /// Second allele
     Base base2() @property const {
-        return Base.fromInternalCode(_nt5_to_nt16[_code % _nt5_to_char.length]);
+        return Base.fromInternalCode(nt5_to_nt16[_code % nt5_to_char.length]);
     }
 }
 

@@ -191,7 +191,10 @@ struct PileupColumn(R) {
 
     /// Reads overlapping the position
     auto reads() @property {
-        return _reads[];
+        // TRICK:
+        // somehow _reads[] doesn't have length property,
+        // thus let's add it using takeExactly
+        return takeExactly(_reads[], coverage);
     }
 
     /// Shortcut for map!(read => read.current_base)(reads)
