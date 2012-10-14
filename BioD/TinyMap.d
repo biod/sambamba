@@ -55,10 +55,9 @@ struct TinyMap(K, V, alias TinyMapPolicy=useBitArray) {
     void opIndexOpAssign(string op)(V value, K key) {
         if (key !in this) {
             ++_size;
-            _dict[key.internal_code] = V.init + value;
-        } else {
-            _dict[key.internal_code] += value;
+            _dict[key.internal_code] = V.init;
         }
+        mixin("_dict[key.internal_code] " ~ op ~ "= value;");
         Policy._onInsert(key);
     }
 
@@ -163,11 +162,7 @@ mixin template useDefaultValue(K, V) {
 /// Allows to set up a dictionary which is always full.
 mixin template fillNoRemove(K, V) {
     private void init(V value=V.init) {
-        _default_value = value;
-        if (_default_value != V.init) {
-            _dict[] = _default_value;
-        }
-
+        _dict[] = value;
         _size = K.ValueSetSize;
     }
 

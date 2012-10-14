@@ -193,6 +193,7 @@ unittest {
 
     import core.thread;
 
+    evaluations = 0;
     /// very simple function for testing
     int func(int x, int y) {
         return x * y;

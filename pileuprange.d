@@ -502,9 +502,10 @@ unittest {
     auto md_tags = ["47C6", "54", "51", "50T3", "46T7", "45A0C7", "11C24A0C14", 
                     "11A3T0^CATCATCATCACCAC38", "15T29T5", "2T45T5"];
 
-    Alignment[] reads = array(iota(10).map!(i => Alignment(readnames[i], sequences[i], cigars[i]))());
+    Alignment[] reads = new Alignment[10];
 
     foreach (i; iota(10)) {
+        reads[i] = Alignment(readnames[i], sequences[i], cigars[i]);
         reads[i].position = positions[i];
         reads[i].ref_id = 0;
         reads[i]["MD"] = md_tags[i];
