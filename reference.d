@@ -20,6 +20,7 @@
 module reference;
 
 import randomaccessmanager;
+import alignmentrange;
 
 import std.stream;
 import std.exception;
@@ -48,17 +49,17 @@ struct ReferenceSequenceInfo {
 struct ReferenceSequence {
    
     /// Name of reference sequence as in BAM file
-    string name() @property {
+    string name() @property const {
         return _info.name;
     }
 
     /// Length in base pairs
-    int length() @property {
+    int length() @property const {
         return _info.length;
     }
 
     /// Reference ID
-    int id() @property {
+    int id() @property const {
         return _ref_id;
     }
 
@@ -72,6 +73,37 @@ struct ReferenceSequence {
     /// Get all alignments
     auto opSlice() {
         return opSlice(0, length);
+    }
+
+    /// First position on the reference overlapped by reads (0-based)
+    int firstPosition() {
+        return opSlice().front.position;
+    }
+
+    /// Last position on the reference overlapped by reads (0-based)
+    int lastPosition() {
+        // The key idea is
+        //  1) use last offset from linear index
+        //  2) loop through all remaining reads starting from there
+
+        auto offset = _manager.getBai().indices[_ref_id].ioffsets[$-1];
+
+        auto stream = _manager.createStreamStartingFrom(offset);
+        auto reads = alignmentRange(stream);
+
+        int last_position = int.min;
+
+        foreach (read; reads) {
+             if (read.ref_id != _ref_id) {
+                 break;
+             }
+
+             auto end_pos = read.position + read.basesCovered();
+             if (end_pos > last_position)
+                 last_position = end_pos;
+        }
+
+        return last_position - 1;
     }
 
     this(RandomAccessManager manager, int ref_id, ReferenceSequenceInfo info) {

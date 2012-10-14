@@ -90,7 +90,7 @@ class RandomAccessManager {
 
     /// Get new IChunkInputStream starting from specified virtual offset.
     IChunkInputStream createStreamStartingFrom(VirtualOffset offset) {
-;
+
         auto _stream = new utils.stream.File(_filename);
         auto _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
         _compressed_stream.seekSet(cast(size_t)(offset.coffset));
@@ -123,6 +123,11 @@ class RandomAccessManager {
         return _found_index_file;
     }
     private bool _found_index_file = false; // overwritten in constructor if filename is provided
+
+    /// BAI file
+    ref const(BaiFile) getBai() const {
+        return _bai;
+    }
 
     /// Get BAI chunks containing all alignment records overlapping specified region
     Chunk[] getChunks(int ref_id, int beg, int end) {
@@ -159,7 +164,7 @@ class RandomAccessManager {
     }
 
     /// Fetch alignments with given reference sequence id, overlapping [beg..end)
-    auto getAlignments(int ref_id, int beg, int end) {
+    auto getAlignments(alias IteratePolicy=withOffsets)(int ref_id, int beg, int end) {
         auto _stream = new utils.stream.File(_filename);
         Stream _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
 
@@ -198,7 +203,7 @@ class RandomAccessManager {
         auto decompressed_blocks = getUnpackedBlocks(bgzf_range);                   // (3)
         auto augmented_blocks = getAugmentedBlocks(decompressed_blocks, chunks);    // (4)
         IChunkInputStream stream = makeChunkInputStream(augmented_blocks);          // (5)
-        auto alignments = alignmentRange(stream);
+        auto alignments = alignmentRange!IteratePolicy(stream);
         return filterAlignments(alignments, ref_id, beg, end);                      // (6)
     }
 
@@ -324,7 +329,7 @@ public:
             return _empty;
         }
 
-        Alignment front() @property {
+        ElementType!R front() @property {
             return _current_alignment;
         }
         
@@ -339,7 +344,7 @@ public:
         int _beg;
         int _end;
         bool _empty;
-        Alignment _current_alignment;
+        ElementType!R _current_alignment;
 
         void findNext() {
             if (_range.empty) {
@@ -397,7 +402,6 @@ public:
     // together with an interval [beg, end),
     // and return another range of alignments which overlap the region.
     static auto filterAlignments(R)(R r, int ref_id, int beg, int end) 
-        if(is(ElementType!R == Alignment)) 
     {
         return AlignmentFilter!R(r, ref_id, beg, end);
     }
