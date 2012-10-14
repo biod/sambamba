@@ -89,7 +89,7 @@ struct Base {
 
     /// Construct from internal code
     static Base fromInternalCode(ubyte code) {
-        Base base;
+        Base base = void;
         base._code = code;
         return base;
     }
@@ -102,7 +102,7 @@ struct Base {
     }
 
     /// Convert to char
-    char asCharacter() { return opCast!char(); }
+    char asCharacter() @property const { return opCast!char(); }
     ///
     alias asCharacter this;
 }

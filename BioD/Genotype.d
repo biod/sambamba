@@ -33,7 +33,7 @@ struct DiploidGenotype {
 
     /// Construct from internal code
     static DiploidGenotype fromInternalCode(ubyte code) {
-        DiploidGenotype g;
+        DiploidGenotype g = void;
         g._code = code;
         return g;
     }

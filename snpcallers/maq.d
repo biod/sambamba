@@ -23,7 +23,7 @@ struct BaseWithStrand {
     }
 
     static BaseWithStrand fromInternalCode(ubyte code) {
-        BaseWithStrand bws;
+        BaseWithStrand bws = void;
         bws._code = code;
         return bws;
     }
@@ -77,7 +77,7 @@ struct ErrorModelCoefficients {
         _lhet.length = 256 * 256;
 
         foreach (n, ref v; _fk) {
-            v = (1. - depcorr) ^^ n * (1. - eta) + eta;
+            v = core.stdc.math.pow(1. - depcorr, cast(double)n) * (1. - eta) + eta;
         }
 
         // lC[n][k] = log(choose(n, k))
@@ -92,21 +92,21 @@ struct ErrorModelCoefficients {
                 lC[n][n-k] = lC[n][k] = lG[n] - lG[k] - lG[n-k];
 
                 // fill _lhet simultaneously
-                _lhet[n << 8 | (n-k)] = _lhet[n << 8 | k] = lC[n][k] - n * LN2;
+                _lhet[n << 8 | (n-k)] = _lhet[n << 8 | k] = lC[n][k] - n * cast(double)LN2;
             }
         }
 
         for (size_t q = 1; q < 64; ++q) {
-            real e = 10.0 ^^ (-cast(real)q / 10.0);
-            real le = core.stdc.math.logl(e);
-            real le1 = core.stdc.math.logl(1.0 - e);
+            double e = core.stdc.math.pow(10.0, -cast(double)q / 10.0);
+            double le = core.stdc.math.log(e);
+            double le1 = core.stdc.math.log(1.0 - e);
 
             for (int n = 1; n <= 255; ++n) {
                 real sum, sum1;
-                sum = sum1 = 0;
+                sum = sum1 = 0.0;
                 for (int k = n; k >= 0; --k) {
-                    sum = sum1 + expl(lC[n][k] + k * le + (n-k) * le1);
-                    _beta[q << 16 | n << 8 | k] = -10.0 / LN10 * logl(sum1 / sum);
+                    sum = sum1 + core.stdc.math.expl(lC[n][k] + k * le + (n-k) * le1);
+                    _beta[q << 16 | n << 8 | k] = -10.0 / LN10 * core.stdc.math.logl(sum1 / sum);
                     sum1 = sum;
                 }
             }
@@ -130,7 +130,7 @@ struct ErrorModelCoefficients {
         if (is(ElementType!R == ReadBase) && hasLength!R) 
     {
         // if there're more than 255 reads, subsample them
-        ReadBase[255] buf;
+        ReadBase[255] buf = void;
         if (read_bases.length > buf.length) {
             copy(randomSample(read_bases, buf.length), buf[]);
         } else {
@@ -177,8 +177,6 @@ struct ErrorModelCoefficients {
                 }
             }
 
-            int bar_e;
-           
             if (tmp2 > 0) {
                 q[G(b1, b1)] = tmp1;
             } else {
@@ -260,7 +258,7 @@ void main(string[] args) {
     auto pileup = pileupWithReferenceBases(reads);
    
     auto pos = 0;
-    ReadBase[8192] bases;
+    ReadBase[8192] bases = void;
     foreach (column; pileup) {
         if (column.position > pos) {
             writeln(column.position);
@@ -280,6 +278,7 @@ void main(string[] args) {
         if (read_bases.length == 0) continue;
 
         auto genotype_likelihoods = errmod.computeLikelihoods(read_bases);
+      
         /*
         auto ref_base = Base(column.reference_base);
         auto g = DiploidGenotype(ref_base, ref_base);
