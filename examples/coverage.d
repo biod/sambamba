@@ -4,6 +4,15 @@ import pileuprange;
 import std.algorithm, std.c.stdio, std.range;
 
 void main(string[] args) {
+
+    auto dg = delegate (lazy float percentage) {
+        static int num;
+        num += 1;
+        if (num % 8192 == 0) {
+            fprintf(stderr, "\r%d%% completed", cast(int)(percentage * 100.0));
+        }
+    };
+
     auto bam = BamFile(args[1]);
 
     auto ref_id = bam.alignments.front.ref_id;
@@ -11,8 +20,10 @@ void main(string[] args) {
                         pileupWithReferenceBases(
                             filter!"!a.is_unmapped"(
                                 until!((Alignment read) { return read.ref_id != ref_id; })(
-                                    bam.alignments)))))
+                                    bam.alignmentsWithProgress(dg))))))
     {
         printf("%d %d\n", cast(int)column.position, cast(int)column.coverage);
     }
+
+    fprintf(stderr, "\r100%% completed");
 }
