@@ -21,9 +21,11 @@ module reference;
 
 import randomaccessmanager;
 import alignmentrange;
+import virtualoffset;
 
 import std.stream;
 import std.exception;
+import std.array;
 
 /**
   Stores reference sequence name and length
@@ -86,24 +88,54 @@ struct ReferenceSequence {
         //  1) use last offset from linear index
         //  2) loop through all remaining reads starting from there
 
-        auto offset = _manager.getBai().indices[_ref_id].ioffsets[$-1];
+        auto ioffsets = _manager.getBai().indices[_ref_id].ioffsets[];
 
-        auto stream = _manager.createStreamStartingFrom(offset);
-        auto reads = alignmentRange(stream);
+        long index = ioffsets.length - 1;
 
-        int last_position = int.min;
-
-        foreach (read; reads) {
-             if (read.ref_id != _ref_id) {
-                 break;
-             }
-
-             auto end_pos = read.position + read.basesCovered();
-             if (end_pos > last_position)
-                 last_position = end_pos;
+        debug {
+            int reads_processed = 0;
         }
 
-        return last_position - 1;
+        while (index >= 0) {
+            auto offset = ioffsets[index];
+
+            auto stream = _manager.createStreamStartingFrom(offset);
+            auto reads = alignmentRange(stream);
+
+            int last_position = int.min;
+
+            foreach (read; reads) {
+
+                 debug {
+                     reads_processed += 1;
+                 }
+
+                 if (read.ref_id != _ref_id) {
+                     break;
+                 }
+                
+                 if (read.position == -1) {
+                     continue;
+                 }
+
+                 auto end_pos = read.position + read.basesCovered();
+                 if (end_pos > last_position)
+                     last_position = end_pos;
+            }
+
+            if (last_position != int.min) {
+                debug {
+                    import std.stdio;
+                    stderr.writeln("[debug] ReferenceSequence.lastPosition() processed ",
+                                   reads_processed, " reads");
+                }
+                return last_position - 1;
+            }
+
+            --index;
+        }
+
+        return firstPosition();
     }
 
     this(RandomAccessManager manager, int ref_id, ReferenceSequenceInfo info) {
