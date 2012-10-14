@@ -180,7 +180,7 @@ struct PileupColumn(R) {
     }
 
     /// Coverage at this position (equals to number of reads)
-    ulong coverage() const @property {
+    size_t coverage() const @property {
         return _reads.length;
     }
 
@@ -454,7 +454,7 @@ auto pileupWithReferenceBases(R)(R reads) {
 
                 _has_next_chunk_provider = false;
 
-                _chunk.popFrontN(_column.position - _next_chunk_provider.position);
+                _chunk.popFrontN(cast(size_t)(_column.position - _next_chunk_provider.position));
 
                 _column._reference_base = _chunk.front;
                 _chunk.popFront();

@@ -5,7 +5,7 @@ module snpcallers.maq;
  */
 
 import core.stdc.math;
-import std.mathspecial;
+import std.math : LN2, LN10;
 import std.traits;
 import std.range;
 import std.algorithm;
@@ -87,7 +87,7 @@ struct ErrorModelCoefficients {
         double[256] lG;
 
         for (size_t n = 0; n <= 255; ++n) {
-            lG[n] = logGamma(n + 1);
+            lG[n] = core.stdc.math.lgamma(cast(double)(n + 1));
             for (size_t k = 0; k <= n / 2; ++k) {
                 lC[n][n-k] = lC[n][k] = lG[n] - lG[k] - lG[n-k];
 
@@ -98,8 +98,8 @@ struct ErrorModelCoefficients {
 
         for (size_t q = 1; q < 64; ++q) {
             real e = 10.0 ^^ (-cast(real)q / 10.0);
-            real le = std.math.log(e);
-            real le1 = std.math.log(1.0 - e);
+            real le = core.stdc.math.logl(e);
+            real le1 = core.stdc.math.logl(1.0 - e);
 
             for (int n = 1; n <= 255; ++n) {
                 real sum, sum1;
