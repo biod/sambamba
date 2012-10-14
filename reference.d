@@ -65,7 +65,13 @@ struct ReferenceSequence {
     /// Get alignments overlapping [start, end)
     auto opSlice(int start, int end) {
         enforce(start < end, "start must be less than end");
+        enforce(_manager !is null, "random access is not available");
         return _manager.getAlignments(_ref_id, start, end);
+    }
+
+    /// Get all alignments
+    auto opSlice() {
+        return opSlice(0, length);
     }
 
     this(RandomAccessManager manager, int ref_id, ReferenceSequenceInfo info) {
