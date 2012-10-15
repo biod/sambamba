@@ -5,14 +5,19 @@ module snpcallers.maq;
  */
 
 import core.stdc.math;
-import std.math : LN2, LN10;
+import std.math : LN2, LN10, isnan;
 import std.traits;
 import std.range;
 import std.algorithm;
 import std.random;
+import std.typecons;
+
+import reconstruct;
+import pileuprange;
 
 import BioD.Base;
 import BioD.Genotype;
+import BioD.Call;
 import BioD.TinyMap;
 
 struct BaseWithStrand {
@@ -62,7 +67,7 @@ struct ErrorModelCoefficients {
         // _fk[n] = (1 - depcorr)^n * (1 - eta) + eta
         double[] _fk;
 
-        // _beta[q << 16 | n << 8 | k ] = phred-scaled probability of ???
+        // _beta[q << 16 | n << 8 | k ] = see MAQ paper for meaning of \beta
         double[] _beta;
 
         // _lhet[n << 8 | k] = log(1/2^n * choose(n, k))
@@ -77,7 +82,7 @@ struct ErrorModelCoefficients {
         _lhet.length = 256 * 256;
 
         foreach (n, ref v; _fk) {
-            v = core.stdc.math.pow(1. - depcorr, cast(double)n) * (1. - eta) + eta;
+            v = core.stdc.math.pow(1.0 - depcorr, cast(double)n) * (1.0 - eta) + eta;
         }
 
         // lC[n][k] = log(choose(n, k))
@@ -97,9 +102,9 @@ struct ErrorModelCoefficients {
         }
 
         for (size_t q = 1; q < 64; ++q) {
-            double e = core.stdc.math.pow(10.0, -cast(double)q / 10.0);
-            double le = core.stdc.math.log(e);
-            double le1 = core.stdc.math.log(1.0 - e);
+            real e = 10.0 ^^ (-(cast(real)q) / 10.0);
+            real le = core.stdc.math.logl(e);
+            real le1 = core.stdc.math.logl(1.0 - e);
 
             for (int n = 1; n <= 255; ++n) {
                 real sum, sum1;
@@ -127,7 +132,7 @@ struct ErrorModelCoefficients {
 
     alias TinyMap!(DiploidGenotype!Base5, float, useDefaultValue) Dict;
 
-    Dict computeLikelihoods(R)(R read_bases) const
+    Dict computeLikelihoods(R)(R read_bases, bool symmetric=false) const
         if (is(ElementType!R == ReadBase) && hasLength!R) 
     {
         // if there're more than 255 reads, subsample them
@@ -201,9 +206,13 @@ struct ErrorModelCoefficients {
 
                 auto b2_5 = cast(Base5)b2;
                 if (tmp2 > 0) {
-                    q[dG(b1_5, b2_5)] = q[dG(b2_5, b1_5)] = tmp1 - 4.343 * lhet(cij, c[b2]);
+                    q[dG(b2_5, b1_5)] = tmp1 - 4.343 * lhet(cij, c[b2]);
                 } else {
-                    q[dG(b1_5, b2_5)] = q[dG(b2_5, b1_5)] = -4.343 * lhet(cij, c[b2]);
+                    q[dG(b2_5, b1_5)] = -4.343 * lhet(cij, c[b2]);
+                }
+
+                if (symmetric) {
+                    q[dG(b1_5, b2_5)] = q[dG(b2_5, b1_5)];
                 }
             }
 
@@ -223,12 +232,13 @@ class ErrorModel {
     
     private {
         float _depcorr;
-        immutable _eta = 0.03;
+        float _eta;
         ErrorModelCoefficients _coef;
     }
 
-    this(float depcorr) {
+    this(float depcorr, float eta=0.03) {
         _depcorr = depcorr;
+        _eta = eta;
         _coef = ErrorModelCoefficients(_depcorr, _eta);
     }
 
@@ -239,63 +249,201 @@ class ErrorModel {
     alias coefficients this;
 }
 
-void main(string[] args) {
-    import bamfile;
-    import reconstruct;
-    import pileuprange;
+/// Class for calling SNPs using MAQ model.
+///
+/// Typical usage:
+///     auto caller = new MaqSnpCaller();
+///     caller.minimum_call_quality = 20.0;
+///     caller.minimum_base_quality = 13;
+///     foreach (snp; caller.findSNPs(reads)) { ... }
+///
+class MaqSnpCaller {
+    
+    private float _depcorr = 0.17;
+    private float _eta = 0.03;
+    private float _minimum_call_quality = 6.0;
+    private ubyte _minimum_base_quality = 13;
+    private bool _need_to_recompute_errmod = true;
 
-    import std.stdio;
-    import std.algorithm;
-    import std.array;
+    /// Sample name
+    string sample;
 
-    auto fn = args[1];
-    auto reads = filter!"!a.is_unmapped"(BamFile(fn).alignments);
-
-    static ReadBase toReadBase(R)(R read) {
-        return ReadBase(Base(read.current_base),
-                             min(read.current_base_quality, read.mapping_quality),
-                             read.is_reverse_strand);
+    /// Reference sequence name
+    string reference;
+  
+    ///
+    float depcorr() @property const {
+        return _depcorr;
     }
 
-    auto errmod = new ErrorModel(0.17);
-    auto pileup = pileupWithReferenceBases(reads);
-   
-    auto pos = 0;
-    ReadBase[8192] bases = void;
-    foreach (column; pileup) {
-        if (column.position > pos) {
-            writeln(column.position);
-            pos += 10000;
-        }
-        auto valid = filter!"a.mapping_quality != 255 && a.current_base != '-'"(column.reads);
-        auto rbs = map!toReadBase(valid);
+    /// ditto
+    void depcorr(float f) @property {
+        _depcorr = f;
+        _need_to_recompute_errmod = true;
+    }
 
+    ///
+    float eta() @property const {
+        return _eta;
+    }
+
+    ///
+    void eta(float f) @property {
+        _eta = f;
+        _need_to_recompute_errmod = true;
+    }
+    
+    /// Minimum call quality
+    float minimum_call_quality() @property const {
+        return _minimum_call_quality;
+    }
+
+    /// ditto
+    void minimum_call_quality(float f) @property {
+        _minimum_call_quality = f;
+    }
+
+    /// Discard reads with base quality less than this at a site
+    ubyte minimum_base_quality() @property const {
+        return _minimum_base_quality;
+    }
+
+    void minimum_base_quality(ubyte q) @property {
+        _minimum_call_quality = q;
+    }
+
+    private ErrorModel errmod() @property {
+        if (_need_to_recompute_errmod) {
+            synchronized {
+                if (_need_to_recompute_errmod) {
+                    _errmod = new ErrorModel(_depcorr, _eta);
+                    _need_to_recompute_errmod = false;
+                }
+            }
+        }
+        return _errmod;
+    }
+
+    private ErrorModel _errmod;
+
+    /// Make call on a pileup column
+    Nullable!DiploidCall5 makeCall(C)(C column) {
+
+        Nullable!DiploidCall5 result;
+
+        ReadBase[8192] buf = void;
         size_t i = 0;
-        while (i < 8192) {
-            if (rbs.empty) break;
-            bases[i++] = rbs.front;
-            rbs.popFront();
+        foreach (read; column.reads) {
+            if (i == 8192)
+                break;
+            if (read.current_base == '-')
+                continue;
+            if (read.current_base_quality < minimum_base_quality)
+                continue;
+
+            buf[i++] = ReadBase(Base(read.current_base),
+                                min(read.current_base_quality, read.mapping_quality),
+                                read.is_reverse_strand);
         }
 
-        auto read_bases = bases[0 .. i];
-        if (read_bases.length == 0) continue;
+        if (i == 0) {
+            return result;
+        }
 
-        auto genotype_likelihoods = errmod.computeLikelihoods(read_bases);
-      
-        /*
-        auto ref_base = Base(column.reference_base);
-        auto g = DiploidGenotype(ref_base, ref_base);
-        if (genotype_likelihoods[g] == 0.0)
-            continue;
+        ReadBase[] rbs = buf[0 .. i];
 
-        writeln("--------------------------------------------------------------------");
-        writeln("Reference base: ", column.reference_base);
-        writeln("1-based position: ", column.position + 1);
-        writeln("Read bases: ", map!"a.current_base"(valid));
+        auto likelihood_dict = errmod.computeLikelihoods(rbs);
+        alias DiploidGenotype!Base5 Gt;
+        Gt[25] gt_buf;
+        size_t k = 0;
+        foreach (gt; likelihood_dict.keys) {
+            gt_buf[k++] = gt;
+        }
 
-        foreach (g, likelihood; genotype_likelihoods) {
-            if (g.base1 == 'N' || g.base2 == 'N') continue;
-            writeln("<", g.base1, "|", g.base2, "> ", likelihood);
-        }*/
+        assert(k >= 2);
+
+        auto gts = gt_buf[0..k];
+        for (i = 1; i < k; i++) {
+            auto gt = gts[i];
+            float likelihood = likelihood_dict[gts[i]];
+            size_t j = i;
+            while (j > 0 && likelihood_dict[gts[j-1]] > likelihood) {
+                gts[j] = gts[j-1];
+                --j;
+            }
+            gts[j] = gt; 
+        }
+
+        result = DiploidCall5(sample, reference, column.position,
+                              Base5(column.reference_base), gts[0],
+                              likelihood_dict[gts[1]] - likelihood_dict[gts[0]]);
+                
+        return result;
+    }
+
+    /// main method of this class
+    auto findSNPs(R)(R reads) {
+        auto filtered = filter!"!a.is_unmapped && a.mapping_quality != 255"(reads);
+
+        auto pileup = pileupWithReferenceBases(filtered);
+
+        static struct Result(P) {
+            private MaqSnpCaller _caller;
+            private P _pileup;
+            private DiploidCall5 _front;
+            private bool _empty;
+
+            this(MaqSnpCaller caller, P pileup) {
+                _caller = caller;
+                _pileup = pileup;
+                _fetchNextSNP();
+            }
+
+            DiploidCall5 front() @property const {
+                return _front;
+            }
+           
+            bool empty() @property const {
+                return _empty;
+            }
+
+            void popFront() {
+                _pileup.popFront();
+                _fetchNextSNP();
+            }
+
+            private void _fetchNextSNP() {
+                while (true) {
+                    if (_pileup.empty) {
+                        _empty = true;
+                        break;
+                    }
+
+                    auto call = _caller.makeCall(_pileup.front);
+                    if (!call.isNull && call.is_variant && call.quality > _caller.minimum_call_quality) {
+                        _front = call.get;
+                        break;
+                    } else {
+                        _pileup.popFront();
+                    }
+                }
+            }
+        }
+
+        return Result!(typeof(pileup))(this, pileup);
+    }
+}
+
+void main(string[] args) {
+    import bamfile;
+    import std.stdio;
+
+    auto fn = args[1];
+    auto reads = BamFile(fn).alignments;
+
+    auto caller = new MaqSnpCaller();
+
+    foreach (snp; caller.findSNPs(reads)) {
+        writeln(snp.position, " ", snp.reference_base, " ", snp.genotype, " ", snp.quality);
     }
 }

@@ -4,19 +4,22 @@ import BioD.Base;
 import BioD.Genotype;
 
 /// A genotype call
-struct Call(G) {
+struct Call(alias Gt, B) 
+{
+    alias Gt!B G;
+
     private {
         string _sample = void;
         string _chr = void;
         ulong _pos = void;
-        Base _refbase = void;
+        B _refbase = void;
         G _gt = void;
         float _qual = void;
     }
 
     /// Constructor
     this(string sample, string chr, ulong pos,
-         Base refbase, G genotype, float quality=float.nan)
+         B refbase, G genotype, float quality=float.nan)
     {
         _sample = sample;
         _chr = chr;
@@ -42,7 +45,7 @@ struct Call(G) {
     }
 
     /// Reference base at the site
-    Base reference_base() @property const {
+    B reference_base() @property const {
         return _refbase;
     }
 
@@ -65,11 +68,13 @@ struct Call(G) {
     }
 }
 
-alias Call!DiploidGenotype DiploidCall;
+alias Call!(DiploidGenotype, Base5) DiploidCall5;
+alias Call!(DiploidGenotype, Base16) DiploidCall;
+alias DiploidCall DiploidCall16;
 
 unittest {
     auto call = DiploidCall("NA01234", "chr10", 543210,
-                            Base('T'), DiploidGenotype(Base('C'), Base('T')),
+                            Base('T'), diploidGenotype(Base('C'), Base('T')),
                             47.0);
 
     assert(call.is_variant);

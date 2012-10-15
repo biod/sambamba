@@ -14,7 +14,6 @@ mixin template CommonBaseOperations() {
 /// Base representation supporting full set of IUPAC codes
 struct Base {
     mixin TinyMapInterface!16; 
-    mixin CommonBaseOperations;
 
     private immutable ubyte[256] _char2code = [
                 15,15,15,15, 15,15,15,15, 15,15,15,15, 15,15,15,15,
@@ -80,6 +79,7 @@ struct Base {
         }
     }
 
+    mixin CommonBaseOperations;
     /// Construct from IUPAC code
     this(char c) {
         _code = _char2code[cast(ubyte)c];
@@ -113,7 +113,6 @@ alias Base Base16;
 /// Base representation supporting only 'A', 'C', 'G', 'T', and 'N'
 struct Base5 {
     mixin TinyMapInterface!5;
-    mixin CommonBaseOperations;
 
     private immutable ubyte[256] _char2code = [
                 4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
@@ -139,6 +138,8 @@ struct Base5 {
 
     private immutable _code2char = "ACGTN";
     private immutable ubyte[16] nt16_to_nt5 = [4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4];
+
+    mixin CommonBaseOperations;
 
     /// Construct base from one of "acgtACGT" symbols.
     /// Every other character is converted to 'N'

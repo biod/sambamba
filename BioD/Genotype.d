@@ -44,6 +44,11 @@ struct DiploidGenotype(B) {
     bool is_homozygous() @property const {
         return base1 == base2;
     }
+
+    /// String representation B1|B2 (TODO: add phasing in future?)
+    string toString() const {
+        return base1 ~ "|" ~ base2;
+    }
 }
 
 /// Create an instance of DiploidGenotype
