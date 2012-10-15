@@ -8,6 +8,7 @@ module BioD.TinyMap;
 
 private import std.algorithm;
 private import std.range;
+private import std.traits;
 
 import std.bitmanip;
 
@@ -214,4 +215,36 @@ unittest {
     test(dict1);
     test(dict2);
     test(dict3);
+}
+
+/// Convenient mixin template for getting your struct working with TinyMap.
+///
+/// Creates
+///     1) private member of type T with name _code
+///     2) fromInternalCode static method
+///     3) internal_code property
+///     4) static member ValueSetSize equal to N
+///     5) invariant that _code is always less than ValueSetSize
+///
+/// That is, the only thing which implementation is up to you is
+/// setting _code appropriately.
+mixin template TinyMapInterface(uint N, T=ubyte) if (isUnsigned!T) {
+    private T _code;
+
+    immutable ValueSetSize = N;
+    static assert(N <= 2 ^^ (T.sizeof * 8));
+
+    static typeof(this) fromInternalCode(T code) {
+        typeof(this) obj = void;
+        obj._code = code;
+        return obj;
+    }
+
+    T internal_code() @property const {
+        return _code;
+    }
+
+    invariant() {
+        assert(_code < ValueSetSize);
+    }
 }

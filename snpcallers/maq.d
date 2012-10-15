@@ -125,7 +125,8 @@ struct ErrorModelCoefficients {
         return _lhet[n << 8 | k];
     }
 
-    alias TinyMap!(DiploidGenotype, float, useDefaultValue) Dict;
+    alias TinyMap!(DiploidGenotype!Base5, float, useDefaultValue) Dict;
+
     Dict computeLikelihoods(R)(R read_bases) const
         if (is(ElementType!R == ReadBase) && hasLength!R) 
     {
@@ -159,7 +160,7 @@ struct ErrorModelCoefficients {
             w[bws] += 1;
         }
 
-        alias DiploidGenotype G;
+        alias diploidGenotype dG;
 
         auto q = Dict(float.min);
 
@@ -177,10 +178,11 @@ struct ErrorModelCoefficients {
                 }
             }
 
+            auto b1_5 = cast(Base5)b1;
             if (tmp2 > 0) {
-                q[G(b1, b1)] = tmp1;
+                q[dG(b1_5)] = tmp1;
             } else {
-                q[G(b1, b1)] = 0.0;
+                q[dG(b1_5)] = 0.0;
             }
 
             // heterozygous
@@ -197,15 +199,16 @@ struct ErrorModelCoefficients {
                     }
                 }
 
+                auto b2_5 = cast(Base5)b2;
                 if (tmp2 > 0) {
-                    q[G(b1, b2)] = q[G(b2, b1)] = tmp1 - 4.343 * lhet(cij, c[b2]);
+                    q[dG(b1_5, b2_5)] = q[dG(b2_5, b1_5)] = tmp1 - 4.343 * lhet(cij, c[b2]);
                 } else {
-                    q[G(b1, b2)] = q[G(b2, b1)] = -4.343 * lhet(cij, c[b2]);
+                    q[dG(b1_5, b2_5)] = q[dG(b2_5, b1_5)] = -4.343 * lhet(cij, c[b2]);
                 }
             }
 
             foreach (k, b2; nucleotides) {
-                auto g = G(b1, b2);
+                auto g = dG(b1_5, cast(Base5)b2);
                 if (g in q) {
                     if (q[g] < 0.0) q[g] = 0.0;
                 }
