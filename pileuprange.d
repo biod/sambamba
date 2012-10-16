@@ -301,16 +301,67 @@ class PileupRange(R, alias TColumn=PileupColumn) {
     }
 }
 
+/// Abstract pileup structure. S is type of column range.
+struct AbstractPileup(S) {
+    S columns;
+    /// Pileup columns
+    alias columns this;
+
+    /// $(D start_from) parameter provided to a pileup function
+    immutable ulong start_position;
+    /// $(D end_at) parameter provided to a pileup function
+    immutable ulong end_position;
+}
+
+auto pileupColumns(P, R)(R reads, ulong start_from, ulong end_at) {
+    auto rs = reads;
+    while (!rs.empty) {
+        auto r = rs.front;
+        if (r.position + r.basesCovered() < start_from) {
+            rs.popFront();
+        } else {
+            break;
+        }
+    }
+    auto columns = new P(rs);
+    while (!columns.empty) {
+        auto c = columns.front;
+        if (c.position < start_from) {
+            columns.popFront();
+        } else {
+            break;
+        }
+    }
+    auto chopped = until!"a.position >= b"(columns, end_at);
+    return AbstractPileup!(typeof(chopped))(chopped, start_from, end_at);
+}
+
 /// Creates a pileup range from a range of reads.
-auto pileup(R)(R reads) {
-    return new PileupRange!R(reads);
+///
+/// See $(D PileupColumn) documentation for description of range elements.
+/// Note also that you can't use $(D std.array.array()) function on pileup
+/// because it won't make deep copies of underlying data structure.
+/// (One might argue that in this case it would be better to use opApply,
+/// but typically one would use $(D std.algorithm.map) on pileup columns
+/// to obtain some numeric characteristics.)
+/// 
+/// Params:
+///     start_from -  position from which to start
+///
+///     end_at     -  position before which to stop
+///
+/// That is, the range of positions is half-open interval 
+/// [max(start_from, first mapped read start position), 
+///  min(end_at, last mapped read end position))
+auto pileup(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
+    return pileupColumns!PileupRange(reads, start_from. end_at);
 }
 
 /// The same as pileup but allows to access bases of the reference.
 /// That is, the current column has additional property reference_base().
 ///
 /// NOTE: you can use this function only if reads have MD tags correctly set!
-auto pileupWithReferenceBases(R)(R reads) {
+auto pileupWithReferenceBases(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
 
     // The basic idea is:
     //   take PileupColumn, extend it using alias this (+reference_base());
@@ -462,7 +513,7 @@ auto pileupWithReferenceBases(R)(R reads) {
         }
     }
 
-    return new PileupRangeWithRefBases(reads);
+    return pileupColumns!PileupRangeWithRefBases(reads, start_from, end_at);
 }
 
 unittest {
@@ -517,30 +568,45 @@ unittest {
     import std.stdio;
     writeln("Testing pileup...");
 
-    foreach (column; pileupWithReferenceBases(reads)) {
+    auto pileup = pileupWithReferenceBases(reads, 796, 849);
+    assert(pileup.front.position == 796);
+    assert(pileup.start_position == 796);
+    assert(pileup.end_position == 849);
+
+    while (!pileup.empty) {
+        auto column = pileup.front;
+
         // check that DNA is built correctly from MD tags and CIGAR
         assert(column.reference_base == reference[column.position - first_read_position]);
 
         switch (column.position) {
             case 796:
                 assert(equal(column.bases, "CCCCCCAC"));
+                pileup.popFront();
                 break;
             case 805:
                 assert(equal(column.bases, "TCCCCCCCC"));
+                pileup.popFront();
                 break;
             case 806:
                 assert(equal(column.bases, "AAAAAAAGA"));
+                pileup.popFront();
                 break;
             case 821:
                 assert(equal(column.bases, "AAGG-AA"));
+                pileup.popFront();
                 break;
             case 826:
                 assert(equal(column.bases, "CCCCCC"));
+                pileup.popFront();
                 break;
             case 849:
                 assert(equal(column.bases, "TAT"));
+                pileup.popFront();
+                assert(pileup.empty);
                 break;
             default:
+                pileup.popFront();
                 break;
         }
     }
