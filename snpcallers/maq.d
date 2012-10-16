@@ -374,20 +374,24 @@ class MaqSnpCaller {
             gts[j] = gt; 
         }
 
+        static if (__traits(compiles, column.reference_base)) {
+            auto refbase = Base5(column.reference_base);
+        } else {
+            auto refbase = Base5('N');
+        }
+
         result = DiploidCall5(sample, reference, column.position,
-                              Base5(column.reference_base), gts[0],
+                              refbase, gts[0],
                               likelihood_dict[gts[1]] - likelihood_dict[gts[0]]);
                 
         return result;
     }
 
     /// main method of this class
-    auto findSNPs(R)(R reads) {
-        auto filtered = filter!"!a.is_unmapped && a.mapping_quality != 255"(reads);
+    auto findSNPs(P)(P pileup_columns) {
+        static assert(__traits(compiles, {pileup_columns.front.reference_base;}));
 
-        auto pileup = pileupWithReferenceBases(filtered);
-
-        static struct Result(P) {
+        static struct Result {
             private MaqSnpCaller _caller;
             private P _pileup;
             private DiploidCall5 _front;
@@ -430,7 +434,7 @@ class MaqSnpCaller {
             }
         }
 
-        return Result!(typeof(pileup))(this, pileup);
+        return Result(this, pileup_columns);
     }
 }
 
@@ -443,7 +447,7 @@ void main(string[] args) {
 
     auto caller = new MaqSnpCaller();
 
-    foreach (snp; caller.findSNPs(reads)) {
+    foreach (snp; caller.findSNPs(pileupWithReferenceBases(reads))) {
         writeln(snp.position, " ", snp.reference_base, " ", snp.genotype, " ", snp.quality);
     }
 }

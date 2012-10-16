@@ -313,8 +313,8 @@ struct AbstractPileup(S) {
     immutable ulong end_position;
 }
 
-auto pileupColumns(P, R)(R reads, ulong start_from, ulong end_at) {
-    auto rs = reads;
+auto pileupColumns(alias P, R)(R reads, ulong start_from, ulong end_at) {
+    auto rs = filter!"!a.is_unmapped"(reads);
     while (!rs.empty) {
         auto r = rs.front;
         if (r.position + r.basesCovered() < start_from) {
@@ -323,7 +323,7 @@ auto pileupColumns(P, R)(R reads, ulong start_from, ulong end_at) {
             break;
         }
     }
-    auto columns = new P(rs);
+    auto columns = new P!(typeof(rs))(rs);
     while (!columns.empty) {
         auto c = columns.front;
         if (c.position < start_from) {
@@ -357,163 +357,165 @@ auto pileup(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
     return pileupColumns!PileupRange(reads, start_from. end_at);
 }
 
+// pileup with reference bases using MD tag and CIGAR
+//
+// The basic idea is:
+//   take PileupColumn, extend it using alias this (+reference_base());
+//   take PileupRange, extend it (override popFront()/add());
+//
+// What is the new functionality of add()? 
+//
+//  It will check length of the newly added read and track the read which
+//  end position on the reference is the largest. 
+//
+//  When reconstructed reference chunk will become empty, next one will be
+//  constructed from that read. This algorithm allows to minimize the number
+//  of reads for which MD tag will be decoded.
+//
+// What is the new functionality of popFront()?
+//
+//  It will pop an element off the reference chunk, and if it is empty,
+//  update the structure appropriately.
+struct PileupColumnWithRefBases(R) {
+    PileupColumn!R column;
+    alias column this;
+
+    this(ulong position, R reads) {
+        column = PileupColumn!R(position, reads);
+    }
+
+    char reference_base() @property const {
+        // zero coverage
+        if (_reads[].empty) {
+            return 'N';
+        }
+
+        // otherwise, the base must be set by PileupRangeWithRefBases code
+        return _reference_base;
+    }
+
+    private char _reference_base;
+}
+
+final static class PileupRangeWithRefBases(R) : 
+    PileupRange!(R, PileupColumnWithRefBases) 
+{
+
+    // The code is similar to that in reconstruct.d but here we can't make
+    // an assumption about any particular read having non-zero length on reference.
+
+    // current chunk of reference
+    private typeof(dna(_reads.front)) _chunk;
+
+    // end position of the current chunk on reference (assuming half-open interval)
+    private uint _chunk_end_position;
+
+    // next read from which we will extract reference chunk
+    //
+    // More precisely, 
+    // _next_chunk_provider = argmax (read => read.end_position) 
+    //                 {reads overlapping current column}
+    private typeof(_column._reads[].front) _next_chunk_provider;
+
+    private bool _has_next_chunk_provider = false;
+
+    // coverage at the previous location
+    private ulong _prev_coverage;
+
+    this(R reads) {
+        super(reads);
+
+        if (!reads.empty) {
+            auto _read = _column._reads[].back;
+
+            // prepare first chunk
+            _chunk = dna(_read.read.read); // two layers of wrapping 
+
+            // set up _next_chunk_provider explicitly
+            _next_chunk_provider = _read;
+            _chunk_end_position = _read.end_position;
+            _has_next_chunk_provider = true;
+
+            _column._reference_base = _chunk.front;
+            _chunk.popFront();
+        }
+    }
+
+    protected override void add(ref Alignment read) {
+        // the behaviour depends on whether a new contig starts here or not
+        bool had_zero_coverage = _prev_coverage == 0;
+
+        super.add(read);
+
+        // get wrapped read
+        auto _read = _column._reads[].back;
+
+        // two subsequent next_chunk_providers must overlap
+        // unless (!) there was a region with zero coverage in-between
+        if (_read.position > _chunk_end_position && !had_zero_coverage) {
+            return;
+        }
+
+        // compare with previous candidate and replace if this one is better
+        if (_read.end_position > _chunk_end_position) {
+            if (!_has_next_chunk_provider) {
+                _has_next_chunk_provider = true;
+                _next_chunk_provider = _read;
+            } else if (_read.end_position > _next_chunk_provider.end_position) {
+                _next_chunk_provider = _read;
+            }
+        }
+    }
+
+    void popFront() {
+        if (!_chunk.empty) {
+            // update current reference base
+            _column._reference_base = _chunk.front;
+
+            _chunk.popFront();
+        }
+
+        // update _prev_coverage
+        _prev_coverage = _column.coverage;
+
+        // the order is important - maybe we will obtain new next_chunk_provider
+        // during this call to popFront()
+        super.popFront();
+
+        // If we have consumed the whole current chunk,
+        // we need to obtain the next one if it's possible.
+        if (_chunk.empty && _has_next_chunk_provider) {
+            _chunk = dna(_next_chunk_provider.read.read);
+
+            debug {
+                
+                import std.stdio;
+                writeln();
+                writeln("position: ", _next_chunk_provider.position);
+                writeln("next chunk: ", to!string(_chunk));
+                
+            }
+
+            _chunk_end_position = _next_chunk_provider.end_position;
+
+            _has_next_chunk_provider = false;
+
+            _chunk.popFrontN(cast(size_t)(_column.position - _next_chunk_provider.position));
+
+            _column._reference_base = _chunk.front;
+            _chunk.popFront();
+        }
+    }
+}
+
+
 /// The same as pileup but allows to access bases of the reference.
 /// That is, the current column has additional property reference_base().
 ///
 /// NOTE: you can use this function only if reads have MD tags correctly set!
 auto pileupWithReferenceBases(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
 
-    // The basic idea is:
-    //   take PileupColumn, extend it using alias this (+reference_base());
-    //   take PileupRange, extend it (override popFront()/add());
-    //
-    // What is the new functionality of add()? 
-    //
-    //  It will check length of the newly added read and track the read which
-    //  end position on the reference is the largest. 
-    //
-    //  When reconstructed reference chunk will become empty, next one will be
-    //  constructed from that read. This algorithm allows to minimize the number
-    //  of reads for which MD tag will be decoded.
-    //
-    // What is the new functionality of popFront()?
-    //
-    //  It will pop an element off the reference chunk, and if it is empty,
-    //  update the structure appropriately.
-
-    static struct PileupColumnWithRefBases(R) {
-        PileupColumn!R column;
-        alias column this;
-
-        this(ulong position, R reads) {
-            column = PileupColumn!R(position, reads);
-        }
-
-        char reference_base() @property const {
-            // zero coverage
-            if (_reads[].empty) {
-                return 'N';
-            }
-
-            // otherwise, the base must be set by PileupRangeWithRefBases code
-            return _reference_base;
-        }
-
-        private char _reference_base;
-    }
-
-    final static class PileupRangeWithRefBases : 
-        PileupRange!(R, PileupColumnWithRefBases) 
-    {
-
-        // The code is similar to that in reconstruct.d but here we can't make
-        // an assumption about any particular read having non-zero length on reference.
-
-        // current chunk of reference
-        private typeof(dna(_reads.front)) _chunk;
-
-        // end position of the current chunk on reference (assuming half-open interval)
-        private uint _chunk_end_position;
-
-        // next read from which we will extract reference chunk
-        //
-        // More precisely, 
-        // _next_chunk_provider = argmax (read => read.end_position) 
-        //                 {reads overlapping current column}
-        private typeof(_column._reads[].front) _next_chunk_provider;
-
-        private bool _has_next_chunk_provider = false;
-
-        // coverage at the previous location
-        private ulong _prev_coverage;
-
-        this(R reads) {
-            super(reads);
-
-            if (!reads.empty) {
-                auto _read = _column._reads[].back;
-
-                // prepare first chunk
-                _chunk = dna(_read.read.read); // two layers of wrapping 
-
-                // set up _next_chunk_provider explicitly
-                _next_chunk_provider = _read;
-                _chunk_end_position = _read.end_position;
-                _has_next_chunk_provider = true;
-
-                _column._reference_base = _chunk.front;
-                _chunk.popFront();
-            }
-        }
-
-        protected override void add(ref Alignment read) {
-            // the behaviour depends on whether a new contig starts here or not
-            bool had_zero_coverage = _prev_coverage == 0;
-
-            super.add(read);
-
-            // get wrapped read
-            auto _read = _column._reads[].back;
-
-            // two subsequent next_chunk_providers must overlap
-            // unless (!) there was a region with zero coverage in-between
-            if (_read.position > _chunk_end_position && !had_zero_coverage) {
-                return;
-            }
-
-            // compare with previous candidate and replace if this one is better
-            if (_read.end_position > _chunk_end_position) {
-                if (!_has_next_chunk_provider) {
-                    _has_next_chunk_provider = true;
-                    _next_chunk_provider = _read;
-                } else if (_read.end_position > _next_chunk_provider.end_position) {
-                    _next_chunk_provider = _read;
-                }
-            }
-        }
-
-        void popFront() {
-            if (!_chunk.empty) {
-                // update current reference base
-                _column._reference_base = _chunk.front;
-
-                _chunk.popFront();
-            }
-
-            // update _prev_coverage
-            _prev_coverage = _column.coverage;
-
-            // the order is important - maybe we will obtain new next_chunk_provider
-            // during this call to popFront()
-            super.popFront();
-
-            // If we have consumed the whole current chunk,
-            // we need to obtain the next one if it's possible.
-            if (_chunk.empty && _has_next_chunk_provider) {
-                _chunk = dna(_next_chunk_provider.read.read);
-
-                debug {
-                    
-                    import std.stdio;
-                    writeln();
-                    writeln("position: ", _next_chunk_provider.position);
-                    writeln("next chunk: ", to!string(_chunk));
-                    
-                }
-
-                _chunk_end_position = _next_chunk_provider.end_position;
-
-                _has_next_chunk_provider = false;
-
-                _chunk.popFrontN(cast(size_t)(_column.position - _next_chunk_provider.position));
-
-                _column._reference_base = _chunk.front;
-                _chunk.popFront();
-            }
-        }
-    }
-
-    return pileupColumns!PileupRangeWithRefBases(reads, start_from, end_at);
+        return pileupColumns!PileupRangeWithRefBases(reads, start_from, end_at);
 }
 
 unittest {
