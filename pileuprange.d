@@ -684,7 +684,7 @@ auto pileupChunks(alias pileupFunc=pileupWithReferenceBases, R)(R reads, size_t 
         }
 
         auto front() @property {
-            return pileupFunc(_current_chunk.dup, _beg, 
+            return pileupFunc(chain(_prev_chunk, _current_chunk), _beg, 
                               _current_chunk[$-1].position);
         }
 
@@ -742,7 +742,7 @@ auto pileupChunks(alias pileupFunc=pileupWithReferenceBases, R)(R reads, size_t 
                 }
             }
 
-            _prev_chunk = _prev_chunk[i .. $] ~ _current_chunk;
+            _prev_chunk = _prev_chunk[i .. $];
         }
     }
 

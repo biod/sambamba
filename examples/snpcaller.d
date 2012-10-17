@@ -29,10 +29,11 @@ void main(string[] args) {
     auto reads = bam.alignments;
 
     caller = new shared(MaqSnpCaller)();
+    (cast()caller).minimum_call_quality = 20.0f;
 
-    auto pileups = pileupChunks(reads, 8_000_000);
+    auto pileups = pileupChunks(reads, 16_000_000);
 
-    foreach (snp; joiner(task_pool.map!getSnps(pileups, 32))) {
+    foreach (snp; joiner(task_pool.map!getSnps(pileups, 16))) {
         writeln(snp.position, " ", snp.reference_base, " ", snp.genotype, " ", snp.quality);
     }
 }

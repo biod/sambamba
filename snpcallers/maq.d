@@ -253,7 +253,7 @@ class ErrorModel {
 ///
 /// Typical usage:
 ///     auto caller = new MaqSnpCaller();
-///     caller.minimum_call_quality = 20.0;
+///     caller.minimum_call_quality = 20.0f;
 ///     caller.minimum_base_quality = 13;
 ///     foreach (snp; caller.findSNPs(reads)) { ... }
 ///
