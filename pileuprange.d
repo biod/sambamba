@@ -324,7 +324,7 @@ struct AbstractPileup(S) {
     }
 }
 
-auto pileupColumns(alias P, R)(R reads, ulong start_from, ulong end_at) {
+auto pileupInstance(alias P, R)(R reads, ulong start_from, ulong end_at) {
     auto rs = filter!"!a.is_unmapped"(reads);
     while (!rs.empty) {
         auto r = rs.front;
@@ -348,6 +348,7 @@ auto pileupColumns(alias P, R)(R reads, ulong start_from, ulong end_at) {
 }
 
 /// Creates a pileup range from a range of reads.
+/// Note that all reads must be aligned to the same reference.
 ///
 /// See $(D PileupColumn) documentation for description of range elements.
 /// Note also that you can't use $(D std.array.array()) function on pileup
@@ -365,7 +366,7 @@ auto pileupColumns(alias P, R)(R reads, ulong start_from, ulong end_at) {
 /// [max(start_from, first mapped read start position), 
 ///  min(end_at, last mapped read end position))
 auto pileup(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
-    return pileupColumns!PileupRange(reads, start_from. end_at);
+    return pileupInstance!PileupRange(reads, start_from. end_at);
 }
 
 // pileup with reference bases using MD tag and CIGAR
@@ -526,7 +527,7 @@ final static class PileupRangeWithRefBases(R) :
 /// NOTE: you can use this function only if reads have MD tags correctly set!
 auto pileupWithReferenceBases(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
 
-    return pileupColumns!PileupRangeWithRefBases(reads, start_from, end_at);
+    return pileupInstance!PileupRangeWithRefBases(reads, start_from, end_at);
 }
 
 unittest {

@@ -199,14 +199,12 @@ struct BamFile {
       and be strictly less than the second one.
 
       For decompression, uses task pool specified at BamFile construction.
-
-      Doesn't work when the stream is non-seekable.
      */ 
     auto getAlignmentsBetween(VirtualOffset from, VirtualOffset to) {
         enforce(from < to, "First offset must be strictly less than second");
-        enforce(_random_access_manager !is null);
+        enforce(_stream_is_seekable, "Stream is not seekable");
         
-        return _random_access_manager.getAlignmentsBetween(from, to);
+        return _random_access_manager.getAlignmentsBetween(from, to, _task_pool);
     }
 
     /**

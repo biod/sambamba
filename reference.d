@@ -77,9 +77,19 @@ struct ReferenceSequence {
         return opSlice(0, length);
     }
 
+    private alias typeof(opSlice().front) Read;
+    private Read _first_read() @property {
+        return opSlice().front.dup;
+    }
+
     /// First position on the reference overlapped by reads (0-based)
     int firstPosition() {
-        return opSlice().front.position;
+        return _first_read.position;
+    }
+
+    /// Virtual offset at which reads aligned to this reference start.
+    VirtualOffset startVirtualOffset() {
+        return _first_read.start_virtual_offset;
     }
 
     /// Last position on the reference overlapped by reads (0-based)

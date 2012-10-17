@@ -89,19 +89,29 @@ class RandomAccessManager {
     }
 
     /// Get new IChunkInputStream starting from specified virtual offset.
-    IChunkInputStream createStreamStartingFrom(VirtualOffset offset) {
+    IChunkInputStream createStreamStartingFrom(VirtualOffset offset, TaskPool task_pool=null) {
 
         auto _stream = new utils.stream.File(_filename);
         auto _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
         _compressed_stream.seekSet(cast(size_t)(offset.coffset));
 
         auto bgzf_range = BgzfRange(_compressed_stream);
-        auto decompressed_range = map!decompressSerial(bgzf_range);
 
-        IChunkInputStream stream = makeChunkInputStream(decompressed_range);
-        stream.readString(offset.uoffset); // TODO: optimize
-    
-        return stream;
+        auto helper(R)(R decompressed_range) {
+
+            auto adjusted_front = AugmentedDecompressedBgzfBlock(decompressed_range.front,
+                                                                 offset.uoffset, 0); 
+            decompressed_range.popFront();
+            auto adjusted_range = chain([adjusted_front], map!makeAugmentedBlock(decompressed_range));
+
+            return cast(IChunkInputStream)makeChunkInputStream(adjusted_range);
+        }
+
+        if (task_pool is null) {
+            return helper(map!decompressSerial(bgzf_range));
+        } else {
+            return helper(task_pool.map!(bgzfrange.decompressBgzfBlock)(bgzf_range));
+        }
     }
 
     /// Get single alignment at a given virtual offset.
@@ -113,8 +123,10 @@ class RandomAccessManager {
 
     /// Get alignments between two virtual offsets. First virtual offset must point
     /// to a start of an alignment record.
-    auto getAlignmentsBetween(VirtualOffset from, VirtualOffset to) {
-        IChunkInputStream stream = createStreamStartingFrom(from);
+    ///
+    /// If $(D task_pool) is not null, it is used for parallel decompression. Otherwise, decompression is serial.
+    auto getAlignmentsBetween(VirtualOffset from, VirtualOffset to, TaskPool task_pool=null) {
+        IChunkInputStream stream = createStreamStartingFrom(from, task_pool);
         return until!(function (AlignmentBlock record, VirtualOffset vo) { return record.end_virtual_offset > vo; })
                      (alignmentRange!withOffsets(stream), to);
     }

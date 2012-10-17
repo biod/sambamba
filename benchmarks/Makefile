@@ -4,7 +4,8 @@ FILES=../bamfile.d ../utils/range.d ../chunkinputstream.d ../bgzfrange.d \
 	  ../virtualoffset.d ../randomaccessmanager.d ../bai/read.d \
 	  ../bai/bin.d ../bai/chunk.d ../bai/utils/algo.d ../utils/algo.d \
 	  ../alignmentrange.d ../utils/memoize.d ../constants.d ../utils/array.d \
-	  ../utils/value.d ../bgzfcompress.d ../utils/format.d
+	  ../utils/value.d ../bgzfcompress.d ../utils/format.d ../BioD/Base.d \
+	  ../BioD/TinyMap.d ../utils/msgpack.d ../utils/stream.d
 
 
 DMDFLAGS=-O -release -inline

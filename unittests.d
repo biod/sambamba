@@ -163,6 +163,20 @@ unittest {
         compareWithNaiveApproach(i, i + 100);
     }
 
+    {
+        auto fst_offset_tiny = bf["tiny"].startVirtualOffset();
+        auto fst_offset_small = bf["small"].startVirtualOffset();
+        auto fst_offset_large = bf["large"].startVirtualOffset();
+
+        auto fst_read_tiny = bf.getAlignmentAt(fst_offset_tiny);
+        auto fst_read_small = bf.getAlignmentAt(fst_offset_small);
+        auto fst_read_large = bf.getAlignmentAt(fst_offset_large);
+
+        assert(fst_read_tiny.read_name == "tiny:r1:0..1:len1:bin4681:hexbin0x1249");
+        assert(fst_read_small.read_name == "small:r1:0..1:len1:bin4681:hexbin0x1249");
+        assert(fst_read_large.read_name == "large:r1:0..1:len1:bin4681:hexbin0x1249");
+    }
+
     writeln("Testing Value code...");
     Value v = 5;
     assert(v.is_integer);

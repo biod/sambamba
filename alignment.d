@@ -1141,4 +1141,8 @@ struct EagerAlignment {
 
     /// End position on the reference, computed as position + basesCovered().
     int end_position;
+
+    EagerAlignment dup() @property const {
+        return EagerAlignment(read.dup);
+    }
 }
