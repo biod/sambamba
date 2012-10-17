@@ -437,17 +437,3 @@ class MaqSnpCaller {
         return Result(this, pileup_columns);
     }
 }
-
-void main(string[] args) {
-    import bamfile;
-    import std.stdio;
-
-    auto fn = args[1];
-    auto reads = BamFile(fn).alignments;
-
-    auto caller = new MaqSnpCaller();
-
-    foreach (snp; caller.findSNPs(pileupWithReferenceBases(reads))) {
-        writeln(snp.position, " ", snp.reference_base, " ", snp.genotype, " ", snp.quality);
-    }
-}

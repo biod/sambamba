@@ -23,6 +23,9 @@ coverage: $(FILES) coverage.d ../pileuprange.d
 coverage-gdc: $(FILES) coverage.d ../pileuprange.d
 	gdc $(FILES) $(DCOLLECTIONS_FILES) ../pileuprange.d coverage.d $(GDCFLAGS) -o coverage
 
+snpcaller: $(FILES) ../pileuprange.d ../BioD/Call.d ../BioD/TinyMap.d ../BioD/Genotype.d ../snpcallers/maq.d snpcaller.d
+	rdmd --build-only -I.. $(DMDFLAGS) snpcaller.d
+
 validator: $(FILES) validator.d
 	dmd $(FILES) validator.d -ofvalidator $(DMDFLAGS) -version=serial
 
