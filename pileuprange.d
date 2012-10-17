@@ -710,11 +710,11 @@ auto pileupChunks(alias pileupFunc=pileupWithReferenceBases, R)(R reads, size_t 
                 for (size_t k = 0; k < _prev_chunk.length; ++k) {
                     buf[k++] = _prev_chunk[k].sequence_length;
                 }
-                sort(buf[0.._prev_chunk.length]);
+                topN(buf[0.._prev_chunk.length], _prev_chunk.length / 2);
                 read_length = buf[_prev_chunk.length / 2];
             } else {
-                copy(map!"a.sequence_length"(take/*randomSample*/(_prev_chunk, 15)), buf[]);
-                sort(buf[]);
+                copy(map!"a.sequence_length"(randomSample(_prev_chunk, 15)), buf[]);
+                topN(buf[], 7);
                 read_length = buf[7];
                 debug {
                     import std.stdio;
