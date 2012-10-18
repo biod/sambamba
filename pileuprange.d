@@ -30,27 +30,6 @@ import std.conv;
 import std.array;
 import std.exception;
 
-static if (__traits(compiles, {import dcollections.LinkList;})) {
-    import dcollections.LinkList;
-} else {
-    pragma(msg, "
-    Pileup module uses containers from `dcollections` library.
-
-    In order to install dcollections, execute following commands
-    from the root directory of Sambamba:
-
-    $ svn co http://svn.dsource.org/projects/dcollections/branches/d2
-    $ cd d2
-    $ ./build-lib-linux.sh
-    $ cd ..
-    $ mv d2/dcollections .
-    $ mv d2/libdcollections.a .
-    $ rm -rf d2/
-
-    ");
-}
-
-
 /// Represents a read aligned to a column
 struct PileupRead(Read=Alignment) {
 
@@ -193,10 +172,7 @@ struct PileupColumn(R) {
 
     /// Reads overlapping the position
     auto reads() @property {
-        // TRICK:
-        // somehow _reads[] doesn't have length property,
-        // thus let's add it using takeExactly
-        return takeExactly(_reads[], coverage);
+        return _reads[];
     }
 
     /// Shortcut for map!(read => read.current_base)(reads)
@@ -224,8 +200,9 @@ auto pileupColumn(R)(ulong position, R reads) {
  * The class for iterating reference bases together with reads overlapping them.
  */
 class PileupRange(R, alias TColumn=PileupColumn) {
-    alias LinkList!(PileupRead!EagerAlignment) ReadList;
-    alias TColumn!ReadList Column;
+    alias PileupRead!EagerAlignment Read;
+    alias Read[] ReadArray;
+    alias TColumn!ReadArray Column;
 
     private {
         R _reads;
@@ -239,7 +216,7 @@ class PileupRange(R, alias TColumn=PileupColumn) {
         // function is negligible compared to computations in EagerAlignment
         // constructor together with inserting a new node to the list.
         void add(ref Alignment read) {
-            _column._reads.add(PileupRead!EagerAlignment(EagerAlignment(read)));
+            _column._reads ~= PileupRead!EagerAlignment(EagerAlignment(read));
         }
     }
 
@@ -248,8 +225,6 @@ class PileupRange(R, alias TColumn=PileupColumn) {
      */
     this(R reads) {
         _reads = reads;
-
-        _column._reads = new ReadList();
 
         if (!_reads.empty) {
 
@@ -286,14 +261,14 @@ class PileupRange(R, alias TColumn=PileupColumn) {
     void popFront() {
         auto pos = ++_column._position;
 
-        foreach (ref remove, ref _read; &_column._reads.purge) 
-        {
-            if (_read.end_position > pos) {
-                _read.incrementPosition();
-            } else {
-                remove = true;
+        size_t survived = 0;
+        for (size_t i = 0; i < _column._reads.length; ++i) {
+            if (_column._reads[i].end_position > pos) {
+                _column._reads[i].incrementPosition();
+                _column._reads[survived++] = _column._reads[i];
             }
         }
+        _column._reads = _column._reads[0 .. survived];
         
         while (!_reads.empty && _reads.front.position == pos) {
             auto read = _reads.front;
