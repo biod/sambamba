@@ -207,6 +207,7 @@ class PileupRange(R, alias TColumn=PileupColumn) {
     private {
         R _reads;
         Column _column;
+        Appender!ReadArray _read_buf;
     }
 
     protected {
@@ -216,7 +217,7 @@ class PileupRange(R, alias TColumn=PileupColumn) {
         // function is negligible compared to computations in EagerAlignment
         // constructor together with inserting a new node to the list.
         void add(ref Alignment read) {
-            _column._reads ~= PileupRead!EagerAlignment(EagerAlignment(read));
+            _read_buf.put(PileupRead!EagerAlignment(EagerAlignment(read)));
         }
     }
 
@@ -225,6 +226,7 @@ class PileupRange(R, alias TColumn=PileupColumn) {
      */
     this(R reads) {
         _reads = reads;
+        _read_buf = appender!ReadArray();
 
         if (!_reads.empty) {
 
@@ -244,6 +246,8 @@ class PileupRange(R, alias TColumn=PileupColumn) {
                     break;
                 }
             }
+
+            _column._reads = _read_buf.data;
         }
     }
 
@@ -254,7 +258,7 @@ class PileupRange(R, alias TColumn=PileupColumn) {
 
     /// Whether all reads have been processed.
     bool empty() @property {
-        return _reads.empty && _column._reads[].empty;
+        return _reads.empty && _read_buf.data.empty;
     }
 
     /// Move to next position on the reference.
@@ -262,19 +266,23 @@ class PileupRange(R, alias TColumn=PileupColumn) {
         auto pos = ++_column._position;
 
         size_t survived = 0;
-        for (size_t i = 0; i < _column._reads.length; ++i) {
-            if (_column._reads[i].end_position > pos) {
-                _column._reads[i].incrementPosition();
-                _column._reads[survived++] = _column._reads[i];
+        auto data = _read_buf.data;
+        for (size_t i = 0; i < data.length; ++i) {
+            if (data[i].end_position > pos) {
+                data[i].incrementPosition();
+                data[survived++] = data[i];
             }
         }
-        _column._reads = _column._reads[0 .. survived];
-        
+
+        _read_buf.shrinkTo(survived);
+
         while (!_reads.empty && _reads.front.position == pos) {
             auto read = _reads.front;
             add(read);
             _reads.popFront();
         }
+
+        _column._reads = _read_buf.data;
     }
 }
 
@@ -413,7 +421,7 @@ final static class PileupRangeWithRefBases(R) :
         super(reads);
 
         if (!reads.empty) {
-            auto _read = _column._reads[].back;
+            auto _read = _read_buf.data.back;
 
             // prepare first chunk
             _chunk = dna(_read.read.read); // two layers of wrapping 
@@ -435,7 +443,7 @@ final static class PileupRangeWithRefBases(R) :
         super.add(read);
 
         // get wrapped read
-        auto _read = _column._reads[].back;
+        auto _read = _read_buf.data.back;
 
         // two subsequent next_chunk_providers must overlap
         // unless (!) there was a region with zero coverage in-between
