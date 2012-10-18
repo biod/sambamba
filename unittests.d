@@ -17,7 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-/*import bgzfrange;
+import bgzfrange;
 import samheader;
 import bamfile;
 import bamoutput;
@@ -32,7 +32,7 @@ import validation.alignment;
 import utils.samheadermerger;
 import utils.tmpfile;
 
-import sam.serialize; */
+import sam.serialize;
 
 import std.path;
 import std.range;
@@ -45,7 +45,7 @@ import std.exception;
 import std.math;
 
 unittest {
-/*
+
     writeln("Testing extracting SAM header...");
     auto fn = buildPath(dirName(__FILE__), "test", "data", "ex1_header.bam");
     auto bf = BamFile(fn);
@@ -270,7 +270,7 @@ unittest {
     assert(sf.alignments.front.ref_id == 0);
     assert(equal(sf.alignments, bf.alignments!withoutOffsets));
     }
-*/
+
 }
 
 void main() {
