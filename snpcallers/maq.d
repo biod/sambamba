@@ -257,7 +257,7 @@ class ErrorModel {
 ///     caller.minimum_base_quality = 13;
 ///     foreach (snp; caller.findSNPs(reads)) { ... }
 ///
-class MaqSnpCaller {
+final class MaqSnpCaller {
     
     private float _depcorr = 0.17;
     private float _eta = 0.03;
@@ -327,7 +327,7 @@ class MaqSnpCaller {
     private ErrorModel _errmod;
 
     /// Make call on a pileup column
-    Nullable!DiploidCall5 makeCall(C)(C column) {
+    final Nullable!DiploidCall5 makeCall(C)(C column) {
 
         Nullable!DiploidCall5 result;
 

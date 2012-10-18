@@ -22,6 +22,7 @@ module bamoutput;
 import samheader;
 import reference;
 import alignment;
+import alignmentrange;
 
 import bgzfcompress;
 import constants;
@@ -99,7 +100,8 @@ void writeBAM(R)(Stream stream,
                  TaskPool task_pool=taskPool,
                  size_t parmapbufsz=32,
                  size_t parmapwusz=1) 
-    if (is(Unqual!(ElementType!R) == Alignment))
+    if (is(Unqual!(ElementType!R) == Alignment)
+            || is(Unqual!(ElementType!R) == AlignmentBlock))
 {
     // First, pack header and reference sequences.
     auto header_memory_stream = new MemoryStream();

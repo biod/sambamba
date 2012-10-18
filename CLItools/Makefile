@@ -1,12 +1,44 @@
-FILES=../bai/indexing.d ../jsonserialization.d ../utils/stream.d ../bamfile.d ../chunkinputstream.d ../bgzfrange.d \
-	  ../samheader.d ../reference.d ../BioD/Base.d ../alignment.d \
-	  ../tagvalue.d ../utils/switchendianness.d \
-	  ../validation/alignment.d ../utils/algo.d ../randomaccessmanager.d \
-	  ../bai/read.d ../bai/chunk.d ../bai/bin.d ../bai/utils/algo.d \
-	  ../virtualoffset.d ../utils/range.d ../utils/memoize.d ../sam/serialize.d \
-	  ../utils/format.d ../alignmentrange.d ../bamoutput.d ../constants.d \
-	  ../bgzfcompress.d ../utils/array.d ../utils/value.d ../region.d \
-	  common/progressbar.d ../utils/msgpack.d ../splitter.d
+FILES=$(addprefix ../,\
+	constants.d \
+	utils/array.d \
+	utils/range.d \
+	utils/stream.d \
+	utils/memoize.d \
+	utils/format.d \
+	utils/algo.d \
+	utils/msgpack.d \
+	utils/switchendianness.d \
+	tagvalue.d \
+	utils/value.d \
+	virtualoffset.d \
+	bai/chunk.d \
+	bai/bin.d \
+	bai/read.d \
+	bai/utils/algo.d \
+	BioD/TinyMap.d \
+	BioD/Base.d \
+	bgzfblock.d \
+	chunkinputstream.d \
+	alignment.d \
+	alignmentrange.d \
+	bgzfrange.d \
+	randomaccessmanager.d \
+	reference.d \
+	samheader.d \
+	bamfile.d \
+	sam/serialize.d \
+	md/operation.d \
+	md/parse.d \
+	md/core.d \
+	reconstruct.d \
+	bgzfcompress.d \
+	bamoutput.d \
+	bai/indexing.d \
+	jsonserialization.d \
+	region.d \
+	CLItools/common/progressbar.d \
+	splitter.d \
+	validation/alignment.d)
 
 SAMFILES=../samfile.d ../sam/recordparser.d ../utils/tagstoragebuilder.d
 

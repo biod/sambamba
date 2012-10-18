@@ -19,7 +19,7 @@
 */
 module chunkinputstream;
 
-import bgzfrange;
+import bgzfblock;
 import virtualoffset;
 
 import std.stream;

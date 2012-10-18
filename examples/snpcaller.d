@@ -31,9 +31,9 @@ void main(string[] args) {
     caller = new shared(MaqSnpCaller)();
     (cast()caller).minimum_call_quality = 20.0f;
 
-    auto pileups = pileupChunks(reads, 16_000_000);
+    auto pileups = pileupChunks(reads, 4_000_000);
 
-    foreach (snp; joiner(task_pool.map!getSnps(pileups, 16))) {
+    foreach (snp; joiner(task_pool.map!getSnps(pileups, 128))) {
         writeln(snp.position, " ", snp.reference_base, " ", snp.genotype, " ", snp.quality);
     }
 }
