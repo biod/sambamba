@@ -280,7 +280,7 @@ unittest {
         // pileup objects should process only the first one.
         bf = BamFile(fn); // chr1, chr2
         {
-            auto pileup = pileup(bf.alignments);
+            auto pileup = makePileup(bf.alignments);
             foreach (column; pileup) {
                 foreach (read; column.reads) {
                     assert(bf.reference_sequences[read.ref_id].name == "chr1");

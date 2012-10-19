@@ -39,7 +39,8 @@ FILES=$(addprefix ../,\
 	md/core.d \
 	reconstruct.d \
 	bgzfcompress.d \
-	bamoutput.d)
+	bamoutput.d \
+	splitter.d)
 
 DMDFLAGS=-g -O -release -inline#-g -debug
 GDCFLAGS=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192 -I..

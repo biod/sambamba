@@ -17,10 +17,7 @@ void main(string[] args) {
 
     auto ref_id = bam.alignments.front.ref_id;
     foreach (column; filter!"a.coverage >= 300"(
-                        pileupWithReferenceBases(
-                            filter!"!a.is_unmapped"(
-                                until!((Alignment read) { return read.ref_id != ref_id; })(
-                                    bam.alignmentsWithProgress(dg))))))
+                        makePileup(bam.alignmentsWithProgress(dg))))
     {
         printf("%d %d\n", cast(int)column.position, cast(int)column.coverage);
     }

@@ -156,6 +156,13 @@ struct PileupColumn(R) {
         R _reads;
     }
 
+    /// Reference base. 'N' if not available.
+    char reference_base() @property const {
+        return _reference_base;
+    }
+
+    private char _reference_base = 'N';
+
     /// Coverage at this position (equals to number of reads)
     size_t coverage() const @property {
         return _reads.length;
@@ -340,7 +347,8 @@ auto pileupInstance(alias P, R)(R reads, ulong start_from, ulong end_at) {
         ref_id = rs.front.ref_id;
     }
     auto sameref_rs = until!"a.ref_id != b"(rs, ref_id);
-    auto columns = new P!(typeof(sameref_rs))(sameref_rs);
+    alias typeof(sameref_rs) ReadRange;
+    PileupRange!ReadRange columns = new P!ReadRange(sameref_rs);
     while (!columns.empty) {
         auto c = columns.front;
         if (c.position < start_from) {
@@ -353,71 +361,20 @@ auto pileupInstance(alias P, R)(R reads, ulong start_from, ulong end_at) {
     return AbstractPileup!(typeof(chopped))(chopped, start_from, end_at, ref_id);
 }
 
-/// Creates a pileup range from a range of reads.
-/// Note that all reads must be aligned to the same reference.
-///
-/// See $(D PileupColumn) documentation for description of range elements.
-/// Note also that you can't use $(D std.array.array()) function on pileup
-/// because it won't make deep copies of underlying data structure.
-/// (One might argue that in this case it would be better to use opApply,
-/// but typically one would use $(D std.algorithm.map) on pileup columns
-/// to obtain some numeric characteristics.)
-/// 
-/// Params:
-///     start_from -  position from which to start
-///
-///     end_at     -  position before which to stop
-///
-/// That is, the range of positions is half-open interval 
-/// [max(start_from, first mapped read start position), 
-///  min(end_at, last mapped read end position))
-auto pileup(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
-    return pileupInstance!PileupRange(reads, start_from, end_at);
-}
-
-auto pileupColumns(R)(R reads) {
+auto pileupColumns(R)(R reads, bool use_md_tag=false) {
     auto rs = filter!"!a.is_unmapped"(reads);
-    return new PileupRange!(typeof(rs))(rs);
-}
-
-// pileup with reference bases using MD tag and CIGAR
-//
-// The basic idea is:
-//   take PileupColumn, extend it using alias this (+reference_base());
-//   take PileupRange, extend it (override popFront()/add());
-//
-// What is the new functionality of add()? 
-//
-//  It will check length of the newly added read and track the read which
-//  end position on the reference is the largest. 
-//
-//  When reconstructed reference chunk will become empty, next one will be
-//  constructed from that read. This algorithm allows to minimize the number
-//  of reads for which MD tag will be decoded.
-//
-// What is the new functionality of popFront()?
-//
-//  It will pop an element off the reference chunk, and if it is empty,
-//  update the structure appropriately.
-struct PileupColumnWithRefBases(R) {
-    PileupColumn!R column;
-    alias column this;
-
-    char reference_base() @property const {
-        // zero coverage
-        if (_reads[].empty) {
-            return 'N';
-        }
-
-        // otherwise, the base must be set by PileupRangeWithRefBases code
-        return _reference_base;
+    alias typeof(rs) ReadRange;
+    PileupRange!ReadRange columns;
+    if (use_md_tag) {
+        columns = new PileupRangeUsingMdTag!ReadRange(rs);
+    } else {
+        columns = new PileupRange!ReadRange(rs);
     }
-
-    private char _reference_base;
+    return columns;
 }
 
-final static class PileupRangeWithRefBases(R) : 
-    PileupRange!(R, PileupColumnWithRefBases) 
+final static class PileupRangeUsingMdTag(R) : 
+    PileupRange!(R, PileupColumn) 
 {
     // The code is similar to that in reconstruct.d but here we can't make
     // an assumption about any particular read having non-zero length on reference.
@@ -444,6 +401,12 @@ final static class PileupRangeWithRefBases(R) :
         super(reads);
     }
 
+    //  Checks length of the newly added read and tracks the read which
+    //  end position on the reference is the largest. 
+    //
+    //  When reconstructed reference chunk will become empty, next one will be
+    //  constructed from that read. This algorithm allows to minimize the number
+    //  of reads for which MD tag will be decoded.
     protected override void add(ref Alignment read) {
         // the behaviour depends on whether a new contig starts here or not
         bool had_zero_coverage = _prev_coverage == 0;
@@ -492,6 +455,8 @@ final static class PileupRangeWithRefBases(R) :
 
             _column._reference_base = _chunk.front;
             _chunk.popFront();
+        } else {
+            _column._reference_base = 'N';
         }
     }
 
@@ -501,6 +466,8 @@ final static class PileupRangeWithRefBases(R) :
             _column._reference_base = _chunk.front;
 
             _chunk.popFront();
+        } else {
+            _column._reference_base = 'N';
         }
 
         // update _prev_coverage
@@ -535,14 +502,38 @@ final static class PileupRangeWithRefBases(R) :
     }
 }
 
-
-/// The same as pileup but allows to access bases of the reference.
-/// That is, the current column has additional property reference_base().
+/// Creates a pileup range from a range of reads.
+/// Note that all reads must be aligned to the same reference.
 ///
-/// NOTE: you can use this function only if reads have MD tags correctly set!
-auto pileupWithReferenceBases(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
-
-    return pileupInstance!PileupRangeWithRefBases(reads, start_from, end_at);
+/// See $(D PileupColumn) documentation for description of range elements.
+/// Note also that you can't use $(D std.array.array()) function on pileup
+/// because it won't make deep copies of underlying data structure.
+/// (One might argue that in this case it would be better to use opApply,
+/// but typically one would use $(D std.algorithm.map) on pileup columns
+/// to obtain some numeric characteristics.)
+/// 
+/// Params:
+///
+///     use_md_tag -  if true, use MD tag together with CIGAR
+///                   to recover reference bases
+///
+///     start_from -  position from which to start
+///
+///     end_at     -  position before which to stop
+///
+/// That is, the range of positions is half-open interval 
+/// [max(start_from, first mapped read start position), 
+///  min(end_at, last mapped read end position))
+auto makePileup(R)(R reads, 
+                   bool use_md_tag=false,
+                   ulong start_from=0, 
+                   ulong end_at=ulong.max) 
+{
+    if (use_md_tag) {
+        return pileupInstance!PileupRangeUsingMdTag(reads, start_from, end_at);
+    } else {
+        return pileupInstance!PileupRange(reads, start_from, end_at);
+    }
 }
 
 unittest {
@@ -597,7 +588,7 @@ unittest {
     import std.stdio;
     writeln("Testing pileup (low-level aspects)...");
 
-    auto pileup = pileupWithReferenceBases(reads, 796, 849);
+    auto pileup = makePileup(reads, true, 796, 849);
     assert(pileup.front.position == 796);
     assert(pileup.start_position == 796);
     assert(pileup.end_position == 849);
@@ -669,7 +660,7 @@ unittest {
     reads[3].ref_id = 0;
 
     assert(equal(dna(reads), 
-                 map!(c => c.reference_base)(pileupWithReferenceBases(reads))));
+                 map!(c => c.reference_base)(makePileup(reads, true))));
 }
 
 /// However, it's not effective to do operations on pileup in a single thread.
@@ -677,9 +668,11 @@ unittest {
 /// so that these pileups can be processed in parallel.
 /// 
 /// Params:
+///   use_md_tag -   recover reference bases from MD tag and CIGAR
+///
 ///   block_size -   approximate amount of memory that each pileup will consume,
 ///                  given in bytes. (Usually consumption will be a bit higher.)
-auto pileupChunks(alias pileupFunc=pileupWithReferenceBases, R)(R reads, size_t block_size=16_384_000) {
+auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_000) {
     auto chunks = chunksConsumingLessThan(reads, block_size);
 
     static struct Result(C) {
@@ -688,9 +681,11 @@ auto pileupChunks(alias pileupFunc=pileupWithReferenceBases, R)(R reads, size_t 
         private Alignment[] _current_chunk;
         private bool _empty;
         private ulong _beg = 0;
+        private bool _use_md_tag;
 
-        this(C chunks) {
+        this(C chunks, bool use_md_tag) {
             _chunks = chunks; 
+            _use_md_tag = use_md_tag;
             if (_chunks.empty) {
                 _empty = true;
             } else {
@@ -704,7 +699,9 @@ auto pileupChunks(alias pileupFunc=pileupWithReferenceBases, R)(R reads, size_t 
         }
 
         auto front() @property {
-            return pileupFunc(chain(_prev_chunk, _current_chunk), _beg, 
+            return makePileup(chain(_prev_chunk, _current_chunk), 
+                              _use_md_tag,
+                              _beg, 
                               _current_chunk[$-1].position);
         }
 
@@ -766,5 +763,5 @@ auto pileupChunks(alias pileupFunc=pileupWithReferenceBases, R)(R reads, size_t 
         }
     }
 
-    return Result!(typeof(chunks))(chunks);
+    return Result!(typeof(chunks))(chunks, use_md_tag);
 }
