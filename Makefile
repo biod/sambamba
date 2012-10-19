@@ -37,6 +37,8 @@ FILES=constants.d \
 	md/parse.d \
 	md/core.d \
 	reconstruct.d \
+	splitter.d \
+	pileuprange.d \
 	bgzfcompress.d \
 	bamoutput.d
 

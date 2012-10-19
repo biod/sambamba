@@ -152,17 +152,18 @@ struct PileupRead(Read=Alignment) {
 struct PileupColumn(R) {
     private {
         ulong _position;
+        int _ref_id = -1;
         R _reads;
-    }
-
-    this(ulong position, R reads) {
-        _position = position;
-        _reads = reads;
     }
 
     /// Coverage at this position (equals to number of reads)
     size_t coverage() const @property {
         return _reads.length;
+    }
+
+    /// Returns reference ID (-1 if unmapped)
+    int ref_id() const @property {
+        return _ref_id;
     }
 
     /// Position on the reference
@@ -189,11 +190,6 @@ struct PileupColumn(R) {
     auto read_qualities() @property {
         return map!"a.mapping_quality"(reads);
     }
-}
-
-/// Make a pileup column
-auto pileupColumn(R)(ulong position, R reads) {
-    return PileupColumn!R(position, reads);
 }
 
 /**
@@ -229,25 +225,8 @@ class PileupRange(R, alias TColumn=PileupColumn) {
         _read_buf = appender!ReadArray();
 
         if (!_reads.empty) {
-
-            auto read = _reads.front;
-
-            _column._position = read.position;
-            add(read);
-
-            _reads.popFront();
-
-            while (!_reads.empty) {
-                read = _reads.front;
-                if (read.position == _column._position) {
-                    add(read);
-                    _reads.popFront();
-                } else {
-                    break;
-                }
-            }
-
-            _column._reads = _read_buf.data;
+            initNewReference(); // C++ programmers, don't worry! Virtual tables in D
+                                // are populated before constructor body is executed.
         }
     }
 
@@ -276,10 +255,43 @@ class PileupRange(R, alias TColumn=PileupColumn) {
 
         _read_buf.shrinkTo(survived);
 
-        while (!_reads.empty && _reads.front.position == pos) {
-            auto read = _reads.front;
-            add(read);
-            _reads.popFront();
+        if (!_reads.empty) {
+            if (_reads.front.ref_id != _column._ref_id && 
+                survived == 0) // processed all reads aligned to the previous reference
+            {
+                initNewReference();
+            } else {
+                while (!_reads.empty && 
+                        _reads.front.position == pos && 
+                        _reads.front.ref_id == _column._ref_id) 
+                {
+                    auto read = _reads.front;
+                    add(read);
+                    _reads.popFront();
+                }
+            }
+        }
+
+        _column._reads = _read_buf.data;
+    }
+
+    protected void initNewReference() {
+        auto read = _reads.front;
+
+        _column._position = read.position;
+        _column._ref_id = read.ref_id;
+        add(read);
+
+        _reads.popFront();
+
+        while (!_reads.empty) {
+            read = _reads.front;
+            if (read.position == _column._position) {
+                add(read);
+                _reads.popFront();
+            } else {
+                break;
+            }
         }
 
         _column._reads = _read_buf.data;
@@ -295,15 +307,21 @@ struct AbstractPileup(S) {
     private {
         ulong _start_position;
         ulong _end_position;
+        int _ref_id;
     }
 
     /// $(D start_from) parameter provided to a pileup function
-    ulong start_position() const {
+    ulong start_position() @property const {
         return _start_position;
     }
     /// $(D end_at) parameter provided to a pileup function
-    ulong end_position() const { 
+    ulong end_position() @property const { 
         return _end_position;
+    }
+
+    /// Reference ID of all reads in this pileup.
+    int ref_id() @property const {
+        return _ref_id;
     }
 }
 
@@ -317,7 +335,12 @@ auto pileupInstance(alias P, R)(R reads, ulong start_from, ulong end_at) {
             break;
         }
     }
-    auto columns = new P!(typeof(rs))(rs);
+    int ref_id = -1;
+    if (!rs.empty) {
+        ref_id = rs.front.ref_id;
+    }
+    auto sameref_rs = until!"a.ref_id != b"(rs, ref_id);
+    auto columns = new P!(typeof(sameref_rs))(sameref_rs);
     while (!columns.empty) {
         auto c = columns.front;
         if (c.position < start_from) {
@@ -327,7 +350,7 @@ auto pileupInstance(alias P, R)(R reads, ulong start_from, ulong end_at) {
         }
     }
     auto chopped = until!"a.position >= b"(columns, end_at);
-    return AbstractPileup!(typeof(chopped))(chopped, start_from, end_at);
+    return AbstractPileup!(typeof(chopped))(chopped, start_from, end_at, ref_id);
 }
 
 /// Creates a pileup range from a range of reads.
@@ -349,7 +372,12 @@ auto pileupInstance(alias P, R)(R reads, ulong start_from, ulong end_at) {
 /// [max(start_from, first mapped read start position), 
 ///  min(end_at, last mapped read end position))
 auto pileup(R)(R reads, ulong start_from=0, ulong end_at=ulong.max) {
-    return pileupInstance!PileupRange(reads, start_from. end_at);
+    return pileupInstance!PileupRange(reads, start_from, end_at);
+}
+
+auto pileupColumns(R)(R reads) {
+    auto rs = filter!"!a.is_unmapped"(reads);
+    return new PileupRange!(typeof(rs))(rs);
 }
 
 // pileup with reference bases using MD tag and CIGAR
@@ -375,10 +403,6 @@ struct PileupColumnWithRefBases(R) {
     PileupColumn!R column;
     alias column this;
 
-    this(ulong position, R reads) {
-        column = PileupColumn!R(position, reads);
-    }
-
     char reference_base() @property const {
         // zero coverage
         if (_reads[].empty) {
@@ -395,7 +419,6 @@ struct PileupColumnWithRefBases(R) {
 final static class PileupRangeWithRefBases(R) : 
     PileupRange!(R, PileupColumnWithRefBases) 
 {
-
     // The code is similar to that in reconstruct.d but here we can't make
     // an assumption about any particular read having non-zero length on reference.
 
@@ -419,21 +442,6 @@ final static class PileupRangeWithRefBases(R) :
 
     this(R reads) {
         super(reads);
-
-        if (!reads.empty) {
-            auto _read = _read_buf.data.back;
-
-            // prepare first chunk
-            _chunk = dna(_read.read.read); // two layers of wrapping 
-
-            // set up _next_chunk_provider explicitly
-            _next_chunk_provider = _read;
-            _chunk_end_position = _read.end_position;
-            _has_next_chunk_provider = true;
-
-            _column._reference_base = _chunk.front;
-            _chunk.popFront();
-        }
     }
 
     protected override void add(ref Alignment read) {
@@ -444,6 +452,12 @@ final static class PileupRangeWithRefBases(R) :
 
         // get wrapped read
         auto _read = _read_buf.data.back;
+
+        // if we've just moved to another reference sequence, do nothing
+        // (initNewReference was automatically called)
+        if (_read.ref_id != _column.ref_id) {
+            return;
+        }
 
         // two subsequent next_chunk_providers must overlap
         // unless (!) there was a region with zero coverage in-between
@@ -459,6 +473,25 @@ final static class PileupRangeWithRefBases(R) :
             } else if (_read.end_position > _next_chunk_provider.end_position) {
                 _next_chunk_provider = _read;
             }
+        }
+    }
+
+    protected override void initNewReference() {
+        super.initNewReference();
+        if (!_read_buf.data.empty) {
+            _prev_coverage = 0;
+            auto _read = _read_buf.data.back;
+
+            // prepare first chunk
+            _chunk = dna(_read.read.read); // two layers of wrapping 
+
+            // set up _next_chunk_provider explicitly
+            _next_chunk_provider = _read;
+            _chunk_end_position = _read.end_position;
+            _has_next_chunk_provider = true;
+
+            _column._reference_base = _chunk.front;
+            _chunk.popFront();
         }
     }
 
@@ -483,12 +516,11 @@ final static class PileupRangeWithRefBases(R) :
             _chunk = dna(_next_chunk_provider.read.read);
 
             debug {
-                
-                import std.stdio;
+            /*  import std.stdio;
                 writeln();
                 writeln("position: ", _next_chunk_provider.position);
                 writeln("next chunk: ", to!string(_chunk));
-                
+                */
             }
 
             _chunk_end_position = _next_chunk_provider.end_position;
@@ -563,7 +595,7 @@ unittest {
     auto reference = to!string(dna(reads));
 
     import std.stdio;
-    writeln("Testing pileup...");
+    writeln("Testing pileup (low-level aspects)...");
 
     auto pileup = pileupWithReferenceBases(reads, 796, 849);
     assert(pileup.front.position == 796);
@@ -622,15 +654,19 @@ unittest {
 
     reads[0].position = 979;
     reads[0]["MD"] = "54";
+    reads[0].ref_id = 0;
 
     reads[1].position = 985;
     reads[1]["MD"] = "42C7C3";
+    reads[1].ref_id = 0;
 
     reads[2].position = 1046;
     reads[2]["MD"] = "54";
+    reads[2].ref_id = 0;
 
     reads[3].position = 1048;
     reads[3]["MD"] = "54";
+    reads[3].ref_id = 0;
 
     assert(equal(dna(reads), 
                  map!(c => c.reference_base)(pileupWithReferenceBases(reads))));
