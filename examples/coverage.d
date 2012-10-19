@@ -16,7 +16,7 @@ void main(string[] args) {
     auto bam = BamFile(args[1]);
 
     auto ref_id = bam.alignments.front.ref_id;
-    foreach (column; filter!"a.coverage >= 300"(
+    foreach (column; filter!"a.coverage >= 10"(
                         makePileup(bam.alignmentsWithProgress(dg))))
     {
         printf("%d %d\n", cast(int)column.position, cast(int)column.coverage);

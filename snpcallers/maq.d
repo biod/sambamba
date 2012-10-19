@@ -265,12 +265,6 @@ final class MaqSnpCaller {
     private ubyte _minimum_base_quality = 13;
     private bool _need_to_recompute_errmod = true;
 
-    /// Sample name
-    string sample;
-
-    /// Reference sequence name
-    string reference;
-  
     ///
     float depcorr() @property const {
         return _depcorr;
@@ -327,7 +321,7 @@ final class MaqSnpCaller {
     private ErrorModel _errmod;
 
     /// Make call on a pileup column
-    final Nullable!DiploidCall5 makeCall(C)(C column) {
+    final Nullable!DiploidCall5 makeCall(C)(C column, string reference="", string sample="") {
 
         Nullable!DiploidCall5 result;
 
@@ -380,6 +374,13 @@ final class MaqSnpCaller {
             auto refbase = Base5('N');
         }
 
+        if (sample == "") {
+            auto rg = column.reads.front["RG"];
+            if (!rg.is_nothing) {
+                sample = cast(string)rg;
+            }
+        }
+
         result = DiploidCall5(sample, reference, column.position,
                               refbase, gts[0],
                               likelihood_dict[gts[1]] - likelihood_dict[gts[0]]);
@@ -388,7 +389,7 @@ final class MaqSnpCaller {
     }
 
     /// main method of this class
-    auto findSNPs(P)(P pileup_columns) {
+    auto findSNPs(P)(P pileup_columns, string reference="", string sample="") {
         static assert(__traits(compiles, {pileup_columns.front.reference_base;}));
 
         static struct Result {
@@ -396,10 +397,14 @@ final class MaqSnpCaller {
             private P _pileup;
             private DiploidCall5 _front;
             private bool _empty;
+            private string _reference;
+            private string _sample;
 
-            this(MaqSnpCaller caller, P pileup) {
+            this(MaqSnpCaller caller, P pileup, string reference, string sample) {
                 _caller = caller;
                 _pileup = pileup;
+                _reference = reference;
+                _sample = sample;
                 _fetchNextSNP();
             }
 
@@ -423,7 +428,7 @@ final class MaqSnpCaller {
                         break;
                     }
 
-                    auto call = _caller.makeCall(_pileup.front);
+                    auto call = _caller.makeCall(_pileup.front, _reference, _sample);
                     if (!call.isNull && call.is_variant && call.quality > _caller.minimum_call_quality) {
                         _front = call.get;
                         break;
@@ -434,6 +439,6 @@ final class MaqSnpCaller {
             }
         }
 
-        return Result(this, pileup_columns);
+        return Result(this, pileup_columns, reference, sample);
     }
 }
