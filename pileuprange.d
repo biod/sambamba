@@ -321,6 +321,7 @@ struct AbstractPileup(S) {
     ulong start_position() @property const {
         return _start_position;
     }
+
     /// $(D end_at) parameter provided to a pileup function
     ulong end_position() @property const { 
         return _end_position;
@@ -666,6 +667,9 @@ unittest {
 /// However, it's not effective to do operations on pileup in a single thread.
 /// This function constructs range of consecutive pileups from a range of reads
 /// so that these pileups can be processed in parallel.
+/// 
+/// It's allowed to pass ranges of sorted reads with different ref. IDs,
+/// they won't get mixed in any chunk.
 /// 
 /// Params:
 ///   use_md_tag -   recover reference bases from MD tag and CIGAR

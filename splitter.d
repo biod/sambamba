@@ -11,9 +11,10 @@ import std.traits;
 struct AlignmentRangeSplitter(R, alias fn) 
     if (isInputRange!R && is(Unqual!(ElementType!R) == Alignment))
 {
-    this(R range, size_t threshold) {
+    this(R range, size_t threshold, bool split_by_ref) {
         _range = range;
         _size = threshold;
+        _split_by_ref = split_by_ref;
         _appender = appender!(Alignment[])();
         getNextChunk();
     }
@@ -21,6 +22,7 @@ struct AlignmentRangeSplitter(R, alias fn)
     private {
         R _range;
         bool _empty;
+        bool _split_by_ref;
         size_t _size;
         Appender!(Alignment[]) _appender;
     }
@@ -55,6 +57,9 @@ struct AlignmentRangeSplitter(R, alias fn)
 
         while (total_size <= _size && !_range.empty) {
             auto read = _range.front;
+            if (_split_by_ref && (read.ref_id != first_read.ref_id)) {
+                break;
+            }
             total_size += unaryFun!fn(read);
             _appender.put(read);
             _range.popFront();
@@ -64,11 +69,15 @@ struct AlignmentRangeSplitter(R, alias fn)
 
 /// Split range in chunks where total amount of memory consumed by all reads 
 /// in the chunk is roughly chunk_size bytes.
-auto chunksConsumingLessThan(R)(R alignments, size_t size_in_bytes) {
-    return AlignmentRangeSplitter!(R, "a.size_in_bytes")(alignments, size_in_bytes);
+///
+/// Parameter $(D split_by_ref) specifies that each chunk should contain reads
+/// aligned to the same reference. In most cases, this simplifies post-processing,
+/// but in some cases this is not required, therefore it is optional.
+auto chunksConsumingLessThan(R)(R alignments, size_t size_in_bytes, bool split_by_ref=true) {
+    return AlignmentRangeSplitter!(R, "a.size_in_bytes")(alignments, size_in_bytes, split_by_ref);
 }
 
 /// Split range in chunks each containing no more than N reads
-auto chunksOfSize(R)(R alignments, size_t N) {
-    return AlignmentRangeSplitter!(R, "1")(alignments, N);
+auto chunksOfSize(R)(R alignments, size_t N, bool split_by_ref=true) {
+    return AlignmentRangeSplitter!(R, "1")(alignments, N, split_by_ref);
 }
