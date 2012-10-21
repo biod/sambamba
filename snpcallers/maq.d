@@ -403,7 +403,6 @@ final class MaqSnpCaller {
 
         if (i == 0) {
             GenotypeLikelihoodInfo result;
-            if (result.count != 0) throw new Exception("wtf?!!!");
             return result;
         }
 
