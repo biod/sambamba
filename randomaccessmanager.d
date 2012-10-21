@@ -176,7 +176,7 @@ class RandomAccessManager {
     }
 
     /// Fetch alignments with given reference sequence id, overlapping [beg..end)
-    auto getAlignments(alias IteratePolicy=withOffsets)(int ref_id, int beg, int end) {
+    auto getAlignments(alias IteratePolicy=withOffsets)(int ref_id, uint beg, uint end) {
         auto _stream = new utils.stream.File(_filename);
         Stream _compressed_stream = new EndianStream(_stream, Endian.littleEndian);
 
@@ -329,7 +329,7 @@ public:
     }
 
     static struct AlignmentFilter(R) {
-        this(R r, int ref_id, int beg, int end) {
+        this(R r, int ref_id, uint beg, uint end) {
             _range = r;
             _ref_id = ref_id;
             _beg = beg;
@@ -353,8 +353,8 @@ public:
     private: 
         R _range;
         int _ref_id;
-        int _beg;
-        int _end;
+        uint _beg;
+        uint _end;
         bool _empty;
         ElementType!R _current_alignment;
 
@@ -413,7 +413,7 @@ public:
     // Get range of alignments sorted by leftmost coordinate,
     // together with an interval [beg, end),
     // and return another range of alignments which overlap the region.
-    static auto filterAlignments(R)(R r, int ref_id, int beg, int end) 
+    static auto filterAlignments(R)(R r, int ref_id, uint beg, uint end) 
     {
         return AlignmentFilter!R(r, ref_id, beg, end);
     }

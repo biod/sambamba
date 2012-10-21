@@ -156,9 +156,9 @@ unittest {
     compareWithNaiveApproach( 361, 1231);
     compareWithNaiveApproach( 322,  612);
     compareWithNaiveApproach( 912,  938);
-    compareWithNaiveApproach(-100, 3000);
-    compareWithNaiveApproach(-100,  100);
-    compareWithNaiveApproach(-100, 1000);
+    compareWithNaiveApproach(   0, 3000);
+    compareWithNaiveApproach(   0,  100);
+    compareWithNaiveApproach(   0, 1000);
     compareWithNaiveApproach(   0, 1900);
     compareWithNaiveApproach(   1,  279);
     for (auto i = 50_000; i < 1_000_000; i += 50_000) {

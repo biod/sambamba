@@ -66,7 +66,7 @@ struct ReferenceSequence {
     }
 
     /// Get alignments overlapping [start, end)
-    auto opSlice(int start, int end) {
+    auto opSlice(uint start, uint end) {
         enforce(start < end, "start must be less than end");
         enforce(_manager !is null, "random access is not available");
         return _manager.getAlignments(_ref_id, start, end);
