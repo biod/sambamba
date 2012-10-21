@@ -48,6 +48,11 @@ OPTIONS:
 
     --threads=NTHREADS
         Number of threads to use. Default is the number of available cores plus one.
+
+    --chunk_size=CHUNK_SIZE
+        File is divided is chunks for parallelism. CHUNK_SIZE is approximate size in bytes
+        of a single unpacked chunk. Thus, granularity is controlled by this parameter.
+        Default value is 4000000 (4MB). Minimum is set internally to 10000.
 ");
 }
 
@@ -59,6 +64,7 @@ void main(string[] args) {
     int mincallquality = 10;
     ubyte minbasequality = 10;
     uint nthreads = totalCPUs + 1;
+    size_t chunksize = 4_000_000;
 
     try {
         getopt(args,
@@ -68,11 +74,17 @@ void main(string[] args) {
                "stop", &end,
                "min_base_quality", &minbasequality,
                "min_call_quality", &mincallquality,
-               "threads", &nthreads);
+               "threads", &nthreads,
+               "chunk_size", &chunksize);
 
         if (nthreads == 0) {
             nthreads = 1;
         }
+
+        if (chunksize < 10_000) {
+            chunksize = 10_000;
+        }
+
     } catch (Exception e) {
         stderr.writeln(e.msg);
         stderr.writeln();
@@ -106,7 +118,7 @@ void main(string[] args) {
 
         auto reads = bam[chr][beg .. end];
 
-        auto pileups = pileupChunks(reads, true, 4_000_000);
+        auto pileups = pileupChunks(reads, true, chunksize);
 
         foreach (snp; joiner(task_pool.map!getSnps(pileups, 32))) {
             if (snp.genotype.is_homozygous) {
