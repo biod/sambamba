@@ -381,7 +381,7 @@ final static class PileupRangeUsingMdTag(R) :
     // an assumption about any particular read having non-zero length on reference.
 
     // current chunk of reference
-    private typeof(dna(_reads.front)) _chunk;
+    private typeof(dna(_column._reads[].front)) _chunk;
 
     // end position of the current chunk on reference (assuming half-open interval)
     private uint _chunk_end_position;
@@ -447,7 +447,7 @@ final static class PileupRangeUsingMdTag(R) :
             auto _read = _read_buf.data.back;
 
             // prepare first chunk
-            _chunk = dna(_read.read.read); // two layers of wrapping 
+            _chunk = dna(_read);
 
             // set up _next_chunk_provider explicitly
             _next_chunk_provider = _read;
@@ -481,7 +481,7 @@ final static class PileupRangeUsingMdTag(R) :
         // If we have consumed the whole current chunk,
         // we need to obtain the next one if it's possible.
         if (_chunk.empty && _has_next_chunk_provider) {
-            _chunk = dna(_next_chunk_provider.read.read);
+            _chunk = dna(_next_chunk_provider);
 
             debug {
             /*  import std.stdio;

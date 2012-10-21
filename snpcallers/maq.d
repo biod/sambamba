@@ -306,7 +306,7 @@ final class MaqSnpCaller {
         _minimum_base_quality = q;
     }
 
-    private ErrorModel errmod() @property {
+    ErrorModel errmod() @property {
         if (_need_to_recompute_errmod) {
             synchronized {
                 if (_need_to_recompute_errmod) {
@@ -347,33 +347,37 @@ final class MaqSnpCaller {
         ReadBase[] rbs = buf[0 .. i];
 
         auto likelihood_dict = errmod.computeLikelihoods(rbs);
+        
         alias DiploidGenotype!Base5 Gt;
         Gt[25] gt_buf;
+
         size_t k = 0;
-        foreach (gt; likelihood_dict.keys) {
-            gt_buf[k++] = gt;
+
+        // combine iteration with insertion sort
+        foreach (gt, score; likelihood_dict) {
+            if (k == 0) {
+                gt_buf[k++] = gt;
+            } else {
+                size_t j = k;
+                while (j > 0 && likelihood_dict[gt_buf[j-1]] > score) {
+                    gt_buf[j] = gt_buf[j-1];
+                    --j;
+                }
+                gt_buf[j] = gt;
+                ++k;
+            }
         }
 
         assert(k >= 2);
 
         auto gts = gt_buf[0..k];
-        for (i = 1; i < k; i++) {
-            auto gt = gts[i];
-            float likelihood = likelihood_dict[gts[i]];
-            size_t j = i;
-            while (j > 0 && likelihood_dict[gts[j-1]] > likelihood) {
-                gts[j] = gts[j-1];
-                --j;
-            }
-            gts[j] = gt; 
-        }
 
         static if (__traits(compiles, column.reference_base)) {
             auto refbase = Base5(column.reference_base);
         } else {
             auto refbase = Base5('N');
         }
-
+        
         if (sample == "") {
             auto rg = column.reads.front["RG"];
             if (!rg.is_nothing) {

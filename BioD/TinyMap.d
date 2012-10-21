@@ -23,6 +23,7 @@ struct TinyMap(K, V, alias TinyMapPolicy=useBitArray) {
     private V[K.ValueSetSize] _dict;
     private size_t _size;
     private mixin TinyMapPolicy!(K, V) Policy;
+    private alias ReturnType!(K.internal_code) TCode;
 
     /// Constructor
     static TinyMap!(K, V, TinyMapPolicy) opCall(Args...)(Args args) {
@@ -80,8 +81,8 @@ struct TinyMap(K, V, alias TinyMapPolicy=useBitArray) {
     /// Range of keys
     auto keys() @property const {
         auto codes = iota(K.ValueSetSize);
-        auto vals = map!((int i) { return K.fromInternalCode(cast(ubyte)i); })(codes);
-        return filter!((K key) { return key in this; })(vals);
+        auto has = filter!((int i) { return Policy._hasKeyWithCode(cast(size_t)i); })(codes);
+        return map!((int code) { return K.fromInternalCode(cast(TCode)code); })(has);
     }
 
     /// Range of values
@@ -91,18 +92,22 @@ struct TinyMap(K, V, alias TinyMapPolicy=useBitArray) {
 
     /// Iteration with foreach
     int opApply(scope int delegate(V value) dg) {
-        foreach (v; values) {
-            auto ret = dg(v);
-            if (ret != 0) return ret;
+        foreach (i; iota(K.ValueSetSize)) {
+            if (Policy._hasKeyWithCode(i)) {
+                auto ret = dg(_dict[i]);
+                if (ret != 0) return ret;
+            }
         }
         return 0;
     }
 
     /// ditto
     int opApply(scope int delegate(K key, V value) dg) {
-        foreach (k; keys) {
-            auto ret = dg(k, this[k]);
-            if (ret != 0) return ret;
+        foreach (i; iota(K.ValueSetSize)) {
+            if (Policy._hasKeyWithCode(i)) {
+                auto ret = dg(K.fromInternalCode(cast(TCode)i), _dict[i]);
+                if (ret != 0) return ret;
+            }
         }
         return 0;
     }
@@ -122,6 +127,10 @@ mixin template useBitArray(K, V) {
 
     private bool _hasKey(K key) const {
         return _value_is_set[key.internal_code];
+    }
+
+    private bool _hasKeyWithCode(size_t code) const {
+        return _value_is_set[code];
     }
 
     private void _onInsert(K key) {
@@ -153,6 +162,10 @@ mixin template useDefaultValue(K, V) {
         return _dict[key.internal_code] != _default_value;
     }
 
+    private bool _hasKeyWithCode(size_t code) const {
+        return _dict[code] != _default_value;
+    }
+
     private void _onInsert(K key) {}
 
     private void _onRemove(K key) {
@@ -168,6 +181,10 @@ mixin template fillNoRemove(K, V) {
     }
 
     private bool _hasKey(K key) const {
+        return true;
+    }
+
+    private bool _hasKeyWithCode(size_t code) const {
         return true;
     }
 
