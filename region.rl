@@ -22,13 +22,13 @@ module region;
 %%{
     machine region_parser;
 
-    action init_integer { int_value = 0; }
-    action consume_next_digit { if (fc != ',') int_value *= 10, int_value += fc - '0'; }
+    action init_integer { uint_value = 0; }
+    action consume_next_digit { if (fc != ',') uint_value *= 10, uint_value += fc - '0'; }
     integer = [,0-9]+ > init_integer @consume_next_digit ;
 
     action set_reference { region.reference = str[0 .. p - str.ptr]; }
-    action set_left_end { region.beg = to!int(int_value - 1); }
-    action set_right_end { region.end = to!int(int_value); }
+    action set_left_end { region.beg = to!uint(uint_value - 1); }
+    action set_right_end { region.end = to!uint(uint_value); }
 
     reference = ([!-()+-<>-~] [!-~]*) % set_reference ;
     reference_and_left_end = reference :> ':' integer % set_left_end ;
@@ -43,8 +43,8 @@ import std.conv;
 
 struct Region {
     string reference;
-    int beg;
-    int end;
+    uint beg;
+    uint end;
 }
 
 Region parseRegion(string str) {
@@ -52,11 +52,11 @@ Region parseRegion(string str) {
     char* pe = p + str.length;
     char* eof = pe;
     int cs;
-    long int_value;
+    long uint_value;
 
     Region region;
     region.beg = 0;
-    region.end = int.max;
+    region.end = uint.max;
 
     %%write init;
     %%write exec;
@@ -72,8 +72,11 @@ unittest {
 
     auto region2 = parseRegion("chr2");
     assert(region2.reference == "chr2");
+    assert(region2.beg == 0);
+    assert(region2.end == uint.max);
 
     auto region3 = parseRegion("chr3:1,000,000");
     assert(region3.reference == "chr3");
     assert(region3.beg == 999_999);
+    assert(region3.end == uint.max);
 }

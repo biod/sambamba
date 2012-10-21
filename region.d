@@ -1,3 +1,5 @@
+
+#line 1 "region.rl"
 /*
     This file is part of Sambamba.
     Copyright (C) 2012    Artem Tarasov <lomereiter@gmail.com>
@@ -17,12 +19,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-
-#line 1 "../region.rl"
 module region;
 
 
-#line 7 "../region.d"
+#line 26 "region.d"
 static const int region_parser_start = 1;
 static const int region_parser_first_final = 3;
 static const int region_parser_error = 0;
@@ -30,15 +30,15 @@ static const int region_parser_error = 0;
 static const int region_parser_en_region = 1;
 
 
-#line 21 "../region.rl"
+#line 40 "region.rl"
 
 
 import std.conv;
 
 struct Region {
-    string reference = null;
-    int beg;
-    int end;
+    string reference;
+    uint beg;
+    uint end;
 }
 
 Region parseRegion(string str) {
@@ -46,21 +46,21 @@ Region parseRegion(string str) {
     char* pe = p + str.length;
     char* eof = pe;
     int cs;
-    long int_value;
+    long uint_value;
 
     Region region;
     region.beg = 0;
-    region.end = int.max;
+    region.end = uint.max;
 
     
-#line 38 "../region.d"
+#line 57 "region.d"
 	{
 	cs = region_parser_start;
 	}
 
-#line 43 "../region.rl"
+#line 62 "region.rl"
     
-#line 45 "../region.d"
+#line 64 "region.d"
 	{
 	if ( p == pe )
 		goto _test_eof;
@@ -89,14 +89,14 @@ case 3:
 		goto st3;
 	goto st0;
 tr3:
-#line 10 "../region.rl"
+#line 29 "region.rl"
 	{ region.reference = str[0 .. p - str.ptr]; }
 	goto st4;
 st4:
 	if ( ++p == pe )
 		goto _test_eof4;
 case 4:
-#line 81 "../region.d"
+#line 100 "region.d"
 	if ( (*p) == 44u )
 		goto tr5;
 	if ( (*p) < 48u ) {
@@ -116,20 +116,20 @@ case 5:
 		goto st5;
 	goto st0;
 tr5:
-#line 6 "../region.rl"
-	{ int_value = 0; }
-#line 7 "../region.rl"
-	{ if ((*p) != ',') int_value *= 10, int_value += (*p) - '0'; }
+#line 25 "region.rl"
+	{ uint_value = 0; }
+#line 26 "region.rl"
+	{ if ((*p) != ',') uint_value *= 10, uint_value += (*p) - '0'; }
 	goto st6;
 tr6:
-#line 7 "../region.rl"
-	{ if ((*p) != ',') int_value *= 10, int_value += (*p) - '0'; }
+#line 26 "region.rl"
+	{ if ((*p) != ',') uint_value *= 10, uint_value += (*p) - '0'; }
 	goto st6;
 st6:
 	if ( ++p == pe )
 		goto _test_eof6;
 case 6:
-#line 114 "../region.d"
+#line 133 "region.d"
 	switch( (*p) ) {
 		case 44u: goto tr6;
 		case 45u: goto tr7;
@@ -139,34 +139,34 @@ case 6:
 		goto tr6;
 	goto st0;
 tr7:
-#line 11 "../region.rl"
-	{ region.beg = to!int(int_value - 1); }
+#line 30 "region.rl"
+	{ region.beg = to!uint(uint_value - 1); }
 	goto st2;
 st2:
 	if ( ++p == pe )
 		goto _test_eof2;
 case 2:
-#line 131 "../region.d"
+#line 150 "region.d"
 	if ( (*p) == 44u )
 		goto tr2;
 	if ( 48u <= (*p) && (*p) <= 57u )
 		goto tr2;
 	goto st0;
 tr2:
-#line 6 "../region.rl"
-	{ int_value = 0; }
-#line 7 "../region.rl"
-	{ if ((*p) != ',') int_value *= 10, int_value += (*p) - '0'; }
+#line 25 "region.rl"
+	{ uint_value = 0; }
+#line 26 "region.rl"
+	{ if ((*p) != ',') uint_value *= 10, uint_value += (*p) - '0'; }
 	goto st7;
 tr8:
-#line 7 "../region.rl"
-	{ if ((*p) != ',') int_value *= 10, int_value += (*p) - '0'; }
+#line 26 "region.rl"
+	{ if ((*p) != ',') uint_value *= 10, uint_value += (*p) - '0'; }
 	goto st7;
 st7:
 	if ( ++p == pe )
 		goto _test_eof7;
 case 7:
-#line 151 "../region.d"
+#line 170 "region.d"
 	if ( (*p) == 44u )
 		goto tr8;
 	if ( 48u <= (*p) && (*p) <= 57u )
@@ -188,18 +188,18 @@ case 7:
 	case 3: 
 	case 4: 
 	case 5: 
-#line 10 "../region.rl"
+#line 29 "region.rl"
 	{ region.reference = str[0 .. p - str.ptr]; }
 	break;
 	case 6: 
-#line 11 "../region.rl"
-	{ region.beg = to!int(int_value - 1); }
+#line 30 "region.rl"
+	{ region.beg = to!uint(uint_value - 1); }
 	break;
 	case 7: 
-#line 12 "../region.rl"
-	{ region.end = to!int(int_value); }
+#line 31 "region.rl"
+	{ region.end = to!uint(uint_value); }
 	break;
-#line 184 "../region.d"
+#line 203 "region.d"
 		default: break;
 	}
 	}
@@ -207,7 +207,7 @@ case 7:
 	_out: {}
 	}
 
-#line 44 "../region.rl"
+#line 63 "region.rl"
 
     return region;
 }
@@ -220,8 +220,11 @@ unittest {
 
     auto region2 = parseRegion("chr2");
     assert(region2.reference == "chr2");
+    assert(region2.beg == 0);
+    assert(region2.end == uint.max);
 
     auto region3 = parseRegion("chr3:1,000,000");
     assert(region3.reference == "chr3");
     assert(region3.beg == 999_999);
+    assert(region3.end == uint.max);
 }
