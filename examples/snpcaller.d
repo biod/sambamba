@@ -45,6 +45,9 @@ OPTIONS:
     --min_base_quality=MIN_BASE_QUALITY
         Discard reads with base quality less than MIN_BASE_QUALITY from computations.
         Default is 10.
+
+    --threads=NTHREADS
+        Number of threads to use. Default is the number of available cores plus one.
 ");
 }
 
@@ -55,6 +58,7 @@ void main(string[] args) {
     uint end = uint.max;
     int mincallquality = 10;
     ubyte minbasequality = 10;
+    uint nthreads = totalCPUs + 1;
 
     try {
         getopt(args,
@@ -63,9 +67,27 @@ void main(string[] args) {
                "start", &beg,
                "stop", &end,
                "min_base_quality", &minbasequality,
-               "min_call_quality", &mincallquality);
+               "min_call_quality", &mincallquality,
+               "threads", &nthreads);
 
-        auto task_pool = new TaskPool(totalCPUs);
+        if (nthreads == 0) {
+            nthreads = 1;
+        }
+    } catch (Exception e) {
+        stderr.writeln(e.msg);
+        stderr.writeln();
+        printUsage();
+        return;
+    }
+
+    if (args.length != 2) {
+        printUsage();
+        return;
+    }
+
+    try {
+
+        auto task_pool = new TaskPool(nthreads - 1);
         scope(exit) task_pool.finish();
 
         auto fn = args[1];
