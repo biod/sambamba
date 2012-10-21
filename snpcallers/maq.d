@@ -303,7 +303,7 @@ final class MaqSnpCaller {
     }
 
     void minimum_base_quality(ubyte q) @property {
-        _minimum_call_quality = q;
+        _minimum_base_quality = q;
     }
 
     private ErrorModel errmod() @property {

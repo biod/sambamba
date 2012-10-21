@@ -9,7 +9,6 @@ import std.traits;
 /// Constructs range of chunks where sum { fn(read) | read in chunk }
 /// does not exceed given number.
 struct AlignmentRangeSplitter(R, alias fn) 
-    if (isInputRange!R && is(Unqual!(ElementType!R) == Alignment))
 {
     this(R range, size_t threshold, bool split_by_ref) {
         _range = range;
