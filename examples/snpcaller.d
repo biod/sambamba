@@ -30,6 +30,9 @@ void printUsage() {
 "usage: ./snpcaller <input.bam> [OPTIONS]
 
 OPTIONS:
+    --out=FILENAME
+        Write output to a file.
+
     --chr=CHROMOSOME_NAME
         Chromosome (if not given, only the first one presented in BAM file is processed).
 
@@ -59,6 +62,7 @@ OPTIONS:
 void main(string[] args) {
 
     string chr = null;
+    string output_filename = null;
     uint beg = 0;
     uint end = uint.max;
     int mincallquality = 10;
@@ -69,6 +73,7 @@ void main(string[] args) {
     try {
         getopt(args,
                std.getopt.config.caseSensitive,
+               "out", &output_filename,
                "chr", &chr,
                "start", &beg,
                "stop", &end,
@@ -106,6 +111,11 @@ void main(string[] args) {
         auto bam = BamFile(fn, task_pool);
         refs = bam.reference_sequences;
 
+        File file = stdout;
+        if (output_filename !is null) {
+            file = File(output_filename, "w+");
+        }
+
         caller = new shared(MaqSnpCaller)();
 
         // quality more than 50 is considered high
@@ -122,12 +132,14 @@ void main(string[] args) {
 
         foreach (snp; joiner(task_pool.map!getSnps(pileups, 32))) {
             if (snp.genotype.is_homozygous) {
-                writeln(snp.position, '\t', snp.reference_base, '\t',
+                file.writeln(snp.position, '\t', snp.reference_base, '\t',
                         snp.genotype.base1, '\t', snp.quality);
             } else {
-                writeln(snp.position, '\t', snp.reference_base, '\t',
+                file.writeln(snp.position, '\t', snp.reference_base, '\t',
                         snp.genotype.base1, ',', snp.genotype.base2, '\t', snp.quality);
             }
+
+            file.flush();
         }
 
     } catch (Throwable e) {
