@@ -132,6 +132,8 @@ struct ErrorModelCoefficients {
 
     alias TinyMap!(DiploidGenotype!Base5, float, useDefaultValue) Dict;
 
+    private immutable C = 10.0 / LN10;
+
     Dict computeLikelihoods(R)(R read_bases, bool symmetric=false) const
         if (is(ElementType!R == ReadBase) && hasLength!R) 
     {
@@ -206,9 +208,9 @@ struct ErrorModelCoefficients {
 
                 auto b2_5 = cast(Base5)b2;
                 if (tmp2 > 0) {
-                    q[dG(b2_5, b1_5)] = tmp1 - 4.343 * lhet(cij, c[b2]);
+                    q[dG(b2_5, b1_5)] = tmp1 - C * lhet(cij, c[b2]);
                 } else {
-                    q[dG(b2_5, b1_5)] = -4.343 * lhet(cij, c[b2]);
+                    q[dG(b2_5, b1_5)] = -C * lhet(cij, c[b2]);
                 }
 
                 if (symmetric) {
