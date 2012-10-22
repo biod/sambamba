@@ -398,6 +398,9 @@ final static class PileupRangeUsingMdTag(R) :
     // coverage at the previous location
     private ulong _prev_coverage;
 
+    // we also track current reference ID
+    private int _curr_ref_id = -1;
+
     this(R reads) {
         super(reads);
     }
@@ -417,9 +420,13 @@ final static class PileupRangeUsingMdTag(R) :
         // get wrapped read
         auto _read = _read_buf.data.back;
 
-        // if we've just moved to another reference sequence, do nothing
-        // (initNewReference was automatically called)
-        if (_read.ref_id != _column.ref_id) {
+        // if we've just moved to another reference sequence, do the setup
+        if (_read.ref_id != _curr_ref_id) {
+            _curr_ref_id = _read.ref_id;
+
+            _prev_coverage = 0;
+            _has_next_chunk_provider = true;
+            _next_chunk_provider = _read;
             return;
         }
 
@@ -442,18 +449,11 @@ final static class PileupRangeUsingMdTag(R) :
 
     protected override void initNewReference() {
         super.initNewReference();
-        if (!_read_buf.data.empty) {
-            _prev_coverage = 0;
-            auto _read = _read_buf.data.back;
-
+        if (_has_next_chunk_provider) {
             // prepare first chunk
-            _chunk = dna(_read);
-
-            // set up _next_chunk_provider explicitly
-            _next_chunk_provider = _read;
-            _chunk_end_position = _read.end_position;
-            _has_next_chunk_provider = true;
-
+            _chunk = dna(_next_chunk_provider);
+            _chunk_end_position = _next_chunk_provider.end_position;
+            _has_next_chunk_provider = false;
             _column._reference_base = _chunk.front;
             _chunk.popFront();
         } else {
@@ -590,12 +590,20 @@ unittest {
     writeln("Testing pileup (low-level aspects)...");
 
     auto pileup = makePileup(reads, true, 796, 849);
+    auto pileup2 = makePileup(reads, true);
     assert(pileup.front.position == 796);
     assert(pileup.start_position == 796);
     assert(pileup.end_position == 849);
 
+    while (pileup2.front.position != 796) {
+        pileup2.popFront();
+    }
+
     while (!pileup.empty) {
         auto column = pileup.front;
+        auto column2 = pileup2.front;
+        assert(column.coverage == column2.coverage);
+        pileup2.popFront();
 
         // check that DNA is built correctly from MD tags and CIGAR
         assert(column.reference_base == reference[column.position - first_read_position]);
@@ -729,7 +737,7 @@ auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_00
             int read_length = void;
             if (_prev_chunk.length <= 15) {
                 for (size_t k = 0; k < _prev_chunk.length; ++k) {
-                    buf[k++] = _prev_chunk[k].sequence_length;
+                    buf[k] = _prev_chunk[k].sequence_length;
                 }
                 topN(buf[0.._prev_chunk.length], _prev_chunk.length / 2);
                 read_length = buf[_prev_chunk.length / 2];

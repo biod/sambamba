@@ -31,6 +31,7 @@ import std.range;
 /// Reconstruct read DNA.
 /// Returns lazy sequence.
 auto dna(T)(T read) 
+    if(!isInputRange!T)
 {
 
     debug {
