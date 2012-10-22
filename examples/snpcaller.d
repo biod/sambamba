@@ -55,7 +55,7 @@ OPTIONS:
     --chunk_size=CHUNK_SIZE
         File is divided is chunks for parallelism. CHUNK_SIZE is approximate size in bytes
         of a single unpacked chunk. Thus, granularity is controlled by this parameter.
-        Default value is 4000000 (4MB). Minimum is set internally to 10000.
+        Default value is 4000000 (4MB). Minimum is set internally to 100000.
 ");
 }
 
@@ -86,8 +86,8 @@ void main(string[] args) {
             nthreads = 1;
         }
 
-        if (chunksize < 10_000) {
-            chunksize = 10_000;
+        if (chunksize < 100_000) {
+            chunksize = 100_000;
         }
 
     } catch (Exception e) {
@@ -128,7 +128,7 @@ void main(string[] args) {
 
         auto reads = bam[chr][beg .. end];
 
-        auto pileups = pileupChunks(reads, true, chunksize);
+        auto pileups = pileupChunks(reads, true, chunksize, beg, end);
 
         foreach (snp; joiner(task_pool.map!getSnps(pileups, 32))) {
             if (snp.genotype.is_homozygous) {
