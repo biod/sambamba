@@ -385,30 +385,72 @@ final class MaqSnpCaller {
     /// Get genotype likelihoods
     final GenotypeLikelihoodInfo genotypeLikelihoodInfo(C)(C column) {
 
-        ReadBase[8192] buf = void;
-        size_t i = 0;
-
-        foreach (read; column.reads) {
-            if (i == 8192)
-                break;
-            if (read.current_base == '-')
-                continue;
-            if (read.current_base_quality < minimum_base_quality)
-                continue;
-
-            buf[i++] = ReadBase(Base(read.current_base),
-                                min(read.current_base_quality, read.mapping_quality),
-                                read.is_reverse_strand);
+        version(MaqCaller8192) {
+            ReadBase[8192] buf = void;
         }
 
-        if (i == 0) {
+        size_t num_of_valid_bases = 0;
+
+        foreach (read; column.reads) {
+
+            version(MaqCaller8192) {
+                if (num_of_valid_bases == 8192) break;
+            }
+
+            if (read.current_base_quality < minimum_base_quality)
+                continue;
+            if (read.current_base == '-')
+                continue;
+
+            version(MaqCaller8192) {
+                buf[num_of_valid_bases] = ReadBase(Base(read.current_base),
+                                                   min(read.current_base_quality, read.mapping_quality),
+                                                   read.is_reverse_strand);
+            }
+
+            num_of_valid_bases++;
+        }
+
+        static struct ReadBaseRange(R) {
+            private R _reads = void;
+            private ubyte minimum_base_quality = void;
+                                              
+            this(R reads, ubyte minbq) { 
+                _reads = reads; minimum_base_quality = minbq; _findNextValid();
+            }
+
+            ReadBase front() @property const { 
+                auto read = _reads.front;
+                return ReadBase(Base(read.current_base), 
+                                min(read.current_base_quality, read.mapping_quality),
+                                read.is_reverse_strand);
+            }
+            bool empty() @property const { return _reads.empty; }
+            void popFront() { _reads.popFront(); _findNextValid(); }
+            ReadBaseRange save() @property { return ReadBaseRange!R(_reads[], minimum_base_quality); }
+
+            private void _findNextValid() {
+                while (!_reads.empty && 
+                        (_reads.front.current_base_quality < minimum_base_quality ||
+                         _reads.front.current_base == '-')) 
+                {
+                    _reads.popFront();
+                }
+            }
+        }
+
+        if (num_of_valid_bases == 0) {
             GenotypeLikelihoodInfo result;
             return result;
         }
 
-        ReadBase[] rbs = buf[0 .. i];
-
-        auto likelihood_dict = errmod.computeLikelihoods(rbs);
+        version(MaqCaller8192) {
+            ReadBase[] rbs = buf[0 .. num_of_valid_bases];
+            auto likelihood_dict = errmod.computeLikelihoods(rbs);
+        } else {
+            auto rbs = ReadBaseRange!(typeof(column.reads))(column.reads, minimum_base_quality);
+            auto likelihood_dict = errmod.computeLikelihoods(takeExactly(rbs, num_of_valid_bases));
+        }
         return GenotypeLikelihoodInfo(likelihood_dict);
     }
 

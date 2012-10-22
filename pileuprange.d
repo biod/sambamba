@@ -684,7 +684,20 @@ unittest {
 ///
 ///   block_size -   approximate amount of memory that each pileup will consume,
 ///                  given in bytes. (Usually consumption will be a bit higher.)
-auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_000) {
+///
+///   start_from -   position of the first column of the first chunk
+///
+///   end_at     -   position after the last column of the last chunk
+///
+/// @@WARNING@@: block size should be big enough so that every block will share
+///              some reads only with adjacent blocks. 
+///              As an example, you should not use block size 10000 with 454 reads,
+///              since each block will contain only about ~10 alignment records.
+///              The rule of thumb is 
+///              block size = 4 * largest coverage * average read length
+///              (e.g. for 454 reads, max. coverage 500 you would use size 1_000_000)
+auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_000,
+                     ulong start_from=0, ulong end_at=ulong.max) {
     auto chunks = chunksConsumingLessThan(reads, block_size);
 
     static struct Result(C) {
@@ -694,15 +707,31 @@ auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_00
         private bool _empty;
         private ulong _beg = 0;
         private bool _use_md_tag;
+        private ulong _start_from;
+        private ulong _end_at;
 
-        this(C chunks, bool use_md_tag) {
+        this(C chunks, bool use_md_tag, ulong start_from, ulong end_at) {
             _chunks = chunks; 
             _use_md_tag = use_md_tag;
-            if (_chunks.empty) {
-                _empty = true;
-            } else {
-                _current_chunk = _chunks.front;
-                _chunks.popFront();
+            _start_from = start_from;
+            _end_at = end_at;
+            while (true) {
+                if (_chunks.empty) {
+                    _empty = true;
+                } else {
+                    _current_chunk = _chunks.front;
+                    _chunks.popFront();
+
+                    if (_beg >= end_at) {
+                        _empty = true;
+                        break;
+                    }
+
+                    auto last_read = _current_chunk[$-1];
+                    if (last_read.position + last_read.basesCovered() > start_from) {
+                        break;
+                    }
+                }
             }
         }
 
@@ -713,8 +742,8 @@ auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_00
         auto front() @property {
             return makePileup(chain(_prev_chunk, _current_chunk), 
                               _use_md_tag,
-                              _beg, 
-                              _current_chunk[$-1].position);
+                              max(_beg, _start_from), 
+                              min(_current_chunk[$-1].position, _end_at));
         }
 
         void popFront() {
@@ -775,5 +804,5 @@ auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_00
         }
     }
 
-    return Result!(typeof(chunks))(chunks, use_md_tag);
+    return Result!(typeof(chunks))(chunks, use_md_tag, start_from, end_at);
 }
