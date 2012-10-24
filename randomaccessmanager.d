@@ -314,16 +314,22 @@ public:
         static struct Range {
             this(R blocks, Chunk[] bai_chunks) {
                 _blocks = blocks;
+                if (_blocks.empty) {
+                    _empty = true;
+                } else {
+                    _cur_block = _blocks.front;
+                    _blocks.popFront();
+                }
                 _chunks = bai_chunks[];
             }
 
             bool empty() @property {
-                return _blocks.empty;
+                return _empty;
             }
 
             AugmentedDecompressedBgzfBlock front() @property {
                 AugmentedDecompressedBgzfBlock result;
-                result.block = _blocks.front;
+                result.block = _cur_block;
 
                 if (_chunks.empty) {
                     return result;
@@ -343,14 +349,21 @@ public:
             }
 
             void popFront() {
-                if (_blocks.front.start_offset == end.coffset) {
+                if (_cur_block.start_offset == end.coffset) {
                     _chunks = _chunks[1 .. $];
                 }
+                if (_blocks.empty) {
+                    _empty = true;
+                    return;
+                }
+                _cur_block = _blocks.front;
                 _blocks.popFront();
             }
 
             private {
                 R _blocks;
+                ElementType!R _cur_block;
+                bool _empty;
                 Chunk[] _chunks;
 
                 VirtualOffset beg() @property {
@@ -433,6 +446,10 @@ public:
                     return;
                 }
 
+                if (_current_alignment.position > _beg) {
+                    return; // definitely overlaps
+                }
+
                 if (_current_alignment.position +
                     _current_alignment.basesCovered() <= _beg) 
                 {
@@ -440,6 +457,8 @@ public:
                     ///  [-----------)
                     ///               [beg .......... end)
                     _range.popFront();
+                    /// Zero-length reads are also considered non-overlapping,
+                    /// so for consistency the inequality 12 lines above is strict.
                 } else {
                     return; /// _current_alignment overlaps the region
                 }
