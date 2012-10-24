@@ -33,6 +33,11 @@ struct BgzfBlock {
 
     public ulong start_offset; /// start offset in the file, in bytes
 
+    /// end offset in the file, in bytes
+    public ulong end_offset() @property const {
+        return start_offset + bsize + 1;
+    }
+
     public ushort bsize; /// total Block SIZE minus one
     public ubyte[] compressed_data = void;
     public uint crc32;

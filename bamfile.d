@@ -99,6 +99,11 @@ struct BamFile {
         return _random_access_manager.eofVirtualOffset();
     }
 
+    /// Get BGZF block at a given file offset.
+    BgzfBlock getBgzfBlockAt(ulong offset) {
+        return _random_access_manager.getBgzfBlockAt(offset);
+    }
+
     /*
        Get SAM header of file.
      */

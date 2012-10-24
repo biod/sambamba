@@ -133,5 +133,8 @@ sambamba-view-dmd-serial: $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES)
 	mkdir -p build
 	dmd $(DMDFLAGS) $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES) -version=serial -ofbuild/sambamba-view
 
+sambamba-fetchregion:
+	rdmd --build-only -ofbuild/sambamba-fetchregion -O -release -inline -I.. sambamba-fetchregion/fetchregion.d
+
 clean:
 	rm -rf build/

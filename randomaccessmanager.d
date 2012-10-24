@@ -151,6 +151,14 @@ class RandomAccessManager {
         return alignmentRange(stream).front.dup;
     }
 
+    /// Get BGZF block at a given offset.
+    BgzfBlock getBgzfBlockAt(ulong offset) {
+        auto stream = new utils.stream.File(_filename);
+        stream.seekSet(offset);
+        return BgzfRange(stream).front;
+
+    }
+
     /// Get alignments between two virtual offsets. First virtual offset must point
     /// to a start of an alignment record.
     ///
