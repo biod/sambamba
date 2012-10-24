@@ -93,6 +93,12 @@ struct BamFile {
         return _random_access_manager.found_index_file;
     }
 
+    /// If file ends with EOF block, returns virtual offset of the start of EOF block.
+    /// Otherwise, returns virtual offset of the physical end of file.
+    VirtualOffset eofVirtualOffset() {
+        return _random_access_manager.eofVirtualOffset();
+    }
+
     /*
        Get SAM header of file.
      */

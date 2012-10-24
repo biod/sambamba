@@ -252,10 +252,12 @@ void createIndex(ref BamFile bam, ref Stream stream, void delegate(lazy float p)
 
         // ---------------------------------------------------------------------
 
-        updateLinearIndex();
+        if (read.ref_id == prev_read.ref_id) {
+            updateLinearIndex();
 
-        if (read.bin.id != prev_read.bin.id) {
-            updateChunks();
+            if (read.bin.id != prev_read.bin.id) {
+                updateChunks();
+            }
         }
 
         // ---------------------------------------------------------------------
