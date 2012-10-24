@@ -24,6 +24,7 @@ module randomaccessmanager;
 
 import bgzfrange;
 import virtualoffset;
+import constants;
 import alignment;
 import alignmentrange;
 import chunkinputstream;
@@ -86,6 +87,35 @@ class RandomAccessManager {
         _filename = filename;
         _bai = bai;
         _found_index_file = true;
+    }
+
+    /// If file ends with EOF block, returns virtual offset of the start of EOF block.
+    /// Otherwise, returns virtual offset of the physical end of file.
+    VirtualOffset eofVirtualOffset() const {
+        ulong file_offset = std.file.getSize(_filename);
+        if (hasEofBlock()) {
+            return VirtualOffset(file_offset - BAM_EOF.length, 0);
+        } else {
+            return VirtualOffset(file_offset, 0);
+        }
+    }
+
+    /// Returns true if the file ends with EOF block, and false otherwise.
+    bool hasEofBlock() const {
+        auto _stream = new utils.stream.File(_filename);
+        if (_stream.size < BAM_EOF.length) {
+            return false;
+        }
+
+        ubyte[BAM_EOF.length] buf;
+        _stream.seekEnd(-cast(int)BAM_EOF.length);
+
+        _stream.readExact(&buf, BAM_EOF.length);
+        if (buf != BAM_EOF) {
+            return false;
+        }
+
+        return true;
     }
 
     /// Get new IChunkInputStream starting from specified virtual offset.

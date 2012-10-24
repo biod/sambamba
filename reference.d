@@ -83,13 +83,62 @@ struct ReferenceSequence {
     }
 
     /// First position on the reference overlapped by reads (0-based)
+    /// Returns -1 if set of reads is empty.
     int firstPosition() {
-        return _first_read.position;
+        auto reads = opSlice();
+        if (reads.empty) {
+            return -1;
+        }
+        return reads.front.position;
     }
 
     /// Virtual offset at which reads aligned to this reference start.
+    /// If there are no reads aligned to this reference, returns virtual
+    /// offset of the EOF block if it's presented, or the end of file.
     VirtualOffset startVirtualOffset() {
-        return _first_read.start_virtual_offset;
+        auto reads = opSlice();
+        if (reads.empty) {
+            return _manager.eofVirtualOffset();
+        }
+        return reads.front.start_virtual_offset;
+    }
+
+    /// Virtual offset before which reads aligned to this reference stop.
+    /// If there are no reads aligned to this reference, returns virtual
+    /// offset of the EOF block if it's presented, or the end of file.
+    VirtualOffset endVirtualOffset() {
+
+        if (opSlice().empty) {
+            return _manager.eofVirtualOffset();
+        }
+
+        auto ioffsets = _manager.getBai().indices[_ref_id].ioffsets[];
+        assert(ioffsets.length > 0);
+
+        // Try to get startVirtualOffset of the next reference presented in the file.
+        for (auto r = _ref_id + 1; r < _manager.getBai().indices.length; ++r) {
+            auto reads = _manager.getAlignments(r, 0, uint.max);
+            if (reads.empty) {
+                continue;
+            } else {
+                return reads.front.start_virtual_offset;
+            }
+        }
+
+        // However, this approach fails if there are unmapped reads coming after
+        // this reference. We cannot just return _manager.eofVirtualOffset.
+
+        auto last_offset = ioffsets[$ - 1];
+        auto stream = _manager.createStreamStartingFrom(last_offset);
+        auto last_few_reads = alignmentRange!withOffsets(stream);
+
+        VirtualOffset result;
+        assert(!last_few_reads.empty);
+        foreach (read; last_few_reads) {
+            result = read.end_virtual_offset;
+        }
+
+        return result;
     }
 
     /// Last position on the reference overlapped by reads (0-based)

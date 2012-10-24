@@ -78,6 +78,8 @@ void writeAlignment(EndianStream stream, Alignment alignment) {
     alignment.write(stream);
 }
 
+// TODO: refactor!
+
 /// Writes BAM file to a stream.
 ///
 /// Params:
@@ -99,7 +101,8 @@ void writeBAM(R)(Stream stream,
                  int compression_level=-1,
                  TaskPool task_pool=taskPool,
                  size_t parmapbufsz=32,
-                 size_t parmapwusz=1) 
+                 size_t parmapwusz=1,
+                 bool writeEOF=true) 
     if (is(Unqual!(ElementType!R) == Alignment)
             || is(Unqual!(ElementType!R) == AlignmentBlock))
 {
@@ -224,8 +227,10 @@ void writeBAM(R)(Stream stream,
         default: throw new Exception("compression level must be a number from -1 to 9");
     }
 
-    // write EOF block
-    stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
+    if (writeEOF) {
+        // write EOF block
+        stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
+    }
 }
 
 private {
