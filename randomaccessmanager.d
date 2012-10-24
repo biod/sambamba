@@ -290,13 +290,18 @@ public:
     // (3) : [BgzfBlock] -> [DecompressedBgzfBlock]
     static auto getUnpackedBlocks(R)(R bgzf_range) {
         version(serial) {
-            auto decompressed_range = map!decompressBgzfBlock(bgzf_range);
+            return map!decompressBgzfBlock(bgzf_range);
         } else {
-            /// up to (taskPool.size) tasks are being executed at every moment
-            auto prefetched_range = prefetch(map!decompress(bgzf_range), taskPool.size);
-            auto decompressed_range = map!"a.yieldForce()"(prefetched_range);
+            InputRange!DecompressedBgzfBlock result;
+            if (taskPool.size < 2) {
+                result = inputRangeObject(map!decompressBgzfBlock(bgzf_range));
+            } else {
+                // up to (taskPool.size) tasks are being executed at every moment
+                auto prefetched_range = prefetch(map!decompress(bgzf_range), taskPool.size);
+                result = inputRangeObject(map!"a.yieldForce()"(prefetched_range));
+            }
+            return result;
         }
-        return decompressed_range;
     }
 
     // (4) : ([DecompressedBgzfBlock], Chunk[]) -> [AugmentedDecompressedBgzfBlock]
