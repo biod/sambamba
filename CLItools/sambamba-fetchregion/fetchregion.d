@@ -57,6 +57,8 @@ BGZF blocks   ..........)[...........)[..........)[..........)[.  ...  ....)[...
 
     3) R1 is empty, R2 is not empty.
 
+        First of all, output BAM header and reference sequences information.
+
         Take first read from R2. Adjust its first BGZF block by chomping s2_start_offset.uoffset
         from the left, and output it. Set start_offset to the start file offset of the next BGZF block.
         Take last read from R2. Adjust its last BGZF block by chomping everything after the end of
@@ -121,22 +123,22 @@ void fetchRegion(string filename, string chr, uint beg, uint end, ref Stream str
         }
     }
 
-    if (s1_start_offset != s2_start_offset && r1.data.length > 0) {
-        // write R1
+    // write R1 - even if it's empty, we still need to output BAM header
+    writeBAM(stream, bam.header.text, bam.reference_sequences,
+             r1.data, -1, taskPool, 1, 1, false);
 
-        writeBAM(stream, bam.header.text, bam.reference_sequences,
-                 r1.data, -1, taskPool, 1, 1, false);
-    }
-
+    // R2 is non-empty
     if (s2_start_offset < s2_end_offset) {
-        
+       
+        // Either R2 is fully contained in one BGZF block...
         if (s2_start_offset.coffset == s2_end_offset.coffset) {
             // write chomped block
             auto block = bam.getBgzfBlockAt(s2_start_offset.coffset);
             auto data = decompressBgzfBlock(block).decompressed_data;
             data = data[s2_start_offset.uoffset .. s2_end_offset.uoffset];
             stream.write(bgzfCompress(data, -1));
-        } else {
+        } else { // ...or it spans several of them.
+
             // write left chomped block
             auto block1 = bam.getBgzfBlockAt(s2_start_offset.coffset);
             auto copy_start_offset = block1.end_offset;
@@ -182,7 +184,7 @@ void fetchRegion(string filename, string chr, uint beg, uint end, ref Stream str
 /// Usage: ./fetchregion input.bam chr beg end output.bam
 /// (beg and end are 0-based)
 void main(string[] args) {
-    Stream stream = new std.stream.BufferedFile(args[5], FileMode.Out);
+    Stream stream = new std.stream.BufferedFile(args[5], FileMode.OutNew);
     scope(exit) stream.close();
     fetchRegion(args[1], args[2], to!int(args[3]), to!int(args[4]), stream);
 }
