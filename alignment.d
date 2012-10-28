@@ -283,105 +283,104 @@ struct Alignment {
 
     private static immutable CHARACTER_MAP = "=ACMGRSVTWYHKDBN";
 
-    /// Random-access range of characters
-    @property auto sequence() const {
+    static struct SequenceResult {
 
-        static struct Result {
+        private ubyte[] _data;
+        private size_t _len;
+        private size_t _index;
+        private bool _use_first_4_bits;
 
-            private ubyte[] _data;
-            private size_t _len;
-            private size_t _index;
-            private bool _use_first_4_bits;
+        this(const(ubyte[]) data, size_t len, bool use_first_4_bits=true) {
+            _data = cast(ubyte[])data;
+            _len = len;
+            _use_first_4_bits = use_first_4_bits;
+        }
 
-            this(const(ubyte[]) data, size_t len, bool use_first_4_bits=true) {
-                _data = cast(ubyte[])data;
-                _len = len;
-                _use_first_4_bits = use_first_4_bits;
-            }
+        @property bool empty() const {
+            return _index >= _len;
+        }
 
-            @property bool empty() const {
-                return _index >= _len;
-            }
+        @property char front() const {
+            return opIndex(0);
+        }
 
-            @property char front() const {
-                return opIndex(0);
-            }
+        @property char back() const {
+            return opIndex(_len - 1);
+        }
 
-            @property char back() const {
-                return opIndex(_len - 1);
-            }
-
-            private auto _getActualPosition(size_t index) const
-            {
-                if (_use_first_4_bits) {
-                    // [0 1] [2 3] [4 5] [6 7] ...
-                    //            |               
-                    //            V               
-                    //   0     1     2     3      
-                    return index >> 1;
-                } else {
-                    // [. 0] [1 2] [3 4] [5 6] ...
-                    //            |               
-                    //            V               
-                    //   0     1     2     3      
-                    return (index >> 1) + (index & 1);
-                }
-            }
-
-            private auto _useFirst4Bits(size_t index) const
-            {
-                auto res = index % 2 == 0;
-                if (!_use_first_4_bits) {
-                    res = !res;
-                }
-                return res;
-            }
-
-            Result save() const {
-                return Result(_data[_getActualPosition(_index) .. $], 
-                              _len - _index, 
-                              _useFirst4Bits(_index));
-            }
-
-            Result opSlice(size_t i, size_t j) const {
-                return Result(_data[_getActualPosition(_index + i) .. $], 
-                              j - i, 
-                              _useFirst4Bits(_index + i));
-            }
-
-            @property char opIndex(size_t i) const {
-                auto pos = _index + i;
-                ubyte raw = _data[_getActualPosition(pos)];
-                if (_use_first_4_bits) {
-                    if (pos & 1) {
-                        raw &= 0xF;
-                    } else {
-                        raw >>= 4;
-                    }
-                } else {
-                    if (pos & 1) {
-                        raw >>= 4;
-                    } else {
-                        raw &= 0xF;
-                    }
-                }
-                return Base.fromInternalCode(raw).asCharacter;
-            }
-
-            void popFront() {
-                ++_index;
-            }
-
-            void popBack() {
-                --_len;
-            }
-
-            @property size_t length() const {
-                return _len - _index;
+        private auto _getActualPosition(size_t index) const
+        {
+            if (_use_first_4_bits) {
+                // [0 1] [2 3] [4 5] [6 7] ...
+                //            |               
+                //            V               
+                //   0     1     2     3      
+                return index >> 1;
+            } else {
+                // [. 0] [1 2] [3 4] [5 6] ...
+                //            |               
+                //            V               
+                //   0     1     2     3      
+                return (index >> 1) + (index & 1);
             }
         }
 
-        return Result(raw_sequence_data, sequence_length);
+        private auto _useFirst4Bits(size_t index) const
+        {
+            auto res = index % 2 == 0;
+            if (!_use_first_4_bits) {
+                res = !res;
+            }
+            return res;
+        }
+
+        SequenceResult save() const {
+            return SequenceResult(_data[_getActualPosition(_index) .. $], 
+                                  _len - _index, 
+                                  _useFirst4Bits(_index));
+        }
+
+        SequenceResult opSlice(size_t i, size_t j) const {
+            return SequenceResult(_data[_getActualPosition(_index + i) .. $], 
+                                  j - i, 
+                                  _useFirst4Bits(_index + i));
+        }
+
+        @property char opIndex(size_t i) const {
+            auto pos = _index + i;
+            ubyte raw = _data[_getActualPosition(pos)];
+            if (_use_first_4_bits) {
+                if (pos & 1) {
+                    raw &= 0xF;
+                } else {
+                    raw >>= 4;
+                }
+            } else {
+                if (pos & 1) {
+                    raw >>= 4;
+                } else {
+                    raw &= 0xF;
+                }
+            }
+            return Base.fromInternalCode(raw).asCharacter;
+        }
+
+        void popFront() {
+            ++_index;
+        }
+
+        void popBack() {
+            --_len;
+        }
+
+        @property size_t length() const {
+            return _len - _index;
+        }
+    }
+
+    /// Random-access range of characters
+    @property auto sequence() const {
+        return SequenceResult(raw_sequence_data, sequence_length);
     }
 
     static assert(isRandomAccessRange!(ReturnType!sequence));

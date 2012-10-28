@@ -19,8 +19,6 @@
 */
 module samheader;
 
-import reference;
-
 import std.algorithm;
 import std.conv;
 import std.exception;

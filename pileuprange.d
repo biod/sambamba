@@ -672,6 +672,110 @@ unittest {
                  map!(c => c.reference_base)(makePileup(reads, true))));
 }
 
+static struct PileupChunkRange(C) {
+    private C _chunks;
+    private Alignment[] _prev_chunk;
+    private Alignment[] _current_chunk;
+    private bool _empty;
+    private ulong _beg = 0;
+    private bool _use_md_tag;
+    private ulong _start_from;
+    private ulong _end_at;
+
+    this(C chunks, bool use_md_tag, ulong start_from, ulong end_at) {
+        _chunks = chunks; 
+        _use_md_tag = use_md_tag;
+        _start_from = start_from;
+        _end_at = end_at;
+        while (true) {
+            if (_chunks.empty) {
+                _empty = true;
+            } else {
+                _current_chunk = _chunks.front;
+                _chunks.popFront();
+
+                if (_beg >= end_at) {
+                    _empty = true;
+                    break;
+                }
+
+                auto last_read = _current_chunk[$-1];
+                if (last_read.position + last_read.basesCovered() > start_from) {
+                    break;
+                }
+            }
+        }
+    }
+
+    bool empty() @property {
+        return _empty;
+    }
+
+    auto front() @property {
+        return makePileup(chain(_prev_chunk, _current_chunk), 
+                          _use_md_tag,
+                          max(_beg, _start_from), 
+                          min(_current_chunk[$-1].position, _end_at));
+    }
+
+    void popFront() {
+        _prev_chunk = _current_chunk;
+
+        if (_chunks.empty) {
+            _empty = true;
+            return;
+        }
+        _current_chunk = _chunks.front;
+        _chunks.popFront();
+
+        assert(_prev_chunk.length > 0);
+        _beg = _prev_chunk[$-1].position;
+
+        // keep only those reads in _prev_chunk that have overlap with the last one
+        
+        // 1) estimate read length
+        int[15] buf = void;
+        int read_length = void;
+        if (_prev_chunk.length <= 15) {
+            for (size_t k = 0; k < _prev_chunk.length; ++k) {
+                buf[k] = _prev_chunk[k].sequence_length;
+            }
+            topN(buf[0.._prev_chunk.length], _prev_chunk.length / 2);
+            read_length = buf[_prev_chunk.length / 2];
+        } else {
+            copy(map!"a.sequence_length"(randomSample(_prev_chunk, 15)), buf[]);
+            topN(buf[], 7);
+            read_length = buf[7];
+            debug {
+                import std.stdio;
+                stderr.writeln("[pileupChunks] read_length=", read_length);
+            }
+        }
+
+        // 2) do binary search for those reads that start from (_beg - 2 * read_length)
+        //    (it's an experimental fact that almost none of reads consumes that much
+        //     on a reference sequence)
+        auto pos = _beg - 2 * read_length;
+        long i = 0;
+        long j = _prev_chunk.length - 1;
+        // positions of _prev_chunk[0 .. i] are less than pos,
+        // positions of _prev_chunk[j + 1 .. $] are more or equal to pos.
+        
+        while (i <= j) { 
+            auto m = (i + j) / 2;
+            assert(m < _prev_chunk.length);
+            auto p = _prev_chunk[m].position;
+            if (p >= pos) {
+                j = m - 1;
+            } else {
+                i = m + 1;
+            }
+        }
+
+        _prev_chunk = _prev_chunk[i .. $];
+    }
+}
+
 /// However, it's not effective to do operations on pileup in a single thread.
 /// This function constructs range of consecutive pileups from a range of reads
 /// so that these pileups can be processed in parallel.
@@ -699,110 +803,5 @@ unittest {
 auto pileupChunks(R)(R reads, bool use_md_tag=false, size_t block_size=16_384_000,
                      ulong start_from=0, ulong end_at=ulong.max) {
     auto chunks = chunksConsumingLessThan(reads, block_size);
-
-    static struct Result(C) {
-        private C _chunks;
-        private Alignment[] _prev_chunk;
-        private Alignment[] _current_chunk;
-        private bool _empty;
-        private ulong _beg = 0;
-        private bool _use_md_tag;
-        private ulong _start_from;
-        private ulong _end_at;
-
-        this(C chunks, bool use_md_tag, ulong start_from, ulong end_at) {
-            _chunks = chunks; 
-            _use_md_tag = use_md_tag;
-            _start_from = start_from;
-            _end_at = end_at;
-            while (true) {
-                if (_chunks.empty) {
-                    _empty = true;
-                } else {
-                    _current_chunk = _chunks.front;
-                    _chunks.popFront();
-
-                    if (_beg >= end_at) {
-                        _empty = true;
-                        break;
-                    }
-
-                    auto last_read = _current_chunk[$-1];
-                    if (last_read.position + last_read.basesCovered() > start_from) {
-                        break;
-                    }
-                }
-            }
-        }
-
-        bool empty() @property {
-            return _empty;
-        }
-
-        auto front() @property {
-            return makePileup(chain(_prev_chunk, _current_chunk), 
-                              _use_md_tag,
-                              max(_beg, _start_from), 
-                              min(_current_chunk[$-1].position, _end_at));
-        }
-
-        void popFront() {
-            _prev_chunk = _current_chunk;
-
-            if (_chunks.empty) {
-                _empty = true;
-                return;
-            }
-            _current_chunk = _chunks.front;
-            _chunks.popFront();
-
-            assert(_prev_chunk.length > 0);
-            _beg = _prev_chunk[$-1].position;
-
-            // keep only those reads in _prev_chunk that have overlap with the last one
-            
-            // 1) estimate read length
-            int[15] buf = void;
-            int read_length = void;
-            if (_prev_chunk.length <= 15) {
-                for (size_t k = 0; k < _prev_chunk.length; ++k) {
-                    buf[k] = _prev_chunk[k].sequence_length;
-                }
-                topN(buf[0.._prev_chunk.length], _prev_chunk.length / 2);
-                read_length = buf[_prev_chunk.length / 2];
-            } else {
-                copy(map!"a.sequence_length"(randomSample(_prev_chunk, 15)), buf[]);
-                topN(buf[], 7);
-                read_length = buf[7];
-                debug {
-                    import std.stdio;
-                    stderr.writeln("[pileupChunks] read_length=", read_length);
-                }
-            }
-
-            // 2) do binary search for those reads that start from (_beg - 2 * read_length)
-            //    (it's an experimental fact that almost none of reads consumes that much
-            //     on a reference sequence)
-            auto pos = _beg - 2 * read_length;
-            long i = 0;
-            long j = _prev_chunk.length - 1;
-            // positions of _prev_chunk[0 .. i] are less than pos,
-            // positions of _prev_chunk[j + 1 .. $] are more or equal to pos.
-            
-            while (i <= j) { 
-                auto m = (i + j) / 2;
-                assert(m < _prev_chunk.length);
-                auto p = _prev_chunk[m].position;
-                if (p >= pos) {
-                    j = m - 1;
-                } else {
-                    i = m + 1;
-                }
-            }
-
-            _prev_chunk = _prev_chunk[i .. $];
-        }
-    }
-
-    return Result!(typeof(chunks))(chunks, use_md_tag, start_from, end_at);
+    return PileupChunkRange!(typeof(chunks))(chunks, use_md_tag, start_from, end_at);
 }

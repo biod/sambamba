@@ -47,37 +47,39 @@ auto dna(T)(T read)
         CigarOperation operation;
     }
 
+    static struct QueryChunksResult(R, S) {
+        this(R ops, S seq) {
+            _seq = seq;
+            _ops = ops;
+        }
+    
+        auto front() @property {
+            auto op = _ops.front;
+            return QueryChunk!S(_seq[0 .. op.length], op);
+        }
+
+        bool empty() @property {
+            return _ops.empty;    
+        }
+
+        void popFront() {
+            _seq = _seq[_ops.front.length .. _seq.length];
+            _ops.popFront();
+        }
+
+        private R _ops;
+        private S _seq;
+    }
+
+    static auto getQueryChunksResult(R, S)(S sequence, R cigar) {
+        return QueryChunksResult!(R, S)(cigar, sequence);
+    }
+
     // Get read sequence chunks corresponding to query-consuming operations in read.sequence
     static auto queryChunks(ref T read) {
-        static struct Result(R, S) {
-            this(R ops, S seq) {
-                _seq = seq;
-                _ops = ops;
-            }
         
-            auto front() @property {
-                auto op = _ops.front;
-                return QueryChunk!S(_seq[0 .. op.length], op);
-            }
 
-            bool empty() @property {
-                return _ops.empty;    
-            }
-
-            void popFront() {
-                _seq = _seq[_ops.front.length .. _seq.length];
-                _ops.popFront();
-            }
-
-            private R _ops;
-            private S _seq;
-        }
-
-        static auto getResult(R, S)(S sequence, R cigar) {
-            return Result!(R, S)(cigar, sequence);
-        }
-
-        return getResult(read.sequence, filter!"a.is_query_consuming"(read.cigar));
+        return getQueryChunksResult(read.sequence, filter!"a.is_query_consuming"(read.cigar));
     }
 
     auto _read = read;
