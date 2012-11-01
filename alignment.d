@@ -98,6 +98,9 @@ struct CigarOperation {
         return "MIDNSHP=X"[raw & 0xF];
     }
 
+    ///
+    alias operation this;
+
     // Each pair of bits has first bit set iff the operation is query consuming,
     // and second bit set iff it is reference consuming.
     //                                            X  =  P  H  S  N  D  I  M

@@ -80,14 +80,23 @@ struct TinyMap(K, V, alias TinyMapPolicy=useBitArray) {
 
     /// Range of keys
     auto keys() @property const {
-        auto codes = iota(K.ValueSetSize);
-        auto has = filter!((int i) { return Policy._hasKeyWithCode(cast(size_t)i); })(codes);
-        return map!((int code) { return K.fromInternalCode(cast(TCode)code); })(has);
+        // FIXME: create nice workaround for LDC bug #217
+        K[] _ks;
+        foreach (i; 0 .. K.ValueSetSize) {
+            if (Policy._hasKeyWithCode(i))
+                _ks ~= K.fromInternalCode(cast(TCode)i);
+        }
+        return _ks;
     }
 
     /// Range of values
     auto values() @property const {
-        return map!((K key) { return this[key]; })(keys);
+        V[] _vs;
+        foreach (i; 0 .. K.ValueSetSize) {
+            if (Policy._hasKeyWithCode(i))
+                _vs ~= _dict[i];
+        }
+        return _vs;
     }
 
     /// Iteration with foreach

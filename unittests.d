@@ -24,7 +24,7 @@ import bamoutput;
 import samfile;
 import sam.recordparser;
 import bgzfrange;
-import reconstruct;
+import md.reconstruct;
 import pileuprange;
 
 import validation.samheader;

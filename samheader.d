@@ -370,6 +370,7 @@ class HeaderLineDictionary(T) {
 
     /// Returns: range of lines
     auto values() @property {
+        // FIXME: create a workaround for LDC bug #217
         return map!((size_t i) {
                         return _dict[_index_to_id[i]];
                     })(iota(_dict.length));

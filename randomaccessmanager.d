@@ -268,6 +268,7 @@ public:
 
     // (1) : Chunk -> [BgzfBlock]
     auto chunkToBgzfRange(Chunk chunk) {
+        // FIXME: we shouldn't create new stream for each chunk!
         auto stream = new utils.stream.File(_filename);
 
         stream.seekSet(cast(size_t)chunk.beg.coffset);
@@ -305,83 +306,82 @@ public:
     }
 
     // (4) : ([DecompressedBgzfBlock], Chunk[]) -> [AugmentedDecompressedBgzfBlock]
-    static auto getAugmentedBlocks(R)(R decompressed_blocks, Chunk[] bai_chunks) {
 
-        // decompressed blocks:
-        // [.....][......][......][......][......][......][.....][....]
-        //
-        // what we need (chunks):
-        //   [.........]  [.........]        [...........]  [..]
-        //
-        // Solution: augment decompressed blocks with skip_start and skip_end members
-        //           and teach ChunkInputStream to deal with ranges of such blocks.
-
-        static struct Range {
-            this(R blocks, Chunk[] bai_chunks) {
-                _blocks = blocks;
-                if (_blocks.empty) {
-                    _empty = true;
-                } else {
-                    _cur_block = _blocks.front;
-                    _blocks.popFront();
-                }
-                _chunks = bai_chunks[];
-            }
-
-            bool empty() @property {
-                return _empty;
-            }
-
-            AugmentedDecompressedBgzfBlock front() @property {
-                AugmentedDecompressedBgzfBlock result;
-                result.block = _cur_block;
-
-                if (_chunks.empty) {
-                    return result;
-                }
-
-                if (beg.coffset == result.start_offset) {
-                    result.skip_start = beg.uoffset;
-                }
-
-                if (end.coffset == result.start_offset) {
-                    auto to_skip = result.decompressed_data.length - end.uoffset;
-                    assert(to_skip <= ushort.max);
-                    result.skip_end = cast(ushort)to_skip;
-                }
-
-                return result;
-            }
-
-            void popFront() {
-                if (_cur_block.start_offset == end.coffset) {
-                    _chunks = _chunks[1 .. $];
-                }
-                if (_blocks.empty) {
-                    _empty = true;
-                    return;
-                }
+    // decompressed blocks:
+    // [.....][......][......][......][......][......][.....][....]
+    //
+    // what we need (chunks):
+    //   [.........]  [.........]        [...........]  [..]
+    //
+    // Solution: augment decompressed blocks with skip_start and skip_end members
+    //           and teach ChunkInputStream to deal with ranges of such blocks.
+    static struct AugmentedBlockRange(R) {
+        this(R blocks, Chunk[] bai_chunks) {
+            _blocks = blocks;
+            if (_blocks.empty) {
+                _empty = true;
+            } else {
                 _cur_block = _blocks.front;
                 _blocks.popFront();
             }
-
-            private {
-                R _blocks;
-                ElementType!R _cur_block;
-                bool _empty;
-                Chunk[] _chunks;
-
-                VirtualOffset beg() @property {
-                    return _chunks[0].beg;
-                }
-
-                VirtualOffset end() @property {
-                    return _chunks[0].end;
-                }
-            }
+            _chunks = bai_chunks[];
         }
 
-        return Range(decompressed_blocks, bai_chunks);
+        bool empty() @property {
+            return _empty;
+        }
+
+        AugmentedDecompressedBgzfBlock front() @property {
+            AugmentedDecompressedBgzfBlock result;
+            result.block = _cur_block;
+
+            if (_chunks.empty) {
+                return result;
+            }
+
+            if (beg.coffset == result.start_offset) {
+                result.skip_start = beg.uoffset;
+            }
+
+            if (end.coffset == result.start_offset) {
+                auto to_skip = result.decompressed_data.length - end.uoffset;
+                assert(to_skip <= ushort.max);
+                result.skip_end = cast(ushort)to_skip;
+            }
+
+            return result;
+        }
+
+        void popFront() {
+            if (_cur_block.start_offset == end.coffset) {
+                _chunks = _chunks[1 .. $];
+            }
+            if (_blocks.empty) {
+                _empty = true;
+                return;
+            }
+            _cur_block = _blocks.front;
+            _blocks.popFront();
+        }
+
+        private {
+            R _blocks;
+            ElementType!R _cur_block;
+            bool _empty;
+            Chunk[] _chunks;
+
+            VirtualOffset beg() @property {
+                return _chunks[0].beg;
+            }
+
+            VirtualOffset end() @property {
+                return _chunks[0].end;
+            }
+        }
+    }
+
+    static auto getAugmentedBlocks(R)(R decompressed_blocks, Chunk[] bai_chunks) {
+        return AugmentedBlockRange!R(decompressed_blocks, bai_chunks);
     }
 
     static struct AlignmentFilter(R) {

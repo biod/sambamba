@@ -140,7 +140,7 @@ struct ReferenceSequence {
 
         return result;
     }
-
+    
     /// Last position on the reference overlapped by reads (0-based)
     int lastPosition() {
         // The key idea is

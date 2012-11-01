@@ -20,7 +20,7 @@
 module pileuprange;
 
 import alignment;
-import reconstruct;
+import md.reconstruct;
 import splitter;
 
 import std.algorithm;

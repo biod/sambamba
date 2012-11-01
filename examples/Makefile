@@ -37,7 +37,7 @@ FILES=$(addprefix ../,\
 	md/operation.d \
 	md/parse.d \
 	md/core.d \
-	reconstruct.d \
+	md/reconstruct.d \
 	bgzfcompress.d \
 	bamoutput.d \
 	splitter.d)
