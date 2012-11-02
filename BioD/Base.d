@@ -9,6 +9,30 @@ mixin template CommonBaseOperations() {
     char asCharacter() @property const { return _code2char[_code]; }
     ///
     alias asCharacter this;
+
+    /// Complementary base
+    typeof(this) complement() @property const {
+        alias typeof(this) B;
+        switch(asCharacter()) {
+            case 'A': return B('T');
+            case 'T': return B('A');
+            case 'U': return B('A');
+            case 'G': return B('C');
+            case 'C': return B('G');
+            case 'Y': return B('R');
+            case 'R': return B('Y');
+            case 'S': return B('S');
+            case 'W': return B('W');
+            case 'K': return B('M');
+            case 'M': return B('K');
+            case 'B': return B('V');
+            case 'D': return B('H');
+            case 'H': return B('D');
+            case 'V': return B('B');
+            default:  return B('N');
+        }
+        return B('N');
+    }
 }
 
 /// Base representation supporting full set of IUPAC codes
@@ -85,6 +109,11 @@ struct Base {
         _code = _char2code[cast(ubyte)c];
     }
 
+    /// ditto
+    this(dchar c) {
+        _code = _char2code[cast(ubyte)c];
+    }
+
     private immutable ubyte[5] nt5_to_nt16 = [1, 2, 4, 8, 15];
     private static Base fromBase5(Base5 base) {
         Base b = void;
@@ -97,6 +126,12 @@ struct Base {
         if (is(T == Base5)) 
     {
         return Base5.fromBase16(this);
+    }
+
+    char opCast(T)() const 
+        if (is(T == char)) 
+    {
+        return asCharacter;
     }
 }
 
@@ -147,6 +182,11 @@ struct Base5 {
         _code = _char2code[cast(ubyte)c];
     }
 
+    /// ditto
+    this(dchar c) {
+        _code = _char2code[cast(ubyte)c];
+    }
+
     private static Base5 fromBase16(Base16 base) {
         Base5 b = void;
         b._code = nt16_to_nt5[base.internal_code];
@@ -158,6 +198,12 @@ struct Base5 {
         if(is(T == Base16)) 
     {
         return Base16.fromBase5(this);
+    }
+
+    char opCast(T)() const 
+        if (is(T == char)) 
+    {
+        return asCharacter;
     }
 }
 

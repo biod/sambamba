@@ -203,4 +203,43 @@ auto parallelTransform(alias func, Range)(Range r,
 unittest {
     auto range = iota(100);
     assert(equal(parallelTransform!"a * a"(range), map!"a * a"(range)));
-} 
+}
+
+struct PrefixSum(S) {
+    private {
+        S _sequence;
+        ElementType!S _sum;
+    }
+
+    this(S sequence) {
+        _sequence = sequence;
+        if (!_sequence.empty) {
+            _sum = _sequence.front;
+        }
+    }
+
+    bool empty() @property {
+        return _sequence.empty;
+    }
+
+    ElementType!S front() @property {
+        return _sum;
+    }
+
+    void popFront() {
+        _sequence.popFront();
+        if (!_sequence.empty) {
+            _sum += _sequence.front;
+        }
+    }
+}
+
+/// Prefix sum.
+PrefixSum!S prefixSum(S)(S sequence) {
+    return PrefixSum!S(sequence);
+}
+
+unittest {
+    auto range = iota(5);
+    assert(equal(prefixSum(range), [0, 1, 3, 6, 10]));
+}

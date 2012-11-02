@@ -284,8 +284,6 @@ struct Alignment {
         return _chunk[_seq_offset .. _seq_offset + (_l_seq + 1) / 2];
     }
 
-    private static immutable CHARACTER_MAP = "=ACMGRSVTWYHKDBN";
-
     static struct SequenceResult {
 
         private ubyte[] _data;
@@ -303,11 +301,11 @@ struct Alignment {
             return _index >= _len;
         }
 
-        @property char front() const {
+        @property Base front() const {
             return opIndex(0);
         }
 
-        @property char back() const {
+        @property Base back() const {
             return opIndex(_len - 1);
         }
 
@@ -349,7 +347,7 @@ struct Alignment {
                                   _useFirst4Bits(_index + i));
         }
 
-        @property char opIndex(size_t i) const {
+        @property Base opIndex(size_t i) const {
             auto pos = _index + i;
             ubyte raw = _data[_getActualPosition(pos)];
             if (_use_first_4_bits) {
@@ -365,7 +363,7 @@ struct Alignment {
                     raw &= 0xF;
                 }
             }
-            return Base.fromInternalCode(raw).asCharacter;
+            return Base.fromInternalCode(raw);
         }
 
         void popFront() {
@@ -602,7 +600,7 @@ struct Alignment {
         packer.pack(next_ref_id);
         packer.pack(next_pos);
         packer.pack(template_length);
-        packer.pack(array(sequence));
+        packer.pack(to!string(sequence));
         packer.pack(phred_base_quality);
 
         packer.beginMap(tagCount());
