@@ -916,8 +916,7 @@ mixin template TagStorage() {
                 "  auto begin = offset;"~
                 "  auto end = offset + length * "~c2t.ValueType.stringof~".sizeof;"~
                 "  offset = end;"~ 
-                "  return Value(cast("~c2t.ValueType.stringof~"[])(tags_chunk[begin .. end].dup));";
-                // TODO: copy-on-write in Value type (currently, dup is used)
+                "  return Value(cast("~c2t.ValueType.stringof~"[])(tags_chunk[begin .. end]));";
             }
             return to!string("switch (elem_type) {" ~ cases ~
                    "  default: throw new UnknownTagTypeException(to!string(elem_type));"~

@@ -10,29 +10,6 @@ mixin template CommonBaseOperations() {
     ///
     alias asCharacter this;
 
-    /// Complementary base
-    typeof(this) complement() @property const {
-        alias typeof(this) B;
-        switch(asCharacter()) {
-            case 'A': return B('T');
-            case 'T': return B('A');
-            case 'U': return B('A');
-            case 'G': return B('C');
-            case 'C': return B('G');
-            case 'Y': return B('R');
-            case 'R': return B('Y');
-            case 'S': return B('S');
-            case 'W': return B('W');
-            case 'K': return B('M');
-            case 'M': return B('K');
-            case 'B': return B('V');
-            case 'D': return B('H');
-            case 'H': return B('D');
-            case 'V': return B('B');
-            default:  return B('N');
-        }
-        return B('N');
-    }
 }
 
 /// Base representation supporting full set of IUPAC codes
@@ -83,6 +60,16 @@ struct Base {
     //
     // N 1111 (aNy base)
     private immutable _code2char = "=ACMGRSVTWYHKDBN";
+
+    private immutable ubyte[16] _complement_table = [0x0, 0x8, 0x4, 0xC, 
+                                                     0x2, 0xA, 0x6, 0xE,
+                                                     0x1, 0x9, 0x5, 0xD,
+                                                     0x3, 0xB, 0x7, 0xF];
+    /// Complementary base
+    Base complement() @property const {
+        // take the code, reverse the bits, and return the base
+        return Base.fromInternalCode(_complement_table[_code]);
+    }
 
     unittest {
         import std.ascii;
@@ -175,6 +162,11 @@ struct Base5 {
     private immutable ubyte[16] nt16_to_nt5 = [4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4];
 
     mixin CommonBaseOperations;
+
+    /// Complementary base
+    Base5 complement() @property const {
+        return Base5.fromInternalCode(cast(ubyte)(_code == 4 ? 4 : (3 - _code)));
+    }
 
     /// Construct base from one of "acgtACGT" symbols.
     /// Every other character is converted to 'N'

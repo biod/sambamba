@@ -2,6 +2,7 @@ module fz.flowcall;
 
 import BioD.Base;
 
+import tagvalue;
 import fz.flowindex;
 import utils.range;
 
@@ -81,6 +82,82 @@ auto flowCalls(ushort[] intensities, string flow_order) {
     return map!flowCall(zip(intensities, flow_order));
 }
 
+struct ReadFlowCallRange(S) {
+    private {
+        string _flow_order = void;
+        ushort[] _intensities = void;
+        S _sequence = void;
+
+        Base _current_base = void;
+        ushort _current_length = void;
+        size_t _current_flow_index;
+        ushort _current_offset;
+
+        bool _empty;
+
+        // consumes next homopolymer from the sequence,
+        // and updates _current_base, _current_flow_index, 
+        // _current_length appropriately
+        void _doSetup() {
+            if (_sequence.empty) {
+                _empty = true;
+                return;
+            }
+
+            // setup current base and current length
+            _current_base = _sequence.front;
+            _sequence.popFront();
+            _current_length = 1;
+            while (!_sequence.empty && _sequence.front == _current_base) {
+                _sequence.popFront();
+                ++_current_length;
+            }
+
+            // setup current flow index
+            for ( ; _current_flow_index < _flow_order.length; ++_current_flow_index) {
+                if (_flow_order[_current_flow_index] == _current_base) {
+                    break;
+                }
+            }
+        }
+    }
+
+    this(S seq, ushort[] intensities, string flow_order) {
+        _sequence = seq;
+        _intensities = intensities;
+        _flow_order = flow_order;
+
+        if (_sequence.empty) {
+            _empty = true;
+        } else {
+            _doSetup();
+        }
+    }
+
+    bool empty() @property const {
+        return _empty;
+    }
+
+    ReadFlowCall front() @property const {
+        return ReadFlowCall(_intensities[_current_flow_index], _current_offset,
+                            _current_length, _current_base);
+    }
+
+    void popFront() {
+        _current_offset += _current_length;
+
+        ++_current_flow_index;
+
+        _doSetup();
+    }
+}
+
+ReadFlowCallRange!S readFlowCallRange(S)(S seq, ushort[] intensities, string flow_order)
+{
+    return ReadFlowCallRange!S(seq, intensities, flow_order);
+}
+
+
 /// Get read flow calls. Takes ZF tag and strandness into account.
 ///
 /// Tag name is an optional argument because it is not standard and will likely
@@ -97,20 +174,10 @@ InputRange!ReadFlowCall readFlowCalls(R)(R read, string flow_order, string tag="
         return ReadFlowCall(flow_intensity, cast(ushort)offset, cast(ushort)called_length, base);
     }
 
-    static auto readFlowCallRange(S)(S seq, ushort[] intensities, string flow_order)
-    {
-        auto flow_index = flowIndex(seq, flow_order);
-        auto bases_with_flow_indices = zip(seq, flow_index);
-        auto homopolymers = group(bases_with_flow_indices);
-
-        auto flow_intensities = indexed(intensities, uniq(flow_index));
-        auto offsets = chain(repeat(0, 1), prefixSum(map!"a[1]"(homopolymers)));
-
-        return map!readFlowCall(zip(homopolymers, flow_intensities, offsets));
-    }
-
     auto zf = cast(int)read[tag];
-    auto fz = cast(ushort[])read["FZ"];
+    Value fz_value = read["FZ"];
+    ushort[] fz = *cast(ushort[]*)(&fz_value);
+
     flow_order = flow_order[zf .. $];
     auto intensities = fz[zf .. $];
     if (!read.is_reverse_strand) {
