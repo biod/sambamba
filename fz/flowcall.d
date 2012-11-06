@@ -42,6 +42,7 @@ struct ReadFlowCall {
         ushort _offset;
         ushort _called_len;
         Base _base;
+        size_t _flow_index;
     }
 
     /// Called nucleotide
@@ -70,6 +71,11 @@ struct ReadFlowCall {
     ushort intensity_value() @property const {
         return _signal_intensity;
     }
+
+    /// Flow index (0-based)
+    size_t flow_index() @property const {
+        return _flow_index;
+    }
 }
 
 /// Get flow calls from signal intensities and flow order.
@@ -88,6 +94,7 @@ struct ReadFlowCallRange(S) {
         ushort[] _intensities = void;
         S _sequence = void;
 
+        int _zf = void;
         Base _current_base = void;
         ushort _current_length = void;
         size_t _current_flow_index;
@@ -122,10 +129,11 @@ struct ReadFlowCallRange(S) {
         }
     }
 
-    this(S seq, ushort[] intensities, string flow_order) {
+    this(S seq, ushort[] intensities, string flow_order, int zf) {
         _sequence = seq;
         _intensities = intensities;
         _flow_order = flow_order;
+        _zf = zf;
 
         if (_sequence.empty) {
             _empty = true;
@@ -140,7 +148,7 @@ struct ReadFlowCallRange(S) {
 
     ReadFlowCall front() @property const {
         return ReadFlowCall(_intensities[_current_flow_index], _current_offset,
-                            _current_length, _current_base);
+                            _current_length, _current_base, _current_flow_index + _zf);
     }
 
     void popFront() {
@@ -152,9 +160,9 @@ struct ReadFlowCallRange(S) {
     }
 }
 
-ReadFlowCallRange!S readFlowCallRange(S)(S seq, ushort[] intensities, string flow_order)
+ReadFlowCallRange!S readFlowCallRange(S)(S seq, ushort[] intensities, string flow_order, int zf)
 {
-    return ReadFlowCallRange!S(seq, intensities, flow_order);
+    return ReadFlowCallRange!S(seq, intensities, flow_order, zf);
 }
 
 
@@ -182,9 +190,9 @@ InputRange!ReadFlowCall readFlowCalls(R)(R read, string flow_order, string tag="
     auto intensities = fz[zf .. $];
     if (!read.is_reverse_strand) {
         auto seq = read.sequence;
-        return inputRangeObject(readFlowCallRange(seq, intensities, flow_order));
+        return inputRangeObject(readFlowCallRange(seq, intensities, flow_order, zf));
     } else {
         auto seq = retro(map!"a.complement"(read.sequence));
-        return inputRangeObject(readFlowCallRange(seq, intensities, flow_order));
+        return inputRangeObject(readFlowCallRange(seq, intensities, flow_order, zf));
     }
 }
