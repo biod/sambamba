@@ -335,10 +335,12 @@ unittest {
         bf = BamFile(fn);
         auto flow_order = bf.header.read_groups.values.front.flow_order;
         auto reads = array(bf.alignments);
+
         auto read = reads[1];
+        assert(!read.is_reverse_strand);
         auto basesFZ = basesWith!"FZ"(read, arg!"FZ"(flow_order));
         assert(equal(basesFZ.save, read.sequence));
-        assert(equal(take(map!"a.flow_call.intensity_value"(basesFZ), 31),
+        assert(equal(take(map!"a.flow_call.intensity_value"(basesFZ.save), 31),
                      [219, 219, 194, 194, 92, 107, 83, 198, 198, 78, 
                      // A   A    C    C    T   G   A    T    T    A
                       292, 292, 292,  81, 79,  78, 95, 99, 315, 315, 315,
@@ -346,6 +348,12 @@ unittest {
                        89,  79, 290, 290, 290, 100, 209, 209, 87, 80
                      // G   C    G    G    G   T    G    G    C   A
                      ]));
+
+        // read on reverse strand
+        read = reads[2];
+        assert(read.is_reverse_strand);
+        basesFZ = basesWith!"FZ"(read, arg!"FZ"(flow_order));
+        assert(equal(basesFZ.save, retro(read.sequence)));
     }
 }
 
