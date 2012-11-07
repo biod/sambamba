@@ -26,6 +26,7 @@ import sam.recordparser;
 import bgzfrange;
 import md.reconstruct;
 import pileuprange;
+import baseinfo;
 
 import validation.samheader;
 import validation.alignment;
@@ -328,6 +329,24 @@ unittest {
         }
     }
 
+    writeln("Testing basesWith functionality...");
+    {
+        fn = buildPath(dirName(__FILE__), "test", "data", "mg1655_chunk.bam");
+        bf = BamFile(fn);
+        auto flow_order = bf.header.read_groups.values.front.flow_order;
+        auto reads = array(bf.alignments);
+        auto read = reads[1];
+        auto basesFZ = basesWith!"FZ"(read, arg!"FZ"(flow_order));
+        assert(equal(basesFZ.save, read.sequence));
+        assert(equal(take(map!"a.flow_call.intensity_value"(basesFZ), 31),
+                     [219, 219, 194, 194, 92, 107, 83, 198, 198, 78, 
+                     // A   A    C    C    T   G   A    T    T    A
+                      292, 292, 292,  81, 79,  78, 95, 99, 315, 315, 315,
+                     // C   C    C    A    T   C   A    G    T    T    T
+                       89,  79, 290, 290, 290, 100, 209, 209, 87, 80
+                     // G   C    G    G    G   T    G    G    C   A
+                     ]));
+    }
 }
 
 void main() {

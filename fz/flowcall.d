@@ -88,7 +88,9 @@ auto flowCalls(ushort[] intensities, string flow_order) {
     return map!flowCall(zip(intensities, flow_order));
 }
 
-struct ReadFlowCallRange(S) {
+struct ReadFlowCallRange(S) 
+    if (!is(S == class))
+{
     private {
         string _flow_order = void;
         ushort[] _intensities = void;
@@ -158,6 +160,13 @@ struct ReadFlowCallRange(S) {
 
         _doSetup();
     }
+
+    ReadFlowCallRange!S save() @property {
+        // bitwise copy
+        // FIXME: is it safe?
+        ReadFlowCallRange!S r = this;
+        return r;
+    }
 }
 
 ReadFlowCallRange!S readFlowCallRange(S)(S seq, ushort[] intensities, string flow_order, int zf)
@@ -171,7 +180,7 @@ ReadFlowCallRange!S readFlowCallRange(S)(S seq, ushort[] intensities, string flo
 /// Tag name is an optional argument because it is not standard and will likely
 /// be changed in the future (there was a proposal on samtools mailing list
 /// to introduce standard FB tag).
-InputRange!ReadFlowCall readFlowCalls(R)(R read, string flow_order, string tag="ZF") {
+ForwardRange!ReadFlowCall readFlowCalls(R)(R read, string flow_order, string tag="ZF") {
 
     static auto readFlowCall(T)(T tup) {
         auto base = tup[0][0][0];
