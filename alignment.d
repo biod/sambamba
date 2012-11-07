@@ -221,6 +221,11 @@ struct Alignment {
     /// ditto
     @property void is_duplicate(bool b)             { _setFlag(10, b); } 
 
+    /// Convenience function, returns '+' or '-' indicating the strand.
+    @property char strand() const nothrow {
+        return is_reverse_strand ? '-' : '+';
+    }
+
     /// Read name
     @property string read_name() const nothrow {
         // notice -1: the string is zero-terminated, so we should strip that '\0'

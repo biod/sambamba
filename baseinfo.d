@@ -6,6 +6,7 @@ import alignment;
 import fz.flowcall;
 
 import std.range;
+import std.conv;
 import std.traits;
 import std.typetuple;
 
@@ -65,9 +66,15 @@ struct PerBaseInfo(R, Tags...) {
         return cast(string)result;
     }
 
-    struct Result {
+    static struct Result {
         Base base;
         alias base this;
+
+        string opCast(T)() if (is(T == string))
+        {
+            return to!string(base);
+        }
+
         mixin(getResultProperties!Extensions());
     }
 
