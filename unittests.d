@@ -340,20 +340,37 @@ unittest {
         assert(!read.is_reverse_strand);
         auto basesFZ = basesWith!"FZ"(read, arg!"FZ"(flow_order));
         assert(equal(basesFZ.save, read.sequence));
-        assert(equal(take(map!"a.flow_call.intensity_value"(basesFZ.save), 31),
+        assert(equal(take(map!"a.flow_call.intensity_value"(basesFZ.save), 92),
                      [219, 219, 194, 194, 92, 107, 83, 198, 198, 78, 
                      // A   A    C    C    T   G   A    T    T    A
                       292, 292, 292,  81, 79,  78, 95, 99, 315, 315, 315,
                      // C   C    C    A    T   C   A    G    T    T    T
-                       89,  79, 290, 290, 290, 100, 209, 209, 87, 80
+                       89,  79, 290, 290, 290, 100, 209, 209, 87, 80,
                      // G   C    G    G    G   T    G    G    C   A
+                      191, 191, 101, 179, 179, 210, 210, 99, 184, 184,
+                     // C   C   A     T    T    G   G    T    A   A
+                       90, 91, 193, 193, 66, 100, 112, 79, 108, 106, 212, 212,
+                     // C   A   C    C    A   T    G    C   A    C    A    A
+                       90, 96, 111, 94, 64, 94, 187, 187, 84, 110, 98, 102, 100,
+                     // C   T   A    C   T   C   G    G    T   G    C   T    C
+                       93, 89, 205, 205, 107, 98, 96, 91, 203, 203, 68, 180, 180,
+                     // G   C   G    G    A    C   G   A   C    C    G   T    T
+                       118, 246, 246, 91, 102, 94, 116, 90, 99, 101, 298, 298, 298
+                     // C    G    G    T   G    C   T    G   C   T    G    G    G
                      ]));
 
-        // read on reverse strand
-        read = reads[2];
-        assert(read.is_reverse_strand);
-        basesFZ = basesWith!"FZ"(read, arg!"FZ"(flow_order));
-        assert(equal(basesFZ.save, retro(read.sequence)));
+        // bases must be the same
+        foreach (r; reads) {
+            if (r.is_unmapped) continue;
+            if (r.cigar.length == 0) continue;
+            if (r.is_reverse_strand) {
+                basesFZ = basesWith!"FZ"(r, arg!"FZ"(flow_order));
+                assert(equal(basesFZ.save, retro(r.sequence)));
+            } else {
+                basesFZ = basesWith!"FZ"(r, arg!"FZ"(flow_order));
+                assert(equal(basesFZ.save, r.sequence));
+            }
+        }
     }
 }
 

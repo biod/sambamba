@@ -131,8 +131,8 @@ struct PerBaseInfo(R, Tags...) {
 
     PerBaseInfo!(R, Tags) save() @property {
         PerBaseInfo!(R, Tags) r = void;
-        r._read = _read;
-        r._seq = _seq;
+        r._read = _read.dup;
+        r._seq = r._read.sequence;
         r._rev = _rev;
         foreach (t; Extensions)
             copy!t(r);
@@ -153,7 +153,7 @@ struct PerBaseInfo(R, Tags...) {
 
     private {
         R _read;
-        ReturnType!(R.sequence) _seq;
+        typeof(_read.sequence) _seq;
         bool _rev;
     }
 }
@@ -191,11 +191,19 @@ template FZbaseInfo(R) {
         private {
             ForwardRange!ReadFlowCall _flow_calls;
             ushort _at;
+
+            debug {
+                string _read_name;
+            }
         }
 
         void setup(Args...)(const ref R read, Args args) 
         {
             string flow_order;
+
+            debug {
+                _read_name = read.read_name.idup;
+            }
 
             enum argExists = staticIndexOf!(MixinArg!(string, "FZ"), Args);
             static assert(argExists != -1, `Flow order must be provided via arg!"FZ"`);
@@ -211,6 +219,14 @@ template FZbaseInfo(R) {
 
         void populate(Result)(ref Result result) {
             result._flow_call = _flow_calls.front;
+
+            debug {
+                if ((_rev && result.base != result._flow_call.base.complement)
+                    || (!_rev && result.base != result._flow_call.base)) {
+                    import std.stdio;
+                    stderr.writeln("invalid flow call at ", _read_name, ": ", result.position);
+                }
+            }
         }
 
         void update(const ref R read) 
@@ -225,6 +241,10 @@ template FZbaseInfo(R) {
         void copy(Range)(ref Range source, ref Range target) {
             target.FZ._flow_calls = source._flow_calls.save();
             target.FZ._at = source.FZ._at;
+
+            debug {
+                target._read_name = _read_name;
+            }
         }
     }
 }

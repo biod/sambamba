@@ -50,6 +50,11 @@ struct ReadFlowCall {
         return _base;
     }
 
+    /// Set base to its complement
+    void complement() {
+        _base = _base.complement;
+    }
+
     /// Called homopolymer length
     ushort length() @property const {
         return _called_len;
