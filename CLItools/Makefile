@@ -49,6 +49,7 @@ all: sambamba-dmd
 
 DMDFLAGSFULL=-g -O -release -inline#-O -release -inline -g
 GDCFLAGSFULL=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
+LDCFLAGSFULL=-g -O3 -release -inline
 
 DMDFLAGS=$(DMDFLAGSFULL) -version=standalone
 GDCFLAGS=$(GDCFLAGSFULL) -fversion=standalone
@@ -69,6 +70,10 @@ sambamba-dmd: $(SAMBAMBA_FILES)
 sambamba-gdc: $(SAMBAMBA_FILES) fastrecordparser
 	mkdir -p build
 	gdc $(GDCFLAGSFULL) $(SAMBAMBA_FILES) -o build/sambamba
+
+sambamba-ldc: $(SAMBAMBA_FILES) fastrecordparser
+	mkdir -p build
+	ldmd2 $(LDCFLAGSFULL) $(SAMBAMBA_FILES) -ofbuild/sambamba
 
 sambamba-gdc-32: $(SAMBAMBA_FILES) fastrecordparser
 	mkdir -p build
