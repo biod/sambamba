@@ -52,10 +52,12 @@ class DirectedGraph {
             foreach (neighbour; node_neighbours) 
                 predecessor_count[neighbour] += 1;
         }
-        auto queue = array(
-            filter!((size_t i) { return predecessor_count[i] == 0; })
-                   (iota(_nodes.length))
-        );
+
+        size_t[] queue;
+        queue.reserve(_nodes.length);
+        for (size_t i = 0; i < _nodes.length; i++)
+            if (predecessor_count[i] == 0)
+                queue ~= i;
       
         string[] result;
         result.reserve(_nodes.length);

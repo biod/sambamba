@@ -126,6 +126,10 @@ sambamba-gdc-dev: $(SAMBAMBA_FILES)
 	mkdir -p build
 	gdc -g -O0 -lpthread $(SAMBAMBA_FILES) -fversion=development -o build/sambamba
 
+sambamba-ldc-dev: $(SAMBAMBA_FILES)
+	mkdir -p build
+	ldmd2 -g $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
+
 fastrecordparser: ../sam/sam_alignment.rl
 	cd ../sam && make fastrecordparser && cd ..
 

@@ -78,84 +78,38 @@ private shared(ProgressBar) bar;
 private shared(float[]) weights;
 private shared(float[]) merging_progress;
 
-int sort_main(string[] args) {
+class Sorter {
 
-    if (args.length < 2) {
-        printUsage();
-        return 0;
+    BamFile bam;
+    TaskPool task_pool;
+    size_t memory_limit = 512 * 1024 * 1024;
+    string tmpdir = null;
+    int compression_level = -1;
+    bool uncompressed_chunks = false;
+    string output_filename = null;
+    string filename = null;
+
+    private static auto chunks(R)(R reads, size_t size_in_bytes) {
+
+        static size_t approxSize(Alignment read) {
+            return Alignment.sizeof * 3  / 2 + read.size_in_bytes;
+        }
+
+        // false means that each chunk may contain reads with different ref. ID
+        return AlignmentRangeSplitter!(R, approxSize)(reads, size_in_bytes, false); 
     }
 
-    try {
-        string memory_limit_str = null;
-
-        size_t memory_limit = 512 * 1024 * 1024;
-        string tmpdir = null;
-        bool uncompressed_chunks;
-        int compression_level = -1;
-
-        string output_filename;
-
-        getopt(args,
-               std.getopt.config.caseSensitive,
-               "memory-limit|m",        &memory_limit_str,
-               "tmpdir",                &tmpdir,
-               "out|o",                 &output_filename,
-               "sort-by-name|n",        &sort_by_name,
-               "uncompressed-chunks|u", &uncompressed_chunks,
-               "compression-level|l",   &compression_level,
-               "show-progress|p",       &show_progress);
-
-        if (output_filename is null) {
-            output_filename = setExtension(args[1], "sorted.bam");
+    static Alignment[] sortChunk(Alignment[] chunk) {
+        if (!sort_by_name) {
+            mergeSort!compareAlignmentCoordinates(chunk, true); // threaded
+        } else {
+            mergeSort!compareReadNames(chunk, true);
         }
+        return chunk;
+    }
 
-        if (memory_limit_str !is null) {
-            memory_limit = parseMemory(memory_limit_str);
-        }
-
-        // TODO: find a better formula
-        memory_limit /= 4;
-
-        auto task_pool = new TaskPool(totalCPUs);
-        scope(exit) task_pool.finish();
-        auto bam = BamFile(args[1], task_pool);
-       
-        // ------------------ set sorting order in the header ----------------------
-
-        auto header = bam.header;
-        header.sorting_order = sort_by_name ? SortingOrder.queryname :
-                                              SortingOrder.coordinate;
-        auto header_text = toSam(header);
-
-        // ----------------------- sort chunks -------------------------------------
-
-        static Alignment[] sortChunk(Alignment[] chunk) {
-            if (!sort_by_name) {
-                mergeSort!compareAlignmentCoordinates(chunk, true); // threaded
-            } else {
-                mergeSort!compareReadNames(chunk, true);
-            }
-            return chunk;
-        }
-
-        string[] tmpfiles;
-        auto num_of_chunks = 0;
-
-        void writeSortedChunks(R)(R alignments) {
-            foreach (chunk; map!sortChunk(chunks(alignments, memory_limit)))
-            {
-                auto fn = tmpFile(chunkBaseName(args[1], num_of_chunks), tmpdir);
-                tmpfiles ~= fn;
-
-                Stream stream = new BufferedFile(fn, FileMode.Out);
-                scope(exit) stream.close();
-
-                writeBAM(stream, header_text, bam.reference_sequences, 
-                         chunk, uncompressed_chunks ? 0 : 1, task_pool);
-
-                num_of_chunks += 1;
-            }
-        }
+    void sort() {
+        createHeader();
 
         if (show_progress) {
             stderr.writeln("Writing sorted chunks to temporary directory...");
@@ -170,13 +124,38 @@ int sort_main(string[] args) {
         }
 
         scope(exit) {
-            // ---------------- remove temporary files at exit ---------------------
             foreach (tmpfile; tmpfiles) {
                 remove(tmpfile);
             }
         }
 
-        // ---------------------- merge sorted chunks ------------------------------
+        mergeSortedChunks();
+    }
+
+    private void createHeader() {
+        auto header = bam.header;
+        header.sorting_order = sort_by_name ? SortingOrder.queryname :
+                                              SortingOrder.coordinate;
+        header_text = toSam(header);
+    }
+
+    private void writeSortedChunks(R)(R alignments) {
+        foreach (chunk; map!sortChunk(chunks(alignments, memory_limit)))
+        {
+            auto fn = tmpFile(chunkBaseName(filename, num_of_chunks), tmpdir);
+            tmpfiles ~= fn;
+
+            Stream stream = new BufferedFile(fn, FileMode.Out);
+            scope(exit) stream.close();
+
+            writeBAM(stream, header_text, bam.reference_sequences, 
+                     chunk, uncompressed_chunks ? 0 : 1, task_pool);
+
+            num_of_chunks += 1;
+        }
+    }
+
+    private void mergeSortedChunks() {
 
         // half of memory is for input buffers
         // and another half is for output buffers
@@ -238,7 +217,55 @@ int sort_main(string[] args) {
                      compression_level,
                      task_pool);
         }
+    }
 
+    private {
+        string header_text;
+
+        string[] tmpfiles; // temporary file names
+        size_t num_of_chunks; // number of temporary files
+    }
+}
+
+int sort_main(string[] args) {
+
+    if (args.length < 2) {
+        printUsage();
+        return 0;
+    }
+
+    try {
+        string memory_limit_str = null;
+
+        auto sorter = new Sorter();
+
+        getopt(args,
+               std.getopt.config.caseSensitive,
+               "memory-limit|m",        &memory_limit_str,
+               "tmpdir",                &sorter.tmpdir,
+               "out|o",                 &sorter.output_filename,
+               "sort-by-name|n",        &sort_by_name,
+               "uncompressed-chunks|u", &sorter.uncompressed_chunks,
+               "compression-level|l",   &sorter.compression_level,
+               "show-progress|p",       &show_progress);
+
+        if (sorter.output_filename is null) {
+            sorter.output_filename = setExtension(args[1], "sorted.bam");
+        }
+
+        if (memory_limit_str !is null) {
+            sorter.memory_limit = parseMemory(memory_limit_str);
+        }
+
+        // TODO: find a better formula
+        sorter.memory_limit /= 4;
+
+        sorter.task_pool = new TaskPool(totalCPUs);
+        scope(exit) sorter.task_pool.finish();
+        sorter.bam = BamFile(args[1], sorter.task_pool);
+        sorter.filename = args[1];
+
+        sorter.sort();
         return 0;
     } catch (Throwable e) {
         stderr.writeln("sambamba-sort: ", e.msg);
@@ -289,14 +316,4 @@ size_t parseMemory(string str) {
 ///                                               
 string chunkBaseName(string unsorted_fn, size_t chunk_num) {
     return baseName(unsorted_fn) ~ "." ~ to!string(chunk_num);
-}
-
-auto chunks(R)(R reads, size_t size_in_bytes) {
-
-    static size_t approxSize(Alignment read) {
-        return Alignment.sizeof * 3  / 2 + read.size_in_bytes;
-    }
-
-    // false means that each chunk may contain reads with different ref. ID
-    return AlignmentRangeSplitter!(R, approxSize)(reads, size_in_bytes, false); 
 }
