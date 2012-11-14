@@ -276,11 +276,30 @@ unittest {
     assert(pg_line.command_line.endsWith("$bq_bam_file"));
 }
 
+// workaround for LDC bug #217
+struct ValueRange(T) {
+    this(T[string] dict, string[] ids) {
+        _dict = dict;
+        _ids = ids;
+    }
+
+    private {
+        T[string] _dict;
+        string[] _ids;
+    }
+
+    ref T front() @property { return _dict[_ids[0]]; }
+    ref T back() @property { return _dict[_ids[$-1]]; }
+    bool empty() @property { return _ids.length == 0; }
+    void popFront() { _ids = _ids[1 .. $]; }
+    void popBack() { _ids = _ids[0 .. $ - 1]; }
+    ref T opIndex(size_t i) { return _dict[_ids[i]]; }
+    size_t length() @property { return _ids.length; }
+    ValueRange save() { return ValueRange(_dict, _ids[]); }
+}
+
 /// Common class for storing header lines
 class HeaderLineDictionary(T) {
-
-    /* D doesn't currently support invariant in this class 
-       because values() has type auto :-(
 
     invariant() {
         assert(_index_to_id.length == _dict.length);
@@ -289,7 +308,6 @@ class HeaderLineDictionary(T) {
             assert(_index_to_id[index] == id);
         }
     }
-    */
 
     ///
     T opIndex(string id) const {
@@ -368,12 +386,11 @@ class HeaderLineDictionary(T) {
         _index_to_id.length = 0;
     }
 
+    static assert(isRandomAccessRange!(ValueRange!T));
+
     /// Returns: range of lines
-    auto values() @property {
-        // FIXME: create a workaround for LDC bug #217
-        return map!((size_t i) {
-                        return _dict[_index_to_id[i]];
-                    })(iota(_dict.length));
+    ValueRange!T values() @property {
+        return ValueRange!T(_dict, _index_to_id);
     }
 
     /// Returns: number of stored lines

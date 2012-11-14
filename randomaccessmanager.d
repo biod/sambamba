@@ -127,20 +127,21 @@ class RandomAccessManager {
 
         auto bgzf_range = BgzfRange(_compressed_stream);
 
-        auto helper(R)(R decompressed_range) {
+        static auto helper(R)(R decompressed_range, VirtualOffset offset) {
 
             auto adjusted_front = AugmentedDecompressedBgzfBlock(decompressed_range.front,
                                                                  offset.uoffset, 0); 
             decompressed_range.popFront();
-            auto adjusted_range = chain([adjusted_front], map!makeAugmentedBlock(decompressed_range));
+            auto adjusted_range = chain(repeat(adjusted_front, 1), 
+                                        map!makeAugmentedBlock(decompressed_range));
 
             return cast(IChunkInputStream)makeChunkInputStream(adjusted_range);
         }
 
         if (task_pool is null) {
-            return helper(map!decompressSerial(bgzf_range));
+            return helper(map!decompressSerial(bgzf_range), offset);
         } else {
-            return helper(task_pool.map!(bgzfrange.decompressBgzfBlock)(bgzf_range));
+            return helper(task_pool.map!(bgzfrange.decompressBgzfBlock)(bgzf_range), offset);
         }
     }
 
@@ -156,7 +157,6 @@ class RandomAccessManager {
         auto stream = new utils.stream.File(_filename);
         stream.seekSet(offset);
         return BgzfRange(stream).front;
-
     }
 
     /// Get alignments between two virtual offsets. First virtual offset must point
@@ -165,8 +165,12 @@ class RandomAccessManager {
     /// If $(D task_pool) is not null, it is used for parallel decompression. Otherwise, decompression is serial.
     auto getAlignmentsBetween(VirtualOffset from, VirtualOffset to, TaskPool task_pool=null) {
         IChunkInputStream stream = createStreamStartingFrom(from, task_pool);
-        return until!(function (AlignmentBlock record, VirtualOffset vo) { return record.end_virtual_offset > vo; })
-                     (alignmentRange!withOffsets(stream), to);
+
+        static bool offsetTooBig(AlignmentBlock record, VirtualOffset vo) {
+            return record.end_virtual_offset > vo;
+        }
+
+        return until!offsetTooBig(alignmentRange!withOffsets(stream), to);
     }
 
     bool found_index_file() @property {
@@ -273,8 +277,11 @@ public:
 
         stream.seekSet(cast(size_t)chunk.beg.coffset);
 
-        return until!(function (BgzfBlock block, ulong offset) { return block.start_offset > offset; })
-                     (BgzfRange(stream), chunk.end.coffset);
+        static bool offsetTooBig(BgzfBlock block, ulong offset) {
+            return block.start_offset > offset;
+        }
+
+        return until!offsetTooBig(BgzfRange(stream), chunk.end.coffset);
     }
 
     // (2) : Chunk[] -> [BgzfBlock]

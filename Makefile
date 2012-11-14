@@ -40,7 +40,10 @@ FILES=constants.d \
 	splitter.d \
 	pileuprange.d \
 	bgzfcompress.d \
-	bamoutput.d
+	bamoutput.d \
+	baseinfo.d \
+	fz/flowcall.d \
+	fz/flowindex.d
 
 LIBFILES = $(FILES) bindings.d
 TESTFILES = $(FILES) unittests.d utils/tmpfile.d

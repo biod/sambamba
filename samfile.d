@@ -51,49 +51,50 @@ struct SamFile {
 
     private alias File.ByLine!(char, char) LineRange;
 
-    /// Alignments in SAM file. Can be iterated only once.
-    auto alignments() @property {
-        struct Result {
-            this(LineRange lines, ref SamHeader header) {
-                _header = header;
-                _line_range = lines;
+    static struct SamRecordRange {
+        this(LineRange lines, ref SamHeader header) {
+            _header = header;
+            _line_range = lines;
 
-                _build_storage = new AlignmentBuildStorage();
-                _parseNextLine();
-            }
-            
-            bool empty() @property {
-                return _empty;
-            }
-            
-            void popFront() @property {
-                _line_range.popFront();
-                _parseNextLine();
-            }
-
-            Alignment front() @property {
-                return _current_alignment;
-            }
-
-            private {
-                void _parseNextLine() {
-                    if (_line_range.empty) {
-                        _empty = true;
-                    } else {
-                        _current_alignment = parseAlignmentLine(cast(string)_line_range.front.dup,
-                                                                _header,
-                                                                _build_storage);
-                    }
-                }
-
-                LineRange _line_range;
-                Alignment _current_alignment;
-                bool _empty;
-                SamHeader _header;
-                AlignmentBuildStorage _build_storage;
-            }
+            _build_storage = new AlignmentBuildStorage();
+            _parseNextLine();
+        }
+        
+        bool empty() @property {
+            return _empty;
+        }
+        
+        void popFront() @property {
+            _line_range.popFront();
+            _parseNextLine();
         }
 
+        Alignment front() @property {
+            return _current_alignment;
+        }
+
+        private {
+            void _parseNextLine() {
+                if (_line_range.empty) {
+                    _empty = true;
+                } else {
+                    _current_alignment = parseAlignmentLine(cast(string)_line_range.front.dup,
+                                                            _header,
+                                                            _build_storage);
+                }
+            }
+
+            LineRange _line_range;
+            Alignment _current_alignment;
+            bool _empty;
+            SamHeader _header;
+            AlignmentBuildStorage _build_storage;
+        }
+    }
+
+    /// Alignments in SAM file. Can be iterated only once.
+    auto alignments() @property {
+        
         LineRange lines = _lines;
         if (_seekable) {
             if (_filename !is null) {
@@ -108,7 +109,7 @@ struct SamFile {
                 lines.popFront();
         }
 
-        return Result(lines, _header);
+        return SamRecordRange(lines, _header);
     }
 private:
 

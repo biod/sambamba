@@ -208,11 +208,10 @@ private:
     }
 
     void mergeReadGroups() {
-        auto readgroups_with_file_ids = joiner(
-            map!((size_t i) { 
-                return zip(_headers[i].read_groups.values, repeat(i));
-            })(iota(_len))
-        );                             
+        Tuple!(RgLine, size_t)[] readgroups_with_file_ids;
+        for (size_t i = 0; i < _len; i++)
+            foreach (rg; _headers[i].read_groups.values)
+                readgroups_with_file_ids ~= tuple(rg, i);
 
         auto dict = new RgLineDictionary();
 
@@ -223,11 +222,10 @@ private:
     }
 
     void mergeProgramRecords() {
-        auto programs_with_file_ids = array(joiner(
-            map!((size_t i) {
-                return zip(_headers[i].programs.values, repeat(i));
-            })(iota(_len))
-        ));
+        Tuple!(PgLine, size_t)[] programs_with_file_ids;
+        for (size_t i = 0; i < _len; i++)
+            foreach (pg; _headers[i].programs.values)
+                programs_with_file_ids ~= tuple(pg, i);
 
         auto vertices = partition!"a[0].previous_program !is null"(programs_with_file_ids);
         programs_with_file_ids = programs_with_file_ids[0 .. $ - vertices.length];
