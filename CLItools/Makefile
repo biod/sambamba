@@ -44,9 +44,6 @@ SAMFILES=../samfile.d ../sam/recordparser.d ../utils/tagstoragebuilder.d
 
 all: sambamba-dmd
 
-../sam/recordparser.d:
-	cd ../sam && make recordparser.d
-
 DMDFLAGSFULL=-g -O -release -inline#-O -release -inline -g
 GDCFLAGSFULL=-O3 -frelease -finline -fno-assert -fno-bounds-check -lpthread -g -funroll-all-loops -finline-limit=8192
 LDCFLAGSFULL=-g -O3 -release -inline
@@ -63,7 +60,7 @@ SAMBAMBA_FLAGSTAT_FILES=sambamba-flagstat/flagstat.d
 
 SAMBAMBA_FILES=$(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES) $(SAMBAMBA_INDEX_FILES) $(SAMBAMBA_FLAGSTAT_FILES) $(SAMBAMBA_SORT_MERGE_COMMON_FILES) $(SAMBAMBA_SORT_FILES) $(SAMBAMBA_MERGE_FILES) sambamba/main.d
 
-sambamba-dmd: $(SAMBAMBA_FILES)
+sambamba-dmd: $(SAMBAMBA_FILES) recordparser
 	mkdir -p build
 	dmd $(DMDFLAGSFULL) $(SAMBAMBA_FILES) -ofbuild/sambamba
 
@@ -135,7 +132,10 @@ sambamba-ldc-dev: $(SAMBAMBA_FILES)
 	mkdir -p build
 	ldmd2 -g $(SAMBAMBA_FILES) -version=development -ofbuild/sambamba
 
-fastrecordparser: ../sam/sam_alignment.rl
+recordparser: 
+	cd ../sam && make recordparser.d && cd ..
+
+fastrecordparser: 
 	cd ../sam && make fastrecordparser && cd ..
 
 sambamba-view-dmd-serial: $(FILES) $(SAMFILES) $(SAMBAMBA_VIEW_FILES)

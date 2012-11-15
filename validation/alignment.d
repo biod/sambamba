@@ -526,20 +526,20 @@ final private class BooleanValidator : AbstractAlignmentValidator {
 
     bool result;
 
-    final override void validate(ref Alignment al) {
+    override void validate(ref Alignment al) {
         result = true;
         super.validate(al);
     }
 
-    bool onError(ref Alignment al, AlignmentError e) {
+    override bool onError(ref Alignment al, AlignmentError e) {
         return (result = false);
     }
 
-    bool onError(ref Alignment al, CigarError e) {
+    override bool onError(ref Alignment al, CigarError e) {
         return (result = false);
     }
 
-    bool onError(string key, const ref Value val, TagError e) {
+    override bool onError(string key, const ref Value val, TagError e) {
         return (result = false);
     }
 

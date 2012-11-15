@@ -58,6 +58,7 @@ debug:
 
 region-parser: region.rl
 	ragel region.rl -D -G2
+	./ragel_workarounds/fix_switch_case_fallthrough.sh region.d
 
 unittests: $(TESTFILES)
 	dmd $(TESTFILES) -debug -g -unittest -ofrun_unittests -version=serial

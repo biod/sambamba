@@ -37,14 +37,14 @@ final class TagNameNode : Node {
         this.tagname = tagname;
     }
 
-    string toString() const {
+    override string toString() const {
         return "[" ~ tagname ~ "]";
     }
 }
 
 final class NullValueNode : Node {
     static auto value = null;
-    string toString() const {
+    override string toString() const {
         return "null";
     }
 }
@@ -54,7 +54,7 @@ final class IntegerNode : Node {
     this(long value) {
         this.value = value;
     }
-    string toString() const {
+    override string toString() const {
         return to!string(value);
     }
 }
@@ -64,7 +64,7 @@ final class IntegerFieldNode : Node {
     this(string fieldname) {
         this.fieldname = fieldname;
     }
-    string toString() const {
+    override string toString() const {
         return fieldname;
     }
 }
@@ -74,7 +74,7 @@ final class StringNode : Node {
     this(string value) {
         this.value = value;
     }
-    string toString() const {
+    override string toString() const {
         return "'" ~ replace(value, "'", "\\'") ~ "'";
     }
 }
@@ -84,7 +84,7 @@ final class StringFieldNode : Node {
     this(string fieldname) {
         this.fieldname = fieldname;
     }
-    string toString() const {
+    override string toString() const {
         return fieldname;
     }
 }
@@ -99,14 +99,14 @@ final class RegexpNode : Node {
         regexp = regex(_pattern, _options);
     }
 
-    string toString() const {
+    override string toString() const {
         return "/" ~ replace(_pattern, "/", "\\/") ~ "/" ~ _options;
     }
 }
 
 abstract class ConditionNode : Node {
     Filter condition;
-    abstract string toString() const;
+    override abstract string toString() const;
 }
 
 final class RegexpFieldConditionNode : ConditionNode {
@@ -289,7 +289,7 @@ final class QueryGrammar : Grammar!Node {
 
         addSymbolToDict("(flag condition)", 0)
             .setScanner(makeScanner(flagnames))
-            .setParser((in string str) { return cast(Node) new FlagConditionNode(str);;});
+            .setParser((in string str) { return cast(Node) new FlagConditionNode(str);});
 
         auto integer_fields = ["ref_id", "position", "mapping_quality", 
                                "sequence_length", "mate_ref_id", "mate_position",

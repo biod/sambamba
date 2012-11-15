@@ -113,7 +113,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
     /// Behaviour: when current chunk contains >= n bytes,
     ///            a chunk slice is returned. 
     ///            Otherwise, memory copying occurs.
-    ubyte[] readSlice(size_t n) {
+    override ubyte[] readSlice(size_t n) {
         if (_range.empty()) {
             _start_offset = _end_offset;
             _cur = 0;
@@ -188,7 +188,7 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
     }
 
     /// Returns: current virtual offset
-    VirtualOffset virtualTell() {
+    override VirtualOffset virtualTell() {
         assert(_cur < (1<<16));
         if (_its_time_to_get_next_chunk) {
             setupStream();
@@ -196,12 +196,12 @@ final class ChunkInputStream(ChunkRange) : IChunkInputStream
         return VirtualOffset(_start_offset, cast(ushort)_cur);
     }
 
-    float average_compression_ratio() @property const {
+    override float average_compression_ratio() @property const {
         if (_total_compressed == 0) return 0.0;
         return cast(float)_total_uncompressed/_total_compressed;
     }
 
-    size_t compressed_file_size() @property const {
+    override size_t compressed_file_size() @property const {
         return _compressed_file_size;
     }
 

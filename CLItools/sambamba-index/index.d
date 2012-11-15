@@ -58,6 +58,7 @@ int index_main(string[] args) {
         switch (args.length) {
             case 3:
                 out_filename = args[2];
+                goto case;
             case 2:
                 if (out_filename is null)
                     out_filename = args[1] ~ ".bai";

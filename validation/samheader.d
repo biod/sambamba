@@ -254,19 +254,19 @@ final private class BooleanValidator : AbstractSamHeaderValidator {
         super.validate(header);
     }
 
-    bool onError(ref SamHeader header, SamHeaderError e) {
+    override bool onError(ref SamHeader header, SamHeaderError e) {
         return (result = false);
     }
 
-    bool onError(ref SqLine line, SqLineError e) {
+    override bool onError(ref SqLine line, SqLineError e) {
         return (result = false);
     }
 
-    bool onError(ref RgLine header, RgLineError e) {
+    override bool onError(ref RgLine header, RgLineError e) {
         return (result = false);
     }
 
-    bool onError(ref PgLine header, PgLineError e) {
+    override bool onError(ref PgLine header, PgLineError e) {
         return (result = false);
     }
 }

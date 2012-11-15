@@ -271,8 +271,6 @@ int sort_main(string[] args) {
         stderr.writeln("sambamba-sort: ", e.msg);
         return 1;
     }
-
-    return 0;
 }
 
 /// parses \d+K, \d+M, \d+G

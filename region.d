@@ -66,7 +66,7 @@ Region parseRegion(string str) {
 		goto _test_eof;
 	switch ( cs )
 	{
-case 1:
+goto case; case 1:
 	if ( (*p) < 43u ) {
 		if ( 33u <= (*p) && (*p) <= 41u )
 			goto st3;
@@ -82,7 +82,7 @@ cs = 0;
 st3:
 	if ( ++p == pe )
 		goto _test_eof3;
-case 3:
+goto case; case 3:
 	if ( (*p) == 58u )
 		goto tr3;
 	if ( 33u <= (*p) && (*p) <= 126u )
@@ -95,7 +95,7 @@ tr3:
 st4:
 	if ( ++p == pe )
 		goto _test_eof4;
-case 4:
+goto case; case 4:
 #line 100 "region.d"
 	if ( (*p) == 44u )
 		goto tr5;
@@ -111,7 +111,7 @@ case 4:
 st5:
 	if ( ++p == pe )
 		goto _test_eof5;
-case 5:
+goto case; case 5:
 	if ( 33u <= (*p) && (*p) <= 126u )
 		goto st5;
 	goto st0;
@@ -128,7 +128,7 @@ tr6:
 st6:
 	if ( ++p == pe )
 		goto _test_eof6;
-case 6:
+goto case; case 6:
 #line 133 "region.d"
 	switch( (*p) ) {
 		case 44u: goto tr6;
@@ -145,7 +145,7 @@ tr7:
 st2:
 	if ( ++p == pe )
 		goto _test_eof2;
-case 2:
+goto case; case 2:
 #line 150 "region.d"
 	if ( (*p) == 44u )
 		goto tr2;
@@ -165,7 +165,7 @@ tr8:
 st7:
 	if ( ++p == pe )
 		goto _test_eof7;
-case 7:
+goto case; case 7:
 #line 170 "region.d"
 	if ( (*p) == 44u )
 		goto tr8;
