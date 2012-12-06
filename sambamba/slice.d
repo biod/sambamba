@@ -167,15 +167,15 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
             auto file_stream = new bio.core.utils.stream.File(filename);
             file_stream.seekSet(copy_start_offset);
 
-            size_t curpos = copy_start_offset;
+            size_t curpos = cast(size_t)copy_start_offset;
             while (copy_end_offset - curpos > 8192) {
                 file_stream.readExact(copy_buffer.ptr, 8192);
                 stream.writeExact(copy_buffer.ptr, 8192);
                 curpos += 8192;
             }
 
-            file_stream.readExact(copy_buffer.ptr, copy_end_offset - curpos);
-            stream.writeExact(copy_buffer.ptr, copy_end_offset - curpos);
+            file_stream.readExact(copy_buffer.ptr, cast(size_t)copy_end_offset - curpos);
+            stream.writeExact(copy_buffer.ptr, cast(size_t)copy_end_offset - curpos);
 
             // write right chomped block if it's non-empty
             auto block2 = bam.getBgzfBlockAt(s2_end_offset.coffset);

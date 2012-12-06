@@ -24,6 +24,8 @@ import sambamba.sort;
 import sambamba.flagstat;
 import sambamba.slice;
 
+import sambamba.utils.common.ldc_gc_workaround;
+
 import std.stdio;
 
 void printUsage() {

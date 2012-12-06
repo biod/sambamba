@@ -104,9 +104,9 @@ end
 def make_sambamba
   Dir.chdir '../..'
   if $arch == 'i386' then
-    `make sambamba-gdc-32`
+    `make sambamba-ldmd2-32`
   else
-    `make sambamba-gdc`
+    `make sambamba-ldmd2-64`
   end
 
   Dir.chdir $debdir
@@ -166,7 +166,7 @@ end
 
 def add_lintian_override_concerning_embedded_zlib
   File.open('usr/share/lintian/overrides/sambamba', 'w+') do |f|
-    f.puts '# GDC links with Zlib statically'
+    f.puts '# Phobos links with Zlib statically'
     f.puts 'sambamba binary: embedded-zlib'
   end
 end

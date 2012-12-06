@@ -7,6 +7,14 @@ all:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -ofbuild/sambamba main.d
 
+sambamba-ldmd2-64:
+	mkdir -p build/
+	rdmd --build-only --force --compiler=ldmd2 -O3 -m64 -release -inline -IBioD/ -ofbuild/sambamba main.d
+
+sambamba-ldmd2-32:
+	mkdir -p build/
+	rdmd --build-only --force --compiler=ldmd2 -O3 -m32 -release -inline -IBioD/ -ofbuild/sambamba main.d
+
 sambamba-flagstat:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -version=standalone -ofbuild/sambamba-flagstat sambamba/flagstat.d
