@@ -5,8 +5,8 @@ library), written in the D programming language, for working
 with BAM files.  Current functionality is an important subset of
 samtools functionality. 
 
-In many cases Sambamba is much faster
-than samtools. For example indexing an 18 Gb BAM file on a fast 8 core
+Because of efficient use of modern multicore CPUs, usually Sambamba is much faster
+than samtools. For example, indexing an 18 Gb BAM file on a fast 8 core
 machine utilizes all cores at 45% CPU:
 
     time ~/sambamba index /scratch/HG00119.mapped.ILLUMINA.bwa.GBR.exome.20111114.bam            
@@ -51,7 +51,10 @@ where the binaries reside in ./build
 
 ## Note
 
-Use the latest version of DMD. Older ones may have bugs causing segfaults.
+Use the latest version of DMD, older ones may have bugs causing segfaults.
+
+Release builds are compiled using GDC 4.7 branch, for performance reasons.
+However, they may not be as stable as executables compiled with DMD.
 
 # Copyright
 
