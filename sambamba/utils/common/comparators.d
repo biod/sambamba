@@ -23,7 +23,7 @@ module sambamba.utils.common.comparators;
 import bio.bam.read;
 
 bool compareReadNames(BamRead a1, BamRead a2) {
-    return a1.read_name < a2.read_name;
+    return a1.name < a2.name;
 }
 
 /// Comparison function for alignments

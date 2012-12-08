@@ -159,7 +159,7 @@ final class StringFieldFilter(string op) : Filter {
     }
     bool accepts(ref BamRead a) const {
         switch(_fieldname) {
-            case "read_name": mixin("return a.read_name " ~ op ~ " _value;");
+            case "read_name": mixin("return a.name " ~ op ~ " _value;");
             case "sequence": mixin("return cmp(a.sequence, _value) " ~ op ~ " 0;");
             case "cigar": mixin("return a.cigarString() " ~ op ~ " _value;");
             default: throw new Exception("unknown string field '" ~ _fieldname ~ "'");
@@ -203,7 +203,7 @@ final class RegexpFieldFilter : Filter {
 
     bool accepts(ref BamRead a) const {
         switch(_fieldname) {
-            case "read_name": return !match(a.read_name, cast()_pattern).empty;
+            case "read_name": return !match(a.name, cast()_pattern).empty;
             case "sequence": return !match(to!string(a.sequence), cast()_pattern).empty;
             case "cigar": return !match(a.cigarString(), cast()_pattern).empty;
             default: throw new Exception("unknown string field '" ~ _fieldname ~ "'");
