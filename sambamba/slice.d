@@ -87,6 +87,7 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
     auto chr = region.reference;
     auto beg = region.beg;
     auto end = region.end;
+
     auto filename = bam.filename;
 
     auto reads1 = bam[chr][beg .. end];
@@ -127,10 +128,10 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
         s2_end_offset = bam[chr].endVirtualOffset();
     } else {
         foreach (read; reads2) {
+            s2_end_offset = reads2.front.start_virtual_offset;
             if (read.position >= end) {
                 break;
             }
-            s2_end_offset = read.end_virtual_offset;
         }
     }
 
@@ -156,8 +157,9 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
 
             auto data1 = decompressBgzfBlock(block1).decompressed_data;
             data1 = data1[s2_start_offset.uoffset .. $];
-            assert(data1.length > 0);
-            stream.write(bgzfCompress(data1, -1));
+            if (data1.length > 0) {
+                stream.write(bgzfCompress(data1, -1));
+            }
 
             auto copy_end_offset = s2_end_offset.coffset;
 
@@ -183,8 +185,9 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
             auto data2 = decompressBgzfBlock(block2).decompressed_data;
             data2 = data2[0 .. s2_end_offset.uoffset];
 
-            assert(data2.length > 0);
-            stream.write(bgzfCompress(data2, -1));
+            if (data2.length > 0) {
+                stream.write(bgzfCompress(data2, -1));
+            }
         }
     }
 
