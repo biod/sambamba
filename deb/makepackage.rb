@@ -104,9 +104,9 @@ end
 def make_sambamba
   Dir.chdir '../..'
   if $arch == 'i386' then
-    `./build_release_gdc.sh 32`
+    `make sambamba-ldmd2-32`
   elsif $arch == 'amd64' then
-    `./build_release_gdc.sh 64`
+    `make sambamba-ldmd2-64`
   else
     puts 'architecture must be one of i386, amd64'
     exit 1
