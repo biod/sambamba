@@ -1,10 +1,10 @@
 module sambamba.slice;
 
 import bio.bam.reader;
-import bio.bam.bgzf.block;
-import bio.bam.bgzf.compress;
-import bio.bam.output;
+import bio.bam.writer;
 import bio.bam.constants;
+import bio.core.bgzf.block;
+import bio.core.bgzf.compress;
 import bio.core.utils.stream;
 import bio.core.region;
 
@@ -135,9 +135,14 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
         }
     }
 
-    // write R1 - even if it's empty, we still need to output BAM header
-    writeBAM(stream, bam.header.text, bam.reference_sequences,
-             r1.data, -1, taskPool, 1, 1, false);
+    // write header and reference sequence information
+    auto writer = new BamWriter(stream);
+    writer.writeSamHeader(bam.header);
+    writer.writeReferenceSequenceInfo(bam.reference_sequences);
+    // write R1
+    foreach (read; r1.data)
+        writer.writeRecord(read);
+    writer.flush();
 
     // R2 is non-empty
     if (s2_start_offset < s2_end_offset) {

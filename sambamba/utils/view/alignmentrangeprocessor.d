@@ -20,9 +20,9 @@
 module sambamba.utils.view.alignmentrangeprocessor;
 
 import bio.bam.reader;
+import bio.bam.writer;
 import bio.bam.serialization.sam;
 import bio.bam.serialization.json;
-import bio.bam.output;
 import bio.bam.thirdparty.msgpack;
 import bio.core.utils.format;
 
@@ -122,13 +122,15 @@ final class BamSerializer {
         } else {
             output_stream = new BufferedFile(_output_fn, FileMode.OutNew, BUFSIZE);
         }
-        scope(exit) output_stream.close();
 
-        writeBAM(output_stream, 
-                 bam.header.text,
-                 bam.reference_sequences,
-                 reads,
-                 _level);
+        scope(failure) output_stream.close();
+
+        auto writer = new BamWriter(output_stream, _level);
+        scope(exit) writer.finish();
+        writer.writeSamHeader(bam.header);
+        writer.writeReferenceSequenceInfo(bam.reference_sequences);
+        foreach (read; reads)
+            writer.writeRecord(read);
     }
 }
 

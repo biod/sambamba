@@ -20,7 +20,7 @@
 module sambamba.sort;
 
 import bio.bam.reader;
-import bio.bam.output;
+import bio.bam.writer;
 import bio.sam.header;
 import bio.bam.read;
 import bio.bam.splitter;
@@ -40,7 +40,6 @@ import std.stream;
 import std.stdio;
 import core.atomic;
 
-import sambamba.utils.common.comparators;
 import sambamba.utils.common.nwayunion : nWayUnion;
 import sambamba.utils.common.progressbar;
 
@@ -101,7 +100,7 @@ class Sorter {
 
     static BamRead[] sortChunk(BamRead[] chunk) {
         if (!sort_by_name) {
-            mergeSort!compareAlignmentCoordinates(chunk, true); // threaded
+            mergeSort!compareCoordinates(chunk, true); // threaded
         } else {
             mergeSort!compareReadNames(chunk, true);
         }
@@ -129,14 +128,16 @@ class Sorter {
             }
         }
 
-        mergeSortedChunks();
+        if (sort_by_name)
+            mergeSortedChunks!compareReadNames();
+        else
+            mergeSortedChunks!compareCoordinates();
     }
 
     private void createHeader() {
-        auto header = bam.header;
+        header = bam.header;
         header.sorting_order = sort_by_name ? SortingOrder.queryname :
                                               SortingOrder.coordinate;
-        header_text = toSam(header);
     }
 
     private void writeSortedChunks(R)(R reads) {
@@ -146,22 +147,30 @@ class Sorter {
             tmpfiles ~= fn;
 
             Stream stream = new BufferedFile(fn, FileMode.Out);
-            scope(exit) stream.close();
+            scope(failure) stream.close();
 
-            writeBAM(stream, header_text, bam.reference_sequences, 
-                     chunk, uncompressed_chunks ? 0 : 1, task_pool);
+            auto writer = new BamWriter(stream, 
+                                        uncompressed_chunks ? 0 : 1,
+                                        task_pool);
+            scope(exit) writer.finish();
+
+            writer.writeSamHeader(header);
+            writer.writeReferenceSequenceInfo(bam.reference_sequences);
+
+            foreach (read; chunk)
+                writer.writeRecord(read);
 
             num_of_chunks += 1;
         }
     }
 
-    private void mergeSortedChunks() {
+    private void mergeSortedChunks(alias comparator)() {
 
         // half of memory is for input buffers
         // and another half is for output buffers
         Stream stream = new BufferedFile(output_filename, FileMode.OutNew, 
                                          memory_limit / 2);
-        scope(exit) stream.close();
+        scope(failure) stream.close();
 
         if (show_progress) {
             stderr.writeln("Merging sorted chunks...");
@@ -173,6 +182,7 @@ class Sorter {
             auto alignmentranges = new AlignmentRangePB[num_of_chunks];
 
             bar = new shared(ProgressBar)();
+            scope(exit) bar.finish();
 
             foreach (i; 0 .. num_of_chunks) {
                 weights[i] = std.file.getSize(tmpfiles[i]); // set file size as weight
@@ -196,12 +206,14 @@ class Sorter {
                         }(i));
             }
 
-            writeBAM(stream, header_text, bam.reference_sequences,
-                     nWayUnion!compareAlignmentCoordinates(alignmentranges),
-                     compression_level,
-                     task_pool);
+            auto writer = new BamWriter(stream, compression_level, task_pool);
+            scope(exit) writer.finish();
+            writer.writeSamHeader(header);
+            writer.writeReferenceSequenceInfo(bam.reference_sequences);
 
-            bar.finish();
+            foreach (read; nWayUnion!comparator(alignmentranges))
+                writer.writeRecord(read);
+
         } else {
             alias ReturnType!(BamReader.reads!withoutOffsets) AlignmentRange;
             auto alignmentranges = new AlignmentRange[num_of_chunks];
@@ -212,15 +224,18 @@ class Sorter {
                 range = bamfile.reads!withoutOffsets;
             }
 
-            writeBAM(stream, header_text, bam.reference_sequences,
-                     nWayUnion!compareAlignmentCoordinates(alignmentranges),
-                     compression_level,
-                     task_pool);
+            auto writer = new BamWriter(stream, compression_level, task_pool);
+            scope(exit) writer.finish();
+            writer.writeSamHeader(header);
+            writer.writeReferenceSequenceInfo(bam.reference_sequences);
+
+            foreach (read; nWayUnion!comparator(alignmentranges))
+                writer.writeRecord(read);
         }
     }
 
     private {
-        string header_text;
+        SamHeader header;
 
         string[] tmpfiles; // temporary file names
         size_t num_of_chunks; // number of temporary files

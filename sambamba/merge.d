@@ -65,12 +65,14 @@ module sambamba.merge;
         filenames -> ranges of alignments for these filenames
                   -> ranges of alignments modified accordingly to the maps
                   -> nWayUnion with a comparator corresponding to the common sorting order
-                  -> writeBAM with merged header and reference sequences info
+                  -> write BAM with merged header and reference sequences info
 
    */
 
 import bio.bam.reader;
-import bio.bam.output;
+import bio.bam.writer;
+import bio.bam.utils.samheadermerger;
+import bio.bam.read;
 
 import std.stdio;
 import std.algorithm;
@@ -88,11 +90,8 @@ import std.getopt;
 
 import core.atomic;
 
-import sambamba.utils.common.comparators;
 import sambamba.utils.common.nwayunion : nWayUnion;
 import sambamba.utils.common.progressbar;
-
-import bio.bam.utils.samheadermerger;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
@@ -227,34 +226,29 @@ int merge_main(string[] args) {
             auto modifiedranges = array(map!modifyAlignmentRange(alignmentranges));
 
             // write BAM file
-
             Stream stream = new BufferedFile(output_filename, FileMode.OutNew, 50_000_000); // TODO
-            scope(exit) stream.close();
+            scope(failure) stream.close();
 
             auto reference_sequences = new ReferenceSequenceInfo[(cast()merged_header).sequences.length];
             size_t i;
             foreach (line; (cast()merged_header).sequences.values) {
-                reference_sequences[i].name = line.name;
-                reference_sequences[i].length = line.length;
+                reference_sequences[i] = ReferenceSequenceInfo(line.name, line.length);
                 ++i;
             } 
 
+            auto writer = new BamWriter(stream, compression_level, task_pool);
+            scope(exit) writer.finish();
+            writer.writeSamHeader(cast()merged_header);
+            writer.writeReferenceSequenceInfo(reference_sequences);
+
             switch (merged_header.sorting_order) {
                 case SortingOrder.queryname:
-                    writeBAM(stream, 
-                             toSam(cast()merged_header), 
-                             reference_sequences,
-                             nWayUnion!compareReadNames(modifiedranges),
-                             compression_level,
-                             task_pool);
+                    foreach (read; nWayUnion!compareReadNames(modifiedranges))
+                        writer.writeRecord(read);
                     break;
                 case SortingOrder.coordinate:
-                    writeBAM(stream, 
-                             toSam(cast()merged_header), 
-                             reference_sequences,
-                             nWayUnion!compareAlignmentCoordinates(modifiedranges),
-                             compression_level,
-                             task_pool);
+                    foreach (read; nWayUnion!compareCoordinates(modifiedranges))
+                        writer.writeRecord(read);
                     break;
                 default: assert(0);
             }
