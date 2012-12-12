@@ -1,3 +1,11 @@
+sambamba (0.3.0) unstable; urgency=low
+
+  * new command line tool -- sambamba-slice
+  * several minor bugfixes
+  * compiles with LDC2
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Wed, 12 Dec 2012 22:57:12 +0400
+
 sambamba (0.2.9) unstable; urgency=low
 
   * random access speedup
