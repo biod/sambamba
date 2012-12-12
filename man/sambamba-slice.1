@@ -1,0 +1,26 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-SLICE" "1" "December 2012" "" ""
+.
+.SH "NAME"
+\fBsambamba\-slice\fR \- copying a slice of BAM file
+.
+.SH "SYNOPSIS"
+\fBsambamba\-slice\fR \fIOPTIONS\fR <input\.bam> \fIregion\fR
+.
+.SH "DESCRIPTION"
+Outputs reads overlapping specified region into new BAM file\. (Default destination is STDOUT\.) Input file must be coordinate\-sorted and indexed\.
+.
+.P
+While the same can be done with \fIsambamba\-view\fR, that would be much slower due to a lot of compression/decompression work\. Instead of naive method, \fIsambamba\-slice\fR leverages knowledge about structure of BAM file and recompresses only a few BGZF blocks at the beginning and the end of the region, while the BGZF blocks in the middle are copied as is\. As such, this tool doesn\'t offer any options related to number of threads or compression level \- most of the time is spent on I/O operations\.
+.
+.SH "OPTIONS"
+.
+.nf
+
+* `\-o`, `\-\-output\-filename`=<OUTPUTFILE>:
+      Name of output file
+.
+.fi
+
