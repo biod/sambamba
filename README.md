@@ -49,12 +49,15 @@ tree on 64-bit Debian/Ubuntu
 
 where the binaries reside in ./build
 
+# Debian package for 64-bit systems
+
+See [downloads](http://github.com/lomereiter/sambamba/downloads).
+
 ## Note
 
 Use the latest version of DMD, older ones may have bugs causing segfaults.
 
-Release builds are compiled using GDC 4.7 branch, for performance reasons.
-However, they may not be as stable as executables compiled with DMD.
+Since version 0.3.0, release builds are done using LDC2 compiler.
 
 # Copyright
 
