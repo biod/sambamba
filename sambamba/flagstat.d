@@ -42,7 +42,7 @@ void computeFlagStatistics(R)(R alignments) {
             if (read.mate_is_unmapped && !read.is_unmapped) ++single[failed];
             if (!read.is_unmapped && !read.mate_is_unmapped) {
                 ++pair_map[failed];
-                if (read.ref_id != read.next_ref_id) {
+                if (read.ref_id != read.mate_ref_id) {
                     ++diff_chr[failed];
                     if (read.mapping_quality >= 5)
                         ++diff_high[failed];

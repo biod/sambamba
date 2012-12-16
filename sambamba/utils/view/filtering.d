@@ -103,8 +103,8 @@ final class IntegerFieldFilter(string op) : Filter {
             case "position": mixin("return a.position " ~ op ~ "_value;");
             case "mapping_quality": mixin("return a.mapping_quality " ~ op ~ "_value;");
             case "sequence_length": mixin("return a.sequence_length " ~ op ~ "_value;");
-            case "mate_ref_id": mixin("return a.next_ref_id " ~ op ~ "_value;");
-            case "mate_position": mixin("return a.next_pos " ~ op ~ "_value;");
+            case "mate_ref_id": mixin("return a.mate_ref_id " ~ op ~ "_value;");
+            case "mate_position": mixin("return a.mate_position " ~ op ~ "_value;");
             case "template_length": mixin("return a.template_length " ~ op ~ "_value;");
             default: throw new Exception("unknown integer field '" ~ _fieldname ~ "'");
         }
