@@ -188,7 +188,7 @@ class Sorter {
                 weights[i] = std.file.getSize(tmpfiles[i]); // set file size as weight
             }
 
-            normalize(weights);
+            normalize(cast()weights);
 
             foreach (i, ref range; alignmentranges) {
                 auto bamfile = new BamReader(tmpfiles[i]);

@@ -265,7 +265,7 @@ int merge_main(string[] args) {
             auto alignmentranges_with_file_ids = new Tuple!(AlignmentRangePB, size_t)[files.length];
 
             auto weights = cast(shared)array(map!(pipe!(getSize, to!float))(filenames));
-            normalize(weights);
+            normalize(cast()weights);
 
             foreach (i; 0 .. files.length) {
                 alignmentranges_with_file_ids[i] = tuple(
