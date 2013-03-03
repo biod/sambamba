@@ -32,7 +32,6 @@ import sambamba.utils.common.progressbar;
 import bio.core.utils.format;
 
 import std.stdio;
-import std.c.stdio : stdout, freopen;
 import std.string;
 import std.array;
 import std.traits;
@@ -67,29 +66,25 @@ void printUsage() {
 }
 
 void outputReferenceInfoJson(T)(T bam) {
-    
-    putcharacter(stdout, '[');
+  
+    auto w = stdout.lockingTextWriter;
+    w.put('[');
 
     bool first = true;
     foreach (refseq; bam.reference_sequences) {
         if (first) {
             first = false;
         } else {
-            putcharacter(stdout, ',');
+            w.put(',');
         }
-        putstring(stdout, `{"name":"`);
-        foreach (char c; refseq.name) {
-            if (c == '\\' || c == '"')
-                putcharacter(stdout, '\\');
-            putcharacter(stdout, c);
-        }
-        putstring(stdout, `","length":`);
-        putinteger(stdout, refseq.length);
-        putcharacter(stdout, '}');
+        w.put(`{"name":`);
+        writeJson((const(char)[] s) { w.put(s); }, refseq.name);
+        w.put(`,"length":`);
+        writeJson((const(char)[] s) { w.put(s); }, refseq.length);
+        w.put('}');
     }
 
-    putcharacter(stdout, ']');
-    putcharacter(stdout, '\n');
+    w.put("]\n");
 }
 
 string format = "sam";
@@ -164,6 +159,18 @@ auto filtered(R)(R reads) {
     return std.algorithm.filter!passing(reads);
 }
 
+File output_file() @property {
+    if (_f == File.init) {
+        if (output_filename is null)
+            _f = stdout;
+        else
+            _f = File(output_filename, "w+");
+    }
+    return _f;
+}
+
+File _f;
+
 // In fact, $(D bam) is either BAM or SAM file
 int sambambaMain(T)(T _bam, string[] args) 
     if (is(T == SamReader) || is(T == BamReader)) 
@@ -178,16 +185,16 @@ int sambambaMain(T)(T _bam, string[] args)
 
     if (header_only && !count_only) {
         // write header to stdout
-        (new HeaderSerializer(format)).writeln(bam.header);
+        (new HeaderSerializer(stdout, format)).writeln(bam.header);
     } else if (with_header && !count_only && format != "bam") {
         // for BAM, header will be written by writeBAM function
-        if (output_filename !is null) {
-            freopen(toStringz(output_filename), "w+", std.c.stdio.stdout);
-        }
-        (new HeaderSerializer(format)).writeln(bam.header);
+        (new HeaderSerializer(output_file, format)).writeln(bam.header);
     }
     
-    if (header_only) return 0;
+    if (header_only) {
+        output_file.close();
+        return 0;
+    }
 
     filter = new NullFilter();
 
@@ -258,16 +265,17 @@ int sambambaMain(T)(T _bam, string[] args)
             return 1;
         writeln(counter.number_of_reads);
     } else {
-        bool append_to_existing_file = with_header; // header is written already? (unless output format is BAM)
+        if (format == "bam")             // will close the file
+            return processAlignments(new BamSerializer(output_file, compression_level));
+
+        scope (exit) output_file.close();
         switch (format) {
-            case "bam":
-                return processAlignments(new BamSerializer(output_filename, compression_level));
             case "sam":
-                return processAlignments(new SamSerializer(output_filename, append_to_existing_file));
+                return processAlignments(new SamSerializer(output_file));
             case "json":
-                return processAlignments(new JsonSerializer(output_filename, append_to_existing_file));
+                return processAlignments(new JsonSerializer(output_file));
             case "msgpack":
-                return processAlignments(new MsgpackSerializer(output_filename, append_to_existing_file));
+                return processAlignments(new MsgpackSerializer(output_file));
             default:
                 stderr.writeln("output format must be one of sam, bam, json");
                 return 1;

@@ -21,18 +21,15 @@ module sambamba.utils.view.alignmentrangeprocessor;
 
 import bio.bam.reader;
 import bio.bam.writer;
-import bio.bam.serialization.sam;
-import bio.bam.serialization.json;
 import bio.bam.thirdparty.msgpack;
-import bio.core.utils.format;
 
-import std.c.stdio;
-
+import std.stdio;
 import std.exception;
 import std.string;
 import std.range;
+import std.format;
 import std.traits;
-import std.stream;
+import std.stream : Stream, BufferedFile, FileMode;
 import std.conv;
 import std.range;
 
@@ -44,89 +41,55 @@ class ReadCounter {
     }
 }
 
-extern(C)
-{
-    version(Posix) {
-        int isatty(int fd);
+version(Posix) {
+    extern(C) int isatty(int fd);
+}
 
-        extern(D) {
-            bool isTty(shared FILE* file) {
-                return isatty(fileno(cast(FILE*)file)) != 0;
-            }
-        }
-    }
+version(Windows) {
+    extern(C) int _isatty(int fd);
+    alias _isatty isatty;
+}
 
-    version(Windows) {
-        int _isatty(int fd);
-
-        extern(D) {
-            bool isTty(shared FILE* file) {
-                return _isatty(_fileno(cast(FILE*)file)) != 0;
-            }
-        }
-    }
+private bool isTty(ref std.stdio.File file) @property {
+    return isatty(file.fileno()) != 0;
 }
 
 class TextSerializer {
-    this(string output_filename, bool append=false) {
-        if (!isTty(stdout)) {
-            // setup a buffer for stdout for faster output
-            if (output_buf is null)
-                output_buf = new char[1_048_576];
+    this(File f) {
+        _f = f;
 
-            setvbuf(stdout, output_buf.ptr, _IOFBF, output_buf.length);        
-        }
-
-        if (output_filename !is null)
-            freopen(toStringz(output_filename), append ? "a+" : "w+", stdout);
+        if (!_f.isTty)
+            _f.setvbuf(1_024_576);
     }
 
-    private static __gshared char[] output_buf;
-
-    ~this() {
-        fflush(stdout);
-    }
+    private std.stdio.File _f;
 }
 
 final class SamSerializer : TextSerializer {
-    this(string filename, bool append=false) {
-        super(filename, append);
-    }
-
+    this(File f) { super(f); }
     void process(R, SB)(R reads, SB bam) {
-        foreach (read; reads) {
-            serialize(read, bam.reference_sequences, stdout);
-            putcharacter(stdout, '\n');
-        }
+        _f.lockingTextWriter.formattedWrite("%(%s\n%)\n", reads);
     }
 }
 
 final class BamSerializer {
 
-    private string _output_fn;
+    private File _f;
     private int _level;
 
-    this(string output_filename, int compression_level) {
-        _output_fn = output_filename;
+    this(File f, int compression_level) {
+        _f = f;
         _level = compression_level;
     }
 
     void process(R, SB)(R reads, SB bam) 
     {
-        Stream output_stream;
-
         immutable BUFSIZE = 1_048_576;
-
-        if (_output_fn is null) {
-            output_stream = new BufferedFile(fileno(cast()stdout), FileMode.Out, BUFSIZE);
-        } else {
-            output_stream = new BufferedFile(_output_fn, FileMode.OutNew, BUFSIZE);
-        }
-
-        scope(failure) output_stream.close();
-
+        Stream output_stream = new BufferedFile(_f.fileno(), FileMode.OutNew, 
+                                                BUFSIZE);
         auto writer = new BamWriter(output_stream, _level);
         scope(exit) writer.finish();
+
         writer.writeSamHeader(bam.header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
         foreach (read; reads)
@@ -135,28 +98,19 @@ final class BamSerializer {
 }
 
 final class JsonSerializer : TextSerializer {
-    this(string filename, bool append=false) {
-        super(filename, append);
-    }
-
+    this(File f) { super(f); }
     void process(R, SB)(R reads, SB bam) {
-        foreach (read; reads) {
-            jsonSerialize(read, bam.reference_sequences, stdout);
-            putcharacter(stdout, '\n');
-        }
+        _f.lockingTextWriter.formattedWrite("%(%j\n%)\n", reads);
     }
 }
 
 final class MsgpackSerializer : TextSerializer {
-    this(string filename, bool append=false) {
-        super(filename, append);
-    }
-
+    this(File f) { super(f); }
     void process(R, SB)(R reads, SB bam) {
         auto packer = packer(Appender!(ubyte[])());
         foreach (read; reads) {
             packer.pack(read);
-            fwrite(packer.stream.data.ptr, packer.stream.data.length, ubyte.sizeof, stdout);
+            fwrite(packer.stream.data.ptr, packer.stream.data.length, ubyte.sizeof, _f.getFP());
             packer.stream.clear();
         }
     }
