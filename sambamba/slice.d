@@ -128,7 +128,7 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
         s2_end_offset = bam[chr].endVirtualOffset();
     } else {
         foreach (read; reads2) {
-            s2_end_offset = reads2.front.start_virtual_offset;
+            s2_end_offset = read.start_virtual_offset;
             if (read.position >= end) {
                 break;
             }
