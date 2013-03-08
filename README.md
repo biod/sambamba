@@ -39,12 +39,12 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 # Quick install
 
-The only dependency is a D2 compiler (dmd >= 2.060). E.g. from the source
+The only dependency is a D2 compiler (dmd >= 2.062). E.g. from the source
 tree on 64-bit Debian/Ubuntu
 
     git clone --recursive https://github.com/lomereiter/sambamba
-    wget http://ftp.digitalmars.com/dmd_2.060-0_amd64.deb
-    sudo dpkg -i dmd_2.060-0_amd64.deb
+    wget http://ftp.digitalmars.com/dmd_2.062-0_amd64.deb
+    sudo dpkg -i dmd_2.062-0_amd64.deb
     make
 
 where the binaries reside in ./build
@@ -55,9 +55,7 @@ See [downloads](http://github.com/lomereiter/sambamba/downloads).
 
 ## Note
 
-Use the latest version of DMD, older ones may have bugs causing segfaults.
-
-Since version 0.3.0, release builds are done using LDC2 compiler.
+Since version 0.3.0, release builds are done using [LDC2 compiler](http://github.com/ldc-developers/ldc)
 
 # Copyright
 
