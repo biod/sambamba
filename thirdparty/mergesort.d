@@ -8,6 +8,9 @@
 	
 	Bugs:
 	Parallel sort fails to compile in debug builds
+
+    -------------------------------
+    March, 2013: added support for custom task pool //lomereiter
 ++/
 
 module thirdparty.mergesort;
@@ -20,7 +23,7 @@ import std.range, std.algorithm, std.functional, std.array, std.parallelism;
 	
 	Params:
 	half = Set to true to merge using O(n/2) additional space, or false for O(n)
-	threaded = Set to true to sort using multiple threads
+	task_pool = Thread pool to use
 	temp = Optionally provide your own additional space for sorting
 		
 	Examples:
@@ -28,22 +31,24 @@ import std.range, std.algorithm, std.functional, std.array, std.parallelism;
 	int[] array = [10, 37, 74, 99, 86, 28, 17, 39, 18, 38, 70];
 	mergeSort(array);
 	mergeSort!"a > b"(array); // Sorts array descending	
-	mergeSort(array, true);   // Sorts array using multiple threads
+    TaskPool pool = new TaskPool();
+    scope(exit) pool.finish();
+	mergeSort(array, pool);   // Sorts array using custom task pool
 	
 	int[] temp;
 	temp.length = 64;
-	mergeSort(array, false, temp); // Sorts array using temporary memory provided by user
+	mergeSort(array, pool, temp); // Sorts array using temporary memory provided by user
 	-----------------
 ++/
 
-@trusted SortedRange!(R, less) mergeSort(alias less = "a < b", bool half = true, R)(R range, bool threaded = false, ElementType!(R)[] temp = null)
+@trusted SortedRange!(R, less) mergeSort(alias less = "a < b", bool half = true, R)(R range, TaskPool task_pool=taskPool, ElementType!(R)[] temp = null)
 {
 	static assert(isRandomAccessRange!R);
 	static assert(hasLength!R);
 	static assert(hasSlicing!R);
 	static assert(hasAssignableElements!R);
 	
-	MergeSortImpl!(less, half, R).sort(range, threaded, temp);
+	MergeSortImpl!(less, half, R).sort(range, task_pool, temp);
 	
 	if(!__ctfe) assert(isSorted!(less)(range.save), "Range is not sorted");
 	return assumeSorted!(less, R)(range.save);
@@ -68,7 +73,7 @@ template MergeSortImpl(alias pred, bool half, R)
 	enum MIN_THREAD = 1024 * 64; // Minimum length of a sublist to initiate new thread
 
 	/// Entry point for merge sort
-	void sort(R range, bool threaded, T[] temp)
+	void sort(R range, TaskPool task_pool, T[] temp)
 	{
 		static if(half)
 		{
@@ -79,14 +84,11 @@ template MergeSortImpl(alias pred, bool half, R)
 			if(temp.length < range.length) temp.length = range.length;
 		}
 		
-		if(threaded && !__ctfe)
-			concSort(range, defaultPoolThreads + 1, temp);
-		else
-			split(range, temp);
+        concSort(range, task_pool, task_pool.size, temp);
 	}
 	
 	/// Concurrently sort range
-	void concSort(R range, size_t threadCount, T[] temp)
+	void concSort(R range, TaskPool task_pool, size_t threadCount, T[] temp)
 	{
 		if(threadCount < 2 || range.length < MIN_THREAD)
 		{
@@ -102,9 +104,9 @@ template MergeSortImpl(alias pred, bool half, R)
 		else
 		{
 			immutable mid = range.length / 2;
-			auto th = task!(concSort)(range[0 .. mid], threadCount / 2, temp[0 .. $ / 2]);
-			taskPool.put(th);
-			concSort(range[mid .. range.length], threadCount - (threadCount / 2), temp[$ / 2 .. $]);
+			auto th = task!(concSort)(range[0 .. mid], task_pool, threadCount / 2, temp[0 .. $ / 2]);
+			task_pool.put(th);
+			concSort(range[mid .. range.length], task_pool, threadCount - (threadCount / 2), temp[$ / 2 .. $]);
 			th.workForce();
 			merge(range, mid, temp);
 		}
@@ -216,65 +218,4 @@ template MergeSortImpl(alias pred, bool half, R)
 		}
 		std.algorithm.copy(src, dst);
 	}
-}
-
-unittest
-{
-	bool testSort(alias pred, bool half = false, R)(R range)
-	{
-		mergeSort!(pred, half, R)(range);
-		return isSorted!pred(range);
-	}
-	
-	int testCall(T)(in T[] arr)
-	{
-		int failures = 0;
-		
-		// Sort using O(n) space
-		if(!testSort!("a < b", false)(arr.dup)) ++failures;
-		if(!testSort!("a > b", false)(arr.dup)) ++failures;
-		
-		// Sort using O(n/2) space
-		if(!testSort!("a < b", true)(arr.dup)) ++failures;
-		if(!testSort!("a > b", true)(arr.dup)) ++failures;
-		
-		return failures;
-	}
-	
-	// Array containing 256 random ints
-	enum test = [
-		10, 37, 74, 99, 86, 28, 17, 39, 18, 38, 70, 89, 94, 32, 46, 76, 43, 33, 62, 76, 
-		37, 93, 45, 48, 49, 21, 67, 56, 58, 17, 15, 41, 91, 94, 95, 41, 38, 80, 37, 24, 
-		26, 71, 87, 54, 72, 60, 29, 37, 41, 99, 31, 66, 75, 72, 86, 97, 37, 25, 98, 89, 
-		53, 45, 52, 76, 51, 38, 59, 53, 74, 96, 94, 42, 68, 84, 65, 27, 49, 57, 53, 74, 
-		39, 75, 39, 26, 46, 37, 68, 96, 19, 79, 73, 83, 36, 90, 11, 39, 48, 94, 97, 72, 
-		37, 43, 69, 36, 41, 47, 31, 48, 33, 21, 20, 18, 45, 28, 47, 54, 41, 28, 47, 44, 
-		51, 15, 21, 64, 82, 23, 41, 82, 30, 25, 78, 72, 50, 34, 45, 59, 14, 71, 50, 97, 
-		39, 87, 74, 60, 52, 17, 87, 45, 69, 54, 91, 68, 46, 99, 78, 33, 27, 53, 41, 84, 
-		82, 54, 29, 55, 53, 87, 13, 98, 55, 33, 73, 64, 19, 81, 57, 78, 23, 45, 94, 75, 
-		55, 43, 93, 85, 96, 82, 44, 73, 22, 79, 89, 20, 36, 11, 12, 51, 86, 86, 75, 66, 
-		81, 90, 80, 80, 36, 36, 47, 43, 86, 96, 45, 73, 70, 90, 57, 23, 86, 29, 12, 54, 
-		37, 17, 87, 12, 36, 78, 26, 28, 30, 15, 10, 53, 76, 34, 23, 49, 65, 17, 37, 51, 
-		26, 23, 66, 12, 26, 84, 60, 47, 30, 26, 78, 20, 42, 40, 63, 40
-	];
-	
-	// Runtime test
-	assert(testCall(test) == 0);
-	
-	// CTFE Test
-	{
-		enum result = testCall(test);
-		static if(result != 0) pragma(msg, __FILE__, "(", __LINE__, "): Warning: mergeSort CTFE unittest failed ", result, " of 4 tests");
-	}
-	
-	// Stability test
-	bool icmp(ubyte a, ubyte b)
-	{
-		if(a >= 'a') a -= 'a' - 'A';
-		if(b >= 'a') b -= 'a' - 'A';
-		return a < b;
-	}
-	ubyte[] str = cast(ubyte[])"ksugnqtoyedwpvbmifaclrhjzxWELPGDVJIHBAMZCFUNORKSTYXQ".dup;
-	mergeSort!icmp(str);
-	assert(str == "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ");
 }

@@ -62,6 +62,8 @@ void printUsage() {
     stderr.writeln("               write sorted chunks as uncompressed BAM (default is writing with compression level 1), that might be faster in some cases but uses more disk space");
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("               show progressbar in STDERR");
+    stderr.writeln("         -t, --threads=NTHREADS");
+    stderr.writeln("               use specified number of threads");
 }
 
 version(standalone) {
@@ -98,11 +100,11 @@ class Sorter {
         return ReadRangeSplitter!(R, approxSize)(reads, size_in_bytes, false); 
     }
 
-    static BamRead[] sortChunk(BamRead[] chunk) {
+    static BamRead[] sortChunk(BamRead[] chunk, TaskPool task_pool) {
         if (!sort_by_name) {
-            mergeSort!compareCoordinates(chunk, true); // threaded
+            mergeSort!compareCoordinates(chunk, task_pool);
         } else {
-            mergeSort!compareReadNames(chunk, true);
+            mergeSort!compareReadNames(chunk, task_pool);
         }
         return chunk;
     }
@@ -123,8 +125,11 @@ class Sorter {
         }
 
         scope(exit) {
-            foreach (tmpfile; tmpfiles) {
-                remove(tmpfile);
+            if (tmpfiles.length > 1) {
+                // if length == 1, the file was moved
+                foreach (tmpfile; tmpfiles) {
+                    remove(tmpfile);
+                }
             }
         }
 
@@ -141,8 +146,11 @@ class Sorter {
     }
 
     private void writeSortedChunks(R)(R reads) {
-        foreach (chunk; map!sortChunk(chunks(reads, memory_limit)))
+        auto unsorted_chunks = chunks(reads, memory_limit);
+        foreach (unsorted_chunk; unsorted_chunks)
         {
+            auto chunk = sortChunk(unsorted_chunk, task_pool);
+
             auto fn = tmpFile(chunkBaseName(filename, num_of_chunks), tmpdir);
             tmpfiles ~= fn;
 
@@ -165,6 +173,12 @@ class Sorter {
     }
 
     private void mergeSortedChunks(alias comparator)() {
+
+        // optimization: if there's only one chunk, just rename it
+        if (num_of_chunks == 1) {
+            std.file.rename(tmpfiles[0], output_filename);
+            return;
+        }
 
         // half of memory is for input buffers
         // and another half is for output buffers
@@ -191,7 +205,7 @@ class Sorter {
             normalize(cast()weights);
 
             foreach (i, ref range; alignmentranges) {
-                auto bamfile = new BamReader(tmpfiles[i]);
+                auto bamfile = new BamReader(tmpfiles[i], task_pool);
                 bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
                 range = bamfile.readsWithProgress(
                 // WTF is going on here? See this thread:
@@ -251,6 +265,7 @@ int sort_main(string[] args) {
 
     try {
         string memory_limit_str = null;
+        uint n_threads = totalCPUs;
 
         auto sorter = new Sorter();
 
@@ -262,7 +277,8 @@ int sort_main(string[] args) {
                "sort-by-name|n",        &sort_by_name,
                "uncompressed-chunks|u", &sorter.uncompressed_chunks,
                "compression-level|l",   &sorter.compression_level,
-               "show-progress|p",       &show_progress);
+               "show-progress|p",       &show_progress,
+               "threads|t",             &n_threads);
 
         if (sorter.output_filename is null) {
             sorter.output_filename = setExtension(args[1], "sorted.bam");
@@ -275,7 +291,7 @@ int sort_main(string[] args) {
         // TODO: find a better formula
         sorter.memory_limit /= 4;
 
-        sorter.task_pool = new TaskPool(totalCPUs);
+        sorter.task_pool = new TaskPool(n_threads);
         scope(exit) sorter.task_pool.finish();
         sorter.bam = new BamReader(args[1], sorter.task_pool);
         sorter.filename = args[1];

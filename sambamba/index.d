@@ -31,12 +31,13 @@ import bio.bam.bai.indexing;
 import bio.bam.reader;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-index [-p|--show-progress] <input.bam> [<output.bai>]");
+    stderr.writeln("Usage: sambamba-index [-p|--show-progress] [-n|--threads NTHREADS] <input.bam> [<output.bai>]");
     stderr.writeln();
     stderr.writeln("\tIf output filename is not provided, appends '.bai' suffix");
     stderr.writeln("\tto the name of BAM file");
     stderr.writeln();
     stderr.writeln("\tIf -p option is specified, progressbar is shown in STDERR.");
+    stderr.writeln("\tNumber of threads to use can be specified via -n option.");
 }
 
 version(standalone) {
@@ -48,10 +49,12 @@ version(standalone) {
 int index_main(string[] args) {
 
     bool show_progress;
+    uint n_threads = totalCPUs;
 
     getopt(args,
            std.getopt.config.caseSensitive,
-           "show-progress|p", &show_progress);
+           "show-progress|p", &show_progress,
+           "threads|n", &n_threads);
 
     try {
         string out_filename = null;
@@ -70,7 +73,7 @@ int index_main(string[] args) {
                 //
                 // (this is not the case with the sambamba tool where
                 // filtering can consume significant amount of time)
-                auto task_pool = new TaskPool(totalCPUs);
+                auto task_pool = new TaskPool(n_threads);
                 scope(exit) task_pool.finish();
 
                 auto bam = new BamReader(args[1], task_pool);

@@ -36,6 +36,7 @@ import std.string;
 import std.array;
 import std.traits;
 import std.getopt;
+import std.parallelism;
 import std.algorithm;
 
 void printUsage() {
@@ -100,6 +101,7 @@ bool show_progress;
 
 int compression_level = -1;
 string output_filename;
+uint n_threads;
 
 version(standalone) {
     int main(string[] args) {
@@ -108,6 +110,8 @@ version(standalone) {
 }
 
 int view_main(string[] args) {
+    n_threads = totalCPUs - 1;
+
     try {
 
         getopt(args,
@@ -122,7 +126,8 @@ int view_main(string[] args) {
                "sam-input|S",         &is_sam,
                "show-progress|p",     &show_progress,
                "compression-level|l", &compression_level,
-               "output-filename|o",   &output_filename);
+               "output-filename|o",   &output_filename,
+               "threads|n",           &n_threads);
         
         if (args.length < 2) {
             printUsage();
@@ -130,7 +135,9 @@ int view_main(string[] args) {
         }
 
         if (!is_sam) {
-            auto bam = new BamReader(args[1]); 
+            auto task_pool = new TaskPool(n_threads);
+            scope(exit) task_pool.finish();
+            auto bam = new BamReader(args[1], task_pool); 
             return sambambaMain(bam, args);
         } else {
             auto sam = new SamReader(args[1]);
