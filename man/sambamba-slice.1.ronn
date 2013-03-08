@@ -22,5 +22,6 @@ compression level - most of the time is spent on I/O operations.
 
 ## OPTIONS
 
-    * `-o`, `--output-filename`=<OUTPUTFILE>:
+  * `-o`, `--output-filename`=<OUTPUTFILE>:
           Name of output file
+
