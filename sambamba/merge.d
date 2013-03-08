@@ -216,7 +216,7 @@ int merge_main(string[] args) {
         program_id_map = merger.program_id_map;
 
         if (header_only) {
-            write(cast()merged_header.text);
+            write((cast()merged_header).text);
             return 0;
         }
 
