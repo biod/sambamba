@@ -59,6 +59,9 @@ switch to 'qname' sorting order, use `-n`|`--sort-by-name` flag.
     Show wget-like progressbar in STDERR (in fact, two of them one after another, first one for sorting,
     and then another one for merging).
 
+  * `-t`, `--threads`=<NTHREADS>:
+    Number of threads to use.
+
 ## BUGS
 
 At the moment, the memory is used quite ineffectively.

@@ -16,7 +16,7 @@ shared static this() {
 }
 
 /// A path is excluded from GC scanning if it contains any of these substrings.
-immutable defaultExclusionList = ["/libc-", "/ld-", "/libpthread-", "/librt-", "libm-"];
+immutable defaultExclusionList = ["/libc-", "/ld-", "/libpthread-", "/librt-", "/libm-", "/libgcc_s", "/libdl-"];
 
 /// On start, LDC parses /proc/self/maps file 
 /// and adds every range with writable permissions to GC.
@@ -28,6 +28,10 @@ immutable defaultExclusionList = ["/libc-", "/ld-", "/libpthread-", "/librt-", "
 /// that come from libc, ld, libpthread, librt, and libm.
 /// You can pass your own exclusion list instead of the default one.
 void removeExtraGcRanges(const char[][] exclusionList=defaultExclusionList) {
+
+    debug {
+        writeln("[DEBUG] removing extra GC ranges...");
+    }
 
     version(Posix) {
         foreach (line; File("/proc/self/maps").byLine())

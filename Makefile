@@ -7,6 +7,10 @@ all:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -ofbuild/sambamba main.d
 
+release:
+	mkdir -p build/
+	rdmd --build-only --force -O -release -inline -IBioD/ -ofbuild/sambamba main.d
+
 sambamba-ldmd2-64:
 	mkdir -p build/
 	rdmd --build-only --force --compiler=ldmd2 -O3 -m64 -release -inline -IBioD/ -ofbuild/sambamba main.d

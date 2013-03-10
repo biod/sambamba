@@ -117,6 +117,9 @@ Header representation is also an array containing the following:
   * `-o`, `--output-filename`=<FILENAME>:
         Specify output filename (by default everything is written to STDOUT).
 
+  * `-n`, `--threads`=<NTHREADS>:
+        Number of threads to use.
+
 ## EXAMPLES
 
   Print basic reference sequence information:

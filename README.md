@@ -49,13 +49,17 @@ tree on 64-bit Debian/Ubuntu
 
 where the binaries reside in ./build
 
-# Debian package for 64-bit systems
+# Binaries for 64-bit systems
 
-See [downloads](http://github.com/lomereiter/sambamba/downloads).
+https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba
 
 ## Note
 
 Since version 0.3.0, release builds are done using [LDC2 compiler](http://github.com/ldc-developers/ldc)
+
+If you are going to build executable yourself, add `-O3` flag in 
+`build/runtime/CMakeFiles/phobos-ldc.dir/flags.make` when building LDC, 
+otherwise Zlib library will be compiled without optimizations.
 
 # Copyright
 

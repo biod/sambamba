@@ -1,3 +1,10 @@
+sambamba (0.3.1) unstable; urgency=low
+
+  * numerous bugfixes
+  * now requires at least v2.061 of D compiler
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sun, 11 Mar 2013 01:03:17 +0400
+
 sambamba (0.3.0) unstable; urgency=low
 
   * new command line tool -- sambamba-slice

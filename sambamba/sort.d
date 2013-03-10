@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@ import std.stream;
 import std.stdio;
 import core.atomic;
 
-import sambamba.utils.common.nwayunion : nWayUnion;
 import sambamba.utils.common.progressbar;
 
 import thirdparty.mergesort;
@@ -204,10 +203,10 @@ class Sorter {
 
             normalize(cast()weights);
 
-            foreach (i, ref range; alignmentranges) {
+            foreach (i; 0 .. num_of_chunks) {
                 auto bamfile = new BamReader(tmpfiles[i], task_pool);
                 bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
-                range = bamfile.readsWithProgress(
+                alignmentranges[i] = bamfile.readsWithProgress(
                 // WTF is going on here? See this thread:
                 // http://forum.dlang.org/thread/mailman.112.1341467786.31962.digitalmars-d@puremagic.com
                         (size_t j) { 
@@ -232,10 +231,10 @@ class Sorter {
             alias ReturnType!(BamReader.reads!withoutOffsets) AlignmentRange;
             auto alignmentranges = new AlignmentRange[num_of_chunks];
 
-            foreach (i, ref range; alignmentranges) {
+            foreach (i; 0 .. num_of_chunks) {
                 auto bamfile = new BamReader(tmpfiles[i]);
                 bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
-                range = bamfile.reads!withoutOffsets;
+                alignmentranges[i] = bamfile.reads!withoutOffsets;
             }
 
             auto writer = new BamWriter(stream, compression_level, task_pool);

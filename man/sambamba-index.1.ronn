@@ -3,7 +3,7 @@ sambamba-index(1) -- tool for building standard index files for BAM data
 
 ## SYNOPSIS
 
-`sambamba-index` [`-p`|`--show-progress`] <input.bam> [<output.bai>]
+`sambamba-index` [`-p`|`--show-progress`] [`-n`|`--threads`=NTHREADS] <input.bam> [<output.bai>]
 
 ## DESCRIPTION
 
@@ -20,6 +20,9 @@ argument.
 
   * `-p`, `--show-progress`:
     Show a wget-like progressbar in STDERR.
+
+  * `-n`, `--threads`=<NTHREADS>:
+    Number of threads to use.
 
 ## EXAMPLES
 

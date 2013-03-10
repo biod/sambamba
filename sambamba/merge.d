@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -90,7 +90,6 @@ import std.getopt;
 
 import core.atomic;
 
-import sambamba.utils.common.nwayunion : nWayUnion;
 import sambamba.utils.common.progressbar;
 
 void printUsage() {
