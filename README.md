@@ -49,7 +49,7 @@ tree on 64-bit Debian/Ubuntu
 
 where the binaries reside in ./build
 
-# Binaries for 64-bit systems
+# Binaries for 64-bit Linux systems
 
 https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba
 
