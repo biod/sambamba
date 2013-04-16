@@ -14,7 +14,7 @@ SAM headers are merged automatically like in Picard merging tool.
 
 ## OPTIONS
 
-  * `-t`, `--nthreads`=<NUM_OF_THREADS>:
+  * `-t`, `--nthreads`=<NTHREADS>:
         Specify number of threads to use for compression/decompression tasks.
 
   * `-l`, `--compression-level`=<COMPRESSION_LEVEL>:

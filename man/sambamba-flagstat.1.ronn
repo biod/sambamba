@@ -27,7 +27,7 @@ QC-failed ones:
 
 ## OPTIONS
 
-  * `-n`, `--nthreads`=<NTHREADS>:
+  * `-t`, `--nthreads`=<NTHREADS>:
         Specify number of threads to use for BAM decompression
 
   * `-p`, `--show-progress`:

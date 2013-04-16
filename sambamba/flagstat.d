@@ -72,7 +72,7 @@ version(standalone) {
 void printUsage() {
     stderr.writeln("Usage: sambamba-flagstat [options] <input.bam>");
     stderr.writeln();
-    stderr.writeln("OPTIONS: -n, --nthreads=NTHREADS");
+    stderr.writeln("OPTIONS: -t, --nthreads=NTHREADS");
     stderr.writeln("            use NTHREADS for decompression");
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("            show progressbar in STDERR");
@@ -85,7 +85,7 @@ int flagstat_main(string[] args) {
     try {
         getopt(args,
                std.getopt.config.caseSensitive,
-               "nthreads|n",      &threads,
+               "nthreads|t",      &threads,
                "show-progress|p", &show_progress);
 
         if (args.length < 2) {

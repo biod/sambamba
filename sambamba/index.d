@@ -31,13 +31,13 @@ import bio.bam.bai.indexing;
 import bio.bam.reader;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-index [-p|--show-progress] [-n|--threads NTHREADS] <input.bam> [<output.bai>]");
+    stderr.writeln("Usage: sambamba-index [-p|--show-progress] [-t|--nthreads NTHREADS] <input.bam> [<output.bai>]");
     stderr.writeln();
     stderr.writeln("\tIf output filename is not provided, appends '.bai' suffix");
     stderr.writeln("\tto the name of BAM file");
     stderr.writeln();
     stderr.writeln("\tIf -p option is specified, progressbar is shown in STDERR.");
-    stderr.writeln("\tNumber of threads to use can be specified via -n option.");
+    stderr.writeln("\tNumber of threads to use can be specified via -t option.");
 }
 
 version(standalone) {
@@ -54,7 +54,7 @@ int index_main(string[] args) {
     getopt(args,
            std.getopt.config.caseSensitive,
            "show-progress|p", &show_progress,
-           "threads|n", &n_threads);
+           "nthreads|t",      &n_threads);
 
     try {
         string out_filename = null;

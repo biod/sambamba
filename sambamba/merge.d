@@ -95,7 +95,7 @@ import sambamba.utils.common.progressbar;
 void printUsage() {
     stderr.writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
     stderr.writeln();
-    stderr.writeln("Options: -t, --nthreads=NUM_OF_THREADS");
+    stderr.writeln("Options: -t, --nthreads=NTHREADS");
     stderr.writeln("               number of threads to use for compression/decompression");
     stderr.writeln("         -l, --compression-level=COMPRESSION_LEVEL");
     stderr.writeln("               level of compression for merged BAM file, number from 0 to 9");

@@ -61,7 +61,7 @@ void printUsage() {
     stderr.writeln("               write sorted chunks as uncompressed BAM (default is writing with compression level 1), that might be faster in some cases but uses more disk space");
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("               show progressbar in STDERR");
-    stderr.writeln("         -t, --threads=NTHREADS");
+    stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("               use specified number of threads");
 }
 
@@ -277,7 +277,7 @@ int sort_main(string[] args) {
                "uncompressed-chunks|u", &sorter.uncompressed_chunks,
                "compression-level|l",   &sorter.compression_level,
                "show-progress|p",       &show_progress,
-               "threads|t",             &n_threads);
+               "nthreads|t",            &n_threads);
 
         if (sorter.output_filename is null) {
             sorter.output_filename = setExtension(args[1], "sorted.bam");

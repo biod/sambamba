@@ -64,7 +64,7 @@ void printUsage() {
     stderr.writeln("                    specify compression level (from 0 to 9, works only for BAM output)");
     stderr.writeln("         -o, --output-filename");
     stderr.writeln("                    specify output filename");
-    stderr.writeln("         -n, --threads=NTHREADS");
+    stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
 }
 
@@ -129,7 +129,7 @@ int view_main(string[] args) {
                "show-progress|p",     &show_progress,
                "compression-level|l", &compression_level,
                "output-filename|o",   &output_filename,
-               "threads|n",           &n_threads);
+               "nthreads|t",          &n_threads);
         
         if (args.length < 2) {
             printUsage();

@@ -21,7 +21,7 @@ argument.
   * `-p`, `--show-progress`:
     Show a wget-like progressbar in STDERR.
 
-  * `-n`, `--threads`=<NTHREADS>:
+  * `-t`, `--nthreads`=<NTHREADS>:
     Number of threads to use.
 
 ## EXAMPLES
