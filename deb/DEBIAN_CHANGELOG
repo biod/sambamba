@@ -1,3 +1,10 @@
+sambamba (0.3.2) unstable; urgency=low
+
+  * fixed bug in flagstat parameter parsing
+  * consistent naming for number of threads in CLI
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Tue, 16 Apr 2013 09:23:35 +0400
+
 sambamba (0.3.1) unstable; urgency=low
 
   * numerous bugfixes
