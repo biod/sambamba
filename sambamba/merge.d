@@ -208,7 +208,7 @@ int merge_main(string[] args) {
         }
         auto headers = array(map!"a.header"(files));
 
-        merger = new shared(SamHeaderMerger)(headers, validate_headers);
+        merger = cast(shared) new SamHeaderMerger(headers, validate_headers);
         merged_header = merger.merged_header;
         ref_id_map = merger.ref_id_map;
         readgroup_id_map = merger.readgroup_id_map;
