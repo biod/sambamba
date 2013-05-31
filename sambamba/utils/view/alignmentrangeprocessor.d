@@ -32,6 +32,7 @@ import std.traits;
 import std.stream : Stream, BufferedFile, FileMode;
 import std.conv;
 import std.range;
+import std.parallelism;
 
 class ReadCounter {
     size_t number_of_reads;
@@ -76,10 +77,12 @@ final class BamSerializer {
 
     private File _f;
     private int _level;
+    private TaskPool _task_pool;
 
-    this(File f, int compression_level) {
+    this(File f, int compression_level, TaskPool pool) {
         _f = f;
         _level = compression_level;
+        _task_pool = pool;
     }
 
     void process(R, SB)(R reads, SB bam) 
@@ -87,7 +90,7 @@ final class BamSerializer {
         immutable BUFSIZE = 1_048_576;
         Stream output_stream = new BufferedFile(_f.fileno(), FileMode.OutNew, 
                                                 BUFSIZE);
-        auto writer = new BamWriter(output_stream, _level);
+        auto writer = new BamWriter(output_stream, _level, _task_pool);
         scope(exit) writer.finish();
 
         writer.writeSamHeader(bam.header);

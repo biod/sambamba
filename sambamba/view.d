@@ -140,10 +140,10 @@ int view_main(string[] args) {
             auto task_pool = new TaskPool(n_threads);
             scope(exit) task_pool.finish();
             auto bam = new BamReader(args[1], task_pool); 
-            return sambambaMain(bam, args);
+            return sambambaMain(bam, task_pool, args);
         } else {
             auto sam = new SamReader(args[1]);
-            return sambambaMain(sam, args);
+            return sambambaMain(sam, null, args);
         }
     } catch (Exception e) {
         stderr.writeln("sambamba-view: ", e.msg);
@@ -181,7 +181,7 @@ File output_file() @property {
 File _f;
 
 // In fact, $(D bam) is either BAM or SAM file
-int sambambaMain(T)(T _bam, string[] args) 
+int sambambaMain(T)(T _bam, TaskPool pool, string[] args) 
     if (is(T == SamReader) || is(T == BamReader)) 
 {
 
@@ -275,7 +275,7 @@ int sambambaMain(T)(T _bam, string[] args)
         writeln(counter.number_of_reads);
     } else {
         if (format == "bam")             // will close the file
-            return processAlignments(new BamSerializer(output_file, compression_level));
+            return processAlignments(new BamSerializer(output_file, compression_level, pool));
 
         scope (exit) output_file.close();
         switch (format) {
