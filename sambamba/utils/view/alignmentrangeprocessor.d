@@ -20,8 +20,10 @@
 module sambamba.utils.view.alignmentrangeprocessor;
 
 import bio.bam.reader;
+import bio.bam.read;
 import bio.bam.writer;
 import bio.bam.thirdparty.msgpack;
+import bio.core.utils.range;
 
 import std.stdio;
 import std.exception;
@@ -55,21 +57,46 @@ private bool isTty(ref std.stdio.File file) @property {
     return isatty(file.fileno()) != 0;
 }
 
+template chunkToFormat(string format) {
+    enum spec = FormatSpec!char(format);
+    char[] chunkToFormat(R)(in R[] reads) {
+        auto buf = Appender!(char[])();
+        if (reads.length == 0)
+            return buf.data;
+        buf.reserve(reads.length * reads.front.size_in_bytes * 2);
+        foreach (read; reads) {
+            read.toString((const(char)[] s) { buf.put(s); }, spec);
+            buf.put('\n');
+        }
+        return buf.data;
+    }
+}
+
+alias chunkToFormat!"%s" chunkToSam;
+alias chunkToFormat!"%j" chunkToJson;
+
 class TextSerializer {
-    this(File f) {
+    this(File f, TaskPool pool) {
         _f = f;
+        _pool = pool;
 
         if (!_f.isTty)
             _f.setvbuf(1_024_576);
     }
 
     private std.stdio.File _f;
+    private TaskPool _pool;
 }
 
 final class SamSerializer : TextSerializer {
-    this(File f) { super(f); }
+    this(File f, TaskPool pool) { super(f, pool); }
+
     void process(R, SB)(R reads, SB bam) {
-        _f.lockingTextWriter.formattedWrite("%(%s\n%)\n", reads);
+        auto read_batches = chunked(reads, 1024);
+        auto sam_chunks = _pool.map!chunkToSam(read_batches, 16);
+        auto w = _f.lockingTextWriter;
+        foreach (chunk; sam_chunks)
+            w.put(chunk);
     }
 }
 
@@ -101,14 +128,20 @@ final class BamSerializer {
 }
 
 final class JsonSerializer : TextSerializer {
-    this(File f) { super(f); }
+    this(File f, TaskPool pool) { super(f, pool); }
+
     void process(R, SB)(R reads, SB bam) {
-        _f.lockingTextWriter.formattedWrite("%(%j\n%)\n", reads);
+        auto read_batches = chunked(reads, 1024);
+        auto json_chunks = _pool.map!chunkToJson(read_batches, 16);
+        auto w = _f.lockingTextWriter;
+        foreach (chunk; json_chunks)
+            w.put(chunk);
     }
 }
 
 final class MsgpackSerializer : TextSerializer {
-    this(File f) { super(f); }
+    this(File f) { super(f, null); }
+
     void process(R, SB)(R reads, SB bam) {
         auto packer = packer(Appender!(ubyte[])());
         foreach (read; reads) {

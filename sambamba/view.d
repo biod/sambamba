@@ -136,14 +136,14 @@ int view_main(string[] args) {
             return 0;
         }
 
+        auto task_pool = new TaskPool(n_threads);
+        scope(exit) task_pool.finish();
         if (!is_sam) {
-            auto task_pool = new TaskPool(n_threads);
-            scope(exit) task_pool.finish();
             auto bam = new BamReader(args[1], task_pool); 
             return sambambaMain(bam, task_pool, args);
         } else {
             auto sam = new SamReader(args[1]);
-            return sambambaMain(sam, null, args);
+            return sambambaMain(sam, task_pool, args);
         }
     } catch (Exception e) {
         stderr.writeln("sambamba-view: ", e.msg);
@@ -239,10 +239,16 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                     processor.process(filtered(reads), bam);
                     bar.finish();
                 } else {
-                    processor.process(filtered(bam.reads!withoutOffsets), bam);
+                    if (cast(NullFilter) filter)
+                        processor.process(bam.reads!withoutOffsets(), bam);
+                    else
+                        processor.process(filtered(bam.reads!withoutOffsets), bam);
                 }
             } else { // SamFile
-                processor.process(filtered(bam.reads), bam);
+                if (cast(NullFilter) filter)
+                    processor.process(bam.reads, bam);
+                else
+                    processor.process(filtered(bam.reads), bam);
             }
         } 
 
@@ -280,9 +286,9 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         scope (exit) output_file.close();
         switch (format) {
             case "sam":
-                return processAlignments(new SamSerializer(output_file));
+                return processAlignments(new SamSerializer(output_file, pool));
             case "json":
-                return processAlignments(new JsonSerializer(output_file));
+                return processAlignments(new JsonSerializer(output_file, pool));
             case "msgpack":
                 return processAlignments(new MsgpackSerializer(output_file));
             default:
