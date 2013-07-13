@@ -1,3 +1,11 @@
+sambamba (0.3.3) unstable; urgency=low
+
+  * reduced buffer size for uncompressed BAM output
+    so that it is less than pipe buffer size
+  * added subsampling option to sambamba view
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sat, 13 Jul 2013 16:27:25 +0400
+
 sambamba (0.3.2) unstable; urgency=low
 
   * fixed bug in flagstat parameter parsing
