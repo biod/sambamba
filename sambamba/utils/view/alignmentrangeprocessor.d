@@ -105,16 +105,19 @@ final class BamSerializer {
     private File _f;
     private int _level;
     private TaskPool _task_pool;
+    private enum BUFSIZE = 4096;//1_048_576;
+
 
     this(File f, int compression_level, TaskPool pool) {
         _f = f;
+        if (!_f.isTty)
+            _f.setvbuf(BUFSIZE);
         _level = compression_level;
         _task_pool = pool;
     }
 
     void process(R, SB)(R reads, SB bam) 
     {
-        immutable BUFSIZE = 1_048_576;
         Stream output_stream = new BufferedFile(_f.fileno(), FileMode.OutNew, 
                                                 BUFSIZE);
         auto writer = new BamWriter(output_stream, _level, _task_pool);
