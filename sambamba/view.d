@@ -71,7 +71,9 @@ void printUsage() {
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
     stderr.writeln("         -s, --subsample=FRACTION");
-    stderr.writeln("                    subsample reads");
+    stderr.writeln("                    subsample reads (read pairs)");
+    stderr.writeln("         --subsampling-seed=SEED");
+    stderr.writeln("                    set seed for subsampling");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
@@ -111,18 +113,28 @@ int compression_level = -1;
 string output_filename;
 uint n_threads;
 double subsample_frac; // NaN by default
+uint subsample_threshold;
+
+uint subsampling_seed;
+
+// implementation of subsampling is the same as in samtools
+uint simpleHash(string s) {
+    uint h = 0;
+    foreach (char c; s)
+        h = (h << 5) - h + c;
+    return h + subsampling_seed;
+}
+
+bool keepRead(R)(auto ref R read) {
+    auto h = simpleHash(read.name);
+    return (h&0xFFFFFF) < subsample_threshold;
+}
 
 InputRange!(ElementType!R) filteredView(R)(R reads) {
     if (isNaN(subsample_frac))
         return filtered(reads).inputRangeObject();
 
-    Mt19937 gen;
-    gen.seed(unpredictableSeed);
-    auto value_range = gen.max.to!double - gen.min.to!double + 1.0;
-    auto threshold = (value_range * subsample_frac).to!size_t;
-    return filtered(reads).zip(gen, repeat(threshold))
-                          .filter!"a[1] <= a[2]"()
-                          .map!"a[0]"()
+    return filtered(reads).filter!keepRead()
                           .inputRangeObject();
 }
 
@@ -134,6 +146,8 @@ version(standalone) {
 
 int view_main(string[] args) {
     n_threads = totalCPUs - 1;
+
+    subsampling_seed = unpredictableSeed;
 
     try {
 
@@ -151,12 +165,16 @@ int view_main(string[] args) {
                "compression-level|l", &compression_level,
                "output-filename|o",   &output_filename,
                "nthreads|t",          &n_threads,
-               "subsample|s",         &subsample_frac);
+               "subsample|s",         &subsample_frac,
+               "subsampling-seed",    &subsampling_seed);
         
         if (args.length < 2) {
             printUsage();
             return 0;
         }
+
+        if (!isNaN(subsample_frac))
+            subsample_threshold = (0x1000000 * subsample_frac).to!uint;
 
         auto task_pool = new TaskPool(n_threads);
         scope(exit) task_pool.finish();
@@ -196,7 +214,6 @@ File _f;
 int sambambaMain(T)(T _bam, TaskPool pool, string[] args) 
     if (is(T == SamReader) || is(T == BamReader)) 
 {
-
     auto bam = _bam; // FIXME: uhm, that was a workaround for some closure-related bug
 
     if (reference_info_only && !count_only) {
