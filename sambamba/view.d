@@ -20,6 +20,7 @@
 module sambamba.view;
 
 import bio.bam.reader;
+import bio.bam.read;
 import bio.sam.reader;
 import bio.core.region;
 
@@ -37,6 +38,10 @@ import std.traits;
 import std.getopt;
 import std.parallelism;
 import std.algorithm;
+import std.math : isNaN;
+import std.random;
+import std.range;
+import std.conv;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
@@ -65,6 +70,8 @@ void printUsage() {
     stderr.writeln("                    specify output filename");
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
+    stderr.writeln("         -s, --subsample=FRACTION");
+    stderr.writeln("                    subsample reads");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
@@ -103,6 +110,21 @@ bool show_progress;
 int compression_level = -1;
 string output_filename;
 uint n_threads;
+double subsample_frac; // NaN by default
+
+InputRange!(ElementType!R) filteredView(R)(R reads) {
+    if (isNaN(subsample_frac))
+        return filtered(reads).inputRangeObject();
+
+    Mt19937 gen;
+    gen.seed(unpredictableSeed);
+    auto value_range = gen.max.to!double - gen.min.to!double + 1.0;
+    auto threshold = (value_range * subsample_frac).to!size_t;
+    return filtered(reads).zip(gen, repeat(threshold))
+                          .filter!"a[1] <= a[2]"()
+                          .map!"a[0]"()
+                          .inputRangeObject();
+}
 
 version(standalone) {
     int main(string[] args) {
@@ -128,7 +150,8 @@ int view_main(string[] args) {
                "show-progress|p",     &show_progress,
                "compression-level|l", &compression_level,
                "output-filename|o",   &output_filename,
-               "nthreads|t",          &n_threads);
+               "nthreads|t",          &n_threads,
+               "subsample|s",         &subsample_frac);
         
         if (args.length < 2) {
             printUsage();
@@ -221,19 +244,19 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 if (show_progress) {
                     auto bar = new shared(ProgressBar)();
                     auto reads = bam.readsWithProgress((lazy float p) { bar.update(p); });
-                    processor.process(filtered(reads), bam);
+                    processor.process(filteredView(reads), bam);
                     bar.finish();
                 } else {
-                    if (cast(NullFilter) read_filter)
+                    if (cast(NullFilter) read_filter && isNaN(subsample_frac))
                         processor.process(bam.reads!withoutOffsets(), bam);
                     else
-                        processor.process(filtered(bam.reads!withoutOffsets), bam);
+                        processor.process(filteredView(bam.reads!withoutOffsets), bam);
                 }
             } else { // SamFile
-                if (cast(NullFilter) read_filter)
+                if (cast(NullFilter) read_filter && isNaN(subsample_frac))
                     processor.process(bam.reads, bam);
                 else
-                    processor.process(filtered(bam.reads), bam);
+                    processor.process(filteredView(bam.reads), bam);
             }
         } 
 
@@ -251,7 +274,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 }
 
                 auto reads = joiner(alignment_ranges);
-                processor.process(filtered(reads), bam);
+                processor.process(filteredView(reads), bam);
             }
         }
 
