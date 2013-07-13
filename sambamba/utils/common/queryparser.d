@@ -17,9 +17,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-module sambamba.utils.view.queryparser;
-import sambamba.utils.view.filtering;
-import sambamba.utils.view.pratt_parser;
+module sambamba.utils.common.queryparser;
+import sambamba.utils.common.filtering;
+import sambamba.utils.common.pratt_parser;
 
 import std.array;
 import std.regex;

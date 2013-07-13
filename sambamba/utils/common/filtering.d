@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2013    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,11 +17,41 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
+module sambamba.utils.common.filtering;
+
+import sambamba.utils.common.queryparser;
+import std.algorithm;
+import std.stdio;
+
+mixin template GlobalFilter() {
+    static __gshared Filter read_filter; 
+
+    bool passing(BamRead read) {
+        return read_filter.accepts(read);
+    }
+
+    auto filtered(R)(R reads) {
+        return std.algorithm.filter!passing(reads);
+    }
+}
+
+Filter createFilterFromQuery(string query) {
+    if (query is null)
+        return new NullFilter();
+    auto query_grammar = new QueryGrammar();
+    auto node = query_grammar.parse(query);
+    auto condition_node = cast(ConditionNode) node;
+    if (condition_node is null) {
+        stderr.writeln("filter string must represent a condition");
+        return null;
+    }
+    return condition_node.condition;
+}
+
 /**
   Set of filters for alignments. 
   All share a common interface and can be easily combined.
 */
-module sambamba.utils.view.filtering;
 
 import std.regex;
 import std.algorithm;

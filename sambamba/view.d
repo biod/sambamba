@@ -23,11 +23,10 @@ import bio.bam.reader;
 import bio.sam.reader;
 import bio.core.region;
 
-import sambamba.utils.view.filtering;
+import sambamba.utils.common.filtering;
+import sambamba.utils.common.progressbar;
 import sambamba.utils.view.alignmentrangeprocessor;
 import sambamba.utils.view.headerserializer;
-import sambamba.utils.view.queryparser;
-import sambamba.utils.common.progressbar;
 
 import bio.core.utils.format;
 
@@ -156,17 +155,7 @@ int view_main(string[] args) {
     }
 }
 
-// TODO: mark pure functions/methods with 'pure' attribute
-//       so that it becomes visible that accepts() is pure.
-static __gshared Filter filter; 
-
-bool passing(BamRead read) {
-    return filter.accepts(read);
-}
-
-auto filtered(R)(R reads) {
-    return std.algorithm.filter!passing(reads);
-}
+mixin GlobalFilter;
 
 File output_file() @property {
     if (_f == File.init) {
@@ -205,21 +194,17 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         return 0;
     }
 
-    filter = new NullFilter();
+    read_filter = new NullFilter();
 
     if (skip_invalid_alignments) {
-        filter = new AndFilter(filter, new ValidAlignmentFilter());
+        read_filter = new AndFilter(read_filter, new ValidAlignmentFilter());
     }
 
     if (query !is null) {
-        auto query_grammar = new QueryGrammar();
-        auto node = query_grammar.parse(query);
-        auto condition_node = cast(ConditionNode) node;
-        if (condition_node is null) {
-            stderr.writeln("filter string must represent a condition");
+        auto query_filter = createFilterFromQuery(query); 
+        if (query_filter is null)
             return 1;
-        }
-        filter = new AndFilter(filter, condition_node.condition);
+        read_filter = new AndFilter(read_filter, query_filter);
     }
 
     int processAlignments(AlignmentRangeProcessor)(AlignmentRangeProcessor processor) {
@@ -239,13 +224,13 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                     processor.process(filtered(reads), bam);
                     bar.finish();
                 } else {
-                    if (cast(NullFilter) filter)
+                    if (cast(NullFilter) read_filter)
                         processor.process(bam.reads!withoutOffsets(), bam);
                     else
                         processor.process(filtered(bam.reads!withoutOffsets), bam);
                 }
             } else { // SamFile
-                if (cast(NullFilter) filter)
+                if (cast(NullFilter) read_filter)
                     processor.process(bam.reads, bam);
                 else
                     processor.process(filtered(bam.reads), bam);
