@@ -262,7 +262,14 @@ int slice_main(string[] args) {
             stream = new std.stream.BufferedFile(output_filename, FileMode.OutNew);
         } else {
             immutable BUFSIZE = 1_048_576;
-            stream = new BufferedFile(stdout.fileno, FileMode.Out, BUFSIZE);
+            version (Posix) {
+                auto handle = stdout.fileno;
+            }
+            version (Windows) {
+                import core.sys.windows.windows;
+                auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
+            }
+            stream = new std.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
         }
 
         fetchRegion(bam, region, stream);

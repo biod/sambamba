@@ -49,8 +49,9 @@ version(Posix) {
 }
 
 version(Windows) {
-    extern(C) int _isatty(int fd);
-    alias _isatty isatty;
+    bool isatty(int handle) {
+        return 1; // FIXME!!!
+    }
 }
 
 private bool isTty(ref std.stdio.File file) @property {
@@ -118,7 +119,14 @@ final class BamSerializer {
 
     void process(R, SB)(R reads, SB bam) 
     {
-        Stream output_stream = new BufferedFile(_f.fileno(), FileMode.OutNew, 
+        version (Posix) {
+            auto handle = _f.fileno;
+        }
+        version (Win32) {
+            import core.stdc.stdio : _fdToHandle;
+            auto handle = _fdToHandle(_f.fileno);
+        }
+        Stream output_stream = new BufferedFile(handle, FileMode.OutNew, 
                                                 BUFSIZE);
         auto writer = new BamWriter(output_stream, _level, _task_pool);
         scope(exit) writer.finish();
