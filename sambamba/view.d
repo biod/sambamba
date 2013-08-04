@@ -21,6 +21,7 @@ module sambamba.view;
 
 import bio.bam.reader;
 import bio.bam.read;
+import bio.bam.splitter;
 import bio.sam.reader;
 import bio.core.region;
 
@@ -113,30 +114,7 @@ int compression_level = -1;
 string output_filename;
 uint n_threads;
 double subsample_frac; // NaN by default
-uint subsample_threshold;
-
 uint subsampling_seed;
-
-// implementation of subsampling is the same as in samtools
-uint simpleHash(string s) {
-    uint h = 0;
-    foreach (char c; s)
-        h = (h << 5) - h + c;
-    return h + subsampling_seed;
-}
-
-bool keepRead(R)(auto ref R read) {
-    auto h = simpleHash(read.name);
-    return (h&0xFFFFFF) < subsample_threshold;
-}
-
-InputRange!(ElementType!R) filteredView(R)(R reads) {
-    if (isNaN(subsample_frac))
-        return filtered(reads).inputRangeObject();
-
-    return filtered(reads).filter!keepRead()
-                          .inputRangeObject();
-}
 
 version(standalone) {
     int main(string[] args) {
@@ -145,10 +123,10 @@ version(standalone) {
 }
 
 int view_main(string[] args) {
-    n_threads = totalCPUs - 1;
+    n_threads = totalCPUs;
 
     subsampling_seed = unpredictableSeed;
-
+    
     try {
 
         getopt(args,
@@ -173,9 +151,6 @@ int view_main(string[] args) {
             return 0;
         }
 
-        if (!isNaN(subsample_frac))
-            subsample_threshold = (0x1000000 * subsample_frac).to!uint;
-
         auto task_pool = new TaskPool(n_threads);
         scope(exit) task_pool.finish();
         if (!is_sam) {
@@ -196,7 +171,24 @@ int view_main(string[] args) {
     }
 }
 
-mixin GlobalFilter;
+auto filterArray(T)(T reads_and_filter) {
+    auto reads = reads_and_filter[0][];
+    auto f = reads_and_filter[1];
+    size_t cur = 0;
+
+    for (size_t i = 0; i < reads.length; ++i)
+        if (f.accepts(reads[i])) {
+            if (i != cur)
+                reads[cur] = reads[i];
+            ++cur;
+        }
+    return reads[0 .. cur];
+}
+
+auto filteredParallel(R)(R reads, Filter f, TaskPool pool) {
+    auto chunks = reads.chunksConsumingLessThan(1 << 20, false).zip(f.repeat());
+    return pool.map!filterArray(chunks, 4, 1).joiner();
+}
 
 File output_file() @property {
     if (_f == File.init) {
@@ -234,7 +226,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         return 0;
     }
 
-    read_filter = new NullFilter();
+    Filter read_filter = new NullFilter();
 
     if (skip_invalid_alignments) {
         read_filter = new AndFilter(read_filter, new ValidAlignmentFilter());
@@ -247,12 +239,24 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         read_filter = new AndFilter(read_filter, query_filter);
     }
 
-    int processAlignments(AlignmentRangeProcessor)(AlignmentRangeProcessor processor) {
+    if (!isNaN(subsample_frac)) {
+        auto subsample_filter = new SubsampleFilter(subsample_frac, subsampling_seed);
+        read_filter = new AndFilter(read_filter, subsample_filter);
+    }
+
+    int processAlignments(P)(P processor) {
         static if (is(T == SamReader)) {
             if (args.length > 2) {
                 stderr.writeln("sorry, accessing regions is unavailable for SAM input");
                 return 1;
             }
+        }
+
+        void runProcessor(SB, R, F)(SB bam, R reads, F filter) {
+            if (cast(NullFilter) filter)
+                processor.process(reads, bam);
+            else
+                processor.process(reads.filteredParallel(filter, pool), bam);
         }
 
         if (args.length == 2) {
@@ -261,19 +265,13 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 if (show_progress) {
                     auto bar = new shared(ProgressBar)();
                     auto reads = bam.readsWithProgress((lazy float p) { bar.update(p); });
-                    processor.process(filteredView(reads), bam);
+                    runProcessor(bam, reads, read_filter);
                     bar.finish();
                 } else {
-                    if (cast(NullFilter) read_filter && isNaN(subsample_frac))
-                        processor.process(bam.reads!withoutOffsets(), bam);
-                    else
-                        processor.process(filteredView(bam.reads!withoutOffsets), bam);
+                    runProcessor(bam, bam.reads!withoutOffsets(), read_filter);
                 }
             } else { // SamFile
-                if (cast(NullFilter) read_filter && isNaN(subsample_frac))
-                    processor.process(bam.reads, bam);
-                else
-                    processor.process(filteredView(bam.reads), bam);
+                runProcessor(bam, bam.reads, read_filter);
             }
         } 
 
@@ -291,7 +289,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 }
 
                 auto reads = joiner(alignment_ranges);
-                processor.process(filteredView(reads), bam);
+                runProcessor(bam, reads, read_filter);
             }
         }
 

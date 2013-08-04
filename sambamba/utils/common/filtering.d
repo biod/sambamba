@@ -19,20 +19,19 @@
 */
 module sambamba.utils.common.filtering;
 
+import bio.bam.splitter;
+
 import sambamba.utils.common.queryparser;
 import std.algorithm;
 import std.stdio;
+import std.random;
+import std.parallelism;
+import std.range;
+import std.algorithm;
+import std.array;
 
-mixin template GlobalFilter() {
-    static __gshared Filter read_filter; 
-
-    bool passing(BamRead read) {
-        return read_filter.accepts(read);
-    }
-
-    auto filtered(R)(R reads) {
-        return std.algorithm.filter!passing(reads);
-    }
+auto filtered(R)(R reads, Filter f) {
+    return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!"a[0]"();
 }
 
 Filter createFilterFromQuery(string query) {
@@ -257,5 +256,28 @@ final class RegexpTagFilter : Filter {
             return false;
         }
         return !match(cast(string)v, cast()_pattern).empty;
+    }
+}
+
+final class SubsampleFilter : Filter {
+    private uint _threshold;
+    private uint _seed;
+    
+    this(double subsample_frac, uint seed=unpredictableSeed) {
+        _threshold = (0x1000000 * subsample_frac).to!uint;
+        _seed = seed;
+    }
+
+    // implementation of subsampling is the same as in samtools
+    private uint simpleHash(string s) const {
+        uint h = 0;
+        foreach (char c; s)
+            h = (h << 5) - h + c;
+        return h + _seed;
+    }
+
+    bool accepts(ref BamRead read) const {
+        auto h = simpleHash(read.name);
+        return (h&0xFFFFFF) < _threshold;
     }
 }
