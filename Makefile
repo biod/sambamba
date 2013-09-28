@@ -1,5 +1,5 @@
 D_COMPILER=dmd
-D_FLAGS=-IBioD -version=development #-O -release -inline 
+D_FLAGS=-IBioD -O -release -inline -g -version=serial
 
 RDMD_FLAGS=--compiler=$(D_COMPILER) --build-only $(D_FLAGS)
 

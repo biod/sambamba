@@ -123,7 +123,7 @@ class Sorter {
             writeSortedChunks(bam.reads!withoutOffsets);
         }
 
-        scope(exit) {
+        scope(success) {
             if (tmpfiles.length > 1) {
                 // if length == 1, the file was moved
                 foreach (tmpfile; tmpfiles) {
