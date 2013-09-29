@@ -920,8 +920,8 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
 
     stderr.write("  sorting ", paired_ends.data.length, " end pairs... ");
     sw.start();
-    unstableSort!pairedEndsInfoComparator(paired_ends.data, true);
-    unstableSort!singleEndInfoComparator(second_ends.data, true);
+    unstableSort!pairedEndsInfoComparator(paired_ends.data, pool);
+    unstableSort!singleEndInfoComparator(second_ends.data, pool);
     sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
 
     stderr.write("  sorting ", single_ends.data.length, " single ends",
@@ -929,7 +929,7 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
                  single_ends.data.filter!q{ a.paired }.walkLength(),
                  " unmatched pairs)... ");
     sw.start();
-    unstableSort!singleEndInfoComparator(single_ends.data, true);
+    unstableSort!singleEndInfoComparator(single_ends.data, pool);
     sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms"); sw.reset();
 
     stderr.write("  collecting virtual offsets of duplicate reads... ");
@@ -939,7 +939,7 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
 
     stderr.write("  found ", duplicates.length, " duplicates, sorting the list... ");
     sw.start();
-    unstableSort(duplicates);
+    unstableSort(duplicates, pool);
     sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
 
     return duplicates;
@@ -985,7 +985,6 @@ version(standalone) {
 int markdup_main(string[] args) {
 
     MarkDuplicatesConfig cfg;
-    string output_filename;
     bool remove_duplicates;
     size_t n_threads = totalCPUs;
     bool show_progress;
@@ -993,9 +992,9 @@ int markdup_main(string[] args) {
     size_t hash_table_size;
     int compression_level = -1;
     
-    getopt(args,
+    try {
+        getopt(args,
            std.getopt.config.caseSensitive,
-           "output-filename|o", &output_filename,
            "remove-duplicates|r", &remove_duplicates,
            "nthreads|t", &n_threads,
            "compression-level|l", &compression_level,
@@ -1005,23 +1004,18 @@ int markdup_main(string[] args) {
            "overflow-list-size", &cfg.overflow_list_size,
            "io-buffer-size", &io_buffer_size);
 
-    if (args.length == 1) {
-        printUsage();
-        return 0;
-    }
+        if (args.length < 3) {
+            printUsage();
+            return 0;
+        }
 
-    if (output_filename is null) {
-        stderr.writeln("Please specify output filename");
-        return 1;
-    }
+        io_buffer_size <<= 20; // -> megabytes
 
-    io_buffer_size <<= 20; // -> megabytes
+        cfg.hash_table_size_log2 = 10;
+        while ((2UL << cfg.hash_table_size_log2) <= hash_table_size)
+            cfg.hash_table_size_log2 += 1;
+        // 2^^(cfg.hash_table_size_log2 + 1) > hash_table_size
 
-    cfg.hash_table_size_log2 = 10;
-    while ((2 << cfg.hash_table_size_log2) < hash_table_size)
-        cfg.hash_table_size_log2 += 1;
-
-    try {
         auto pool = new TaskPool(n_threads);
         scope(exit) pool.finish();
 
@@ -1032,7 +1026,6 @@ int markdup_main(string[] args) {
         auto rg_index = new ReadGroupIndex(bam.header);
 
         VirtualOffset[] offsets;
-        scope(exit) std.c.stdlib.free(offsets.ptr);
 
         StopWatch sw;
         stderr.writeln("finding positions of the duplicate reads in the file...");
@@ -1053,7 +1046,7 @@ int markdup_main(string[] args) {
         // marking or removing duplicates
         bam = new BamReader(args[1], pool);
         bam.setBufferSize(io_buffer_size);
-        auto out_stream = new BufferedFile(output_filename, FileMode.OutNew, io_buffer_size);
+        auto out_stream = new BufferedFile(args[2], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level, pool);
         scope(exit) writer.finish();
         writer.writeSamHeader(bam.header);

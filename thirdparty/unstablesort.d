@@ -18,7 +18,7 @@ import std.range, std.algorithm, std.functional, std.parallelism;
 	
 	Params:
 	range = Range to be sorted
-	threaded = Set to true for concurrent sorting
+	pool = Task pool to use
 	
 	Params:
 	less = Predicate (string, function, or delegate) used for comparing elements; Defaults to "a < b"
@@ -27,22 +27,20 @@ import std.range, std.algorithm, std.functional, std.parallelism;
 	Examples:
 	-----------------
 	int[] array = [10, 37, 74, 99, 86, 28, 17, 39, 18, 38, 70];
-	unstableSort(array);
-	unstableSort!"a > b"(array); // Sorts array descending
-	unstableSort(array, true);   // Sorts array using multiple threads
+	unstableSort(array, taskPool);   // Sorts array using multiple threads
 	-----------------
 ++/
 
-@trusted SortedRange!(R, less) unstableSort(alias less = "a < b", R)(R range, bool threaded = false)
+@trusted SortedRange!(R, less) unstableSort(alias less = "a < b", R)(R range, TaskPool pool)
 {
 	static assert(isRandomAccessRange!R);
 	static assert(hasLength!R);
 	static assert(hasSlicing!R);
 	static assert(hasAssignableElements!R);
 	
-	UnstableSortImpl!(less, R).sort(range, threaded);
+	UnstableSortImpl!(less, R).sort(range, pool);
 	
-	if(!__ctfe) assert(isSorted!(less)(range.save), "Range is not sorted");
+	assert(isSorted!(less)(range.save), "Range is not sorted");
 	return assumeSorted!(less, R)(range.save);
 }
 
@@ -65,14 +63,13 @@ template UnstableSortImpl(alias pred, R)
 	enum MIN_THREAD = 1024 * 64; // Minimum length of a sublist to initiate new thread
 	
 	/// Entry sort function
-	void sort(R range, bool threaded = false)
+	void sort(R range, TaskPool pool)
 	{
-		if(threaded && !__ctfe) concSort(range, range.length);
-		else sort(range, range.length);
+		concSort(range, range.length, pool);
 	}
 	
 	/// Recursively partition list
-	void sort(R range, real depth)
+	void sort(R range, real depth, TaskPool pool)
 	{
 		while(true)
 		{
@@ -93,23 +90,23 @@ template UnstableSortImpl(alias pred, R)
 			
 			if(mid <= range.length / 2)
 			{
-				sort(range[0 .. mid - 1], depth);
+				sort(range[0 .. mid - 1], depth, pool);
 				range = range[mid .. range.length];
 			}
 			else
 			{
-				sort(range[mid .. range.length], depth);
+				sort(range[mid .. range.length], depth, pool);
 				range = range[0 .. mid - 1];
 			}
 		}
 	}
 	
 	/// Concurrently sorts range
-	void concSort(R range, real depth)
+	void concSort(R range, real depth, TaskPool pool)
 	{
 		if(range.length < MIN_THREAD)
 		{
-			sort(range, depth);
+			sort(range, depth, pool);
 			return;
 		}
 		if(depth < 1.0)
@@ -122,9 +119,9 @@ template UnstableSortImpl(alias pred, R)
 		
 		immutable mid = partition(range);
 		
-		auto th = task!(concSort)(range[0 .. mid - 1], depth);
-		taskPool.put(th);
-		concSort(range[mid .. range.length], depth);
+		auto th = task!(concSort)(range[0 .. mid - 1], depth, pool);
+		pool.put(th);
+		concSort(range[mid .. range.length], depth, pool);
 		th.workForce();
 	}
 	
@@ -295,7 +292,7 @@ unittest
 {
 	bool testSort(alias pred, R)(R range)
 	{
-		unstableSort!(pred, R)(range);
+		unstableSort!(pred, R)(range, taskPool);
 		return isSorted!pred(range);
 	}
 	
@@ -328,10 +325,4 @@ unittest
 	
 	// Runtime test
 	assert(testCall(test) == 0);
-	
-	// CTFE Test
-	{
-		enum result = testCall(test);
-		static if(result != 0) pragma(msg, __FILE__, "(", __LINE__, "): Warning: unstableSort CTFE unittest failed ", result, " of 2 tests");
-	}
 }
