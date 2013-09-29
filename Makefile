@@ -43,6 +43,10 @@ sambamba-slice:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -version=standalone -ofbuild/sambamba-slice sambamba/slice.d
 
+sambamba-markdup:
+	mkdir -p build/
+	rdmd $(RDMD_FLAGS) -version=standalone -ofbuild/sambamba-markdup sambamba/markdup.d
+
 .PHONY: clean
 
 clean:

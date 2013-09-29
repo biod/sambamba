@@ -17,15 +17,19 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-module sambamba.rmdup;
+module sambamba.markdup;
+
+import std.stdio;
+import std.getopt;
+import sambamba.utils.common.progressbar;
+import thirdparty.unstablesort;
 
 import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
        bio.bam.read, bio.sam.header, bio.bam.abstractreader,
        bio.core.bgzf.virtualoffset;
 import std.traits, std.typecons, std.range, std.algorithm, std.parallelism, 
        std.exception, std.file, std.typetuple, std.conv, std.array, std.bitmanip,
-       std.c.stdlib;
-version(profile) import std.datetime, std.stdio;
+       std.c.stdlib, std.datetime, std.stream : BufferedFile, FileMode;
 
 struct ReadPair {
     BamReadBlock read1;
@@ -302,7 +306,6 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
     private:
     void setSource(Source source) {
         _src = source;
-        stderr.writeln(source);
     }
 
     auto next(R)(ref R range) {
@@ -505,14 +508,14 @@ if (isInputRange!R && is(ElementType!R == ubyte))
 }
 
 auto readPairs(alias hashFunc=simpleHash, R)
-(R reads, ubyte table_size_log2=18, size_t overflow_list_size=10^^5,
+(R reads, ubyte table_size_log2=18, size_t overflow_list_size=200000,
  string tmp_dir="/tmp", TaskPool task_pool=taskPool) {
     return CollateReadPairRange!(R, false, hashFunc)
             (reads, table_size_log2, overflow_list_size, tmp_dir, task_pool);
 }
 
 auto readPairsAndFragments(alias hashFunc=simpleHash, R)
-(R reads, ubyte table_size_log2=18, size_t overflow_list_size=10^^5,
+(R reads, ubyte table_size_log2=18, size_t overflow_list_size=200000,
  string tmp_dir="/tmp", TaskPool task_pool=taskPool) {
     return CollateReadPairRange!(R, true, hashFunc)
             (reads, table_size_log2, overflow_list_size, tmp_dir, task_pool);
@@ -622,47 +625,55 @@ bool pairedEndsInfoComparator(P1, P2)(auto ref P1 p1, auto ref P2 p2) {
     return false;
 }
 
-void markDuplicates(string filename, TaskPool pool) {
+struct MarkDuplicatesConfig {
+    ubyte hash_table_size_log2 = 18;
+    size_t overflow_list_size = 200_000;
+    string tmpdir = "/tmp";
+}
 
-    static class ReadGroupIndex {
-        private {
-            int[string] _rg_ids;
-            int[] _rg_id_to_lb_id;
-        }
-        
-        this(SamHeader header) {
-            int[string] libraries;
-            _rg_id_to_lb_id.length = header.read_groups.length;
-            int i = 0;
-            int n_libs = 0;
-            foreach (rg; header.read_groups) {
-                _rg_ids[rg.identifier] = i;
-                if (rg.library in libraries) {
-                    _rg_id_to_lb_id[i] = libraries[rg.library];
-                } else {
-                    _rg_id_to_lb_id[i] = n_libs;
-                    libraries[rg.library] = n_libs;
-                    ++n_libs;
-                }
-                ++i;
-            }
-            enforce(n_libs <= 32767, "More than 32767 libraries are unsupported");
-        }
-
-        /// -1 if read group with such name is not found in the header
-        int getId(string name) const {
-            auto p = name in _rg_ids;
-            if (p is null)
-                return -1;
-            return *p;
-        }
-
-        int getLibraryId(int read_group_id) const {
-            if (read_group_id == -1)
-                return -1;
-            return _rg_id_to_lb_id[read_group_id];
-        }
+class ReadGroupIndex {
+    private {
+        int[string] _rg_ids;
+        int[] _rg_id_to_lb_id;
     }
+
+    this(SamHeader header) {
+        int[string] libraries;
+        _rg_id_to_lb_id.length = header.read_groups.length;
+        int i = 0;
+        int n_libs = 0;
+        foreach (rg; header.read_groups) {
+            _rg_ids[rg.identifier] = i;
+            if (rg.library in libraries) {
+                _rg_id_to_lb_id[i] = libraries[rg.library];
+            } else {
+                _rg_id_to_lb_id[i] = n_libs;
+                libraries[rg.library] = n_libs;
+                ++n_libs;
+            }
+            ++i;
+        }
+        enforce(n_libs <= 32767, "More than 32767 libraries are unsupported");
+    }
+
+    /// -1 if read group with such name is not found in the header
+    int getId(string name) const {
+        auto p = name in _rg_ids;
+        if (p is null)
+            return -1;
+        return *p;
+    }
+
+    int getLibraryId(int read_group_id) const {
+        if (read_group_id == -1)
+            return -1;
+        return _rg_id_to_lb_id[read_group_id];
+    }
+}
+
+/// The returned result must be freed using std.c.malloc.free
+VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
+                                       TaskPool pool, MarkDuplicatesConfig cfg) {
 
     static int computeFivePrimeCoord(R)(auto ref R read) {
         if (!read.is_reverse_strand) {
@@ -864,22 +875,20 @@ void markDuplicates(string filename, TaskPool pool) {
         size_t pe_used = n_vo_pe * VirtualOffset.sizeof;
         size_t se_used = n_vo_se * VirtualOffset.sizeof;
 
+        VirtualOffset* p;
+        size_t n = n_vo_pe + n_vo_se;
         if (pe_used + se_used <= pe_total_mem) {
-            pvo[n_vo_pe .. n_vo_pe + n_vo_se] = svo[0 .. n_vo_se];
+            pvo[n_vo_pe .. n] = svo[0 .. n_vo_se];
             _se.free();
-            return pvo[0 .. n_vo_pe + n_vo_se];
+            p = pvo;
         } else {
             svo[n_vo_se .. n_vo_pe + n_vo_se] = pvo[0 .. n_vo_pe];
             _pe.free();
-            return svo[0 .. n_vo_pe + n_vo_se];
+            p = svo;
         }
+        std.c.stdlib.realloc(p, n * VirtualOffset.sizeof);
+        return p[0 .. n];
     }
-
-    auto bam = new BamReader(filename, pool);
-    auto n_refs = bam.reference_sequences.length;
-    enforce(n_refs < 16384, "More than 16383 reference sequences are unsupported");
-
-    auto rg_index = new ReadGroupIndex(bam.header);
 
     auto single_ends = new MallocArray!SingleEndInfo();
     auto paired_ends = new MallocArray!PairedEndsInfo();
@@ -892,8 +901,10 @@ void markDuplicates(string filename, TaskPool pool) {
 
     scope(exit) second_ends.free();
 
-    foreach (pf; readPairsAndFragments(bam.reads!withOffsets(),
-                                       18, 10^^5, "/tmp", pool)) {
+    foreach (pf; readPairsAndFragments(reads,
+                                       cfg.hash_table_size_log2,
+                                       cfg.overflow_list_size,
+                                       cfg.tmpdir, pool)) {
         auto end1 = collectSingleEndInfo(pf.read1, rg_index);
         if (!pf.read2.isNull) {
             auto end2 = collectSingleEndInfo(pf.read2, rg_index);
@@ -905,82 +916,185 @@ void markDuplicates(string filename, TaskPool pool) {
         }
     }
     
-    import thirdparty.unstablesort;
+    StopWatch sw;
 
-    version(profile) {
-        StopWatch sw;
-        stderr.writeln("sorting ", paired_ends.data.length, " end pairs");
-        sw.start();
-    }
-
+    stderr.write("  sorting ", paired_ends.data.length, " end pairs... ");
+    sw.start();
     unstableSort!pairedEndsInfoComparator(paired_ends.data, true);
-
-    version(profile) {
-        sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms\n");
-        sw.reset();
-        stderr.writeln("sorting ", second_ends.data.length, " second ends");
-        sw.start();
-    }
-
     unstableSort!singleEndInfoComparator(second_ends.data, true);
+    sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
 
-    version(profile) {
-        sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms\n");
-        sw.reset();
-        stderr.writeln("sorting ", single_ends.data.length, " ends",
-                       " (",
-                       single_ends.data.filter!q{ a.paired }.walkLength(),
-                       " unmatched pairs)\n");
-        sw.start();
-    }
-
+    stderr.write("  sorting ", single_ends.data.length, " single ends",
+                 " (among them ",
+                 single_ends.data.filter!q{ a.paired }.walkLength(),
+                 " unmatched pairs)... ");
+    sw.start();
     unstableSort!singleEndInfoComparator(single_ends.data, true);
+    sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms"); sw.reset();
 
-    version(profile) {
-        sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms");
-        sw.reset();
-        stderr.writeln("collecting virtual offsets of duplicates");
-        sw.start();
-    }
-
+    stderr.write("  collecting virtual offsets of duplicate reads... ");
+    sw.start();
     auto duplicates = collectDuplicates(paired_ends, single_ends, second_ends);
-    scope(exit) std.c.stdlib.free(duplicates.ptr);
+    sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
 
-    version(profile) {
-        sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms\n");
-        sw.reset();
-    }
-
-    stderr.writeln("found ", duplicates.length, " duplicates");
-
+    stderr.write("  found ", duplicates.length, " duplicates, sorting the list... ");
+    sw.start();
     unstableSort(duplicates);
+    sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
 
-    // removing duplicates
-    bam = new BamReader(filename, pool);
-    auto writer = new BamWriter(filename ~ ".rmdup", -1, pool);
-    scope(exit) writer.finish();
-    writer.writeSamHeader(bam.header);
-    writer.writeReferenceSequenceInfo(bam.reference_sequences);
-    size_t k = 0;
-    bool remove_duplicates = false;
-    foreach (read; bam.reads!withOffsets()) {
-        if (k < duplicates.length && read.start_virtual_offset == duplicates[k])
-        {
-            ++k;
-            assumeUnique(read).is_duplicate = true;
-            if (remove_duplicates)
-                continue;
-        } else {
-            assumeUnique(read).is_duplicate = false;
-        }
-        writer.writeRecord(read);
+    return duplicates;
+}
+
+void printUsage() {
+    stderr.writeln("Usage: sambamba-markdup [options] <input.bam>");
+    stderr.writeln("       By default, marks the duplicates without removing them");
+    stderr.writeln();
+    stderr.writeln("Options: -o, --output-filename=FILENAME");
+    stderr.writeln("                    the name of the output file; required option");
+    stderr.writeln("         -r, --remove-duplicates");
+    stderr.writeln("                    remove duplicates instead of just marking them");
+    stderr.writeln("         -t, --nthreads=NTHREADS");
+    stderr.writeln("                    number of threads to use");
+    stderr.writeln("         -l, --compression-level=N");
+    stderr.writeln("                    specify compression level of the resulting file (from 0 to 9)");
+    stderr.writeln("         -p, --show-progress");
+    stderr.writeln("                    show progressbar in STDERR");
+    stderr.writeln("         --tmpdir=TMPDIR");
+    stderr.writeln("                    specify directory for temporary files; default is /tmp");
+    stderr.writeln();
+    stderr.writeln("Performance tweaking parameters");
+    stderr.writeln("         --hash-table-size=HASH_TABLE_SIZE");
+    stderr.writeln("                    size of hash table for finding read pairs (default is 262144 reads);");
+    stderr.writeln("                    will be rounded down to the nearest power of two;");
+    stderr.writeln("                    should be > (average coverage) * (insert size) for good performance");
+    stderr.writeln("         --overflow-list-size=OVERFLOW_LIST_SIZE");
+    stderr.writeln("                    size of the overflow list where reads, thrown from the hash table,");
+    stderr.writeln("                    get a second chance to meet their pairs (default is 200000 reads);");
+    stderr.writeln("                    increasing the size reduces the number of temporary files created");
+    stderr.writeln("         --io-buffer-size=BUFFER_SIZE");
+    stderr.writeln("                    two buffers of BUFFER_SIZE *megabytes* each are used");
+    stderr.writeln("                    for reading and writing BAM during the second pass (default is 128)");
+}
+
+version(standalone) {
+    int main(string[] args) {
+        return markdup_main(args);
     }
 }
 
-// TODO options
-import std.stdio;
-void main(string[] args) {
-    auto pool = new TaskPool(totalCPUs);
-    scope(exit) pool.finish();
-    markDuplicates(args[1], pool);
+int markdup_main(string[] args) {
+
+    MarkDuplicatesConfig cfg;
+    string output_filename;
+    bool remove_duplicates;
+    size_t n_threads = totalCPUs;
+    bool show_progress;
+    size_t io_buffer_size = 128;
+    size_t hash_table_size;
+    int compression_level = -1;
+    
+    getopt(args,
+           std.getopt.config.caseSensitive,
+           "output-filename|o", &output_filename,
+           "remove-duplicates|r", &remove_duplicates,
+           "nthreads|t", &n_threads,
+           "compression-level|l", &compression_level,
+           "show-progress|p", &show_progress,
+           "tmpdir", &cfg.tmpdir,
+           "hash-table-size", &hash_table_size,
+           "overflow-list-size", &cfg.overflow_list_size,
+           "io-buffer-size", &io_buffer_size);
+
+    if (args.length == 1) {
+        printUsage();
+        return 0;
+    }
+
+    if (output_filename is null) {
+        stderr.writeln("Please specify output filename");
+        return 1;
+    }
+
+    io_buffer_size <<= 20; // -> megabytes
+
+    cfg.hash_table_size_log2 = 10;
+    while ((2 << cfg.hash_table_size_log2) < hash_table_size)
+        cfg.hash_table_size_log2 += 1;
+
+    try {
+        auto pool = new TaskPool(n_threads);
+        scope(exit) pool.finish();
+
+        auto bam = new BamReader(args[1], pool);
+        auto n_refs = bam.reference_sequences.length;
+        enforce(n_refs < 16384, "More than 16383 reference sequences are unsupported");
+
+        auto rg_index = new ReadGroupIndex(bam.header);
+
+        VirtualOffset[] offsets;
+        scope(exit) std.c.stdlib.free(offsets.ptr);
+
+        StopWatch sw;
+        stderr.writeln("finding positions of the duplicate reads in the file...");
+        sw.start();
+        if (!show_progress)
+            offsets = getDuplicateOffsets(bam.reads!withOffsets(), rg_index, pool, cfg);
+        else {
+            auto bar = new shared(ProgressBar)();
+            auto reads = bam.readsWithProgress!withOffsets((lazy float p) { bar.update(p); },
+                                                           () { bar.finish(); });
+            offsets = getDuplicateOffsets(reads, rg_index, pool, cfg);
+        }
+        sw.stop();
+        stderr.writeln("collected list of positions in ",
+                       sw.peek().seconds / 60, " min ",
+                       sw.peek().seconds % 60, " sec");
+
+        // marking or removing duplicates
+        bam = new BamReader(args[1], pool);
+        bam.setBufferSize(io_buffer_size);
+        auto out_stream = new BufferedFile(output_filename, FileMode.OutNew, io_buffer_size);
+        auto writer = new BamWriter(out_stream, compression_level, pool);
+        scope(exit) writer.finish();
+        writer.writeSamHeader(bam.header);
+        writer.writeReferenceSequenceInfo(bam.reference_sequences);
+
+        stderr.writeln(remove_duplicates ? "removing" : "marking", " duplicates...");
+        sw.start();
+        
+        InputRange!BamReadBlock reads;
+        if (!show_progress) {
+            reads = inputRangeObject(bam.reads!withOffsets());
+        } else {
+            auto bar = new shared(ProgressBar)();
+            reads = inputRangeObject(bam.readsWithProgress!withOffsets((lazy float p) { bar.update(p); },
+                                                                       () { bar.finish(); }));
+        }
+
+        size_t k = 0;
+        foreach (read; reads) {
+            if (k < offsets.length && read.start_virtual_offset == offsets[k])
+                {
+                    ++k;
+                    assumeUnique(read).is_duplicate = true;
+                    if (remove_duplicates)
+                        continue;
+                } else {
+                assumeUnique(read).is_duplicate = false;
+            }
+            writer.writeRecord(read);
+        }
+
+        sw.stop();
+        stderr.writeln("total time elapsed: ",
+                       sw.peek().seconds / 60, " min ",
+                       sw.peek().seconds % 60, " sec");
+
+    } catch (Throwable e) {
+        stderr.writeln("sambamba-markdup: ", e.msg);
+        version(development) { throw e; }
+        return 1;
+    }
+
+    return 0;
 }
