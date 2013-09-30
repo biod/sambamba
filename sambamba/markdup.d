@@ -801,8 +801,9 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
                 // 2 * VirtualOffset.sizeof <= PairedEndsInfo.sizeof
                 for (size_t i = 0; i < k; ++i) {
                     if (i != best_k) {
-                        pvo[n_vo_pe++] = pe[i].vo1;
-                        pvo[n_vo_pe++] = pe[i].vo2;
+                        auto paired_ends = pe[i];
+                        pvo[n_vo_pe++] = paired_ends.vo1;
+                        pvo[n_vo_pe++] = paired_ends.vo2;
                     }
                 }
 
