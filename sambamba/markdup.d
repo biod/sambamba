@@ -990,6 +990,9 @@ int markdup_main(string[] args) {
     size_t hash_table_size;
     int compression_level = -1;
     
+    StopWatch sw;
+  	sw.start();  
+	
     try {
         getopt(args,
            std.getopt.config.caseSensitive,
@@ -1025,9 +1028,7 @@ int markdup_main(string[] args) {
 
         VirtualOffset[] offsets;
 
-        StopWatch sw;
         stderr.writeln("finding positions of the duplicate reads in the file...");
-        sw.start();
         if (!show_progress)
             offsets = getDuplicateOffsets(bam.reads!withOffsets(), rg_index, pool, cfg);
         else {
@@ -1036,10 +1037,11 @@ int markdup_main(string[] args) {
                                                            () { bar.finish(); });
             offsets = getDuplicateOffsets(reads, rg_index, pool, cfg);
         }
-        sw.stop();
+
+		auto elapsed = sw.peek();
         stderr.writeln("collected list of positions in ",
-                       sw.peek().seconds / 60, " min ",
-                       sw.peek().seconds % 60, " sec");
+                       elapsed.seconds / 60, " min ",
+                       elapsed.seconds % 60, " sec");
 
         // marking or removing duplicates
         bam = new BamReader(args[1], pool);
@@ -1051,7 +1053,6 @@ int markdup_main(string[] args) {
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
 
         stderr.writeln(remove_duplicates ? "removing" : "marking", " duplicates...");
-        sw.start();
         
         InputRange!BamReadBlock reads;
         if (!show_progress) {
