@@ -946,12 +946,10 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
 }
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-markdup [options] <input.bam>");
+    stderr.writeln("Usage: sambamba-markdup [options] <input.bam> <output.bam>");
     stderr.writeln("       By default, marks the duplicates without removing them");
     stderr.writeln();
-    stderr.writeln("Options: -o, --output-filename=FILENAME");
-    stderr.writeln("                    the name of the output file; required option");
-    stderr.writeln("         -r, --remove-duplicates");
+    stderr.writeln("Options: -r, --remove-duplicates");
     stderr.writeln("                    remove duplicates instead of just marking them");
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    number of threads to use");
