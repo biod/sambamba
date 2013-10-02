@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <title>
+    Sambamba documentation
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap -->
+  <link href="/css/bootstrap.min.css" rel="stylesheet" media="screen">
+
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+      <script src="../../assets/js/html5shiv.js"></script>
+      <script src="../../assets/js/respond.min.js"></script>
+      <![endif]-->
+
+  <meta name="author" content="" />
+  <meta name="description" content="" />
+
+  <link rel="stylesheet" href="/css/man.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/base.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+  <link href='http://fonts.googleapis.com/css?family=Yanone+Kaffeesatz' rel='stylesheet' type='text/css'>
+</head>
+
+<body>
+  <a href="https://github.com/lomereiter/sambamba"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub" width="144px" height="144px"></a>
+  <div class="container">
+
+    <div class="row">
+      <div class="page-header" style="text-align: center">
+        <h1>Sambamba documentation</h1>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-2">
+
+        <section class="sidebar">
+          <ul class="nav nav-pills nav-stacked">
+            <!-- TODO
+                 <li><a href="/installation.html">Installation</a></li>
+                 -->
+            
+            
+            <li><a href="/index.html">← Back</a></li>
+            <li class="active"><a href="/docs/sambamba-view.html">Documentation</a></li>
+            
+            <li><a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">Downloads</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba">Source code</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba/issues">Report an issue</a></li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="col-md-10">
+        <div class="content">
+        <div class="row">
+  <ul class="nav nav-tabs">
+    <li><a href="/docs/sambamba-view.html">view</a></li>
+    <li><a href="/docs/sambamba-sort.html">sort</a></li>
+    <li><a href="/docs/sambamba-index.html">index</a></li>
+    <li><a href="/docs/sambamba-merge.html">merge</a></li>
+    <li class="active"><a href="/docs/sambamba-slice.html">slice</a></li>
+    <li><a href="/docs/sambamba-flagstat.html">flagstat</a></li>
+    <li><a href="/docs/sambamba-markdup.html">markdup</a></li>
+  </ul>
+</div>
+
+<div class="row">
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-slice</code> - <span class="man-whatis">copying a slice of BAM file</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba slice</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;input.bam> <var>region</var></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>Outputs reads overlapping specified region into new BAM file.
+(Default destination is STDOUT.)
+Input file must be coordinate-sorted and indexed.</p>
+
+<p>While the same can be done with <em>sambamba-view</em>, that would be
+much slower due to a lot of compression/decompression work.
+Instead of naive method, <em>sambamba-slice</em> leverages knowledge
+about structure of BAM file and recompresses only a few BGZF
+blocks at the beginning and the end of the region, while the
+BGZF blocks in the middle are copied as is. As such, this tool
+doesn't offer any options related to number of threads or
+compression level - most of the time is spent on I/O operations.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-o</code>, <code>--output-filename</code>=<var>OUTPUTFILE</var></dt><dd>  Name of output file</dd>
+</dl>
+
+
+</div>
+
+</div>
+
+
+        </div>
+      </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,7 @@
+markdown: rdiscount
+pygments: true
+permalink: /:title
+root: /sambamba
+auto: true
+rdiscount:
+  extensions: [smart]

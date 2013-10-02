@@ -1,0 +1,33 @@
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-slice</code> - <span class="man-whatis">copying a slice of BAM file</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba slice</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;input.bam> <var>region</var></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>Outputs reads overlapping specified region into new BAM file.
+(Default destination is STDOUT.)
+Input file must be coordinate-sorted and indexed.</p>
+
+<p>While the same can be done with <em>sambamba-view</em>, that would be
+much slower due to a lot of compression/decompression work.
+Instead of naive method, <em>sambamba-slice</em> leverages knowledge
+about structure of BAM file and recompresses only a few BGZF
+blocks at the beginning and the end of the region, while the
+BGZF blocks in the middle are copied as is. As such, this tool
+doesn't offer any options related to number of threads or
+compression level - most of the time is spent on I/O operations.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-o</code>, <code>--output-filename</code>=<var>OUTPUTFILE</var></dt><dd>  Name of output file</dd>
+</dl>
+
+
+</div>

@@ -1,0 +1,28 @@
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba</code> - <span class="man-whatis">toolkit for working with SAM/BAM files</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba</code> [subcommand] [arguments...]</p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>sambamba</code> unifies several independent tools in one executable:</p>
+
+<ul>
+<li><a class="man-ref" href="sambamba-view.1.html">sambamba-view<span class="s">(1)</span></a></li>
+<li><a class="man-ref" href="sambamba-index.1.html">sambamba-index<span class="s">(1)</span></a></li>
+<li><a class="man-ref" href="sambamba-merge.1.html">sambamba-merge<span class="s">(1)</span></a></li>
+<li><a class="man-ref" href="sambamba-sort.1.html">sambamba-sort<span class="s">(1)</span></a></li>
+<li><a class="man-ref" href="sambamba-flagstat.1.html">sambamba-flagstat<span class="s">(1)</span></a></li>
+<li><a class="man-ref" href="sambamba-slice.1.html">sambamba-slice<span class="s">(1)</span></a></li>
+</ul>
+
+
+<p>Thus available subcommands are <em>view</em>, <em>index</em>, <em>merge</em>, <em>sort</em>, <em>flagstat</em>,
+and <em>slice</em>. Their use is explained on the corresponding man pages.</p>
+
+</div>

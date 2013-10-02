@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <title>
+    Sambamba documentation
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap -->
+  <link href="/css/bootstrap.min.css" rel="stylesheet" media="screen">
+
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+      <script src="../../assets/js/html5shiv.js"></script>
+      <script src="../../assets/js/respond.min.js"></script>
+      <![endif]-->
+
+  <meta name="author" content="" />
+  <meta name="description" content="" />
+
+  <link rel="stylesheet" href="/css/man.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/base.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+  <link href='http://fonts.googleapis.com/css?family=Yanone+Kaffeesatz' rel='stylesheet' type='text/css'>
+</head>
+
+<body>
+  <a href="https://github.com/lomereiter/sambamba"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub" width="144px" height="144px"></a>
+  <div class="container">
+
+    <div class="row">
+      <div class="page-header" style="text-align: center">
+        <h1>Sambamba documentation</h1>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-2">
+
+        <section class="sidebar">
+          <ul class="nav nav-pills nav-stacked">
+            <!-- TODO
+                 <li><a href="/installation.html">Installation</a></li>
+                 -->
+            
+            
+            <li><a href="/index.html">← Back</a></li>
+            <li class="active"><a href="/docs/sambamba-view.html">Documentation</a></li>
+            
+            <li><a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">Downloads</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba">Source code</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba/issues">Report an issue</a></li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="col-md-10">
+        <div class="content">
+        <div class="row">
+  <ul class="nav nav-tabs">
+    <li><a href="/docs/sambamba-view.html">view</a></li>
+    <li class="active"><a href="/docs/sambamba-sort.html">sort</a></li>
+    <li><a href="/docs/sambamba-index.html">index</a></li>
+    <li><a href="/docs/sambamba-merge.html">merge</a></li>
+    <li><a href="/docs/sambamba-slice.html">slice</a></li>
+    <li><a href="/docs/sambamba-flagstat.html">flagstat</a></li>
+    <li><a href="/docs/sambamba-markdup.html">markdup</a></li>
+  </ul>
+</div>
+
+<div class="row">
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-sort</code> - <span class="man-whatis">tool for sorting BAM files</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba sort</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;input.bam></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>BAM files can have either 'coordinate' sort order, or 'qname' one.</p>
+
+<p>The first one means to sort the file by (integer) reference ID, and
+for each reference sort corresponding reads by start coordinate.</p>
+
+<p>'qname' sorting order is when reads are sorted lexicographically by
+their names.</p>
+
+<p><code>sambamba sort</code> does an external sort on input file. That means it
+reads the source BAM file in chunks that fit into memory, sorts them
+and writes to a temporary directory, and then merges them. After merging
+temporary files are removed automatically. The sort is stable, and efforts
+have been done to make it multithreaded.</p>
+
+<p>Both sorting orders are supported. Default one is 'coordinate'
+because this is the one used for building index later. In order to
+switch to 'qname' sorting order, use <code>-n</code>|<code>--sort-by-name</code> flag.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-m</code>, <code>--memory-limit</code>=<var>LIMIT</var></dt><dd><p>Sets an upper bound for used memory. However, this is very approximate.
+Default memory limit is 512MiB. Increasing it will allow to make chunk
+sizes larger and also reduce amount of I/O seeks thus improving the overall
+performance.</p>
+
+<p><var>LIMIT</var> must be a number with an optional suffix specyfying unit of measumerent.
+The following endings are recognized: K, KiB, KB, M, MiB, MB, G, GiB, GB.</p></dd>
+<dt><code>--tmpdir</code>=<var>TMPDIR</var></dt><dd><p>Use <var>TMPDIR</var> to output sorted chunks. Default behaviour is to use system
+temporary directory.</p></dd>
+<dt><code>-o</code>, <code>--out</code>=<var>OUTPUTFILE</var></dt><dd><p>Output file name. If not provided, the result is written to a file with .sorted.bam extension.</p></dd>
+<dt><code>-n</code>, <code>--sort-by-name</code></dt><dd><p>Sort by read name instead of doing coordinate sort.</p></dd>
+<dt><code>-l</code>, <code>--compression-level</code>=<var>COMPRESSION_LEVEL</var></dt><dd><p>Compression level to use for <em>sorted</em> BAM, from 0 (known as uncompressed BAM in samtools) to 9.</p></dd>
+<dt><code>-u</code>, <code>--uncompressed-chunks</code></dt><dd><p>Write sorted chunks as uncompressed BAM.
+Default behaviour is to write them with compression level 1, because that reduces time spent on I/O,
+but in some cases using this option can give you a better speed. Note, however, that the disk space
+needed for sorting will typically be 3-4 times more than without enabling this option.</p></dd>
+<dt><code>-p</code>, <code>--show-progress</code></dt><dd><p>Show wget-like progressbar in STDERR (in fact, two of them one after another, first one for sorting,
+and then another one for merging).</p></dd>
+<dt><code>-t</code>, <code>--nthreads</code>=<var>NTHREADS</var></dt><dd><p>Number of threads to use.</p></dd>
+</dl>
+
+
+<h2 id="BUGS">BUGS</h2>
+
+<p>At the moment, the memory is used quite ineffectively.</p>
+
+</div>
+
+</div>
+
+
+        </div>
+      </div>
+  </div>
+</body>
+
+</html>

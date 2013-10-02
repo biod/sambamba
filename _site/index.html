@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <title>
+    Sambamba: process your BAM data faster!
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap -->
+  <link href="/css/bootstrap.min.css" rel="stylesheet" media="screen">
+
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+      <script src="../../assets/js/html5shiv.js"></script>
+      <script src="../../assets/js/respond.min.js"></script>
+      <![endif]-->
+
+  <meta name="author" content="" />
+  <meta name="description" content="" />
+
+  <link rel="stylesheet" href="/css/man.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/base.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+  <link href='http://fonts.googleapis.com/css?family=Yanone+Kaffeesatz' rel='stylesheet' type='text/css'>
+</head>
+
+<body>
+  <a href="https://github.com/lomereiter/sambamba"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub" width="144px" height="144px"></a>
+  <div class="container">
+
+    <div class="row">
+      <div class="page-header" style="text-align: center">
+        <h1>Sambamba: process your BAM data faster!</h1>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-2">
+
+        <section class="sidebar">
+          <ul class="nav nav-pills nav-stacked">
+            <!-- TODO
+                 <li><a href="/installation.html">Installation</a></li>
+                 -->
+            
+            
+            <li><a href="/docs/sambamba-view.html">Documentation</a></li>
+            
+            <li><a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">Downloads</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba">Source code</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba/issues">Report an issue</a></li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="col-md-10">
+        <div class="content">
+        <div class="row">
+  <div id="tools" class="block col-sm-2">
+    <div class="container">
+    <div class="lword">Tools</div>
+      <ul class="nav nav-pills nav-stacked">
+        <li><a href="/docs/sambamba-view.html">view</a></li>
+        <li><a href="/docs/sambamba-sort.html">sort</a></li>
+        <li><a href="/docs/sambamba-index.html">index</a></li>
+        <li><a href="/docs/sambamba-merge.html">merge</a></li>
+        <li><a href="/docs/sambamba-slice.html">slice</a></li>
+        <li><a href="/docs/sambamba-flagstat.html">flagstat</a></li>
+        <li><a href="/docs/sambamba-markdup.html">markdup</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="block col-sm-6">
+    <div class="title">Features</div>
+    <div id="features">
+      <ul>
+        <li>
+          <a href="https://github.com/lomereiter/sambamba/wiki/%5Bsambamba-view%5D-Filter-expression-syntax">
+            Powerful filtering
+          </a> with <code>sambamba <a href="/docs/sambamba-view.html">view</a> --filter</code>
+        </li>
+        <li>Picard-like SAM header merging in the <a href="/docs/sambamba-merge.html">merge</a> tool</li>
+        <li>Optional <code>[==>&nbsp;&nbsp;&nbsp;&nbsp;]</code> for operations on whole BAMs</li>
+        <li>Fast copying of a region to a new file with the <a href="/docs/sambamba-slice.html">slice</a> tool</li>
+        <li><a href="/docs/sambamba-markdup.html">Duplicate marking/removal</a>, using the Picard criteria</li>
+        <li style="margin-top: 20px">And, of course, the biggest one (yeah, <i>literally</i>!),
+          <p style="font-size:24px; text-align: center; margin: 10px">
+            <u>PERFORMANCE</u> &nbsp;&nbsp;&nbsp;
+            </p>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="bm" class="block col-sm-4">
+
+    <div class="cword">Benchmarks</div>
+    <div class="bm-case">
+      Indexing 17GB file on 8 cores, HDD
+      <table>
+        <th><td>real time, s</td><td>user time, s</td></th>
+        <tr><td>sambamba</td><td>31</td><td>69</td></tr>
+        <tr><td>samtools</td><td>70</td><td>67</td></tr>
+      </table>
+    </div>
+
+    <div class="bm-case">
+      Copying reads aligned to the 3rd chr. to a new BAM file
+    <br/>   (8 threads, empty file cache)
+      <table>
+        <th><td>real time, s</td><td>user time, s</td></th>
+        <tr><td>sambamba</td><td>5.8</td><td>38.0</td></tr>
+        <tr><td>samtools</td><td>8.5</td><td>33.7</td></tr>
+      </table>
+    </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div id="install" class="col-sm-8">
+    <div class="cword kword">Installation</div>
+    <div>
+      <p> For Linux 64-bit systems, precompiled binaries are
+      <a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">available</a>.
+      </p>
+      <p>
+        In order to compile from source,
+        install <a href="http://dlang.org/download.html">DMD</a>
+        compiler and run in terminal
+        <code>git clone --recursive https://github.com/lomereiter/sambamba.git</code>
+        followed by<code>cd sambamba && make release</code>. The binary will be
+        in <code>build/</code>.
+      </p>
+    </div>
+  </div>
+
+  <div id="info" class="col-sm-4">
+    <div class="info-block">
+      <div class="cword kword">License: <font color="black">GPL v2+</font></div>
+    </div>
+    <div class="info-block">
+      <div class="cword kword">Supported platforms:</div>
+      <div class="cword">Linux, Mac OS X</div>
+    </div>
+  </div>
+</div>
+
+        </div>
+      </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,29 @@
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-merge</code> - <span class="man-whatis">tool for merging several BAM files into one</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba merge</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;output.bam> &lt;input1.bam> &lt;input2.bam> [...]</p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>sambamba merge</code> is used for merging several sorted BAM files into one.
+The sorting order of all the files must be the same, and it is maintained in the output file.</p>
+
+<p>SAM headers are merged automatically like in Picard merging tool.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-t</code>, <code>--nthreads</code>=<var>NTHREADS</var></dt><dd><p>Specify number of threads to use for compression/decompression tasks.</p></dd>
+<dt><code>-l</code>, <code>--compression-level</code>=<var>COMPRESSION_LEVEL</var></dt><dd><p>Specify compression level of output file as a number from 0 to 9</p></dd>
+<dt><code>-H</code>, <code>--header</code></dt><dd><p>Output only merged header to stdout in SAM format (e.g. for debugging purposes).
+Other options are ignored.</p></dd>
+<dt><code>-p</code>, <code>--show-progress</code></dt><dd><p>Show progressbar in STDERR.</p></dd>
+</dl>
+
+
+</div>

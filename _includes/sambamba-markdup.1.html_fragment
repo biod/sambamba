@@ -1,0 +1,42 @@
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-markdup</code> - <span class="man-whatis">finding duplicate reads in BAM file</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba markdup</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;input.bam> &lt;output.bam></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>Marks (by default) or removes duplicate reads. For determining
+whether a read is a duplicate or not, the same criteria as in Picard
+are used.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-r</code>, <code>--remove-duplicates</code></dt><dd><p> remove duplicates instead of just marking them</p></dd>
+<dt><code>-t</code>, <code>--nthreads</code>=<var>NTHREADS</var></dt><dd><p> number of threads to use</p></dd>
+<dt><code>-l</code>, <code>--compression-level</code>=<var>N</var></dt><dd><p>specify compression level of the resulting file (from 0 to 9)");</p></dd>
+<dt><code>-p</code>, <code>--show-progress</code></dt><dd><p>show progressbar in STDERR</p></dd>
+<dt><code>--tmpdir</code>=<var>TMPDIR</var></dt><dd><p>specify directory for temporary files; default is <code>/tmp</code></p></dd>
+<dt><code>--hash-table-size</code>=<var>HASHTABLESIZE</var></dt><dd><p>size of hash table for finding read pairs (default is 262144 reads);
+will be rounded down to the nearest power of two;
+should be <code>&gt; (average coverage) * (insert size)</code> for good performance</p></dd>
+<dt><code>--overflow-list-size</code>=<var>OVERFLOWLISTSIZE</var></dt><dd><p>size of the overflow list where reads, thrown away from the hash table,
+get a second chance to meet their pairs (default is 200000 reads);
+increasing the size reduces the number of temporary files created</p></dd>
+<dt><code>--io-buffer-size</code>=<var>BUFFERSIZE</var></dt><dd><p>controls sizes of two buffers of BUFFERSIZE <em>megabytes</em> each, used
+for reading and writing BAM during the second pass (default is 128)</p></dd>
+</dl>
+
+
+<h2 id="BUGS">BUGS</h2>
+
+<p>  External sort is not implemented.
+  Thus, memory consumption grows by 2Gb per each 100M reads.
+  Check that you have enough RAM before running the tool.</p>
+
+</div>

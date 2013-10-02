@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <title>
+    Sambamba documentation
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap -->
+  <link href="/css/bootstrap.min.css" rel="stylesheet" media="screen">
+
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+      <script src="../../assets/js/html5shiv.js"></script>
+      <script src="../../assets/js/respond.min.js"></script>
+      <![endif]-->
+
+  <meta name="author" content="" />
+  <meta name="description" content="" />
+
+  <link rel="stylesheet" href="/css/man.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/base.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+  <link href='http://fonts.googleapis.com/css?family=Yanone+Kaffeesatz' rel='stylesheet' type='text/css'>
+</head>
+
+<body>
+  <a href="https://github.com/lomereiter/sambamba"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub" width="144px" height="144px"></a>
+  <div class="container">
+
+    <div class="row">
+      <div class="page-header" style="text-align: center">
+        <h1>Sambamba documentation</h1>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-2">
+
+        <section class="sidebar">
+          <ul class="nav nav-pills nav-stacked">
+            <!-- TODO
+                 <li><a href="/installation.html">Installation</a></li>
+                 -->
+            
+            
+            <li><a href="/index.html">← Back</a></li>
+            <li class="active"><a href="/docs/sambamba-view.html">Documentation</a></li>
+            
+            <li><a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">Downloads</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba">Source code</a></li>
+            <li><a href="http://github.com/lomereiter/sambamba/issues">Report an issue</a></li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="col-md-10">
+        <div class="content">
+        <div class="row">
+  <ul class="nav nav-tabs">
+    <li><a href="/docs/sambamba-view.html">view</a></li>
+    <li><a href="/docs/sambamba-sort.html">sort</a></li>
+    <li><a href="/docs/sambamba-index.html">index</a></li>
+    <li><a href="/docs/sambamba-merge.html">merge</a></li>
+    <li><a href="/docs/sambamba-slice.html">slice</a></li>
+    <li class="active"><a href="/docs/sambamba-flagstat.html">flagstat</a></li>
+    <li><a href="/docs/sambamba-markdup.html">markdup</a></li>
+  </ul>
+</div>
+
+<div class="row">
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-flagstat</code> - <span class="man-whatis">getting flag statistics from BAM file</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba flagstat</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;input.bam></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>Outputs some statistics drawn from read flags.</p>
+
+<p>First line contains numbers of QC-passed and QC-failed reads.
+Then come pairs of numbers, the former for QC-passed reads, the latter for
+QC-failed ones:</p>
+
+<ul>
+<li>duplicates</li>
+<li>mapped reads (plus percentage relative to the numbers from the first line)</li>
+<li>reads with 'is_paired' flag set</li>
+<li>paired reads which are first mates</li>
+<li>paired reads which are second mates</li>
+<li>paired reads with 'proper_pair' flag set (plus percentage relative to
+the numbers of QC-passed/failed reads with 'is_paired' flag set)</li>
+<li>paired reads where both mates are mapped</li>
+<li>paired reads where read itself is unmapped but mate is mapped</li>
+<li>paired reads where mate is mapped to a different chromosome</li>
+<li>the same as previous but mapping quality is not less than 5</li>
+</ul>
+
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-t</code>, <code>--nthreads</code>=<var>NTHREADS</var></dt><dd><p> Specify number of threads to use for BAM decompression</p></dd>
+<dt><code>-p</code>, <code>--show-progress</code></dt><dd><p> Show progressbar in STDERR</p></dd>
+</dl>
+
+
+</div>
+
+</div>
+
+
+        </div>
+      </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,150 @@
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-view</code> - <span class="man-whatis">tool for extracting information from SAM/BAM files</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba view</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;input.bam | input.sam> [region1 [...]]</p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>sambamba view</code> allows to efficiently filter BAM file for alignments
+satisfying various conditions, as well as access its SAM header and
+information about reference sequences. In order to make these data
+readily available for consumption by scripts in Perl/Python/Ruby,
+JSON output is provided.</p>
+
+<p>By default, the tool expects BAM file as an input.
+In order to work with SAM file, specify <code>-S</code>|<code>--sam-input</code> command-line
+option, the tool does NOT try to guess file format from extension.
+Beware that when reading SAM, the tool will skip tags which don't conform
+to the SAM/BAM specification, and set invalid fields to their default values.
+However, only syntax is checked, use <code>--valid</code> for full validation.</p>
+
+<h2 id="FILTERING">FILTERING</h2>
+
+<p>Filtering is presented in two ways. First, you can specify a condition
+with <code>-F</code> option, using a special language for filtering, described at</p>
+
+<p>https://github.com/lomereiter/sambamba/wiki/%5Bsambamba-view%5D-Filter-expression-syntax</p>
+
+<p>Second, if you have an indexed BAM file, several regions can be specified as well.
+The syntax for regions is the same as in samtools: <var>chr</var>:<var>beg</var>-<var>end</var> where <var>beg</var> and <var>end</var>
+are 1-based start and end of a closed-end interval on the reference <var>chr</var>.</p>
+
+<h2 id="JSON">JSON</h2>
+
+<p>Alignment record JSON representation is a hash with keys 'qname', 'flag', 'rname', 'pos', 'mapq',
+'cigar', 'rnext', 'qual', 'tags', e.g.</p>
+
+<p>{"qname":"EAS56_57:6:190:289:82","flag":69,"rname":"chr1","pos":100,<br />
+ "mapq":0,"cigar":"*","rnext":"=","pnext":100,"tlen":0,<br />
+ "seq":"CTCAAGGTTGTTGCAAGGGGGTCTATGTGAACAAA",<br />
+ "qual":[27,27,27,22,27,27,27,26,27,27,27,27,27,27,27,27,23,26,26,27,<br />
+ 22,26,19,27,26,27,26,26,26,26,26,24,19,27,26],"tags":{"MF":192}}</p>
+
+<p>JSON representation mimics SAM format except quality is given as an array of integers.
+This format might change in the future.</p>
+
+<h2 id="MsgPack">MsgPack</h2>
+
+<p>MessagePack output format is more effective with respect to performance, while almost as easy
+to parse as JSON representation. Libraries for parsing MessagePack are available for all
+popular languages. See http://msgpack.org for more information.</p>
+
+<p>Alignment record representation is an array, per-element description is given below.</p>
+
+<pre><code>[ 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 ]
+</code></pre>
+
+<ul>
+<li> 0 - read name (string)</li>
+<li> 1 - flag (integer)</li>
+<li> 2 - reference sequence ID (integer)</li>
+<li> 3 - 1-based leftmost mapping position (integer)</li>
+<li> 4 - mapping quality (integer)</li>
+<li> 5 - lengths of CIGAR operations (array of integers)</li>
+<li> 6 - types of CIGAR operations (array of chars)</li>
+<li> 7 - mate reference sequence ID (integer)</li>
+<li> 8 - 1-based mate leftmost mapping position (integer)</li>
+<li> 9 - template length (integer)</li>
+<li>10 - segment sequence (string)</li>
+<li>11 - phred-base quality (array of integers)</li>
+<li>12 - tags (map : string -> value)</li>
+</ul>
+
+
+<p>Header representation is also an array containing the following:</p>
+
+<pre><code>[ 0 | 1 | 2 | 3 | 4 ]
+</code></pre>
+
+<ul>
+<li>0 - format version (string)</li>
+<li>1 - sorting order (string)</li>
+<li>2 - @SQ lines (array of maps : string -> value)</li>
+<li>3 - @RG lines (ditto)</li>
+<li>4 - @PG lines (ditto)</li>
+</ul>
+
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-F</code>, <code>--filter</code>=<var>FILTER</var></dt><dd><p>Set custom filter for alignments.</p></dd>
+<dt><code>-f</code>, <code>--format</code>=<var>FORMAT</var></dt><dd><p>Specify output format. <var>FORMAT</var> must be one of sam, bam, json, or msgpack (in lowercase).
+Default one is SAM.</p></dd>
+<dt><code>-h</code>, <code>--with-header</code></dt><dd><p>Print SAM header before reads. This is always done for BAM output.</p></dd>
+<dt><code>-H</code>, <code>--header</code></dt><dd><p>Print only SAM header to STDOUT. If <var>FORMAT</var> is sam or bam, its text version is
+printed, otherwise JSON object is written.</p></dd>
+<dt><code>-I</code>, <code>--reference-info</code></dt><dd><p>Output to STDOUT reference sequence names and lengths in JSON (see <a href="#EXAMPLES" title="EXAMPLES" data-bare-link="true">EXAMPLES</a>).</p></dd>
+<dt><code>-c</code>, <code>--count</code></dt><dd><p>Output to STDOUT only the number of matching records, -hHI options are ignored.</p></dd>
+<dt><code>-v</code>, <code>--valid</code></dt><dd><p>Output only valid reads.</p></dd>
+<dt><code>-S</code>, <code>--sam-input</code></dt><dd><p>Specify that the input is SAM file (default is BAM for all operations).</p></dd>
+<dt><code>-p</code>, <code>--show-progress</code></dt><dd><p>Show progressbar in STDERR. Works only for BAM files, and with no regions
+specified, i.e. only when reading full file.</p></dd>
+<dt><code>-l</code>, <code>--compression-level</code>=<var>COMPRESSION_LEVEL</var></dt><dd><p>Set compression level for BAM output, a number from 0 to 9.</p></dd>
+<dt><code>-o</code>, <code>--output-filename</code>=<var>FILENAME</var></dt><dd><p>Specify output filename (by default everything is written to STDOUT).</p></dd>
+<dt><code>-t</code>, <code>--nthreads</code>=<var>NTHREADS</var></dt><dd><p>Number of threads to use.</p></dd>
+</dl>
+
+
+<h2 id="EXAMPLES">EXAMPLES</h2>
+
+<p>  Print basic reference sequence information:</p>
+
+<pre><code> $ sambamba view --reference-info ex1_header.bam
+ [{"name":"chr1","length":1575},{"name":"chr2","length":1584}]
+</code></pre>
+
+<p>  Count reads with mapping quality not less than 50:</p>
+
+<pre><code> $ sambamba view -c -F "mapping_quality &gt;= 50" ex1_header.bam
+ 3124
+</code></pre>
+
+<p>  Count properly paired reads overlapping 100..200 on chr1:</p>
+
+<pre><code> $ sambamba view -c -F "proper_pair" ex1_header.bam chr1:100-200
+ 39
+</code></pre>
+
+<p>  Output header in JSON format:</p>
+
+<pre><code> $ sambamba view --header --format=json ex1_header.bam
+ {"format_version":"1.3","rg_lines":[],  
+  "sq_lines":[{"sequence_length":1575,"species":"","uri":"",  
+  "sequence_name":"chr1","assembly":"","md5":""},  
+  {"sequence_length":1584,"species":"","uri":"",  
+  "sequence_name":"chr2","assembly":"","md5":""}],  
+  "sorting_order":"coordinate","pg_lines":[]}
+</code></pre>
+
+<h2 id="BUGS">BUGS</h2>
+
+<p>There's no way to see validation error messages or
+to set validation stringency at the moment.</p>
+
+</div>

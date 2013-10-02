@@ -1,0 +1,42 @@
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-flagstat</code> - <span class="man-whatis">getting flag statistics from BAM file</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba flagstat</code> <a href="#OPTIONS" title="OPTIONS" data-bare-link="true">OPTIONS</a> &lt;input.bam></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>Outputs some statistics drawn from read flags.</p>
+
+<p>First line contains numbers of QC-passed and QC-failed reads.
+Then come pairs of numbers, the former for QC-passed reads, the latter for
+QC-failed ones:</p>
+
+<ul>
+<li>duplicates</li>
+<li>mapped reads (plus percentage relative to the numbers from the first line)</li>
+<li>reads with 'is_paired' flag set</li>
+<li>paired reads which are first mates</li>
+<li>paired reads which are second mates</li>
+<li>paired reads with 'proper_pair' flag set (plus percentage relative to
+the numbers of QC-passed/failed reads with 'is_paired' flag set)</li>
+<li>paired reads where both mates are mapped</li>
+<li>paired reads where read itself is unmapped but mate is mapped</li>
+<li>paired reads where mate is mapped to a different chromosome</li>
+<li>the same as previous but mapping quality is not less than 5</li>
+</ul>
+
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-t</code>, <code>--nthreads</code>=<var>NTHREADS</var></dt><dd><p> Specify number of threads to use for BAM decompression</p></dd>
+<dt><code>-p</code>, <code>--show-progress</code></dt><dd><p> Show progressbar in STDERR</p></dd>
+</dl>
+
+
+</div>

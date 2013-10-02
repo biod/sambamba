@@ -1,0 +1,42 @@
+<div class='mp'>
+<h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>sambamba-index</code> - <span class="man-whatis">tool for building standard index files for BAM data</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>sambamba index</code> [<code>-p</code>|<code>--show-progress</code>] [<code>-n</code>|<code>--threads</code>=NTHREADS] &lt;input.bam> [&lt;output.bai>]</p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>sambamba index</code> builds an index for a sorted by coordinate BAM file.
+This step is required for effective region querying in most tools for working
+with BAM data.</p>
+
+<p>An index is by default written to the file with the same filename except
+<code>.bai</code> extension added to the end. The user can, however, override this default
+by providing desired output filename explicitly as an optional command-line
+argument.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt><code>-p</code>, <code>--show-progress</code></dt><dd><p>Show a wget-like progressbar in STDERR.</p></dd>
+<dt><code>-t</code>, <code>--nthreads</code>=<var>NTHREADS</var></dt><dd><p>Number of threads to use.</p></dd>
+</dl>
+
+
+<h2 id="EXAMPLES">EXAMPLES</h2>
+
+<p>Build index file example.bam.bai given a sorted BAM file example.bam:</p>
+
+<pre><code>$ sambamba index example.bam
+</code></pre>
+
+<p>Build index file at custom location showing progress:</p>
+
+<pre><code>$ sambamba index --show-progress example.bam /tmp/example.bam.bai
+</code></pre>
+
+</div>
