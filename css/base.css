@@ -65,7 +65,7 @@ h1 {
 }
 
 #tools .nav li {
-    font-size: 22px;
+    font-size: 20px;
     text-align: left;
 }
 
@@ -95,7 +95,7 @@ h1 {
     }
 
 .bm-case {
-    font-size: 16px;
+    font-size: 14px;
     border: solid 1px;
     border-radius: 5px;
     border-color: #FF5A00;
@@ -110,7 +110,7 @@ h1 {
 
 .bm-case td, th {
     width: 33%;
-    font-size: 18px;
+    font-size: 16px;
     border: solid 1px;
     text-align: center;
     }
