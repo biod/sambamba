@@ -3,11 +3,11 @@ sambamba-merge(1) -- tool for merging several BAM files into one
 
 ## SYNOPSIS
 
-`sambamba-merge` [OPTIONS] <output.bam> <input1.bam> <input2.bam> [...]
+`sambamba merge` [OPTIONS] <output.bam> <input1.bam> <input2.bam> [...]
 
 ## DESCRIPTION
 
-`sambamba-merge` is used for merging several sorted BAM files into one.
+`sambamba merge` is used for merging several sorted BAM files into one.
 The sorting order of all the files must be the same, and it is maintained in the output file.
 
 SAM headers are merged automatically like in Picard merging tool. 
@@ -15,14 +15,14 @@ SAM headers are merged automatically like in Picard merging tool.
 ## OPTIONS
 
   * `-t`, `--nthreads`=<NTHREADS>:
-        Specify number of threads to use for compression/decompression tasks.
+    Specify number of threads to use for compression/decompression tasks.
 
   * `-l`, `--compression-level`=<COMPRESSION_LEVEL>:
-        Specify compression level of output file as a number from 0 to 9
+    Specify compression level of output file as a number from 0 to 9
 
   * `-H`, `--header`:
-        Output only merged header to stdout in SAM format (e.g. for debugging purposes).
-        Other options are ignored.
+    Output only merged header to stdout in SAM format (e.g. for debugging purposes).
+    Other options are ignored.
 
   * `-p`, `--show-progress`:
-        Show progressbar in STDERR.
+    Show progressbar in STDERR.

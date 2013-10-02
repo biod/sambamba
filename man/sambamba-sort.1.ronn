@@ -3,7 +3,7 @@ sambamba-sort(1) -- tool for sorting BAM files
 
 ## SYNOPSIS
 
-`sambamba-sort` [OPTIONS] <input.bam>
+`sambamba sort` [OPTIONS] <input.bam>
 
 ## DESCRIPTION
 
@@ -15,7 +15,7 @@ for each reference sort corresponding reads by start coordinate.
 'qname' sorting order is when reads are sorted lexicographically by
 their names.
 
-`sambamba-sort` does an external sort on input file. That means it
+`sambamba sort` does an external sort on input file. That means it
 reads the source BAM file in chunks that fit into memory, sorts them
 and writes to a temporary directory, and then merges them. After merging
 temporary files are removed automatically. The sort is stable, and efforts 

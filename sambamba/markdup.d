@@ -629,7 +629,16 @@ struct MarkDuplicatesConfig {
     ubyte hash_table_size_log2 = 18;
     size_t overflow_list_size = 200_000;
     string tmpdir = "/tmp";
+
+    // called on each group of PE duplicates
+    void delegate(PairedEndsInfo[]) pe_callback = null;
+
+    // called on each group of SE duplicates;
+    // the second argument tells if there is a paired read at that position
+    void delegate(SingleEndInfo[], bool) se_callback = null;
 }
+
+private /* algorithm */ {
 
 class ReadGroupIndex {
     private {
@@ -671,225 +680,232 @@ class ReadGroupIndex {
     }
 }
 
+int computeFivePrimeCoord(R)(auto ref R read) {
+    if (!read.is_reverse_strand) {
+        auto ops = read.cigar.until!q{ !a.is_clipping };
+        return read.position - reduce!q{ a + b }(0, ops.map!q{ a.length });
+    } else {
+        auto ops = read.cigar.retro.until!q{ !a.is_clipping };
+        auto clipped = reduce!q{ a + b }(0, ops.map!q{ a.length });
+        return read.position + read.basesCovered() + clipped;
+    }
+}
+
+ushort computeScore(R)(auto ref R read) {
+    return reduce!"a + b"(0, read.base_qualities.filter!"a >= 15").to!ushort;
+}
+
+auto collectSingleEndInfo(BamReadBlock read, ReadGroupIndex read_group_index) {
+    assert(read.ref_id != -1);
+        
+    SingleEndInfo result = void;
+    result.coord = computeFivePrimeCoord(read);
+    result.vo = read.start_virtual_offset;
+    result.score = computeScore(read);
+    result.ref_id = cast(ushort)read.ref_id;
+    result.reversed = read.is_reverse_strand ? 1 : 0;
+    result.paired = (read.is_paired && !read.mate_is_unmapped) ? 1 : 0;
+
+    auto rg = read_group_index.getId(getRG(read));
+    result.library_id = cast(short)read_group_index.getLibraryId(rg);
+    return result;
+}
+
+// may swap the two arguments
+PairedEndsInfo combine(ref SingleEndInfo s1, ref SingleEndInfo s2) {
+    assert(s1.library_id == s2.library_id);
+    assert(s1.paired && s2.paired);
+        
+    if (s2.ref_id <= s1.ref_id)
+        if (s2.ref_id < s1.ref_id || s2.coord < s1.coord)
+            swap(s1, s2);
+
+    PairedEndsInfo result = void;
+    result.library_id = s1.library_id;
+    result.ref_id1 = s1.ref_id;
+    result.ref_id2 = s2.ref_id;
+    result.reversed1 = s1.reversed;
+    result.reversed2 = s2.reversed;
+    result.coord1 = s1.coord;
+    result.coord2 = s2.coord;
+    result.score = cast(ushort)(s1.score + s2.score);
+    result.vo1 = s1.vo;
+    result.vo2 = s2.vo;
+    return result;
+}
+
+// helpers for $(D samePosition)
+SingleEndBasicInfo basicInfo(E)(auto ref E e) {
+    static if (is(E == SingleEndBasicInfo))
+        return e;
+    else static if (is(E == SingleEndInfo))
+             return e.basic_info;
+    else static if (is(E == PairedEndsInfo))
+             return e.read1_basic_info;
+}
+    
+bool samePosition(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
+    static if (is(E1 == PairedEndsInfo) && is(E2 == PairedEndsInfo)) {
+        return *cast(ulong*)(&e1) == *cast(ulong*)(&e2) &&
+            e1.ref_id2 == e2.ref_id2 && e1.coord2 == e2.coord2;
+    } else {
+        return basicInfo(e1).samePosition(basicInfo(e2));
+    }
+}
+
+bool positionLessOrEq(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
+    return !singleEndInfoComparator(basicInfo(e2), basicInfo(e1));
+}
+    
+bool positionLess(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
+    return !positionLessOrEq(e2, e1);
+}
+
+/// Frees one of $(D _pe) or $(D _se). Reuses memory of the other.
+/// Returns an array pointing to data which is to be freed after use.
+VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
+                                  MallocArray!SingleEndInfo _se,
+                                  MallocArray!SingleEndBasicInfo _pos,
+                                  MarkDuplicatesConfig cfg)
+{
+    // yeah, that's dirty, but allows to minimize memory usage
+    auto pvo = cast(VirtualOffset*)cast(void*)_pe.data.ptr;
+    auto svo = cast(VirtualOffset*)cast(void*)_se.data.ptr;
+    size_t n_vo_pe, n_vo_se; // how much VOs we store in each array
+
+    auto pe = _pe.data;
+    auto se = _se.data;
+    auto pos = _pos.data;
+
+    size_t pe_total_mem = pe.length * PairedEndsInfo.sizeof;
+    size_t se_total_mem = se.length * SingleEndInfo.sizeof;
+
+    auto pe_callback = cfg.pe_callback;
+    auto se_callback = cfg.se_callback;
+
+    // sort of three-way merge
+    while (true) {
+        // number of elements processed at the current position
+        size_t pe_proc;
+        size_t se_proc;
+
+        // process paired ends
+        if (!pe.empty && (se.empty || positionLessOrEq(pe.front, se.front))) {
+            // this is essentially group-by operation,
+            // but maximum score is computed on the fly for efficiency
+            auto cur = pe.front;
+            size_t k = 0;
+            size_t best_k = 0;
+            ++k;
+            while (k < pe.length && samePosition(pe[k], cur)) {
+                if (pe[k].score > pe[best_k].score)
+                    best_k = k;
+                ++k;
+            }
+
+            if (pe_callback !is null)
+                pe_callback(pe[0 .. k]);
+            
+            // virtual offsets are places to the chunk of memory
+            // that we already processed => it's safe because
+            // 2 * VirtualOffset.sizeof <= PairedEndsInfo.sizeof
+            for (size_t i = 0; i < k; ++i) {
+                if (i != best_k) {
+                    auto paired_ends = pe[i];
+                    pvo[n_vo_pe++] = paired_ends.vo1;
+                    pvo[n_vo_pe++] = paired_ends.vo2;
+                }
+            }
+
+            pe_proc = k;
+        }
+
+        // process single ends
+        if (!se.empty && (pe.empty || positionLessOrEq(se.front, pe.front))) {
+            while (!pos.empty && positionLess(pos.front, se.front))
+                pos.popFront();
+
+            bool seen_paired_read = false;
+            bool seen_fragment = false;
+
+            auto cur = se.front;
+            size_t k = 0;
+            while (k < se.length && samePosition(se[k], cur)) {
+                if (se[k].paired)
+                    seen_paired_read = true;
+                else
+                    seen_fragment = true;
+                ++k;
+            }
+
+            size_t k_pe, k_pos;
+            while (k_pe < pe.length && samePosition(pe[k_pe], cur))
+                ++k_pe;
+            while (k_pos < pos.length && samePosition(pos[k_pos], cur))
+                ++k_pos;
+
+            if (k_pe + k_pos > 0)
+                seen_paired_read = true;
+
+            size_t total = k + k_pe + k_pos;
+
+            if (se_callback !is null)
+                se_callback(se[0 .. k], seen_paired_read);
+
+            if (total < 2 || !seen_fragment) { /* do nothing */ }
+            else if (seen_paired_read) {
+                // there was a paired read at this position
+                // => mark all single reads as duplicates
+                for (size_t i = 0; i < k; ++i)
+                    if (!se[i].paired)
+                        svo[n_vo_se++] = se[i].vo;
+            } else {
+                size_t best_i = 0;
+                for (size_t i = 0; i < k; ++i) {
+                    if (se[i].score > se[best_i].score)
+                        best_i = i;
+                }
+                for (size_t i = 0; i < k; ++i) {
+                    if (i != best_i)
+                        svo[n_vo_se++] = se[i].vo;
+                }
+            }
+            se_proc = k;
+        }
+
+        // move to the next position
+        pe = pe[pe_proc .. $];
+        se = se[se_proc .. $];
+
+        if (se.empty && pe.empty)
+            break;
+            
+        assert(pe_proc + se_proc > 0);
+    }
+
+    // finished collecting duplicates but they are in two different arrays;
+    // now we can join them.
+    size_t pe_used = n_vo_pe * VirtualOffset.sizeof;
+    size_t se_used = n_vo_se * VirtualOffset.sizeof;
+
+    VirtualOffset* p;
+    size_t n = n_vo_pe + n_vo_se;
+    if (pe_used + se_used <= pe_total_mem) {
+        pvo[n_vo_pe .. n] = svo[0 .. n_vo_se];
+        _se.free();
+        p = pvo;
+    } else {
+        svo[n_vo_se .. n_vo_pe + n_vo_se] = pvo[0 .. n_vo_pe];
+        _pe.free();
+        p = svo;
+    }
+    std.c.stdlib.realloc(p, n * VirtualOffset.sizeof);
+    return p[0 .. n];
+}
+
 /// The returned result must be freed using std.c.malloc.free
 VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
                                        TaskPool pool, MarkDuplicatesConfig cfg) {
-
-    static int computeFivePrimeCoord(R)(auto ref R read) {
-        if (!read.is_reverse_strand) {
-            auto ops = read.cigar.until!q{ !a.is_clipping };
-            return read.position - reduce!q{ a + b }(0, ops.map!q{ a.length });
-        } else {
-            auto ops = read.cigar.retro.until!q{ !a.is_clipping };
-            auto clipped = reduce!q{ a + b }(0, ops.map!q{ a.length });
-            return read.position + read.basesCovered() + clipped;
-        }
-    }
-
-    static ushort computeScore(R)(auto ref R read) {
-        return reduce!"a + b"(0, read.base_qualities.filter!"a >= 15").to!ushort;
-    }
-
-    static auto collectSingleEndInfo(BamReadBlock read,
-                                     ReadGroupIndex read_group_index) {
-        assert(read.ref_id != -1);
-        
-        SingleEndInfo result = void;
-        result.coord = computeFivePrimeCoord(read);
-        result.vo = read.start_virtual_offset;
-        result.score = computeScore(read);
-        result.ref_id = cast(ushort)read.ref_id;
-        result.reversed = read.is_reverse_strand ? 1 : 0;
-        result.paired = (read.is_paired && !read.mate_is_unmapped) ? 1 : 0;
-
-        auto rg = read_group_index.getId(getRG(read));
-        result.library_id = cast(short)read_group_index.getLibraryId(rg);
-        return result;
-    }
-
-    // may swap the two arguments
-    static PairedEndsInfo combine(ref SingleEndInfo s1,
-                                  ref SingleEndInfo s2)
-    {
-        assert(s1.library_id == s2.library_id);
-        assert(s1.paired && s2.paired);
-        
-        if (s2.ref_id <= s1.ref_id)
-            if (s2.ref_id < s1.ref_id || s2.coord < s1.coord)
-                swap(s1, s2);
-
-        PairedEndsInfo result = void;
-        result.library_id = s1.library_id;
-        result.ref_id1 = s1.ref_id;
-        result.ref_id2 = s2.ref_id;
-        result.reversed1 = s1.reversed;
-        result.reversed2 = s2.reversed;
-        result.coord1 = s1.coord;
-        result.coord2 = s2.coord;
-        result.score = cast(ushort)(s1.score + s2.score);
-        result.vo1 = s1.vo;
-        result.vo2 = s2.vo;
-        return result;
-    }
-
-    // helpers for $(D samePosition)
-    static SingleEndBasicInfo basicInfo(E)(auto ref E e) {
-        static if (is(E == SingleEndBasicInfo))
-            return e;
-        else static if (is(E == SingleEndInfo))
-            return e.basic_info;
-        else static if (is(E == PairedEndsInfo))
-            return e.read1_basic_info;
-    }
-    
-    static bool samePosition(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
-        static if (is(E1 == PairedEndsInfo) && is(E2 == PairedEndsInfo)) {
-            return *cast(ulong*)(&e1) == *cast(ulong*)(&e2) &&
-                e1.ref_id2 == e2.ref_id2 && e1.coord2 == e2.coord2;
-        } else {
-            return basicInfo(e1).samePosition(basicInfo(e2));
-        }
-    }
-
-    static bool positionLessOrEq(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
-        return !singleEndInfoComparator(basicInfo(e2), basicInfo(e1));
-    }
-    
-    static bool positionLess(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
-        return !positionLessOrEq(e2, e1);
-    }
-
-    /// Frees one of $(D _pe) or $(D _se). Reuses memory of the other.
-    /// Returns an array pointing to data which is to be freed after use.
-    static VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
-                                             MallocArray!SingleEndInfo _se,
-                                             MallocArray!SingleEndBasicInfo _pos)
-    {
-        // yeah, that's dirty, but allows to minimize memory usage
-        auto pvo = cast(VirtualOffset*)cast(void*)_pe.data.ptr;
-        auto svo = cast(VirtualOffset*)cast(void*)_se.data.ptr;
-        size_t n_vo_pe, n_vo_se; // how much VOs we store in each array
-
-        auto pe = _pe.data;
-        auto se = _se.data;
-        auto pos = _pos.data;
-
-        size_t pe_total_mem = pe.length * PairedEndsInfo.sizeof;
-        size_t se_total_mem = se.length * SingleEndInfo.sizeof;
-
-        // sort of three-way merge
-        while (true) {
-            // number of elements processed at the current position
-            size_t pe_proc;
-            size_t se_proc;
-
-            // process paired ends
-            if (!pe.empty && (se.empty || positionLessOrEq(pe.front, se.front))) {
-                // this is essentially group-by operation,
-                // but maximum score is computed on the fly for efficiency
-                auto cur = pe.front;
-                size_t k = 0;
-                size_t best_k = 0;
-                ++k;
-                while (k < pe.length && samePosition(pe[k], cur)) {
-                    if (pe[k].score > pe[best_k].score)
-                        best_k = k;
-                    ++k;
-                }
-                // virtual offsets are places to the chunk of memory
-                // that we already processed => it's safe because
-                // 2 * VirtualOffset.sizeof <= PairedEndsInfo.sizeof
-                for (size_t i = 0; i < k; ++i) {
-                    if (i != best_k) {
-                        auto paired_ends = pe[i];
-                        pvo[n_vo_pe++] = paired_ends.vo1;
-                        pvo[n_vo_pe++] = paired_ends.vo2;
-                    }
-                }
-
-                pe_proc = k;
-            }
-
-            // process single ends
-            if (!se.empty && (pe.empty || positionLessOrEq(se.front, pe.front))) {
-                while (!pos.empty && positionLess(pos.front, se.front))
-                    pos.popFront();
-
-                bool seen_paired_read = false;
-                bool seen_fragment = false;
-
-                auto cur = se.front;
-                size_t k = 0;
-                while (k < se.length && samePosition(se[k], cur)) {
-                    if (se[k].paired)
-                        seen_paired_read = true;
-                    else
-                        seen_fragment = true;
-                    ++k;
-                }
-
-                size_t k_pe, k_pos;
-                while (k_pe < pe.length && samePosition(pe[k_pe], cur))
-                    ++k_pe;
-                while (k_pos < pos.length && samePosition(pos[k_pos], cur))
-                    ++k_pos;
-
-                if (k_pe + k_pos > 0)
-                    seen_paired_read = true;
-
-                size_t total = k + k_pe + k_pos;
-
-                if (total < 2 || !seen_fragment) { /* do nothing */ }
-                else if (seen_paired_read) {
-                    // there was a paired read at this position
-                    // => mark all single reads as duplicates
-                    for (size_t i = 0; i < k; ++i)
-                        if (!se[i].paired)
-                            svo[n_vo_se++] = se[i].vo;
-                } else {
-                    size_t best_i = 0;
-                    for (size_t i = 0; i < k; ++i) {
-                        if (se[i].score > se[best_i].score)
-                            best_i = i;
-                        ++i;
-                    }
-                    for (size_t i = 0; i < k; ++i) {
-                        if (i != best_i)
-                            svo[n_vo_se++] = se[i].vo;
-                    }
-                }
-                se_proc = k;
-            }
-
-            // move to the next position
-            pe = pe[pe_proc .. $];
-            se = se[se_proc .. $];
-
-            if (se.empty && pe.empty)
-                break;
-            
-            assert(pe_proc + se_proc > 0);
-        }
-
-        // finished collecting duplicates but they are in two different arrays;
-        // now we can join them.
-        size_t pe_used = n_vo_pe * VirtualOffset.sizeof;
-        size_t se_used = n_vo_se * VirtualOffset.sizeof;
-
-        VirtualOffset* p;
-        size_t n = n_vo_pe + n_vo_se;
-        if (pe_used + se_used <= pe_total_mem) {
-            pvo[n_vo_pe .. n] = svo[0 .. n_vo_se];
-            _se.free();
-            p = pvo;
-        } else {
-            svo[n_vo_se .. n_vo_pe + n_vo_se] = pvo[0 .. n_vo_pe];
-            _pe.free();
-            p = svo;
-        }
-        std.c.stdlib.realloc(p, n * VirtualOffset.sizeof);
-        return p[0 .. n];
-    }
 
     auto single_ends = new MallocArray!SingleEndInfo();
     auto paired_ends = new MallocArray!PairedEndsInfo();
@@ -935,7 +951,7 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
 
     stderr.write("  collecting virtual offsets of duplicate reads... ");
     sw.start();
-    auto duplicates = collectDuplicates(paired_ends, single_ends, second_ends);
+    auto duplicates = collectDuplicates(paired_ends, single_ends, second_ends, cfg);
     sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
 
     stderr.write("  found ", duplicates.length, " duplicates, sorting the list... ");
@@ -945,6 +961,8 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
 
     return duplicates;
 }
+
+} /* end of algorithm */
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-markdup [options] <input.bam> <output.bam>");
@@ -990,9 +1008,11 @@ int markdup_main(string[] args) {
     size_t io_buffer_size = 128;
     size_t hash_table_size;
     int compression_level = -1;
+
+    bool cmp_with_picard_mode; // for development purposes!
     
     StopWatch sw;
-  	sw.start();  
+    sw.start();  
 	
     try {
         getopt(args,
@@ -1004,11 +1024,66 @@ int markdup_main(string[] args) {
            "tmpdir", &cfg.tmpdir,
            "hash-table-size", &hash_table_size,
            "overflow-list-size", &cfg.overflow_list_size,
-           "io-buffer-size", &io_buffer_size);
+           "io-buffer-size", &io_buffer_size,
+               "compare-with-picard-mode", &cmp_with_picard_mode);
 
         if (args.length < 3) {
             printUsage();
             return 0;
+        }
+
+        auto pool = new TaskPool(n_threads);
+        scope(exit) pool.finish();
+
+        if (cmp_with_picard_mode) {
+            static class PicardChecker {
+                enum output_filename = "/tmp/_diff1.bam";
+                enum output_filename2 = "/tmp/_diff2.bam";
+                this(string fn1, string fn2, TaskPool pool) {
+                    auto b1 = new BamReader(fn1, pool);
+                    auto b2 = new BamReader(fn2, pool);
+                    b1.setBufferSize(64_000_000);
+                    b2.setBufferSize(64_000_000);
+                    auto w = new BamWriter(output_filename, 1, pool);
+                    auto w2 = new BamWriter(output_filename2, 1, pool);
+                    scope(exit) {
+                        w.finish();
+                        w2.finish();
+                        stderr.writeln("Saved differing reads to ", output_filename,
+                                       " and ", output_filename2);
+                    }
+                    w.writeSamHeader(b1.header);
+                    w.writeReferenceSequenceInfo(b1.reference_sequences);
+                    w2.writeSamHeader(b2.header);
+                    w2.writeReferenceSequenceInfo(b2.reference_sequences);
+                    foreach (pair; zip(b1.reads, b2.reads)) {
+                        if (pair[0].is_duplicate != pair[1].is_duplicate) {
+                            w.writeRecord(pair[0]);
+                            w2.writeRecord(pair[1]);
+                        }
+                    }
+                }
+
+                void check(PairedEndsInfo[] dups) {
+                    if (dups.length != 2 || dups[0].score != dups[1].score) {
+                        writefln("weird group of PE duplicates found, their virtual offsets: %(%s, %); scores: %(%s, %)",
+                                 roundRobin(dups.map!"a.vo1", dups.map!"a.vo2"),
+                                 dups.map!"a.score");
+                    }
+                }
+
+                void check(SingleEndInfo[] dups, bool has_paired) {
+                    if (has_paired || dups.length != 2 || dups[0].score != dups[1].score) {
+                        writefln("weird group of SE duplicates found, their virtual offsets: %(%s, %); scores: %(%s, %)",
+                                 dups.map!"a.vo", dups.map!"a.score");
+                    }
+                }
+            }
+            auto checker = new PicardChecker(args[1], args[2], pool);
+            args[1] = checker.output_filename;
+            args[2] = "/dev/null";
+            cfg.pe_callback = (pe_dups) => checker.check(pe_dups);
+            cfg.se_callback = (se_dups, has_paired) => checker.check(se_dups, has_paired);
         }
 
         io_buffer_size <<= 20; // -> megabytes
@@ -1017,9 +1092,6 @@ int markdup_main(string[] args) {
         while ((2UL << cfg.hash_table_size_log2) <= hash_table_size)
             cfg.hash_table_size_log2 += 1;
         // 2^^(cfg.hash_table_size_log2 + 1) > hash_table_size
-
-        auto pool = new TaskPool(n_threads);
-        scope(exit) pool.finish();
 
         auto bam = new BamReader(args[1], pool);
         auto n_refs = bam.reference_sequences.length;
@@ -1039,7 +1111,7 @@ int markdup_main(string[] args) {
             offsets = getDuplicateOffsets(reads, rg_index, pool, cfg);
         }
 
-		auto elapsed = sw.peek();
+        auto elapsed = sw.peek();
         stderr.writeln("collected list of positions in ",
                        elapsed.seconds / 60, " min ",
                        elapsed.seconds % 60, " sec");
@@ -1066,15 +1138,16 @@ int markdup_main(string[] args) {
 
         size_t k = 0;
         foreach (read; reads) {
-            if (k < offsets.length && read.start_virtual_offset == offsets[k])
-                {
-                    ++k;
-                    assumeUnique(read).is_duplicate = true;
-                    if (remove_duplicates)
-                        continue;
-                } else {
+            if (k < offsets.length && read.start_virtual_offset == offsets[k]) {
+                ++k;
+                assumeUnique(read).is_duplicate = true;
+            } else if (!read.is_secondary_alignment) {
                 assumeUnique(read).is_duplicate = false;
             }
+
+            if (read.is_duplicate && remove_duplicates)
+                continue;
+
             writer.writeRecord(read);
         }
 

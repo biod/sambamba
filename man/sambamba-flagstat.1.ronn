@@ -3,7 +3,7 @@ sambamba-flagstat(1) -- getting flag statistics from BAM file
 
 ## SYNOPSIS
 
-`sambamba-flagstat` [OPTIONS] <input.bam>
+`sambamba flagstat` [OPTIONS] <input.bam>
 
 ## DESCRIPTION
 
@@ -28,7 +28,7 @@ QC-failed ones:
 ## OPTIONS
 
   * `-t`, `--nthreads`=<NTHREADS>:
-        Specify number of threads to use for BAM decompression
+     Specify number of threads to use for BAM decompression
 
   * `-p`, `--show-progress`:
-        Show progressbar in STDERR
+     Show progressbar in STDERR

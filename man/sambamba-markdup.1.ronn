@@ -1,0 +1,49 @@
+sambamba-markdup(1) -- finding duplicate reads in BAM file
+=============================================================
+
+## SYNOPSIS
+
+`sambamba markdup` [OPTIONS] <input.bam> <output.bam>
+
+## DESCRIPTION
+
+Marks (by default) or removes duplicate reads. For determining
+whether a read is a duplicate or not, the same criteria as in Picard
+are used.
+
+## OPTIONS
+
+  * `-r`, `--remove-duplicates`:
+     remove duplicates instead of just marking them
+
+  * `-t`, `--nthreads`=<NTHREADS>:
+     number of threads to use
+
+  * `-l`, `--compression-level`=<N>:
+    specify compression level of the resulting file (from 0 to 9)");
+     
+  * `-p`, `--show-progress`:
+    show progressbar in STDERR
+
+  * `--tmpdir`=<TMPDIR>:
+    specify directory for temporary files; default is `/tmp`
+
+  * `--hash-table-size`=<HASHTABLESIZE>:
+    size of hash table for finding read pairs (default is 262144 reads);
+    will be rounded down to the nearest power of two;
+    should be `> (average coverage) * (insert size)` for good performance
+
+  * `--overflow-list-size`=<OVERFLOWLISTSIZE>:
+    size of the overflow list where reads, thrown away from the hash table,
+    get a second chance to meet their pairs (default is 200000 reads);
+    increasing the size reduces the number of temporary files created
+
+  * `--io-buffer-size`=<BUFFERSIZE>:
+    controls sizes of two buffers of BUFFERSIZE *megabytes* each, used
+    for reading and writing BAM during the second pass (default is 128)
+
+## BUGS
+
+  External sort is not implemented.
+  Thus, memory consumption grows by 2Gb per each 100M reads.
+  Check that you have enough RAM before running the tool.

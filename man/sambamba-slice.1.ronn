@@ -3,7 +3,7 @@ sambamba-slice(1) -- copying a slice of BAM file
 
 ## SYNOPSIS
 
-`sambamba-slice` [OPTIONS] <input.bam> <region>
+`sambamba slice` [OPTIONS] <input.bam> <region>
 
 ## DESCRIPTION
 
@@ -23,5 +23,4 @@ compression level - most of the time is spent on I/O operations.
 ## OPTIONS
 
   * `-o`, `--output-filename`=<OUTPUTFILE>:
-          Name of output file
-
+      Name of output file

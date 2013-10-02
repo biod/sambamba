@@ -3,11 +3,11 @@ sambamba-index(1) -- tool for building standard index files for BAM data
 
 ## SYNOPSIS
 
-`sambamba-index` [`-p`|`--show-progress`] [`-n`|`--threads`=NTHREADS] <input.bam> [<output.bai>]
+`sambamba index` [`-p`|`--show-progress`] [`-n`|`--threads`=NTHREADS] <input.bam> [<output.bai>]
 
 ## DESCRIPTION
 
-`sambamba-index` builds an index for a sorted by coordinate BAM file.
+`sambamba index` builds an index for a sorted by coordinate BAM file.
 This step is required for effective region querying in most tools for working
 with BAM data.
 
@@ -28,8 +28,8 @@ argument.
 
 Build index file example.bam.bai given a sorted BAM file example.bam:
 
-    $ sambamba-index example.bam
+    $ sambamba index example.bam
 
 Build index file at custom location showing progress:
 
-    $ sambamba-index --show-progress example.bam /tmp/example.bam.bai
+    $ sambamba index --show-progress example.bam /tmp/example.bam.bai
