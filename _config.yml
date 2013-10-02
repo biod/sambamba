@@ -1,7 +1,7 @@
 markdown: rdiscount
 pygments: true
 permalink: /:title
-root: /sambamba
+baseurl: /sambamba
 auto: true
 rdiscount:
   extensions: [smart]

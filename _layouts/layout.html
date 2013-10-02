@@ -7,7 +7,7 @@
   </title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Bootstrap -->
-  <link href="/css/bootstrap.min.css" rel="stylesheet" media="screen">
+  <link href="{{ site.baseurl}}/css/bootstrap.min.css" rel="stylesheet" media="screen">
 
   <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
   <!--[if lt IE 9]>
@@ -18,9 +18,9 @@
   <meta name="author" content="{{ site.name }}" />
   <meta name="description" content="{{ site.description }}" />
 
-  <link rel="stylesheet" href="/css/man.css" type="text/css"/>
-  <link rel="stylesheet" href="/css/base.css" type="text/css"/>
-  <link rel="stylesheet" href="/css/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="{{ site.baseurl}}/css/man.css" type="text/css"/>
+  <link rel="stylesheet" href="{{ site.baseurl}}/css/base.css" type="text/css"/>
+  <link rel="stylesheet" href="{{ site.baseurl}}/css/pygments.css" type="text/css" />
   <link href='http://fonts.googleapis.com/css?family=Yanone+Kaffeesatz' rel='stylesheet' type='text/css'>
 </head>
 
@@ -44,10 +44,10 @@
                  -->
             {% capture page_url_prefix %}{{ page.url | truncate:8 }}{% endcapture %}
             {% if page_url_prefix == "/docs..." %}
-            <li><a href="/index.html">← Back</a></li>
-            <li class="active"><a href="/docs/sambamba-view.html">Documentation</a></li>
+            <li><a href="{{ site.baseurl}}/index.html">← Back</a></li>
+            <li class="active"><a href="{{ site.baseurl}}/docs/sambamba-view.html">Documentation</a></li>
             {% else %}
-            <li><a href="/docs/sambamba-view.html">Documentation</a></li>
+            <li><a href="{{ site.baseurl}}/docs/sambamba-view.html">Documentation</a></li>
             {% endif %}
             <li><a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">Downloads</a></li>
             <li><a href="http://github.com/lomereiter/sambamba">Source code</a></li>
