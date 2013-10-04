@@ -1,31 +1,49 @@
 @charset "UTF-8";
 body {
     font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    font-size: 100%;
     -webkit-font-smoothing: antialiased; }
 
 a {
     color: #227ce8; }
 
+.myrow {
+    margin: auto;
+    width: 800px;
+    }
+
+.mycontainer {
+    overflow: hidden;
+    }
+
+#main-menu {
+    width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 5px;
+    margin-bottom: 10px;
+    }
+
 .highlight {
     text-align: left; }
-
-.col-sm-2, .col-sm-4, .col-sm-6, .col-sm-8 {
-    margin: 1%;
-}
-
-.col-sm-2 { width: 14.5%; }
-.col-sm-4 { width: 31%; }
-.col-sm-6 { width: 47.5%; }
-.col-sm-8 { width: 64%; }
 
 .block, #install, #info {
     border: 2px solid;
     border-color: #4a2b82;
     border-radius: 15px;
     height: 350px;
-    padding: 10px;
-    font-size: 16px;
+    font-size: 1.5em;
+    margin: 10px;
+    float: left;
 }
+
+#features {
+    font-size: 1.6em;
+    }
+
+#install {
+    font-size: 1.6em;
+    }
 
 h1 {
     font-family: "Yanone Kaffeesatz", Helvetica, sans-serif;
@@ -36,7 +54,9 @@ h1 {
 .title, .cword, .lword {
     font-family: "Yanone Kaffeesatz", Helvetica, sans-serif;
     padding-bottom: 10px;
-    font-size: 24px; }
+    width: inherit;
+    font-size: 24px;
+}
 
 .kword {
     color: #4B4B94; }
@@ -73,16 +93,20 @@ h1 {
     padding: 4px;
 }
 
+#features {
+    width: 455px;
+    }
+
 #bm {
-    min-width: 310px;
+    width: 285px;
     }
 
-.col-sm-6 {
-    min-width: 485px;
+#install {
+    width: 540px;
     }
 
-.col-sm-8 {
-    min-width: 630px;
+#info {
+    width: 200px;
     }
 
 #features ul {
@@ -95,7 +119,7 @@ h1 {
     }
 
 .bm-case {
-    font-size: 14px;
+    font-size: 1em;
     border: solid 1px;
     border-radius: 5px;
     border-color: #FF5A00;
@@ -110,7 +134,7 @@ h1 {
 
 .bm-case td, th {
     width: 33%;
-    font-size: 16px;
+    font-size: 1.2em;
     border: solid 1px;
     text-align: center;
     }
@@ -118,11 +142,7 @@ h1 {
 .bm-case th {
     }
 
-#installation code {
+#install code {
     font-size: 80%;
     }
 
-.row {
-    margin-left: -25px;
-    margin-right: -25px;
-    }

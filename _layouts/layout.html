@@ -34,33 +34,29 @@
       </div>
     </div>
 
+    <div class="myrow">
+      <ul id="main-menu" class="nav nav-pills">
+        <!-- TODO
+             <li><a href="/installation.html">Installation</a></li>
+             -->
+        {% capture page_url_prefix %}{{ page.url | truncate:8 }}{% endcapture %}
+        {% if page_url_prefix == "/docs..." %}
+        <li><a href="{{ site.baseurl}}/index.html">← Back</a></li>
+        <li class="active"><a href="{{ site.baseurl}}/docs/sambamba-view.html">Documentation</a></li>
+        {% else %}
+        <li><a href="{{ site.baseurl}}/docs/sambamba-view.html">Documentation</a></li>
+        {% endif %}
+        <li><a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">Downloads</a></li>
+        <li><a href="http://github.com/lomereiter/sambamba">Source code</a></li>
+        <li><a href="http://github.com/lomereiter/sambamba/issues">Report an issue</a></li>
+      </ul>
+    </div>
+
     <div class="row">
-      <div class="col-md-2">
-
-        <section class="sidebar">
-          <ul class="nav nav-pills nav-stacked">
-            <!-- TODO
-                 <li><a href="/installation.html">Installation</a></li>
-                 -->
-            {% capture page_url_prefix %}{{ page.url | truncate:8 }}{% endcapture %}
-            {% if page_url_prefix == "/docs..." %}
-            <li><a href="{{ site.baseurl}}/index.html">← Back</a></li>
-            <li class="active"><a href="{{ site.baseurl}}/docs/sambamba-view.html">Documentation</a></li>
-            {% else %}
-            <li><a href="{{ site.baseurl}}/docs/sambamba-view.html">Documentation</a></li>
-            {% endif %}
-            <li><a href="https://www.dropbox.com/sh/v05fsb5aarob3xe/iUHgyud31a/sambamba">Downloads</a></li>
-            <li><a href="http://github.com/lomereiter/sambamba">Source code</a></li>
-            <li><a href="http://github.com/lomereiter/sambamba/issues">Report an issue</a></li>
-          </ul>
-        </section>
-      </div>
-
-      <div class="col-md-10">
-        <div class="content">
+      <div class="content">
         {{ content }}
-        </div>
       </div>
+    </div>
   </div>
 </body>
 
