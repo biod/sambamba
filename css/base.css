@@ -80,17 +80,8 @@ h1 {
     line-height: 30px;}
 
 .nav li {
-    font-size: 22px;
+    font-size: 2.0em;
     font-color: blue;
-}
-
-#tools .nav li {
-    font-size: 20px;
-    text-align: left;
-}
-
-#tools .nav li a {
-    padding: 4px;
 }
 
 #features {
