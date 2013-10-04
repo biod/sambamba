@@ -9,7 +9,7 @@ a {
 
 .myrow {
     margin: auto;
-    width: 800px;
+    width: 100em;
     }
 
 .mycontainer {
@@ -17,7 +17,7 @@ a {
     }
 
 #main-menu {
-    width: 700px;
+    width: 75em;
     margin-left: auto;
     margin-right: auto;
     margin-top: 5px;
@@ -33,12 +33,12 @@ a {
     border-radius: 15px;
     height: 350px;
     font-size: 1.5em;
-    margin: 10px;
+    margin: 0.4em;
     float: left;
 }
 
 #features {
-    font-size: 1.6em;
+    font-size: 1.65em;
     }
 
 #install {
@@ -80,33 +80,25 @@ h1 {
     line-height: 30px;}
 
 .nav li {
-    font-size: 22px;
+    font-size: 2.0em;
     font-color: blue;
 }
 
-#tools .nav li {
-    font-size: 20px;
-    text-align: left;
-}
-
-#tools .nav li a {
-    padding: 4px;
-}
-
 #features {
-    width: 455px;
+    width: 28em;
     }
 
 #bm {
-    width: 285px;
+    width: 22em;
+    padding: 1em;
     }
 
 #install {
-    width: 540px;
+    width: 35em;
     }
 
 #info {
-    width: 200px;
+    width: 15.5em;
     }
 
 #features ul {
@@ -122,8 +114,12 @@ h1 {
     font-size: 1em;
     border: solid 1px;
     border-radius: 5px;
-    border-color: #FF5A00;
-    margin: 5px;
+    border-color: #CC5A00;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    width: 19em;
     padding: 5px;
     }
 
@@ -133,8 +129,8 @@ h1 {
     }
 
 .bm-case td, th {
-    width: 33%;
-    font-size: 1.2em;
+    width: 6em;
+    font-size: 1.1em;
     border: solid 1px;
     text-align: center;
     }
