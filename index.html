@@ -25,26 +25,35 @@ title: "Sambamba: process your BAM data faster!"
     </div>
 
     <div id="bm" class="block">
-      
       <div class="cword">Benchmarks</div>
-      <div class="bm-case">
-        Indexing 17GB file on 8 cores, HDD
-        <table>
-          <th><td>real time, s</td><td>user time, s</td></th>
-          <tr><td>sambamba</td><td>31</td><td>69</td></tr>
-          <tr><td>samtools</td><td>70</td><td>67</td></tr>
-        </table>
-      </div>
 
-      <div class="bm-case">
-        Copying reads aligned to the 3rd chr. to a new BAM file
-        <br/>   (8 threads, empty file cache)
-        <table>
-          <th><td>real time, s</td><td>user time, s</td></th>
-          <tr><td>sambamba</td><td>5.8</td><td>38.0</td></tr>
-          <tr><td>samtools</td><td>8.5</td><td>33.7</td></tr>
-        </table>
-      </div>
+      <table style="width: 100%;">
+        <tr>
+          <td style="text-align: center; vertical-align: middle;">
+            <div class="bm-case">
+              Indexing 17GB file on 8 cores, HDD
+              <table>
+                <th><td>real time, s</td><td>user time, s</td></th>
+                <tr><td>sambamba</td><td>31</td><td>69</td></tr>
+                <tr><td>samtools</td><td>70</td><td>67</td></tr>
+              </table>
+            </div>
+
+          </td>
+        </tr>
+        <tr><td>
+            <div class="bm-case">
+              Copying reads aligned to the 3rd chr.<br/> to new BAM
+               (8 threads, empty file cache)
+              <table>
+                <th><td>real time, s</td><td>user time, s</td></th>
+                <tr><td>sambamba</td><td>5.8</td><td>38.0</td></tr>
+                <tr><td>samtools</td><td>8.5</td><td>33.7</td></tr>
+              </table>
+            </div>
+          </td>
+        </tr>
+      </table>      
     </div>
   </div>
 </div>

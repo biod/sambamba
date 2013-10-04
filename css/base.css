@@ -9,7 +9,9 @@ a {
 
 .myrow {
     margin: auto;
-    width: 100em;
+    width: 100%;
+    min-width: 82em;
+    max-width: 82em;
     }
 
 .mycontainer {
@@ -85,12 +87,13 @@ h1 {
 }
 
 #features {
-    width: 28em;
+    width: 29em;
+    padding: 0.3em;
     }
 
 #bm {
-    width: 22em;
-    padding: 1em;
+    width: 21em;
+    padding: 0.3em;
     }
 
 #install {
@@ -117,10 +120,10 @@ h1 {
     border-color: #CC5A00;
     margin-left: auto;
     margin-right: auto;
-    margin-top: 2px;
-    margin-bottom: 2px;
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
     width: 19em;
-    padding: 5px;
+    padding: 0.3em;
     }
 
 .bm-case table {
