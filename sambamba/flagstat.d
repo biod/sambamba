@@ -97,6 +97,7 @@ int flagstat_main(string[] args) {
         scope(exit) task_pool.finish();
 
         auto bam = new BamReader(args[1], task_pool);
+        bam.assumeSequentialProcessing();
 
         if (show_progress) {
             auto bar = new shared(ProgressBar)();

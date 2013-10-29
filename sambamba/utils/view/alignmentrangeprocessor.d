@@ -42,6 +42,8 @@ class ReadCounter {
     void process(R, SB)(R reads, SB bam) {
         number_of_reads = walkLength(reads);
     }
+
+    enum is_serial = true;
 }
 
 version(Posix) {
@@ -58,23 +60,24 @@ private bool isTty(ref std.stdio.File file) @property {
     return isatty(file.fileno()) != 0;
 }
 
-template chunkToFormat(string format) {
-    enum spec = FormatSpec!char(format);
+template chunkToFormat(char format) {
     char[] chunkToFormat(R)(in R[] reads) {
+        FormatSpec!char f = void;
+        f.spec = format; // nothing else matters
         auto buf = Appender!(char[])();
         if (reads.length == 0)
             return buf.data;
         buf.reserve(reads.length * reads.front.size_in_bytes * 2);
         foreach (read; reads) {
-            read.toString((const(char)[] s) { buf.put(s); }, spec);
+            read.toString((const(char)[] s) { buf.put(s); }, f);
             buf.put('\n');
         }
         return buf.data;
     }
 }
 
-alias chunkToFormat!"%s" chunkToSam;
-alias chunkToFormat!"%j" chunkToJson;
+alias chunkToFormat!'s' chunkToSam;
+alias chunkToFormat!'j' chunkToJson;
 
 class TextSerializer {
     this(File f, TaskPool pool) {
@@ -99,6 +102,8 @@ final class SamSerializer : TextSerializer {
         foreach (chunk; sam_chunks)
             w.put(chunk);
     }
+
+    enum is_serial = false;
 }
 
 final class BamSerializer {
@@ -116,6 +121,8 @@ final class BamSerializer {
         _level = compression_level;
         _task_pool = pool;
     }
+
+    enum is_serial = true;
 
     void process(R, SB)(R reads, SB bam) 
     {
@@ -148,6 +155,8 @@ final class JsonSerializer : TextSerializer {
         foreach (chunk; json_chunks)
             w.put(chunk);
     }
+
+    enum is_serial = false;
 }
 
 final class MsgpackSerializer : TextSerializer {
@@ -161,4 +170,6 @@ final class MsgpackSerializer : TextSerializer {
             packer.stream.clear();
         }
     }
+
+    enum is_serial = true;
 }

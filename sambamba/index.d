@@ -31,13 +31,17 @@ import bio.bam.bai.indexing;
 import bio.bam.reader;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-index [-p|--show-progress] [-t|--nthreads NTHREADS] <input.bam> [<output.bai>]");
+    stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam> [<output.bai>]");
     stderr.writeln();
     stderr.writeln("\tIf output filename is not provided, appends '.bai' suffix");
     stderr.writeln("\tto the name of BAM file");
     stderr.writeln();
-    stderr.writeln("\tIf -p option is specified, progressbar is shown in STDERR.");
-    stderr.writeln("\tNumber of threads to use can be specified via -t option.");
+    stderr.writeln("Options: -t, --nthreads=NTHREADS");
+    stderr.writeln("               number of threads to use for decompression");
+    stderr.writeln("         -p, --show-progress");
+    stderr.writeln("               show progress bar in STDERR");
+    stderr.writeln("         -c, --check-bins");
+    stderr.writeln("               check that bins are set correctly");
 }
 
 version(standalone) {
@@ -49,12 +53,14 @@ version(standalone) {
 int index_main(string[] args) {
 
     bool show_progress;
+    bool check_bins;
     uint n_threads = totalCPUs;
 
     getopt(args,
            std.getopt.config.caseSensitive,
            "show-progress|p", &show_progress,
-           "nthreads|t",      &n_threads);
+           "nthreads|t",      &n_threads,
+           "check-bins|c",    &check_bins);
 
     try {
         string out_filename = null;
@@ -77,15 +83,16 @@ int index_main(string[] args) {
                 scope(exit) task_pool.finish();
 
                 auto bam = new BamReader(args[1], task_pool);
+                bam.assumeSequentialProcessing();
                 Stream stream = new BufferedFile(out_filename, FileMode.Out);
                 scope(exit) stream.close();
 
                 if (show_progress) {
                     auto bar = new shared(ProgressBar)();
-                    createIndex(bam, stream, (lazy float p) { bar.update(p); });
+                    createIndex(bam, stream, check_bins, (lazy float p) { bar.update(p); });
                     bar.finish();
                 } else {
-                    createIndex(bam, stream);
+                    createIndex(bam, stream, check_bins);
                 }
                 break;
             default:

@@ -171,27 +171,8 @@ int view_main(string[] args) {
     }
 }
 
-auto filterArray(T)(T reads_and_filter) {
-    auto reads = reads_and_filter[0][];
-    auto f = reads_and_filter[1];
-    size_t cur = 0;
-
-    for (size_t i = 0; i < reads.length; ++i)
-        if (f.accepts(reads[i])) {
-            if (i != cur)
-                reads[cur] = reads[i];
-            ++cur;
-        }
-    return reads[0 .. cur];
-}
-
-auto filteredParallel(R)(R reads, Filter f, TaskPool pool) {
-    version (serial) {
-        return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
-    } else {
-        auto chunks = reads.chunksConsumingLessThan(1 << 20, false).zip(f.repeat());
-        return pool.map!filterArray(chunks, 4, 1).joiner();
-    }
+auto filtered(R)(R reads, Filter f) {
+    return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
 }
 
 File output_file() @property {
@@ -257,10 +238,12 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         }
 
         void runProcessor(SB, R, F)(SB bam, R reads, F filter) {
+            if (processor.is_serial)
+                bam.assumeSequentialProcessing();
             if (cast(NullFilter) filter)
                 processor.process(reads, bam);
             else
-                processor.process(reads.filteredParallel(filter, pool), bam);
+                processor.process(reads.filtered(filter), bam);
         }
 
         if (args.length == 2) {
