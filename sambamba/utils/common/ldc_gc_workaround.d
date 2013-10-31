@@ -11,7 +11,9 @@ import core.memory;
 /// Shared static constructor does the job, no need to do any calls manually.
 shared static this() {
     version(LDC) {
-        removeExtraGcRanges();
+        version(Linux) {
+            removeExtraGcRanges();
+        }
     }
 }
 
