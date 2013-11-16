@@ -41,7 +41,7 @@ import std.range, std.algorithm, std.functional, std.array, std.parallelism;
 	-----------------
 ++/
 
-@trusted SortedRange!(R, less) mergeSort(alias less = "a < b", bool half = true, R)(R range, TaskPool task_pool=taskPool, ElementType!(R)[] temp = null)
+@trusted SortedRange!(R, less) mergeSort(alias less = "a < b", bool half = true, R)(R range, TaskPool task_pool=taskPool, R temp = null)
 {
 	static assert(isRandomAccessRange!R);
 	static assert(hasLength!R);

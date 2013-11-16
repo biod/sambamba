@@ -1,7 +1,7 @@
 D_COMPILER=ldmd2
-D_FLAGS=-IBioD #-O -release -inline -g# -version=serial
+D_FLAGS=-IBioD -O2 #-release -inline -g# -version=serial
 
-RDMD_FLAGS=--compiler=$(D_COMPILER) --build-only $(D_FLAGS)
+RDMD_FLAGS=--force --compiler=$(D_COMPILER) --build-only $(D_FLAGS)
 
 all:
 	mkdir -p build/
@@ -13,11 +13,11 @@ release:
 
 sambamba-ldmd2-64:
 	mkdir -p build/
-	rdmd --build-only --force --compiler=ldmd2 -O3 -m64 -noboundscheck -release -inline -IBioD/ -ofbuild/sambamba main.d
+	rdmd --build-only --force --compiler=ldmd2 -O2 -m64 -noboundscheck -release -inline -IBioD/ -ofbuild/sambamba main.d
 
 sambamba-ldmd2-32:
 	mkdir -p build/
-	rdmd --build-only --force --compiler=ldmd2 -O3 -m32 -release -inline -IBioD/ -ofbuild/sambamba main.d
+	rdmd --build-only --force --compiler=ldmd2 -O2 -m32 -release -inline -IBioD/ -ofbuild/sambamba main.d
 
 sambamba-flagstat:
 	mkdir -p build/
