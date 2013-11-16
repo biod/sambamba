@@ -42,8 +42,8 @@ import std.exception;
         R2 = { read from BAM file | beg <= read.position < end },
 
         s1_start_offset = virtual offset of the first read that overlaps [beg .. end)
-        s2_start_offset = virtual offset of the first read which position >= beg
-        s2_end_offset = virtual offset of the first read which position >= end
+        s2_start_offset = virtual offset of the first read whose position >= beg
+        s2_end_offset = virtual offset of the first read whose position >= end
 
                 /\/\/\/\/\/\/\/\/\/\/\/\/#########==============  ...  =============#####      
 BGZF blocks   ..........)[...........)[..........)[..........)[.  ...  ....)[.........)[.......
@@ -137,7 +137,10 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
         }
     }
 
-    auto reads2 = bam[chr][end .. uint.max];
+    auto reference = bam[chr];
+    if (end == uint.max)
+        end = reference.length;
+    auto reads2 = reference[end .. uint.max];
 
     if (reads1.empty && reads2.empty) {
         // are there any reads with position >= beg?
@@ -163,6 +166,35 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
         writer.writeRecord(read);
     writer.flush();
 
+    copyAsIs(bam, stream, s2_start_offset, s2_end_offset);
+    // write EOF
+    stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
+}
+
+void fetchUnmapped(BamReader bam, Stream stream) {
+    auto writer = new BamWriter(stream);
+    writer.writeSamHeader(bam.header);
+    writer.writeReferenceSequenceInfo(bam.reference_sequences);
+    writer.flush();
+
+    auto unmapped_reads = bam.unmappedReads();
+    if (!unmapped_reads.empty) {
+        copyAsIs(bam, stream, 
+                 unmapped_reads.front.start_virtual_offset,
+                 bam.eofVirtualOffset());
+    }
+
+    stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
+}
+
+version (Posix) {
+    import core.sys.posix.fcntl;
+    extern(C) int posix_fadvise(int, off_t, off_t, int);
+}
+
+void copyAsIs(BamReader bam, Stream stream, 
+              VirtualOffset s2_start_offset, VirtualOffset s2_end_offset)
+{
     // R2 is non-empty
     if (s2_start_offset < s2_end_offset) {
        
@@ -175,7 +207,7 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
             stream.write(bgzfCompress(data, -1));
         } else { // ...or it spans several of them.
 
-            // write left chomped block
+            // left chomped block
             auto block1 = bam.getBgzfBlockAt(s2_start_offset.coffset);
             auto copy_start_offset = block1.end_offset;
 
@@ -185,46 +217,51 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
                 stream.write(bgzfCompress(data1, -1));
             }
 
-            auto copy_end_offset = s2_end_offset.coffset;
-
-            // copy blocks in between
-
-            ubyte[8192] copy_buffer;
-            auto file_stream = new bio.core.utils.stream.File(filename);
-            file_stream.seekSet(copy_start_offset);
-
-            size_t curpos = cast(size_t)copy_start_offset;
-            while (copy_end_offset - curpos > 8192) {
-                file_stream.readExact(copy_buffer.ptr, 8192);
-                stream.writeExact(copy_buffer.ptr, 8192);
-                curpos += 8192;
-            }
-
-            file_stream.readExact(copy_buffer.ptr, cast(size_t)copy_end_offset - curpos);
-            stream.writeExact(copy_buffer.ptr, cast(size_t)copy_end_offset - curpos);
-
-            // write right chomped block if it's non-empty
+            // right chomped block
             auto block2 = bam.getBgzfBlockAt(s2_end_offset.coffset);
 
             auto data2 = decompressBgzfBlock(block2).decompressed_data;
             data2 = data2[0 .. s2_end_offset.uoffset];
 
-            if (data2.length > 0) {
-                stream.write(bgzfCompress(data2, -1));
+            auto copy_end_offset = s2_end_offset.coffset;
+
+            enum N = 8192;
+            ubyte[N] copy_buffer;
+            auto file_stream = new bio.core.utils.stream.File(bam.filename);
+
+            version (Posix) {
+                off_t offset = copy_start_offset;
+                off_t len = copy_end_offset - copy_start_offset;
+                immutable int POSIX_FADV_SEQUENTIAL = 2;
+                posix_fadvise(file_stream.handle, offset, len, POSIX_FADV_SEQUENTIAL);
             }
+
+            file_stream.seekSet(copy_start_offset);
+
+            size_t curpos = cast(size_t)copy_start_offset;
+            while (copy_end_offset - curpos > N) {
+                file_stream.readExact(copy_buffer.ptr, N);
+                stream.writeExact(copy_buffer.ptr, N);
+                curpos += N;
+            }
+
+            file_stream.readExact(copy_buffer.ptr, cast(size_t)copy_end_offset - curpos);
+            stream.writeExact(copy_buffer.ptr, cast(size_t)copy_end_offset - curpos);
+
+            if (data2.length > 0)
+                stream.write(bgzfCompress(data2, -1));
         }
     }
-
-    // write EOF
-    stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
 }
-
 
 void printUsage()
 {
     stderr.writeln("Usage: sambamba-slice [options] <input.bam> <region>");
     stderr.writeln();
+    stderr.writeln("       Fast copy of a region from indexed BAM file to a new file");
+    stderr.writeln();
     stderr.writeln("       Region is given in standard form ref:beg-end.");
+    stderr.writeln("       In addition, region '*' denotes reads with no reference.");
     stderr.writeln("       Output is to STDOUT unless output filename is specified.");
     stderr.writeln();
     stderr.writeln("OPTIONS: -o, --output-filename=OUTPUT_FILENAME");
@@ -252,13 +289,18 @@ int slice_main(string[] args) {
             return 0;
         }
 
+        import std.parallelism;
+        defaultPoolThreads = 2;
+
         auto bam = new BamReader(args[1]);
-        auto region = parseRegion(args[2]);
 
         Stream stream;
         scope(exit) stream.close();
 
         if (output_filename != null) {
+            import std.exception;
+            enforce(args[1] != output_filename, 
+                    "input and output filenames must differ!");
             stream = new std.stream.BufferedFile(output_filename, FileMode.OutNew);
         } else {
             immutable BUFSIZE = 1_048_576;
@@ -272,7 +314,12 @@ int slice_main(string[] args) {
             stream = new std.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
         }
 
-        fetchRegion(bam, region, stream);
+        if (args[2] == "*") {
+            fetchUnmapped(bam, stream);
+        } else {
+            auto region = parseRegion(args[2]);
+            fetchRegion(bam, region, stream);
+        }
 
     } catch (Exception e) {
         stderr.writeln("sambamba-slice: ", e);
