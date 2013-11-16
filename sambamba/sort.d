@@ -172,6 +172,7 @@ class Sorter {
     void sort() {
         createHeader();
 
+        bam.setBufferSize(16_000_000);
         bam.assumeSequentialProcessing();
         if (show_progress) {
             stderr.writeln("Writing sorted chunks to temporary directory...");
@@ -240,7 +241,7 @@ class Sorter {
         auto fn = tmpFile(chunkBaseName(filename, num_of_chunks), tmpdir);
         tmpfiles ~= fn;
 
-        Stream stream = new BufferedFile(fn, FileMode.Out);
+        Stream stream = new BufferedFile(fn, FileMode.OutNew, 16_000_000);
         scope(failure) stream.close();
 
         auto writer = new BamWriter(stream, 
@@ -265,10 +266,8 @@ class Sorter {
             return;
         }
 
-        // half of memory is for input buffers
-        // and another half is for output buffers
         Stream stream = new BufferedFile(output_filename, FileMode.OutNew, 
-                                         memory_limit / 2);
+                                         min(64_000_000, memory_limit / 2));
         scope(failure) stream.close();
 
         if (show_progress) {
@@ -291,7 +290,7 @@ class Sorter {
 
             foreach (i; 0 .. num_of_chunks) {
                 auto bamfile = new BamReader(tmpfiles[i], task_pool);
-                bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
+                bamfile.setBufferSize(min(16_000_000, memory_limit / 2 / num_of_chunks));
                 bamfile.assumeSequentialProcessing();
                 alignmentranges[i] = bamfile.readsWithProgress(
                 // WTF is going on here? See this thread:
@@ -320,7 +319,7 @@ class Sorter {
 
             foreach (i; 0 .. num_of_chunks) {
                 auto bamfile = new BamReader(tmpfiles[i]);
-                bamfile.setBufferSize(memory_limit / 2 / num_of_chunks);
+                bamfile.setBufferSize(min(16_000_000, memory_limit / 2 / num_of_chunks));
                 bamfile.assumeSequentialProcessing();
                 alignmentranges[i] = bamfile.reads!withoutOffsets;
             }
