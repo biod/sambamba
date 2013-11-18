@@ -84,7 +84,7 @@ MArray!char runSamtools(string filename, string ref_fn) {
                ~ " -l " ~ filename ~ ".bed "
                ~ " -SD -d 1000 -L 1000 -m 3 -F 0.0002 -f " ~ ref_fn
                ~ "| bcftools view -"
-//               ~ " -vcg"
+               ~ " -vcg"
                ;
     stderr.writeln("[executing] ", cmd);
     auto pp = pipeShell(cmd, Redirect.stdout | Redirect.stderr);

@@ -27,6 +27,7 @@ import bio.bam.splitter;
 import bio.core.utils.tmpfile;
 
 import std.range;
+import std.datetime;
 import std.algorithm;
 import std.traits;
 import std.array;
@@ -157,7 +158,12 @@ class Sorter {
         size_t _used;
     }
 
-    static BamRead[] sortChunk(BamRead[] chunk, TaskPool task_pool) {
+    static BamRead[] sortChunk(size_t n, BamRead[] chunk, TaskPool task_pool) {
+        version (development) {
+        StopWatch sw;
+        sw.start();
+        stderr.writeln("Sorting chunk #", n, "...");
+        }
         auto buf = cast(BamRead*)std.c.stdlib.malloc(chunk.length * BamRead.sizeof);
         BamRead[] tmp = buf[0 .. chunk.length];
         scope (exit) std.c.stdlib.free(buf);
@@ -165,6 +171,9 @@ class Sorter {
             mergeSort!(compareCoordinates, false)(chunk, task_pool, tmp);
         } else {
             mergeSort!(compareReadNames, false)(chunk, task_pool);
+        }
+        version (development) {
+        stderr.writeln("Finished sorting of chunk #", n, " in ", sw.peek().seconds, "s");
         }
         return chunk;
     }
@@ -212,9 +221,21 @@ class Sorter {
         auto buf2 = UnsortedChunk(memory_limit / 2);
         scope(exit) { buf1.free(); buf2.free(); }
 
-        Task!(sortChunk, BamRead[], TaskPool)* sorting_task;
+        version (development) {
+        StopWatch sw;
+        sw.start();
+        scope(exit) {
+            sw.stop();
+            stderr.writeln("Wrote ", num_of_chunks, " sorted chunk",
+                           num_of_chunks == 1 ? "" : "s",
+                           " in ", sw.peek().seconds, " seconds");
+        }
+        }
+
+        Task!(sortChunk, size_t, BamRead[], TaskPool)* sorting_task;
 
         auto reads = reads_;
+        size_t k = 1; // number of current chunk
 
         // 1) fill buf1
         // 2) sort buf1 in parallel with filling buf2
@@ -223,13 +244,28 @@ class Sorter {
         // ...
         while (!reads.empty) {
             buf1.clear();
+            version(development) {
+            stderr.writeln("Reading chunk #", k);
+            StopWatch sw_inner;
+            sw_inner.start();
+            }
             buf1.fill(&reads);
 
-            if (sorting_task !is null)
-                dump(sorting_task.yieldForce());
+            version(development)
+            stderr.writeln("Finished reading of chunk #", k,
+                           " in ", sw_inner.peek().seconds, "s");
 
-            sorting_task = task!sortChunk(buf1.reads, task_pool);
+            BamRead[] sorted_reads;
+            if (sorting_task !is null)
+                sorted_reads = sorting_task.yieldForce();
+
+            sorting_task = task!sortChunk(k, buf1.reads, task_pool);
             task_pool.put(sorting_task);
+            ++k;
+
+            if (sorted_reads.length > 0)
+                dump(sorted_reads);
+
             swap(buf1, buf2);
         }
 
@@ -241,19 +277,30 @@ class Sorter {
         auto fn = tmpFile(chunkBaseName(filename, num_of_chunks), tmpdir);
         tmpfiles ~= fn;
 
+        version(development) {
+        stderr.writeln("Dumping chunk #", num_of_chunks + 1, " to disk...");
+        StopWatch sw;
+        sw.start();
+        }
+
         Stream stream = new BufferedFile(fn, FileMode.OutNew, 16_000_000);
         scope(failure) stream.close();
 
         auto writer = new BamWriter(stream, 
                 uncompressed_chunks ? 0 : 1,
-                task_pool);
-        scope(exit) writer.finish();
+                task_pool, 32_000_000);
 
         writer.writeSamHeader(header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
 
         foreach (read; sorted_reads)
             writer.writeRecord(read);
+
+        writer.finish();
+
+        version(development)
+        stderr.writeln("Finished dumping of chunk #", num_of_chunks + 1,
+                       " in ", sw.peek().seconds, "s");
 
         num_of_chunks += 1;
     }
@@ -266,8 +313,19 @@ class Sorter {
             return;
         }
 
+        version(development) {
+        StopWatch sw;
+        sw.start();
+        scope(exit) {
+            sw.stop();
+            stderr.writeln("Merging took ", sw.peek().seconds, " seconds");
+        }
+        }
+
+        auto input_buf_size = min(16_000_000, memory_limit / 4 / num_of_chunks);
+        auto output_buf_size = min(64_000_000, memory_limit / 6);
         Stream stream = new BufferedFile(output_filename, FileMode.OutNew, 
-                                         min(64_000_000, memory_limit / 2));
+                                         output_buf_size);
         scope(failure) stream.close();
 
         if (show_progress) {
@@ -290,7 +348,7 @@ class Sorter {
 
             foreach (i; 0 .. num_of_chunks) {
                 auto bamfile = new BamReader(tmpfiles[i], task_pool);
-                bamfile.setBufferSize(min(16_000_000, memory_limit / 2 / num_of_chunks));
+                bamfile.setBufferSize(input_buf_size);
                 bamfile.assumeSequentialProcessing();
                 alignmentranges[i] = bamfile.readsWithProgress(
                 // WTF is going on here? See this thread:
@@ -305,7 +363,8 @@ class Sorter {
                         }(i));
             }
 
-            auto writer = new BamWriter(stream, compression_level, task_pool);
+            auto writer = new BamWriter(stream, compression_level, task_pool,
+                                        2 * output_buf_size);
             scope(exit) writer.finish();
             writer.writeSamHeader(header);
             writer.writeReferenceSequenceInfo(bam.reference_sequences);
@@ -319,12 +378,13 @@ class Sorter {
 
             foreach (i; 0 .. num_of_chunks) {
                 auto bamfile = new BamReader(tmpfiles[i]);
-                bamfile.setBufferSize(min(16_000_000, memory_limit / 2 / num_of_chunks));
+                bamfile.setBufferSize(input_buf_size);
                 bamfile.assumeSequentialProcessing();
                 alignmentranges[i] = bamfile.reads!withoutOffsets;
             }
 
-            auto writer = new BamWriter(stream, compression_level, task_pool);
+            auto writer = new BamWriter(stream, compression_level, task_pool,
+                                        2 * output_buf_size);
             scope(exit) writer.finish();
             writer.writeSamHeader(header);
             writer.writeReferenceSequenceInfo(bam.reference_sequences);
@@ -384,7 +444,11 @@ int sort_main(string[] args) {
         sorter.sort();
         return 0;
     } catch (Throwable e) {
-        stderr.writeln("sambamba-sort: ", e.msg);
+        version (development) {
+            throw e;
+        } else {
+            stderr.writeln("sambamba-sort: ", e.msg);
+        }
         return 1;
     }
 }

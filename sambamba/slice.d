@@ -187,7 +187,7 @@ void fetchUnmapped(BamReader bam, Stream stream) {
     stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
 }
 
-version (Posix) {
+version (Linux) {
     import core.sys.posix.fcntl;
     extern(C) int posix_fadvise(int, off_t, off_t, int);
 }
@@ -229,7 +229,7 @@ void copyAsIs(BamReader bam, Stream stream,
             ubyte[N] copy_buffer;
             auto file_stream = new bio.core.utils.stream.File(bam.filename);
 
-            version (Posix) {
+            version (Linux) {
                 off_t offset = copy_start_offset;
                 off_t len = copy_end_offset - copy_start_offset;
                 immutable int POSIX_FADV_SEQUENTIAL = 2;
