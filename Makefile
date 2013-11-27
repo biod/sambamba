@@ -1,5 +1,5 @@
 D_COMPILER=ldmd2
-D_FLAGS=-IBioD -O2 #-release -inline -g# -version=serial
+D_FLAGS=-IBioD -O2 -release #-inline -g# -version=serial
 
 RDMD_FLAGS=--force --compiler=$(D_COMPILER) --build-only $(D_FLAGS)
 

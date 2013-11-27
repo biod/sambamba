@@ -328,70 +328,55 @@ class Sorter {
                                          output_buf_size);
         scope(failure) stream.close();
 
+        alias ReturnType!(BamReader.readsWithProgress!withoutOffsets) AlignmentRangePB;
+        auto alignmentranges = new AlignmentRangePB[num_of_chunks];
+
         if (show_progress) {
             stderr.writeln("Merging sorted chunks...");
             weights.length = num_of_chunks;
             merging_progress.length = num_of_chunks;
             merging_progress[] = 0.0;
 
-            alias ReturnType!(BamReader.readsWithProgress!withoutOffsets) AlignmentRangePB;
-            auto alignmentranges = new AlignmentRangePB[num_of_chunks];
-
             bar = new shared(ProgressBar)();
-            scope(exit) bar.finish();
 
             foreach (i; 0 .. num_of_chunks) {
                 weights[i] = std.file.getSize(tmpfiles[i]); // set file size as weight
             }
 
             normalize(cast()weights);
-
-            foreach (i; 0 .. num_of_chunks) {
-                auto bamfile = new BamReader(tmpfiles[i], task_pool);
-                bamfile.setBufferSize(input_buf_size);
-                bamfile.assumeSequentialProcessing();
-                alignmentranges[i] = bamfile.readsWithProgress(
-                // WTF is going on here? See this thread:
-                // http://forum.dlang.org/thread/mailman.112.1341467786.31962.digitalmars-d@puremagic.com
-                        (size_t j) { 
-                            return (lazy float progress) { 
-                                atomicStore(merging_progress[j], progress);
-                                synchronized (bar) {
-                                    bar.update(dotProduct(merging_progress, weights));
-                                }
-                            };
-                        }(i));
-            }
-
-            auto writer = new BamWriter(stream, compression_level, task_pool,
-                                        2 * output_buf_size);
-            scope(exit) writer.finish();
-            writer.writeSamHeader(header);
-            writer.writeReferenceSequenceInfo(bam.reference_sequences);
-
-            foreach (read; nWayUnion!comparator(alignmentranges))
-                writer.writeRecord(read);
-
-        } else {
-            alias ReturnType!(BamReader.reads!withoutOffsets) AlignmentRange;
-            auto alignmentranges = new AlignmentRange[num_of_chunks];
-
-            foreach (i; 0 .. num_of_chunks) {
-                auto bamfile = new BamReader(tmpfiles[i]);
-                bamfile.setBufferSize(input_buf_size);
-                bamfile.assumeSequentialProcessing();
-                alignmentranges[i] = bamfile.reads!withoutOffsets;
-            }
-
-            auto writer = new BamWriter(stream, compression_level, task_pool,
-                                        2 * output_buf_size);
-            scope(exit) writer.finish();
-            writer.writeSamHeader(header);
-            writer.writeReferenceSequenceInfo(bam.reference_sequences);
-
-            foreach (read; nWayUnion!comparator(alignmentranges))
-                writer.writeRecord(read);
         }
+
+        foreach (i; 0 .. num_of_chunks) {
+            auto bamfile = new BamReader(tmpfiles[i], task_pool);
+            bamfile.setBufferSize(input_buf_size);
+            bamfile.assumeSequentialProcessing();
+            if (show_progress)
+                alignmentranges[i] = bamfile.readsWithProgress(
+                        // WTF is going on here? See this thread:
+                        // http://forum.dlang.org/thread/mailman.112.1341467786.31962.digitalmars-d@puremagic.com
+                        (size_t j) { 
+                        return (lazy float progress) { 
+                        atomicStore(merging_progress[j], progress);
+                        synchronized (bar) {
+                        bar.update(dotProduct(merging_progress, weights));
+                        }
+                        };
+                        }(i));
+            else
+                alignmentranges[i] = bamfile.readsWithProgress(null);
+        }
+
+        auto writer = new BamWriter(stream, compression_level, task_pool,
+                2 * output_buf_size);
+        scope(exit) writer.finish();
+        writer.writeSamHeader(header);
+        writer.writeReferenceSequenceInfo(bam.reference_sequences);
+
+        foreach (read; nWayUnion!comparator(alignmentranges))
+            writer.writeRecord(read);
+
+        if (show_progress)
+            bar.finish();
     }
 
     private {
