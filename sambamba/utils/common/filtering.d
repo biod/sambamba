@@ -260,24 +260,33 @@ final class RegexpTagFilter : Filter {
 }
 
 final class SubsampleFilter : Filter {
-    private uint _threshold;
-    private uint _seed;
+    private ulong _threshold;
+    private ulong _seed;
     
-    this(double subsample_frac, uint seed=unpredictableSeed) {
-        _threshold = (0x1000000 * subsample_frac).to!uint;
+    this(double subsample_frac, ulong seed=unpredictableSeed) {
+        _threshold = (0x100000000UL * subsample_frac).to!ulong;
         _seed = seed;
     }
 
-    // implementation of subsampling is the same as in samtools
-    private uint simpleHash(string s) const {
+    // FNV-1a algorithm
+    private ulong simpleHash(string s) const {
+        ulong h = 14695981039346656037UL;
+        foreach (char c; s) {
+            h ^= cast(ubyte)c;
+            h *= 1099511628211UL;
+        }
+        return h + _seed;
+    }
+        /*
         uint h = 0;
         foreach (char c; s)
             h = (h << 5) - h + c;
         return h + _seed;
     }
+    */
 
     bool accepts(ref BamRead read) const {
         auto h = simpleHash(read.name);
-        return (h&0xFFFFFF) < _threshold;
+        return (h&0xFFFFFFFFUL) < _threshold;
     }
 }

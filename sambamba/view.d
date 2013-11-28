@@ -117,7 +117,7 @@ int compression_level = -1;
 string output_filename;
 uint n_threads;
 double subsample_frac; // NaN by default
-uint subsampling_seed;
+ulong subsampling_seed;
 
 version(standalone) {
     int main(string[] args) {
