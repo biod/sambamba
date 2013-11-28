@@ -309,7 +309,12 @@ class Sorter {
 
         // optimization: if there's only one chunk, just rename it
         if (num_of_chunks == 1) {
-            std.file.rename(tmpfiles[0], output_filename);
+            import std.process;
+            auto result = std.process.execute(["mv", tmpfiles[0], output_filename]);
+            if (result.status != 0)
+                throw new Exception("failed to move file " ~ tmpfiles[0] ~ " to " ~
+                                    " destination " ~ output_filename ~ ": " ~ 
+                                    result.output);
             return;
         }
 
