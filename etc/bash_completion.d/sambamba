@@ -10,14 +10,13 @@ _sambamba()
     elif [[ $cur == -* ]]; then
         case "$subcommand" in
             view)
-              COMPREPLY=( $(compgen -W "-F -f -h -H -I -c -U -S -p \
-                                        -l -o -t -s --filter= \
-                                        --format= --with-header --header \
+              COMPREPLY=( $(compgen -W "-F -f -h -H -I -c -S -p \
+                                        -l -o -t -s --filter= --header \
+                                        --format= --with-header --count \
                                         --reference-info --show-progress \
-                                        --count --unmapped --sam-input \
+                                        --sam-input --output-filename= \
                                         --nthreads= --compression-level= \
-                                        --subsample= --subsampling-seed= \
-                                        --output-filename=" -- $cur))
+                                        --subsample= --subsampling-seed=" -- $cur) )
               ;;
             index)
               COMPREPLY=( $(compgen -W "-p -t --nthreads= --show-progress" -- $cur) )

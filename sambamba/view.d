@@ -59,8 +59,6 @@ void printUsage() {
     stderr.writeln("                    output to stdout only reference names and lengths in JSON");
     stderr.writeln("         -c, --count");
     stderr.writeln("                    output to stdout only count of matching records, hHI are ignored");
-    stderr.writeln("         -U, --unmapped");
-    stderr.writeln("                    output reads with RNAME = *; available for indexed BAM only");
     stderr.writeln("         -v, --valid");
     stderr.writeln("                    output only valid alignments");
     stderr.writeln("         -S, --sam-input");
@@ -107,7 +105,6 @@ bool with_header;
 bool header_only;
 bool reference_info_only;
 bool count_only;
-bool unmapped_only;
 bool skip_invalid_alignments;
 bool is_sam;
 
@@ -140,7 +137,6 @@ int view_main(string[] args) {
                "header|H",            &header_only,
                "reference-info|I",    &reference_info_only,
                "count|c",             &count_only,
-               "unmapped|U",          &unmapped_only,
                "valid|v",             &skip_invalid_alignments,
                "sam-input|S",         &is_sam,
                "show-progress|p",     &show_progress,
@@ -202,18 +198,6 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         return 0;
     }
 
-    static if (is(T == SamReader)) {
-        if (unmapped_only) {
-            stderr.writeln("--unmapped option is available only for indexed BAMs");
-            return -1;
-        }
-    }
-
-    if (unmapped_only && args.length > 2) {
-        stderr.writeln("--unmapped option can't be used together with regions");
-        return -1;
-    }
-
     if (header_only && !count_only) {
         // write header to stdout
         (new HeaderSerializer(stdout, format)).writeln(bam.header);
@@ -271,10 +255,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                     runProcessor(bam, reads, read_filter);
                     bar.finish();
                 } else {
-                    if (unmapped_only)
-                        runProcessor(bam, bam.unmappedReads(), read_filter);
-                    else
-                        runProcessor(bam, bam.reads!withoutOffsets(), read_filter);
+                    runProcessor(bam, bam.reads!withoutOffsets(), read_filter);
                 }
             } else { // SamFile
                 runProcessor(bam, bam.reads, read_filter);
@@ -286,12 +267,19 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
             if (args.length > 2) {
                 auto regions = map!parseRegion(args[2 .. $]);
 
-                alias ReturnType!(ReferenceSequence.opSlice) AlignmentRange;
+                alias InputRange!BamReadBlock AlignmentRange;
                 auto alignment_ranges = new AlignmentRange[regions.length];
 
                 size_t i = 0;
-                foreach (ref r; regions) {
-                    alignment_ranges[i++] = bam[r.reference][r.beg .. r.end];
+                foreach (region_description; args[2 .. $]) {
+                    AlignmentRange range;
+                    if (region_description == "*") {
+                        range = bam.unmappedReads().inputRangeObject;
+                    } else {
+                        auto r = parseRegion(region_description);
+                        range = bam[r.reference][r.beg .. r.end].inputRangeObject;
+                    }
+                    alignment_ranges[i++] = range;
                 }
 
                 auto reads = joiner(alignment_ranges);
