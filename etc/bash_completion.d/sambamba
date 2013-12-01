@@ -1,0 +1,60 @@
+_sambamba()
+{
+    local cur=${COMP_WORDS[COMP_CWORD]}
+    local subcommand=${COMP_WORDS[1]}
+
+    if [[ $COMP_CWORD == 1 ]]; then
+        COMPREPLY=( $(compgen -W "view index merge sort \
+                                  flagstat slice markdup" -- $cur) )
+        compopt +o nospace
+    elif [[ $cur == -* ]]; then
+        case "$subcommand" in
+            view)
+              COMPREPLY=( $(compgen -W "-F -f -h -H -I -c -U -S -p \
+                                        -l -o -t -s --filter= \
+                                        --format= --with-header --header \
+                                        --reference-info --show-progress \
+                                        --count --unmapped --sam-input \
+                                        --nthreads= --compression-level= \
+                                        --subsample= --subsampling-seed= \
+                                        --output-filename=" -- $cur))
+              ;;
+            index)
+              COMPREPLY=( $(compgen -W "-p -t --nthreads= --show-progress" -- $cur) )
+              ;;
+            merge)
+              COMPREPLY=( $(compgen -W "-p -t --nthreads= -l -H --header \
+                                        --compression-level=" -- $cur) )
+              ;;
+            sort)
+              COMPREPLY=( $(compgen -W "-m --memory-limit= --tmpdir= -o --out \
+                                        -n --compression-level= -u -p -t \
+                                        --uncompressed-chunks --show-progress \
+                                        --nthreads=" -- $cur) )
+              ;;
+            flagstat)
+              COMPREPLY=( $(compgen -W "-t -p --nthreads= --show-progress" -- $cur) )
+              ;;
+            slice)
+              COMPREPLY=( $(compgen -W "-o --output-filename=" -- $cur) )
+              ;;
+            markdup)
+              COMPREPLY=( $(compgen -W "-r -t -l -p --tmpdir= --remove-duplicates \
+                                        --nthreads= --compression-level= \
+                                        --show-progress" -- $cur) )
+              ;;
+        esac
+    
+        if [[ ${#COMPREPLY[@]} == 1 && ${COMPREPLY[0]} != "--"*"=" ]] ; then
+            compopt +o nospace
+        fi
+
+    elif [[ ${COMP_WORDS[COMP_CWORD - 2]} == "--format" || ${COMP_WORDS[COMP_CWORD - 1]} == "-f" ]]; then
+        COMPREPLY=( $(compgen -W "sam bam json msgpack" -- $cur) )
+        compopt +o nospace
+    else
+        compopt -o default
+    fi
+}
+
+complete -o nospace -F _sambamba sambamba
