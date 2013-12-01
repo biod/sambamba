@@ -55,14 +55,20 @@ _sambamba()
         for word in ${COMP_WORDS[@]}; do
             if [[ $word == *.bam && $word != "" ]]; then
                 eval abspath=$word
-                COMPREPLY=( $(sambamba view -H $abspath | grep @SQ | \
+                COMPREPLY=( $(sambamba view -H -t4 $abspath | grep @SQ | \
                               cut -f 2 | cut -f2 -d: 2>/dev/null | grep "^$cur") )
                 break
             fi
         done
+
+        if [[ ${#COMPREPLY[@]} == 0 ]]; then
+            compopt +o nospace
+        fi
+
         compopt -o default
         compopt -o filenames
     else
+        compopt +o nospace
         compopt -o default
     fi
 }
