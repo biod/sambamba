@@ -75,7 +75,7 @@ version(standalone) {
     }
 }
 
-private bool sort_by_name;
+private __gshared bool sort_by_name;
 private bool show_progress;
 
 private shared(ProgressBar) bar;
