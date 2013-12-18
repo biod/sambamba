@@ -30,7 +30,7 @@ import sambamba.utils.common.ldc_gc_workaround;
 import std.stdio;
 
 void printUsage() {
-    stderr.writeln("sambamba v0.4.3");
+    stderr.writeln("sambamba v0.4.4");
     stderr.writeln();
     stderr.writeln("Usage: sambamba [command] [args...]");
     stderr.writeln();
