@@ -19,7 +19,7 @@ before_install:
 
 script:
   - make sambamba-ldmd2-64
-  - ./.run_tests.sh | tee /dev/stderr | grep -q 'success rate: 100%'
+  - ./.run_tests.sh
 
 after_success:
   - tar cjvf sambamba_osx.tar.bz2 ./build/sambamba
