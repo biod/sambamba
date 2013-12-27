@@ -23,17 +23,21 @@ import bio.bam.reader;
 import bio.bam.read;
 import bio.bam.writer;
 import bio.bam.thirdparty.msgpack;
+import bio.core.utils.outbuffer;
+import bio.core.utils.roundbuf;
 import bio.core.utils.range;
+import sambamba.utils.common.readstorage;
 
 import std.stdio;
 import std.exception;
 import std.string;
 import std.range;
+import std.array;
 import std.format;
 import std.traits;
 import std.stream : Stream, BufferedFile, FileMode;
 import std.conv;
-import std.range;
+import std.algorithm;
 import std.parallelism;
 
 class ReadCounter {
@@ -61,23 +65,65 @@ private bool isTty(ref std.stdio.File file) @property {
 }
 
 template chunkToFormat(char format) {
-    char[] chunkToFormat(R)(in R[] reads) {
+    char[] chunkToFormat(R)(in R[] reads, OutBuffer outbuffer) {
         FormatSpec!char f = void;
         f.spec = format; // nothing else matters
-        auto buf = Appender!(char[])();
-        if (reads.length == 0)
-            return buf.data;
-        buf.reserve(reads.length * reads.front.size_in_bytes * 2);
-        foreach (read; reads) {
-            read.toString((const(char)[] s) { buf.put(s); }, f);
-            buf.put('\n');
-        }
-        return buf.data;
+        if (reads.length > 0) {
+	    outbuffer.capacity = reads.length * reads.front.size_in_bytes * 2;
+	    foreach (r; reads) {
+	        r.toString((const(char)[] s) { outbuffer.put(cast(ubyte[])s); }, f);
+		outbuffer.put('\n');
+	    }
+	}
+        return cast(char[])(outbuffer.data);
     }
 }
 
 alias chunkToFormat!'s' chunkToSam;
 alias chunkToFormat!'j' chunkToJson;
+
+class TaskWithData(alias converter) {
+    Task!(converter, BamRead[], OutBuffer)* conversion_task;
+    ReadStorage input_buffer;
+    OutBuffer output_buffer;
+
+    this(size_t n=131072) {
+	input_buffer = ReadStorage(n);
+	output_buffer = new OutBuffer(n * 5);
+    }
+
+    final void run(TaskPool pool) {
+	conversion_task = task!converter(input_buffer.reads, output_buffer);
+	pool.put(conversion_task);
+    }
+}
+
+void runTextConversion(alias converter, R)(R reads, TaskPool pool, File f) {
+    auto n_tasks = max(pool.size, 2) * 4;
+    auto tasks = RoundBuf!(TaskWithData!converter)(n_tasks);
+    foreach (i; 0 .. n_tasks) {
+	if (reads.empty)
+	    break;
+	auto t = new TaskWithData!converter();
+	t.input_buffer.fill(&reads);
+	t.run(pool);
+	tasks.put(t);
+    }
+
+    auto w = f.lockingTextWriter;
+    while (!tasks.empty) {
+	auto t = tasks.front;
+	w.put(t.conversion_task.yieldForce());
+	tasks.popFront();
+	if (!reads.empty) {
+	    t.input_buffer.clear();
+	    t.input_buffer.fill(&reads);
+	    t.output_buffer.clear();
+	    t.run(pool);
+	    tasks.put(t);
+	}
+    }
+}
 
 class TextSerializer {
     this(File f, TaskPool pool) {
@@ -96,14 +142,10 @@ final class SamSerializer : TextSerializer {
     this(File f, TaskPool pool) { super(f, pool); }
 
     void process(R, SB)(R reads, SB bam) {
-        auto read_batches = chunked(reads, 1024);
-        auto sam_chunks = _pool.map!chunkToSam(read_batches, 16);
-        auto w = _f.lockingTextWriter;
-        foreach (chunk; sam_chunks)
-            w.put(chunk);
+	runTextConversion!chunkToSam(reads, _pool, _f);
     }
 
-    enum is_serial = false;
+    enum is_serial = true;
 }
 
 final class BamSerializer {
@@ -149,14 +191,10 @@ final class JsonSerializer : TextSerializer {
     this(File f, TaskPool pool) { super(f, pool); }
 
     void process(R, SB)(R reads, SB bam) {
-        auto read_batches = chunked(reads, 1024);
-        auto json_chunks = _pool.map!chunkToJson(read_batches, 16);
-        auto w = _f.lockingTextWriter;
-        foreach (chunk; json_chunks)
-            w.put(chunk);
+	runTextConversion!chunkToJson(reads, _pool, _f);
     }
 
-    enum is_serial = false;
+    enum is_serial = true;
 }
 
 final class MsgpackSerializer : TextSerializer {
