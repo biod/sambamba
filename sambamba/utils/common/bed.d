@@ -78,8 +78,6 @@ BedIndex readIntervals(string bed_filename) {
     foreach (k, ref v; index) {
         v = nonOverlappingIntervals(v);
     }
-    import std.stdio;
-    stderr.writeln(index);
     return index;
 }
 
