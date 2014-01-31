@@ -58,28 +58,28 @@ BedIndex readIntervals(string bed_filename) {
     auto f = File(bed_filename);
     foreach (line; f.byLine()) {
         auto str = cast(string)line;
-        try {
-            auto fields = split(str);
-            if (fields.length < 2)
-                continue;
-            string chr = fields[0];
-            Interval interval;
-            if (fields.length >= 3) {
-                interval.beg = to!long(fields[1]) - 1;
-                interval.end = to!long(fields[2]);
-            } else if (fields.length >= 2) {
-                interval.beg = to!long(fields[1]) - 1;
-                interval.end = interval.beg + 1;
-            }
+        auto fields = split(str);
+        if (fields.length < 2)
+            continue;
+        string chr = fields[0].dup;
+        Interval interval;
+        if (fields.length >= 3) {
+            interval.beg = to!long(fields[1]) - 1;
+            interval.end = to!long(fields[2]);
+        } else if (fields.length >= 2) {
+            interval.beg = to!long(fields[1]) - 1;
+            interval.end = interval.beg + 1;
+        }
 
-            if (interval.beg < interval.end)
-                index[chr] ~= interval;
-        } catch (ConvException e) {}
+        if (interval.beg < interval.end)
+            index[chr] ~= interval;
     }
 
     foreach (k, ref v; index) {
         v = nonOverlappingIntervals(v);
     }
+    import std.stdio;
+    stderr.writeln(index);
     return index;
 }
 
