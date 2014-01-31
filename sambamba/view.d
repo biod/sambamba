@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ module sambamba.view;
 import bio.bam.reader;
 import bio.bam.read;
 import bio.bam.splitter;
+import bio.bam.region;
 import bio.sam.reader;
 import bio.core.region;
 
@@ -29,6 +30,7 @@ import sambamba.utils.common.filtering;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.view.alignmentrangeprocessor;
 import sambamba.utils.view.headerserializer;
+import sambamba.utils.common.bed;
 
 import bio.core.utils.format;
 
@@ -44,6 +46,18 @@ import std.random;
 import std.range;
 import std.conv;
 
+BamRegion[] parseBed(string bed_filename, BamReader bam) {
+    auto index = sambamba.utils.common.bed.readIntervals(bed_filename);
+    BamRegion[] regions;
+    foreach (reference, intervals; index) {
+	auto id = bam[reference].id;
+	foreach (interval; intervals)
+	    regions ~= BamRegion(cast(uint)id,
+				 cast(uint)interval.beg, cast(uint)interval.end);
+    }
+    return regions;
+}
+
 void printUsage() {
     stderr.writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
     stderr.writeln();
@@ -57,6 +71,8 @@ void printUsage() {
     stderr.writeln("                    output only header to stdout (if format=bam, the header is printed as SAM)");
     stderr.writeln("         -I, --reference-info");
     stderr.writeln("                    output to stdout only reference names and lengths in JSON");
+    stderr.writeln("         -L, --regions=FILENAME");
+    stderr.writeln("                    output only reads overlapping one of regions from the BED file");
     stderr.writeln("         -c, --count");
     stderr.writeln("                    output to stdout only count of matching records, hHI are ignored");
     stderr.writeln("         -v, --valid");
@@ -115,6 +131,7 @@ string output_filename;
 uint n_threads;
 double subsample_frac; // NaN by default
 ulong subsampling_seed;
+string bed_filename;
 
 version(standalone) {
     int main(string[] args) {
@@ -136,6 +153,7 @@ int view_main(string[] args) {
                "with-header|h",       &with_header,
                "header|H",            &header_only,
                "reference-info|I",    &reference_info_only,
+	       "regions|L",           &bed_filename,
                "count|c",             &count_only,
                "valid|v",             &skip_invalid_alignments,
                "sam-input|S",         &is_sam,
@@ -231,8 +249,8 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
 
     int processAlignments(P)(P processor) {
         static if (is(T == SamReader)) {
-            if (args.length > 2) {
-                stderr.writeln("sorry, accessing regions is unavailable for SAM input");
+	    if (bed_filename.length > 0 || args.length > 2) {
+                stderr.writeln("region queries are unavailable for SAM input");
                 return 1;
             }
         }
@@ -246,8 +264,12 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 processor.process(reads.filtered(filter), bam);
         }
 
-        if (args.length == 2) {
-            
+	bool output_all_reads = bed_filename.empty && args.length == 2;
+	if (bed_filename.length > 0 && args.length > 2) {
+	    throw new Exception("specifying both region and BED filename is disallowed");
+	}
+
+        if (output_all_reads) {
             static if (is(T == BamReader)) {
                 if (show_progress) {
                     auto bar = new shared(ProgressBar)();
@@ -284,7 +306,11 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
 
                 auto reads = joiner(alignment_ranges);
                 runProcessor(bam, reads, read_filter);
-            }
+            } else if (bed_filename.length > 0) {
+		auto regions = parseBed(bed_filename, bam);
+		auto reads = bam.getReadsOverlapping(regions);
+		runProcessor(bam, reads, read_filter);
+	    }
         }
 
         return 0;
