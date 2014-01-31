@@ -64,10 +64,10 @@ BedIndex readIntervals(string bed_filename) {
         string chr = fields[0].dup;
         Interval interval;
         if (fields.length >= 3) {
-            interval.beg = to!long(fields[1]) - 1;
+            interval.beg = to!long(fields[1]);
             interval.end = to!long(fields[2]);
         } else if (fields.length >= 2) {
-            interval.beg = to!long(fields[1]) - 1;
+            interval.beg = to!long(fields[1]);
             interval.end = interval.beg + 1;
         }
 
