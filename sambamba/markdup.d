@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ module sambamba.markdup;
 import std.stdio;
 import std.getopt;
 import sambamba.utils.common.progressbar;
+import sambamba.utils.common.overwrite;
 import thirdparty.unstablesort;
 
 import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
@@ -1013,7 +1014,7 @@ int markdup_main(string[] args) {
     
     StopWatch sw;
     sw.start();  
-	
+    
     try {
         getopt(args,
            std.getopt.config.caseSensitive,
@@ -1031,6 +1032,8 @@ int markdup_main(string[] args) {
             printUsage();
             return 0;
         }
+
+        protectFromOverwrite(args[1], args[2]);
 
         auto pool = new TaskPool(n_threads);
         scope(exit) pool.finish();

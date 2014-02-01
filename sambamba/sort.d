@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@ import std.c.stdlib;
 import std.c.string;
 
 import sambamba.utils.common.progressbar;
+import sambamba.utils.common.overwrite;
 
 import thirdparty.mergesort;
 
@@ -424,6 +425,8 @@ int sort_main(string[] args) {
         if (sorter.output_filename is null) {
             sorter.output_filename = setExtension(args[1], "sorted.bam");
         }
+
+        protectFromOverwrite(args[1], sorter.output_filename);
 
         if (memory_limit_str !is null) {
             sorter.memory_limit = parseMemory(memory_limit_str);

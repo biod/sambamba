@@ -26,4 +26,18 @@ testView() {
     assertEquals "0" `./build/sambamba view -c ex1_header.sorted.bam '*'`
 }
 
+testOverwriteProtection() {
+    ./build/sambamba view ex1_header.nsorted.bam -f bam -o ./ex1_header.nsorted.bam 2>/dev/null
+    assertNotSame 0 $?
+    ./build/sambamba merge ex1_header.sorted.bam ex1_header.sorted.bam ex1_header.sorted.bam 2>/dev/null
+    assertNotSame 0 $?
+    ./build/sambamba sort ex1_header.nsorted.bam -o ./build/../ex1_header.nsorted.bam 2>/dev/null
+    assertNotSame 0 $?
+    ./build/sambamba markdup ex1_header.nsorted.bam ./build/../ex1_header.nsorted.bam 2>/dev/null
+    assertNotSame 0 $?
+    ./build/sambamba slice ex1_header.nsorted.bam chr1 -o ./build/../ex1_header.nsorted.bam 2>/dev/null
+    assertNotSame 0 $?
+}
+
+
 . shunit2-2.0.3/src/shell/shunit2

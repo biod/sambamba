@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -91,6 +91,7 @@ import std.getopt;
 import core.atomic;
 
 import sambamba.utils.common.progressbar;
+import sambamba.utils.common.overwrite;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
@@ -200,6 +201,9 @@ int merge_main(string[] args) {
 
         auto output_filename = args[1];
         auto filenames = args[2 .. $];
+        foreach (filename; filenames)
+            protectFromOverwrite(filename, output_filename);
+
         BamReader[] files;
         files.length = filenames.length;
         foreach (i; 0 .. files.length) {

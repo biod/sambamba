@@ -27,6 +27,7 @@ import bio.sam.reader;
 import bio.core.region;
 
 import sambamba.utils.common.filtering;
+import sambamba.utils.common.overwrite;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.view.alignmentrangeprocessor;
 import sambamba.utils.view.headerserializer;
@@ -50,10 +51,10 @@ BamRegion[] parseBed(string bed_filename, BamReader bam) {
     auto index = sambamba.utils.common.bed.readIntervals(bed_filename);
     BamRegion[] regions;
     foreach (reference, intervals; index) {
-	auto id = bam[reference].id;
-	foreach (interval; intervals)
-	    regions ~= BamRegion(cast(uint)id,
-				 cast(uint)interval.beg, cast(uint)interval.end);
+    auto id = bam[reference].id;
+    foreach (interval; intervals)
+        regions ~= BamRegion(cast(uint)id,
+                             cast(uint)interval.beg, cast(uint)interval.end);
     }
     return regions;
 }
@@ -153,7 +154,7 @@ int view_main(string[] args) {
                "with-header|h",       &with_header,
                "header|H",            &header_only,
                "reference-info|I",    &reference_info_only,
-	       "regions|L",           &bed_filename,
+               "regions|L",           &bed_filename,
                "count|c",             &count_only,
                "valid|v",             &skip_invalid_alignments,
                "sam-input|S",         &is_sam,
@@ -163,12 +164,14 @@ int view_main(string[] args) {
                "nthreads|t",          &n_threads,
                "subsample|s",         &subsample_frac,
                "subsampling-seed",    &subsampling_seed);
-        
+
         if (args.length < 2) {
             printUsage();
             return 0;
         }
 
+        protectFromOverwrite(args[1], output_filename);
+        
         auto task_pool = new TaskPool(n_threads);
         scope(exit) task_pool.finish();
         if (!is_sam) {
@@ -249,7 +252,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
 
     int processAlignments(P)(P processor) {
         static if (is(T == SamReader)) {
-	    if (bed_filename.length > 0 || args.length > 2) {
+            if (bed_filename.length > 0 || args.length > 2) {
                 stderr.writeln("region queries are unavailable for SAM input");
                 return 1;
             }
@@ -264,10 +267,10 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 processor.process(reads.filtered(filter), bam);
         }
 
-	bool output_all_reads = bed_filename.empty && args.length == 2;
-	if (bed_filename.length > 0 && args.length > 2) {
-	    throw new Exception("specifying both region and BED filename is disallowed");
-	}
+        bool output_all_reads = bed_filename.empty && args.length == 2;
+        if (bed_filename.length > 0 && args.length > 2) {
+            throw new Exception("specifying both region and BED filename is disallowed");
+        }
 
         if (output_all_reads) {
             static if (is(T == BamReader)) {
@@ -307,10 +310,10 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 auto reads = joiner(alignment_ranges);
                 runProcessor(bam, reads, read_filter);
             } else if (bed_filename.length > 0) {
-		auto regions = parseBed(bed_filename, bam);
-		auto reads = bam.getReadsOverlapping(regions);
-		runProcessor(bam, reads, read_filter);
-	    }
+                auto regions = parseBed(bed_filename, bam);
+                auto reads = bam.getReadsOverlapping(regions);
+                runProcessor(bam, reads, read_filter);
+            }
         }
 
         return 0;

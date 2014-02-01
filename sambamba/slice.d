@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ import std.parallelism;
 import std.conv;
 import std.stdio;
 import std.exception;
+
+import sambamba.utils.common.overwrite;
 
 /**
     Consider interval [beg .. end) on the reference, where 0 <= beg < end.
@@ -289,6 +291,8 @@ int slice_main(string[] args) {
             return 0;
         }
 
+        protectFromOverwrite(args[1], output_filename);
+
         import std.parallelism;
         defaultPoolThreads = 2;
 
@@ -298,9 +302,6 @@ int slice_main(string[] args) {
         scope(exit) stream.close();
 
         if (output_filename != null) {
-            import std.exception;
-            enforce(args[1] != output_filename, 
-                    "input and output filenames must differ!");
             stream = new std.stream.BufferedFile(output_filename, FileMode.OutNew);
         } else {
             immutable BUFSIZE = 1_048_576;
