@@ -1,0 +1,50 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-MARKDUP" "1" "October 2013" "" ""
+.
+.SH "NAME"
+\fBsambamba\-markdup\fR \- finding duplicate reads in BAM file
+.
+.SH "SYNOPSIS"
+\fBsambamba markdup\fR \fIOPTIONS\fR <input\.bam> <output\.bam>
+.
+.SH "DESCRIPTION"
+Marks (by default) or removes duplicate reads\. For determining whether a read is a duplicate or not, the same criteria as in Picard are used\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-r\fR, \fB\-\-remove\-duplicates\fR
+remove duplicates instead of just marking them
+.
+.TP
+\fB\-t\fR, \fB\-\-nthreads\fR=\fINTHREADS\fR
+number of threads to use
+.
+.TP
+\fB\-l\fR, \fB\-\-compression\-level\fR=\fIN\fR
+specify compression level of the resulting file (from 0 to 9)");
+.
+.TP
+\fB\-p\fR, \fB\-\-show\-progress\fR
+show progressbar in STDERR
+.
+.TP
+\fB\-\-tmpdir\fR=\fITMPDIR\fR
+specify directory for temporary files; default is \fB/tmp\fR
+.
+.TP
+\fB\-\-hash\-table\-size\fR=\fIHASHTABLESIZE\fR
+size of hash table for finding read pairs (default is 262144 reads); will be rounded down to the nearest power of two; should be \fB> (average coverage) * (insert size)\fR for good performance
+.
+.TP
+\fB\-\-overflow\-list\-size\fR=\fIOVERFLOWLISTSIZE\fR
+size of the overflow list where reads, thrown away from the hash table, get a second chance to meet their pairs (default is 200000 reads); increasing the size reduces the number of temporary files created
+.
+.TP
+\fB\-\-io\-buffer\-size\fR=\fIBUFFERSIZE\fR
+controls sizes of two buffers of BUFFERSIZE \fImegabytes\fR each, used for reading and writing BAM during the second pass (default is 128)
+.
+.SH "BUGS"
+External sort is not implemented\. Thus, memory consumption grows by 2Gb per each 100M reads\. Check that you have enough RAM before running the tool\.

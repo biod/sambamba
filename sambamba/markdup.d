@@ -21,6 +21,7 @@ module sambamba.markdup;
 
 import std.stdio;
 import std.getopt;
+import std.path : buildPath;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
 import thirdparty.unstablesort;
@@ -471,6 +472,8 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
                 _front = FrontType(_tmp_r1, r2);
                 if (!_tmp_reads.empty)
                     _tmp_r1 = next(_tmp_reads);
+                else
+                    _tmp_r1.nullify();
                 return;
             } else {
                 static if (keepFragments) {
@@ -717,9 +720,11 @@ PairedEndsInfo combine(ref SingleEndInfo s1, ref SingleEndInfo s2) {
     assert(s1.library_id == s2.library_id);
     assert(s1.paired && s2.paired);
         
-    if (s2.ref_id <= s1.ref_id)
-        if (s2.ref_id < s1.ref_id || s2.coord < s1.coord)
-            swap(s1, s2);
+    if ((s2.ref_id < s1.ref_id) ||
+        ((s2.ref_id == s1.ref_id) &&
+         ((s2.coord < s1.coord) ||
+          (s2.coord == s1.coord && s2.reversed < s1.reversed))))
+        swap(s1, s2);
 
     PairedEndsInfo result = void;
     result.library_id = s1.library_id;
@@ -933,7 +938,7 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
             single_ends.put(end1);
         }
     }
-    
+
     StopWatch sw;
 
     stderr.write("  sorting ", paired_ends.data.length, " end pairs... ");
@@ -1026,7 +1031,7 @@ int markdup_main(string[] args) {
            "hash-table-size", &hash_table_size,
            "overflow-list-size", &cfg.overflow_list_size,
            "io-buffer-size", &io_buffer_size,
-               "compare-with-picard-mode", &cmp_with_picard_mode);
+           "compare-with-picard-mode", &cmp_with_picard_mode);
 
         if (args.length < 3) {
             printUsage();
@@ -1040,9 +1045,10 @@ int markdup_main(string[] args) {
 
         if (cmp_with_picard_mode) {
             static class PicardChecker {
-                enum output_filename = "/tmp/_diff1.bam";
-                enum output_filename2 = "/tmp/_diff2.bam";
-                this(string fn1, string fn2, TaskPool pool) {
+                static string output_filename;
+                this(MarkDuplicatesConfig cfg, string fn1, string fn2, TaskPool pool) {
+                    output_filename = buildPath(cfg.tmpdir, "_diff1.bam");
+                    auto output_filename2 = buildPath(cfg.tmpdir, "_diff2.bam");
                     auto b1 = new BamReader(fn1, pool);
                     auto b2 = new BamReader(fn2, pool);
                     b1.setBufferSize(64_000_000);
@@ -1082,7 +1088,7 @@ int markdup_main(string[] args) {
                     }
                 }
             }
-            auto checker = new PicardChecker(args[1], args[2], pool);
+            auto checker = new PicardChecker(cfg, args[1], args[2], pool);
             args[1] = checker.output_filename;
             args[2] = "/dev/null";
             cfg.pe_callback = (pe_dups) => checker.check(pe_dups);

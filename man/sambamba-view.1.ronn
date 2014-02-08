@@ -98,6 +98,9 @@ Header representation is also an array containing the following:
   * `-I`, `--reference-info`:
     Output to STDOUT reference sequence names and lengths in JSON (see [EXAMPLES][]).
 
+  * `-L`, `--regions`=<BEDFILE>:
+    Intersect a file with regions specified in the BED file.
+
   * `-c`, `--count`:
     Output to STDOUT only the number of matching records, -hHI options are ignored.
 

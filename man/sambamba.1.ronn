@@ -13,8 +13,9 @@ sambamba(1) -- toolkit for working with SAM/BAM files
 * sambamba-index(1)
 * sambamba-merge(1)
 * sambamba-sort(1)
+* sambamba-markdup(1)
 * sambamba-flagstat(1)
 * sambamba-slice(1)
 
-Thus available subcommands are *view*, *index*, *merge*, *sort*, *flagstat*, 
-and *slice*. Their use is explained on the corresponding man pages.
+Thus available subcommands are *view*, *index*, *merge*, *sort*, *markdup*, 
+*flagstat*, and *slice*. Their use is explained on the corresponding man pages.

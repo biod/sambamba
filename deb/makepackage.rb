@@ -61,7 +61,7 @@ GPL
     f.puts 'Source: https://github.com/lomereiter/sambamba'
     f.puts
     f.puts 'Files: *'
-    f.puts 'Copyright: 2012 Artem Tarasov'
+    f.puts 'Copyright: 2012-2014 Artem Tarasov'
     f.puts 'License: GPL-2+'
     f.puts gpl2_notice
   end
@@ -131,7 +131,7 @@ Architecture: #{$arch}
 Installed-Size: #{compute_installed_size}
 Maintainer: Artem Tarasov <lomereiter@gmail.com>
 Description: tool for working with data in SAM/BAM file formats
- It provides viewing, indexing, sorting, and merging utilities 
+ It provides a number of utilities (including sort, merge, and index)
  all of which use parallel compression and decompression of BAM files, 
  wisely using resources of modern multi-core machines.
 CONTROL

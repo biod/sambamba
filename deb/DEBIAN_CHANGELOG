@@ -1,3 +1,46 @@
+sambamba (0.4.5) unstable, urgency=low
+
+  * new -L option in the 'view' tool for intersecting a file with BED
+  * preventing incidental file overwrites by checking output filename
+  * slightly improved performance of converting to SAM/JSON
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Tue, 04 Feb 2014 10:57:21 +0400
+
+sambamba (0.4.4) unstable, urgency=low
+
+  * fixed sorting by name which didn't work in recent releases
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Wed, 18 Dec 2013 20:38:39 +0400
+
+sambamba (0.4.3) unstable, urgency=low
+
+  * improved sorting performance
+  * bug fixed in the 'sort' tool
+  * 'view' supports '*' region, '--unmapped' option removed
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Sun, 01 Dec 2013 17:11:42 +0400
+
+sambamba (0.4.2) unstable; urgency=low
+  
+  * new option '--unmapped' in view tool (for indexed BAMs)
+  * fixed an epic bug in region queries introduced in 0.4.1
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Thu, 14 Nov 2013 02:45:58 +0400
+
+sambamba (0.4.1) unstable, urgency=low
+
+  * integrated new BAM reader (better scaling on multicore)
+  * `index` tool now collects optional statistics (for idxstats)
+  * fixed a bug with outputting SAM when requested JSON
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Wed, 30 Oct 2013 00:42:33 +0400
+
+sambamba (0.4.0) unstable; urgency=low
+
+  * added tool for marking duplicates, which uses Picard criteria
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Wed, 02 Oct 2013 23:07:14 +0400
+
 sambamba (0.3.3) unstable; urgency=low
 
   * reduced buffer size for uncompressed BAM output
