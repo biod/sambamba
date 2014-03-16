@@ -39,5 +39,11 @@ testOverwriteProtection() {
     assertNotSame 0 $?
 }
 
+testSortingEmptyFile() {
+    ./build/sambamba view ex1_header.sorted.bam -f bam -F "ref_id > 3" -o empty.bam 2>/dev/null
+    ./build/sambamba sort empty.bam -o empty2.bam 2>/dev/null
+    assertEquals "0" `./build/sambamba view -c empty2.bam`
+}
+
 
 . shunit2-2.0.3/src/shell/shunit2

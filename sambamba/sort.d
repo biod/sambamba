@@ -273,6 +273,12 @@ class Sorter {
 
         if (sorting_task !is null)
             dump(sorting_task.yieldForce());
+
+        // handle empty BAM file case
+        if (k == 0) {
+            ++k;
+            dump([]);
+        }
     }
 
     // if there's more than one chunk, first call to dump will be when k == 2
@@ -288,7 +294,7 @@ class Sorter {
 
         string fn;
 
-        if (k == 1) { 
+        if (k <= 1) { 
             level = compression_level;
             fn = output_filename;
         } else {
@@ -319,7 +325,7 @@ class Sorter {
 
     private void mergeSortedChunks(alias comparator)() {
 
-        if (num_of_chunks == 1) {
+        if (num_of_chunks <= 1) {
             // dump() wrote it to destination already
             return;
         }
