@@ -1,3 +1,9 @@
+sambamba (0.4.6) unstable, urgency=low
+  * fixed a bug in duplicate marking tool
+  * fixed handling empty BAM files in sort tool
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Mon, 28 Apr 2014 23:47:20 +0400
+
 sambamba (0.4.5) unstable, urgency=low
 
   * new -L option in the 'view' tool for intersecting a file with BED
