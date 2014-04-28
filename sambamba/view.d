@@ -144,6 +144,8 @@ int view_main(string[] args) {
     n_threads = totalCPUs;
 
     subsampling_seed = unpredictableSeed;
+    subsampling_seed <<= 32;
+    subsampling_seed += unpredictableSeed;
     
     try {
 

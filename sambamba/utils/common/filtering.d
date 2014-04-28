@@ -263,7 +263,7 @@ final class SubsampleFilter : Filter {
     private ulong _threshold;
     private ulong _seed;
     
-    this(double subsample_frac, ulong seed=unpredictableSeed) {
+    this(double subsample_frac, ulong seed) {
         _threshold = (0x100000000UL * subsample_frac).to!ulong;
         _seed = seed;
     }
@@ -271,11 +271,12 @@ final class SubsampleFilter : Filter {
     // FNV-1a algorithm
     private ulong simpleHash(string s) const {
         ulong h = 14695981039346656037UL;
-        foreach (char c; s) {
-            h ^= cast(ubyte)c;
+        auto salt = (cast(ubyte*)(&_seed))[0 .. 8];
+        foreach (b; chain(s.representation, salt)) {
+            h ^= b;
             h *= 1099511628211UL;
         }
-        return h + _seed;
+        return h;
     }
         /*
         uint h = 0;
