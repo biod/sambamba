@@ -46,6 +46,7 @@ import std.c.string;
 
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
+import sambamba.utils.common.tmpdir;
 
 import thirdparty.mergesort;
 
@@ -433,6 +434,7 @@ int sort_main(string[] args) {
         }
 
         protectFromOverwrite(args[1], sorter.output_filename);
+        sorter.tmpdir = randomSubdir(sorter.tmpdir);
 
         if (memory_limit_str !is null) {
             sorter.memory_limit = parseMemory(memory_limit_str);

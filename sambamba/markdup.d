@@ -22,6 +22,7 @@ module sambamba.markdup;
 import std.stdio;
 import std.getopt;
 import std.path : buildPath;
+import sambamba.utils.common.tmpdir;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
 import thirdparty.unstablesort;
@@ -1039,6 +1040,7 @@ int markdup_main(string[] args) {
         }
 
         protectFromOverwrite(args[1], args[2]);
+        cfg.tmpdir = randomSubdir(cfg.tmpdir);
 
         auto pool = new TaskPool(n_threads);
         scope(exit) pool.finish();
