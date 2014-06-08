@@ -52,6 +52,17 @@ Add it to `$PATH`, fetch sambamba sources and run `make`, e.g. for Linux 64-bit:
 
 The binary will be in `build/` subdirectory.
 
+# Compiling for old Linux systems with Docker
+    
+If you run into issues because of old GLIBC version or something else, use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation (its compressed size is just ~100Mb):
+
+    docker pull lomereiter/centos5-ldc2-minimal
+    docker run -i -t lomereiter/centos5-ldc2-minimal /bin/bash
+    $ git clone --recursive https://github.com/lomereiter/sambamba.git
+    $ cd sambamba && make sambamba-ldmd2-64
+    $ ^D
+    docker cp `docker ps -l -q`:/sambamba/build/sambamba /usr/local/bin/
+
 # Binaries
 
 See Github [releases](https://github.com/lomereiter/sambamba/releases)
