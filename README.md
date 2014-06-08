@@ -38,23 +38,24 @@ to know more about what is available and how to use it.
 
 For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
-# Quick install from source
+# Binaries
 
-Download LDC2 compiler from Github: https://github.com/ldc-developers/ldc/releases
-Add it to `$PATH`, fetch sambamba sources and run `make`, e.g. for Linux 64-bit:
+See Github [releases](https://github.com/lomereiter/sambamba/releases)
 
-    wget https://github.com/ldc-developers/ldc/releases/download/v0.12.0/ldc2-0.12.0-linux-x86_64.tar.xz
-    tar xJf ldc2-0.12.0-linux-x86_64.tar.xz
+# Compiling for Mac OS X
+
+(The Dropbox archive differs from the official LDC release in that it also contains `rdmd` executable from DMD distribution.)
+
+    wget https://dl.dropboxusercontent.com/u/7916095/ldc2-0.12.1-osx-x86_64.tar.bz2
+    tar xjf ldc2-0.12.1-osx-x86_64.tar.bz2
     git clone --recursive https://github.com/lomereiter/sambamba.git
     cd sambamba
-    export PATH=../ldc2-0.12.0-linux-x86_64/bin:$PATH
+    export PATH=../ldc2-0.12.1-osx-x86_64/bin:$PATH
     make sambamba-ldmd2-64
 
-The binary will be in `build/` subdirectory.
-
-# Compiling for old Linux systems with Docker
+# Compiling for Linux using Docker
     
-If you run into issues because of old GLIBC version or something else, use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation (its compressed size is just ~100Mb):
+Use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation (its compressed size is just ~100Mb):
 
     docker pull lomereiter/centos5-ldc2-minimal
     docker run -i -t lomereiter/centos5-ldc2-minimal /bin/bash
@@ -62,16 +63,6 @@ If you run into issues because of old GLIBC version or something else, use the [
     $ cd sambamba && make sambamba-ldmd2-64
     $ ^D
     docker cp `docker ps -l -q`:/sambamba/build/sambamba /usr/local/bin/
-
-# Binaries
-
-See Github [releases](https://github.com/lomereiter/sambamba/releases)
-
-## Note
-
-If you are going to build LDC compiler from source, add `-O3` flag in 
-`build/runtime/CMakeFiles/phobos-ldc.dir/flags.make` when building LDC, 
-otherwise Zlib library will be compiled without optimizations.
 
 # Copyright
 
