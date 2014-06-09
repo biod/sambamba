@@ -12,5 +12,4 @@ deploy:
   bash:
     script:
       - cd build
-      - tar cjf sambamba_latest_centos5.tar.bz2 sambamba
-      - ../.dropbox.sh sambamba_latest_centos5.tar.bz2
+      - ../.dropbox.sh sambamba
