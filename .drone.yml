@@ -11,5 +11,6 @@ script:
 deploy:
   bash:
     script:
+      - chmod +x .dropbox.sh
       - cd build
       - ../.dropbox.sh sambamba
