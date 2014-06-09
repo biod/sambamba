@@ -1,0 +1,16 @@
+image: lomereiter/centos5-ldc2-minimal
+env:
+  ACCESS_TOKEN={{dropbox_token}}
+
+script:
+  - git submodule update --init
+  - make sambamba-ldmd2-64
+  - curl -L "https://dl.dropboxusercontent.com/u/7916095/shunit2-2.0.3.tgz" | tar zx
+  - ./.run_tests.sh
+
+deploy:
+  bash:
+    script:
+      - cd build
+      - tar cjf sambamba_latest_centos5.tar.bz2 sambamba
+      - ../.dropbox.sh sambamba_latest_centos5.tar.bz2
