@@ -1,3 +1,12 @@
+sambamba (0.4.7) unstable, urgency=low
+  * use random subdirectories for temporary files in both sort and markdup utilities 
+    (allows to run multiple processes in parallel)
+  * fixed bug in slice tool: when slicing last reference, unmapped reads were written too
+  * fixed a bug in uncompressed BAM output
+  * fixed a bug in intersecting with BED
+
+ -- Artem Tarasov <lomereiter@gmail.com>  Fri, 20 Jun 2014 16:27:19 +0400
+
 sambamba (0.4.6) unstable, urgency=low
   * fixed a bug in duplicate marking tool
   * fixed handling empty BAM files in sort tool
