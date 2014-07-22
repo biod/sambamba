@@ -47,6 +47,7 @@ import std.c.string;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
 import sambamba.utils.common.tmpdir;
+import sambamba.utils.common.filtering;
 
 import thirdparty.mergesort;
 
@@ -69,6 +70,8 @@ void printUsage() {
     stderr.writeln("               show progressbar in STDERR");
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("               use specified number of threads");
+    stderr.writeln("         -F, --filter=FILTER");
+    stderr.writeln("               keep only reads that satisfy FILTER");
 }
 
 version(standalone) {
@@ -94,6 +97,7 @@ class Sorter {
     bool uncompressed_chunks = false;
     string output_filename = null;
     string filename = null;
+    string filter_str = null;
 
     struct UnsortedChunk {
         size_t max_sz;
@@ -181,20 +185,25 @@ class Sorter {
     }
 
     void sort() {
+        auto filter = createFilterFromQuery(filter_str);
+
         createHeader();
 
         bam.setBufferSize(16_000_000);
         bam.assumeSequentialProcessing();
+
         if (show_progress) {
             stderr.writeln("Writing sorted chunks to temporary directory...");
             bar = new shared(ProgressBar)();
             auto reads = bam.readsWithProgress(
                                   (lazy float p){ bar.update(p); }
                               );
-            writeSortedChunks(reads);
+            auto filtered_reads = filtered(reads, filter);
+            writeSortedChunks(filtered_reads);
             bar.finish();
         } else {
-            writeSortedChunks(bam.reads!withoutOffsets);
+            auto filtered_reads = filtered(bam.reads!withoutOffsets(), filter);
+            writeSortedChunks(filtered_reads);
         }
 
         scope(success) {
@@ -427,7 +436,8 @@ int sort_main(string[] args) {
                "uncompressed-chunks|u", &sorter.uncompressed_chunks,
                "compression-level|l",   &sorter.compression_level,
                "show-progress|p",       &show_progress,
-               "nthreads|t",            &n_threads);
+               "nthreads|t",            &n_threads,
+               "filter|F",              &sorter.filter_str);
 
         if (sorter.output_filename is null) {
             sorter.output_filename = setExtension(args[1], "sorted.bam");

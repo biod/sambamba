@@ -92,6 +92,7 @@ import core.atomic;
 
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
+import sambamba.utils.common.filtering;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
@@ -104,6 +105,8 @@ void printUsage() {
     stderr.writeln("               output merged header to stdout in SAM format, other options are ignored; mainly for debug purposes");
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("               show progress bar in STDERR");
+    stderr.writeln("         -F, --filter=FILTER");
+    stderr.writeln("               keep only reads that satisfy FILTER");
 }
 
 // these variables can be implicitly used in tasks created in writeBAM
@@ -114,6 +117,7 @@ shared(string[string][]) program_id_map;
 shared(string[string][]) readgroup_id_map;
 
 __gshared static TaskPool task_pool;
+__gshared static Filter read_filter;
 
 BamRead changeAlignment(Tuple!(BamRead, size_t) al_with_file_id) {
     auto al = al_with_file_id[0];
@@ -157,14 +161,10 @@ BamRead changeAlignment(Tuple!(BamRead, size_t) al_with_file_id) {
 }
 
 auto modifyAlignmentRange(T)(T alignments_with_file_id) {
-    version(serial) {
-        return map!changeAlignment(zip(alignments_with_file_id[0], 
-                                       repeat(alignments_with_file_id[1])));
-    } else {
-        return task_pool.map!changeAlignment(zip(alignments_with_file_id[0],
-                                                 repeat(alignments_with_file_id[1])),
-                                            8192);
-    }
+  return task_pool.map!changeAlignment(
+          zip(filtered(alignments_with_file_id[0], read_filter),
+              repeat(alignments_with_file_id[1])),
+          8192);
 }
 
 version(standalone) {
@@ -180,6 +180,7 @@ int merge_main(string[] args) {
     bool validate_headers = false;
     bool header_only = false;
     bool show_progress = false;
+    string filter_str = null;
 
     if (args.length < 4) {
         printUsage();
@@ -194,7 +195,10 @@ int merge_main(string[] args) {
                "compression-level|l",   &compression_level,
                "validate-headers|v",    &validate_headers,
                "header|H",              &header_only,
-               "show-progress|p",       &show_progress);
+               "show-progress|p",       &show_progress,
+               "filter|F",              &filter_str);
+
+        read_filter = createFilterFromQuery(filter_str);
 
         task_pool = new TaskPool(number_of_threads);
         scope(exit) task_pool.finish();
