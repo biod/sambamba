@@ -208,7 +208,7 @@ File output_file() @property {
     return _f;
 }
 
-File _f;
+__gshared static File _f;
 
 // In fact, $(D bam) is either BAM or SAM file
 int sambambaMain(T)(T _bam, TaskPool pool, string[] args) 
