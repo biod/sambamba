@@ -47,18 +47,6 @@ import std.random;
 import std.range;
 import std.conv;
 
-BamRegion[] parseBed(string bed_filename, BamReader bam) {
-    auto index = sambamba.utils.common.bed.readIntervals(bed_filename);
-    BamRegion[] regions;
-    foreach (reference, intervals; index) {
-    auto id = bam[reference].id;
-    foreach (interval; intervals)
-        regions ~= BamRegion(cast(uint)id,
-                             cast(uint)interval.beg, cast(uint)interval.end);
-    }
-    return regions;
-}
-
 void printUsage() {
     stderr.writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
     stderr.writeln();

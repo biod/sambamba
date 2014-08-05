@@ -52,7 +52,7 @@ Interval[] nonOverlappingIntervals(Interval[] list) {
 
 alias Interval[][string] BedIndex;
 
-BedIndex readIntervals(string bed_filename) {
+BedIndex readIntervals(string bed_filename, bool non_overlapping=true) {
     BedIndex index;
 
     auto f = File(bed_filename);
@@ -105,4 +105,19 @@ unittest {
     assert( index["1"].hasOverlap(I(22, 23)));
     assert(!index["1"].hasOverlap(I(22, 22)));
     assert(!index["1"].hasOverlap(I(20, 22)));
+}
+
+import bio.bam.reader;
+import bio.bam.region;
+
+BamRegion[] parseBed(Reader)(string bed_filename, Reader bam) {
+    auto index = sambamba.utils.common.bed.readIntervals(bed_filename);
+    BamRegion[] regions;
+    foreach (reference, intervals; index) {
+        auto id = bam[reference].id;
+        foreach (interval; intervals)
+            regions ~= BamRegion(cast(uint)id,
+                                 cast(uint)interval.beg, cast(uint)interval.end);
+    }
+    return regions;
 }

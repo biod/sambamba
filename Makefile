@@ -47,6 +47,10 @@ sambamba-markdup:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -version=standalone -ofbuild/sambamba-markdup sambamba/markdup.d
 
+sambamba-depth:
+	mkdir -p build/
+	rdmd $(RDMD_FLAGS) -version=standalone -ofbuild/sambamba-depth sambamba/depth.d
+
 .PHONY: clean
 
 clean:
