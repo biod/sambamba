@@ -198,18 +198,6 @@ auto filtered(R)(R reads, Filter f) {
     return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
 }
 
-File output_file() @property {
-    if (_f == File.init) {
-        if (output_filename is null)
-            _f = stdout;
-        else
-            _f = File(output_filename, "w+");
-    }
-    return _f;
-}
-
-__gshared static File _f;
-
 // In fact, $(D bam) is either BAM or SAM file
 int sambambaMain(T)(T _bam, TaskPool pool, string[] args) 
     if (is(T == SamReader) || is(T == BamReader)) 
@@ -220,6 +208,12 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         outputReferenceInfoJson(bam);
         return 0;
     }
+
+    File output_file;
+    if (output_filename is null)
+        output_file = stdout;
+    else
+        output_file = File(output_filename, "w+");
 
     if (header_only && !count_only) {
         // write header to stdout
