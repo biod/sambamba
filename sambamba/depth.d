@@ -34,6 +34,7 @@ import std.algorithm;
 import std.array;
 import std.getopt;
 import std.parallelism;
+import std.typecons;
 
 version(standalone) {
     int main(string[] args) {
