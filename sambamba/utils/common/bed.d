@@ -23,6 +23,7 @@ import std.stdio;
 import std.algorithm;
 import std.string;
 import std.conv;
+import std.math;
 import std.array;
 import std.range;
 
@@ -75,8 +76,10 @@ BedIndex readIntervals(string bed_filename, bool non_overlapping=true) {
             index[chr] ~= interval;
     }
 
-    foreach (k, ref v; index) {
-        v = nonOverlappingIntervals(v);
+    if (non_overlapping) {
+        foreach (k, ref v; index) {
+            v = nonOverlappingIntervals(v);
+        }
     }
     return index;
 }
@@ -110,8 +113,8 @@ unittest {
 import bio.bam.reader;
 import bio.bam.region;
 
-BamRegion[] parseBed(Reader)(string bed_filename, Reader bam) {
-    auto index = sambamba.utils.common.bed.readIntervals(bed_filename);
+BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlapping=true) {
+    auto index = sambamba.utils.common.bed.readIntervals(bed_filename, non_overlapping);
     BamRegion[] regions;
     foreach (reference, intervals; index) {
         auto id = bam[reference].id;
@@ -119,5 +122,20 @@ BamRegion[] parseBed(Reader)(string bed_filename, Reader bam) {
             regions ~= BamRegion(cast(uint)id,
                                  cast(uint)interval.beg, cast(uint)interval.end);
     }
+    std.algorithm.sort(regions);
     return regions;
+}
+
+void getOverlappingRegionIndices(BamRegion[] raw_bed, int ref_id, long position,
+                                 ref size_t[] indices_buf)
+{
+    size_t n = 0;
+    foreach (i; 0 .. raw_bed.length) {
+        auto reg = raw_bed[i];
+        if (reg.ref_id == ref_id && reg.start <= position && reg.end > position) {
+            if (n == indices_buf.length)
+                indices_buf.length = max(1, round(indices_buf.length * 1.6).to!size_t);
+            indices_buf[n++] = i;
+        }
+    }
 }

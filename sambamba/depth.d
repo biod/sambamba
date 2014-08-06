@@ -25,6 +25,7 @@ import bio.bam.region;
 import bio.bam.multireader;
 import sambamba.utils.common.bed;
 import sambamba.utils.common.filtering;
+import sambamba.utils.common.intervaltree;
 
 import std.stdio;
 import std.exception;
@@ -39,6 +40,8 @@ version(standalone) {
         return depth_main(args);
     }
 }
+
+alias uint pos_t;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-depth [options] input.bam  [input2.bam [...]]");
@@ -58,11 +61,142 @@ void printUsage() {
 }
 
 struct RegionStats {
+    private bool first_occurrence = true;
+
     size_t n_bases; // all bases
     size_t n_good_bases; // determined by  mapping quality / base quality threshold
 
+    size_t n_reads; // all reads overlapping
+    size_t n_good_reads;
+
     size_t percentage_covered; // 
     size_t percentage_good_covered; // 
+}
+
+abstract class RegionStatsCollector {
+    void nextColumn(uint ref_id, pos_t position,
+                    scope void delegate(ref RegionStats) updater);
+
+    const(RegionStats)[] regionStatistics();
+}
+
+class GeneralRegionStatsCollector : RegionStatsCollector {
+    private BamRegion[] bed_;
+
+    private {
+        alias Tuple!(RegionStats, size_t) payload;
+        alias IntervalTree!(payload, uint) intervalTree;
+        alias IntervalTreeNode!(payload, uint) intervalTreeNode;
+        intervalTree[] trees_;
+    }
+
+    this(BamRegion[] bed) {
+        bed_ = bed;
+
+        if (bed.length == 0)
+            return;
+
+        trees_.length = bed_.back.ref_id + 1;
+
+        size_t start_index = 0;
+        size_t end_index = start_index;
+
+        intervalTreeNode[] intervals;
+
+        while (start_index < bed.length) {
+            while (end_index < bed.length && bed[end_index].ref_id == bed[start_index].ref_id)
+                ++end_index;
+
+            intervals.length = end_index - start_index;
+            foreach (i; 0 .. intervals.length) {
+                auto start = bed[start_index + i].start;
+                auto stop = bed[start_index + i].end;
+                RegionStats stats;
+                auto value = tuple(stats, start_index + i);
+                intervals[i] = new intervalTreeNode(start, stop, value);
+            }
+
+            trees_[bed[start_index].ref_id] = new intervalTree(intervals);
+            start_index = end_index;
+        }
+    }
+
+    override void nextColumn(uint ref_id, pos_t position,
+                             scope void delegate(ref RegionStats) updater)
+    {
+        if (ref_id >= trees_.length || trees_[ref_id] is null)
+            return;
+
+        trees_[ref_id].findOverlapping(position, position + 1,
+                                       (ref intervalTreeNode node) {
+                                           updater(node.value[0]);
+                                       });
+    }
+
+    override const(RegionStats)[] regionStatistics() {
+        RegionStats[] reg_stats;
+        reg_stats.length = bed_.length;
+        foreach (i; 0 .. trees_.length) {
+            if (trees_[i] !is null) {
+                trees_[i].findOverlapping(pos_t.min, pos_t.max,
+                (ref intervalTreeNode node) {
+                    reg_stats[node.value[1]] = node.value[0];
+                });
+            }
+        }
+        return reg_stats;
+    }
+}
+
+bool isSortedAndNonOverlapping(BamRegion[] bed) {
+    size_t n = bed.length;
+    if (n <= 1) return true;
+    foreach (k; 0 .. n - 1) {
+        auto reg1 = bed[k];
+        auto reg2 = bed[k + 1];
+        if (reg1.ref_id > reg2.ref_id)
+            return false;
+        if (reg1.ref_id < reg2.ref_id)
+            continue;
+        if (reg1.end > reg2.start)
+            return false;
+    }
+    return true;
+}
+
+class NonOverlappingRegionStatsCollector : RegionStatsCollector {
+    private BamRegion[] bed_;
+    private RegionStats[] region_statistics_;
+
+    size_t current_index_;
+
+    this(BamRegion[] bed) {
+        assert(isSortedAndNonOverlapping(bed));
+        bed_ = bed;
+        region_statistics_.length = bed_.length;
+        current_index_ = 0;
+    }
+
+    override void nextColumn(uint ref_id, pos_t position,
+                             scope void delegate(ref RegionStats) updater)
+    {
+        while (bed_.length > 0 &&
+               bed_.front.fullyLeftOf(ref_id, position))
+        {
+            bed_ = bed_[1 .. $];
+            ++current_index_;
+        }
+
+        if (bed_.length > 0 &&
+            bed_.front.overlaps(ref_id, position.to!uint))
+        {
+            updater(region_statistics_[current_index_]);
+        }
+    }
+
+    override const(RegionStats)[] regionStatistics() {
+        return region_statistics_;
+    }
 }
 
 int depth_main(string[] args) {
@@ -72,7 +206,10 @@ int depth_main(string[] args) {
     string region_fn;
     string query;
 
-    BedIndex intervals; // may include overlapping intervals
+    File per_base_output;
+    File per_region_output;
+
+    BamRegion[] raw_bed; // may be overlapping
 
     int n_threads;
     
@@ -91,9 +228,6 @@ int depth_main(string[] args) {
         }
 
         defaultPoolThreads = max(n_threads, 0);
-        if (bed_filename !is null) {
-            intervals = readIntervals(bed_filename, false);
-        }
 
         Filter filter = new NullFilter();
         if (query !is null) {
@@ -109,6 +243,7 @@ int depth_main(string[] args) {
         InputRange!(MultiBamRead!BamRead) reads;
         if (bed_filename !is null) {
             auto bed = parseBed(bed_filename, bam);
+            raw_bed = parseBed(bed_filename, bam, false);
             reads = inputRangeObject(bam.getReadsOverlapping(bed));
         } else {
             reads = inputRangeObject(bam.reads);
@@ -117,16 +252,48 @@ int depth_main(string[] args) {
         auto filtered_reads = filtered(reads, filter);
         auto pileup = makePileup(filtered_reads);
         auto cov = new uint[bam_filenames.length];
+
+        size_t current_region_index = 0;
+
+        size_t[] overlapping_region_indices;
+
+        RegionStatsCollector stats_collector = null;
+        if (bed_filename !is null) {
+            if (isSortedAndNonOverlapping(raw_bed))
+                stats_collector = new NonOverlappingRegionStatsCollector(raw_bed);
+            else
+                stats_collector = new GeneralRegionStatsCollector(raw_bed);
+        }
+
         foreach (column; pileup) {
             auto ref_name = bam.reference_sequences[column.ref_id].name;
             foreach (read; column.reads)
                 cov[read.file_id] += 1;
-            write(ref_name, '\t', column.position);
-            foreach (partial_cov; cov)
-                write("\t", partial_cov);
-            writeln();
+            // write(ref_name, '\t', column.position);
+            // foreach (partial_cov; cov)
+            //     write("\t", partial_cov);
+            // writeln();
             cov[] = 0;
+
+            if (stats_collector !is null && column.ref_id >= 0) {
+                stats_collector.nextColumn(column.ref_id.to!uint,
+                                           column.position.to!pos_t,
+                (ref RegionStats stats) {
+                    with (stats) {
+                        n_bases += column.coverage;
+
+                        if (first_occurrence) {
+                            n_reads += column.coverage;
+                            first_occurrence = false;
+                        } else {
+                            n_reads += column.reads_starting_here.length;
+                        }
+                    }});
+            }
         }
+
+        writeln(stats_collector.regionStatistics());
+
         return 0;
 
     } catch (Exception e) {
@@ -137,4 +304,6 @@ int depth_main(string[] args) {
         }
         return 1;
     }
+
+    return 0;
 }
