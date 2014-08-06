@@ -24,18 +24,19 @@ import sambamba.sort;
 import sambamba.flagstat;
 import sambamba.slice;
 import sambamba.markdup;
+import sambamba.depth;
 
 import sambamba.utils.common.ldc_gc_workaround;
 
 import std.stdio;
 
 void printUsage() {
-    stderr.writeln("sambamba v0.4.7");
+    stderr.writeln("sambamba v0.5.0-dev");
     stderr.writeln();
     stderr.writeln("Usage: sambamba [command] [args...]");
     stderr.writeln();
     stderr.writeln("    Available commands: 'view', 'index', 'merge', 'sort',");
-    stderr.writeln("                        'flagstat', 'slice', 'markdup'");
+    stderr.writeln("                        'flagstat', 'slice', 'markdup', 'depth'");
     stderr.writeln("    To get help on a particular command, just call it without args.");
 }
 
@@ -54,7 +55,8 @@ int main(string[] args) {
         case "sort":     return sort_main(_args);
         case "flagstat": return flagstat_main(_args);
         case "slice":    return slice_main(_args);
-        case "markdup": return markdup_main(_args);
+        case "markdup":  return markdup_main(_args);
+        case "depth":    return depth_main(_args);
         default: 
             printUsage();
             return 1;

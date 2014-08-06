@@ -201,12 +201,12 @@ class NonOverlappingRegionStatsCollector : RegionStatsCollector {
 
 int depth_main(string[] args) {
 
-    string bed_filename;
-    string base_fn;
-    string region_fn;
-    string query;
+    string bed_filename = null;
+    string base_fn = null;
+    string region_fn = null;
+    string query = null;
 
-    File per_base_output;
+    File per_base_output = stdout;
     File per_region_output;
 
     BamRegion[] raw_bed; // may be overlapping
@@ -258,21 +258,31 @@ int depth_main(string[] args) {
         size_t[] overlapping_region_indices;
 
         RegionStatsCollector stats_collector = null;
-        if (bed_filename !is null) {
+        if (bed_filename !is null && region_fn !is null) {
             if (isSortedAndNonOverlapping(raw_bed))
                 stats_collector = new NonOverlappingRegionStatsCollector(raw_bed);
             else
                 stats_collector = new GeneralRegionStatsCollector(raw_bed);
+
+            per_region_output = File(region_fn, "w+");
+        }
+
+        if (base_fn) {
+            per_base_output = File(base_fn, "w+");
         }
 
         foreach (column; pileup) {
             auto ref_name = bam.reference_sequences[column.ref_id].name;
             foreach (read; column.reads)
                 cov[read.file_id] += 1;
-            // write(ref_name, '\t', column.position);
-            // foreach (partial_cov; cov)
-            //     write("\t", partial_cov);
-            // writeln();
+
+            with (per_base_output) {
+                write(ref_name, '\t', column.position);
+                foreach (partial_cov; cov)
+                    write("\t", partial_cov);
+                writeln();
+            }
+
             cov[] = 0;
 
             if (stats_collector !is null && column.ref_id >= 0) {
@@ -292,7 +302,19 @@ int depth_main(string[] args) {
             }
         }
 
-        writeln(stats_collector.regionStatistics());
+        if (stats_collector !is null) {
+            auto region_statistics = stats_collector.regionStatistics();
+            assert(region_statistics.length == raw_bed.length);
+            foreach (i, region; raw_bed) {
+                auto stats = region_statistics[i];
+                with(per_region_output) {
+                    writeln(bam.reference_sequences[region.ref_id].name,
+                            '\t',
+                            region.start, '\t', region.end, '\t',
+                            stats.n_bases, '\t', stats.n_reads);
+                }
+            }
+        }
 
         return 0;
 
