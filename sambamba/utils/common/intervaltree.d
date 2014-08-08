@@ -7,19 +7,33 @@ import std.array;
 import std.conv;
 
 class IntervalTreeNode(T, pos_t) {
-    pos_t start;
-    pos_t stop;
-    T value;
+    static if (is(T == void)) {
+        pos_t start;
+        pos_t stop;
 
-    this(pos_t start, pos_t stop, T value) {
-        this.start = start;
-        this.stop = stop;
-        this.value = value;
-    }
+        this(pos_t start, pos_t stop) {
+            this.start = start;
+            this.stop = stop;
+        }
 
-    override string toString() const {
-        return "(" ~ start.to!string ~ " .. " ~ stop.to!string ~
-               ", " ~ value.to!string ~ ")";
+        override string toString() const {
+            return "(" ~ start.to!string ~ " .. " ~ stop.to!string ~ ")";
+        }
+    } else {
+        pos_t start;
+        pos_t stop;
+        T value;
+
+        this(pos_t start, pos_t stop, T value) {
+            this.start = start;
+            this.stop = stop;
+            this.value = value;
+        }
+
+        override string toString() const {
+            return "(" ~ start.to!string ~ " .. " ~ stop.to!string ~
+                ", " ~ value.to!string ~ ")";
+        }
     }
 }
 
@@ -81,27 +95,46 @@ class IntervalTree(T, pos_t) {
 
             if (lefts.length > 0)
                 left = new intervalTree(lefts, depth, minBucket,
-                                        leftP, centerP);
+                        leftP, centerP);
 
             if (rights.length > 0)
                 right = new intervalTree(rights, depth, minBucket,
-                                         centerP, rightP);
+                        centerP, rightP);
         }
     }
 
-    void findOverlapping(pos_t start, pos_t stop,
-                               scope void delegate(ref interval) cb)
-    {
-        if (!intervals.empty && !(stop <= intervals.front.start)) {
-            foreach (ref iv; intervals)
-                if (iv.stop > start && iv.start < stop)
-                    cb(iv);
+    static struct OverlapWalker {
+        pos_t start;
+        pos_t stop;
+        intervalTree tree;
+        int opApply(scope int delegate(ref interval) dg) {
+            int result = 0;
+            if (!tree.intervals.empty && !(stop <= tree.intervals.front.start)) {
+                foreach (ref iv; tree.intervals)
+                    if (iv.stop > start && iv.start < stop) {
+                        result = dg(iv);
+                        if (result != 0)
+                            return result;
+                    }
 
-            if (left !is null && start < center)
-                left.findOverlapping(start, stop, cb);
+                if (tree.left !is null && start < tree.center) {
+                    result = tree.left.eachOverlap(start, stop).opApply(dg);
+                    if (result != 0)
+                        return result;
+                }
 
-            if (right !is null && stop >= center)
-                right.findOverlapping(start, stop, cb);
+                if (tree.right !is null && stop >= tree.center) {
+                    result = tree.right.eachOverlap(start, stop).opApply(dg);
+                    if (result != 0)
+                        return result;
+                }
+            }
+            return result;
         }
+    }
+
+    auto eachOverlap(pos_t start=pos_t.min, pos_t stop=pos_t.max)
+    {
+        return OverlapWalker(start, stop, this);
     }
 }

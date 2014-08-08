@@ -25,6 +25,7 @@ import sambamba.flagstat;
 import sambamba.slice;
 import sambamba.markdup;
 import sambamba.depth;
+import sambamba.pileup;
 
 import sambamba.utils.common.ldc_gc_workaround;
 
@@ -57,6 +58,7 @@ int main(string[] args) {
         case "slice":    return slice_main(_args);
         case "markdup":  return markdup_main(_args);
         case "depth":    return depth_main(_args);
+        case "pileup":   return pileup_main(_args);
         default: 
             printUsage();
             return 1;

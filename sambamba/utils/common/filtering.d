@@ -20,8 +20,10 @@
 module sambamba.utils.common.filtering;
 
 import bio.bam.splitter;
+import bio.bam.region;
 
 import sambamba.utils.common.queryparser;
+import sambamba.utils.common.intervaltree;
 import std.algorithm;
 import std.stdio;
 import std.random;
@@ -61,12 +63,12 @@ import bio.bam.validation.alignment;
 
 /// Common interface for all filters
 interface Filter {
-    bool accepts(ref BamRead a) const;
+    bool accepts(ref BamRead a);
 }
 
 /// Filter which accepts all alignments
 final class NullFilter : Filter {
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         return true;
     }
 }
@@ -74,7 +76,7 @@ final class NullFilter : Filter {
 /// Validating filter
 final class ValidAlignmentFilter : Filter {
     
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         return isValid(a);
     }
 }
@@ -85,7 +87,7 @@ final class AndFilter : Filter {
 
     this(Filter a, Filter b) { _a = a; _b = b; }
 
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         return _a.accepts(a) && _b.accepts(a);
     }
 }
@@ -96,7 +98,7 @@ final class OrFilter : Filter {
 
     this(Filter a, Filter b) { _a = a, _b = b; }
 
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         return _a.accepts(a) || _b.accepts(a);
     }
 }
@@ -106,14 +108,59 @@ final class NotFilter : Filter {
     private Filter _a;
 
     this(Filter a) { _a = a; }
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         return !_a.accepts(a);
+    }
+}
+
+/// Checks if read overlaps one of regions
+final class BedFilter : Filter {
+    private {
+        alias IntervalTree!(void, uint) intervalTree;
+        alias IntervalTreeNode!(void, uint) intervalTreeNode;
+        intervalTree[] trees_;
+    }
+
+    this(BamRegion[] bed) {
+        // assumes that regions are sorted
+        trees_.length = bed.back.ref_id + 1;
+
+        size_t start_index = 0;
+        size_t end_index = start_index;
+
+        intervalTreeNode[] intervals;
+
+        while (start_index < bed.length) {
+            while (end_index < bed.length && bed[end_index].ref_id == bed[start_index].ref_id)
+                ++end_index;
+
+            intervals.length = end_index - start_index;
+            foreach (i; 0 .. intervals.length) {
+                auto start = bed[start_index + i].start;
+                auto stop = bed[start_index + i].end;
+                intervals[i] = new intervalTreeNode(start, stop);
+            }
+
+            trees_[bed[start_index].ref_id] = new intervalTree(intervals);
+            start_index = end_index;
+        }
+    }
+
+    bool accepts(ref BamRead a) {
+        if (a.ref_id < 0 || a.ref_id >= trees_.length || trees_[a.ref_id] is null)
+            return false;
+        auto start = a.position;
+        auto end = start + a.basesCovered();
+        foreach (overlap; trees_[a.ref_id].eachOverlap(start, end)) {
+            return true;
+        }
+        return false;
     }
 }
 
 /// Filter alignments which has $(D flagname) flag set
 final class FlagFilter(string flagname) : Filter {
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         mixin("return a." ~ flagname ~ ";");
     }
 }
@@ -126,7 +173,7 @@ final class IntegerFieldFilter(string op) : Filter {
         _fieldname = fieldname;
         _value = value;
     }
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         switch(_fieldname) {
             case "ref_id": mixin("return a.ref_id " ~ op ~ "_value;");
             case "position": mixin("return a.position " ~ op ~ "_value;");
@@ -147,7 +194,7 @@ final class TagExistenceFilter(string op) : Filter {
     this(string tagname, typeof(null) dummy) {
         _tagname = tagname;
     }
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         auto v = a[_tagname];
         if (_should_exist) 
             return !v.is_nothing;
@@ -166,7 +213,7 @@ final class IntegerTagFilter(string op) : Filter {
         _value = value;
     }
 
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         auto v = a[_tagname];
         if (!v.is_integer && !v.is_float) 
             return false;
@@ -186,7 +233,7 @@ final class StringFieldFilter(string op) : Filter {
         _fieldname = fieldname;
         _value = value;
     }
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         switch(_fieldname) {
             case "read_name": mixin("return a.name " ~ op ~ " _value;");
             case "sequence": mixin("return cmp(a.sequence, _value) " ~ op ~ " 0;");
@@ -206,7 +253,7 @@ final class StringTagFilter(string op) : Filter {
         _value = value;
     }
 
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         auto v = a[_tagname];
         if (v.is_string) {
             mixin(`return cast(string)v` ~ op ~ `_value;`);
@@ -230,7 +277,7 @@ final class RegexpFieldFilter : Filter {
         _pattern = pattern;
     }
 
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         switch(_fieldname) {
             case "read_name": return !match(a.name, cast()_pattern).empty;
             case "sequence": return !match(to!string(a.sequence), cast()_pattern).empty;
@@ -250,7 +297,7 @@ final class RegexpTagFilter : Filter {
         _pattern = pattern;
     }
 
-    bool accepts(ref BamRead a) const {
+    bool accepts(ref BamRead a) {
         auto v = a[_tagname];
         if (!v.is_string) {
             return false;

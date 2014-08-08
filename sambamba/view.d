@@ -236,7 +236,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
 
     int processAlignments(P)(P processor) {
         static if (is(T == SamReader)) {
-            if (bed_filename.length > 0 || args.length > 2) {
+            if (args.length > 2) {
                 stderr.writeln("region queries are unavailable for SAM input");
                 return 1;
             }
@@ -251,12 +251,21 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 processor.process(reads.filtered(filter), bam);
         }
 
-        bool output_all_reads = bed_filename.empty && args.length == 2;
+        bool output_all_reads = args.length == 2 && 
+          (bed_filename.empty || bam.header.sorting_order != SortingOrder.coordinate);
+        static if (is(T == SamReader))
+          output_all_reads = true;
+
         if (bed_filename.length > 0 && args.length > 2) {
             throw new Exception("specifying both region and BED filename is disallowed");
         }
 
         if (output_all_reads) {
+            if (bed_filename !is null) {
+                auto regions = parseBed(bed_filename, bam);
+                read_filter = new AndFilter(read_filter, new BedFilter(regions));
+            }
+
             static if (is(T == BamReader)) {
                 if (show_progress) {
                     auto bar = new shared(ProgressBar)();
@@ -269,8 +278,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
             } else { // SamFile
                 runProcessor(bam, bam.reads, read_filter);
             }
-        } 
-
+        } else {
         // for BAM, random access is available
         static if (is(T == BamReader)) {
             if (args.length > 2) {
@@ -298,6 +306,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 auto reads = bam.getReadsOverlapping(regions);
                 runProcessor(bam, reads, read_filter);
             }
+        }
         }
 
         return 0;

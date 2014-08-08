@@ -128,10 +128,8 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
         if (ref_id >= trees_.length || trees_[ref_id] is null)
             return;
 
-        trees_[ref_id].findOverlapping(position, position + 1,
-                                       (ref intervalTreeNode node) {
-                                           updater(node.value[0]);
-                                       });
+        foreach (node; trees_[ref_id].eachOverlap(position, position + 1))
+            updater(node.value[0]);
     }
 
     override const(RegionStats)[] regionStatistics() {
@@ -139,10 +137,8 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
         reg_stats.length = bed_.length;
         foreach (i; 0 .. trees_.length) {
             if (trees_[i] !is null) {
-                trees_[i].findOverlapping(pos_t.min, pos_t.max,
-                (ref intervalTreeNode node) {
+                foreach (node; trees_[i].eachOverlap(pos_t.min, pos_t.max))
                     reg_stats[node.value[1]] = node.value[0];
-                });
             }
         }
         return reg_stats;
