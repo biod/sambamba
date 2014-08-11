@@ -60,20 +60,19 @@ void printUsage() {
     stderr.writeln("                    specify output filename for per-region output");
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
+    stderr.writeln("         -c, --cov-threshold=COVTHRESHOLD");
+    stderr.writeln("                    multiple thresholds can be provided,");
+    stderr.writeln("                    for each one an extra column will be added,");
+    stderr.writeln("                    the percentage of bases in the region");
+    stderr.writeln("                    where coverage is more than this value");
 }
 
 struct RegionStats {
-    size_t id;
+    uint id;
     private bool first_occurrence = true;
 
-    size_t n_bases; // all bases
-    size_t n_good_bases; // determined by  mapping quality / base quality threshold
-
-    size_t n_reads; // all reads overlapping
-    size_t n_good_reads;
-
-    size_t percentage_covered; // 
-    size_t percentage_good_covered; // 
+    uint n_reads;
+    size_t n_bases;
 }
 
 abstract class RegionStatsCollector {
@@ -103,7 +102,7 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
 
         trees_.length = bed_.back.ref_id + 1;
 
-        size_t start_index = 0;
+        size_t start_index = bed[0].ref_id;
         size_t end_index = start_index;
 
         intervalTreeNode[] intervals;
@@ -117,7 +116,7 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
                 auto start = bed[start_index + i].start;
                 auto stop = bed[start_index + i].end;
                 RegionStats stats;
-                stats.id = start_index + i;
+                stats.id = cast(uint)(start_index + i);
                 auto value = tuple(stats, start_index + i);
                 intervals[i] = new intervalTreeNode(start, stop, value);
             }
@@ -215,7 +214,12 @@ int depth_main(string[] args) {
     BamRegion[] raw_bed; // may be overlapping
     string[] raw_bed_lines;
 
+    // for each coverage threshold, we hold here numbers of bases with
+    // cov. >= that threshold, for each region
+    uint[][] coverage_counters;
+
     int n_threads;
+    uint[] cov_thresholds;
     
     try {
         getopt(args,
@@ -224,7 +228,8 @@ int depth_main(string[] args) {
                "regions|L",              &bed_filename,
                "per-base-output-fn|b",   &base_fn,
                "per-region-output-fn|r", &region_fn,
-               "nthreads|t",             &n_threads);
+               "nthreads|t",             &n_threads,
+               "coverage-thresholds|c",  &cov_thresholds);
 
         if (args.length < 2) {
             printUsage();
@@ -253,8 +258,10 @@ int depth_main(string[] args) {
             reads = inputRangeObject(bam.reads);
         }
 
+        coverage_counters = new uint[][](cov_thresholds.length, raw_bed.length);
+
         auto filtered_reads = filtered(reads, filter);
-        auto pileup = makePileup(filtered_reads);
+        auto pileup = pileupColumns(filtered_reads);
         auto cov = new uint[bam_filenames.length];
 
         size_t current_region_index = 0;
@@ -275,6 +282,8 @@ int depth_main(string[] args) {
             per_base_output = File(base_fn, "w+");
         }
 
+        int last_ref_id = -2;
+
         foreach (column; pileup) {
             auto ref_name = bam.reference_sequences[column.ref_id].name;
             foreach (read; column.reads)
@@ -289,18 +298,31 @@ int depth_main(string[] args) {
 
             cov[] = 0;
 
+            if (column.ref_id != last_ref_id) {
+                last_ref_id = column.ref_id;
+                stderr.writeln("Processing reference #", column.ref_id + 1,
+                               " (", bam.reference_sequences[column.ref_id].name,
+                               ")");
+            }
+
             if (stats_collector !is null && column.ref_id >= 0) {
                 stats_collector.nextColumn(column.ref_id.to!uint,
                                            column.position.to!pos_t,
                 (ref RegionStats stats) {
                     with (stats) {
-                        n_bases += column.coverage;
+                        auto cov = column.coverage;
+                        n_bases += cov;
 
                         if (first_occurrence) {
-                            n_reads += column.coverage;
+                            n_reads += cov;
                             first_occurrence = false;
                         } else {
                             n_reads += column.reads_starting_here.length;
+                        }
+
+                        foreach (i, threshold; cov_thresholds) {
+                            if (cov >= threshold)
+                                coverage_counters[i][stats.id] += 1;
                         }
                     }});
             }
@@ -311,12 +333,17 @@ int depth_main(string[] args) {
             assert(region_statistics.length == raw_bed.length);
             foreach (i, region; raw_bed) {
                 auto stats = region_statistics[i];
+                auto length = region.end - region.start;
                 with(per_region_output) {
                     write(raw_bed_lines[i]);
                     // writeln('\t', stats.n_bases, '\t', stats.n_reads);
+                    auto mean_cov = stats.n_bases.to!float / length;
                     if (!isWhite(raw_bed_lines[i].back))
                         write('\t');
-                    writeln(stats.n_reads);
+                    write(stats.n_reads, '\t', mean_cov);
+                    foreach (j; 0 .. cov_thresholds.length)
+                        write('\t', coverage_counters[j][i].to!float * 100 / length);
+                    writeln();
                 }
             }
         }
