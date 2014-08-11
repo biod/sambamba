@@ -319,8 +319,11 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
             return 1;
         writeln(counter.number_of_reads);
     } else {
-        if (format == "bam")             // will close the file
+        if (format == "bam") {
+            // FIXME: dirty hack to avoid closing file twice, depends on std.stdio.File internals
+            scope(exit) *(*cast(void***)(&output_file)) = null;
             return processAlignments(new BamSerializer(output_file, compression_level, pool));
+        }
 
         scope (exit) output_file.close();
         switch (format) {
