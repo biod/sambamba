@@ -29,6 +29,7 @@ import sambamba.utils.common.intervaltree;
 
 import std.stdio;
 import std.exception;
+import std.ascii: isWhite;
 import std.range;
 import std.algorithm;
 import std.array;
@@ -62,6 +63,7 @@ void printUsage() {
 }
 
 struct RegionStats {
+    size_t id;
     private bool first_occurrence = true;
 
     size_t n_bases; // all bases
@@ -85,7 +87,9 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
     private BamRegion[] bed_;
 
     private {
+        // stores region statistics and index of the region in initial array
         alias Tuple!(RegionStats, size_t) payload;
+
         alias IntervalTree!(payload, uint) intervalTree;
         alias IntervalTreeNode!(payload, uint) intervalTreeNode;
         intervalTree[] trees_;
@@ -113,6 +117,7 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
                 auto start = bed[start_index + i].start;
                 auto stop = bed[start_index + i].end;
                 RegionStats stats;
+                stats.id = start_index + i;
                 auto value = tuple(stats, start_index + i);
                 intervals[i] = new intervalTreeNode(start, stop, value);
             }
@@ -128,8 +133,9 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
         if (ref_id >= trees_.length || trees_[ref_id] is null)
             return;
 
-        foreach (node; trees_[ref_id].eachOverlap(position, position + 1))
+        foreach (node; trees_[ref_id].eachOverlap(position, position + 1)) {
             updater(node.value[0]);
+        }
     }
 
     override const(RegionStats)[] regionStatistics() {
@@ -207,6 +213,7 @@ int depth_main(string[] args) {
     File per_region_output;
 
     BamRegion[] raw_bed; // may be overlapping
+    string[] raw_bed_lines;
 
     int n_threads;
     
@@ -240,7 +247,7 @@ int depth_main(string[] args) {
         InputRange!(MultiBamRead!BamRead) reads;
         if (bed_filename !is null) {
             auto bed = parseBed(bed_filename, bam);
-            raw_bed = parseBed(bed_filename, bam, false);
+            raw_bed = parseBed(bed_filename, bam, false, &raw_bed_lines);
             reads = inputRangeObject(bam.getReadsOverlapping(bed));
         } else {
             reads = inputRangeObject(bam.reads);
@@ -305,10 +312,11 @@ int depth_main(string[] args) {
             foreach (i, region; raw_bed) {
                 auto stats = region_statistics[i];
                 with(per_region_output) {
-                    writeln(bam.reference_sequences[region.ref_id].name,
-                            '\t',
-                            region.start, '\t', region.end, '\t',
-                            stats.n_bases, '\t', stats.n_reads);
+                    write(raw_bed_lines[i]);
+                    // writeln('\t', stats.n_bases, '\t', stats.n_reads);
+                    if (!isWhite(raw_bed_lines[i].back))
+                        write('\t');
+                    writeln(stats.n_reads);
                 }
             }
         }

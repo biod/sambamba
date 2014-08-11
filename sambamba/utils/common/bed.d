@@ -53,16 +53,15 @@ Interval[] nonOverlappingIntervals(Interval[] list) {
 
 alias Interval[][string] BedIndex;
 
-BedIndex readIntervals(string bed_filename, bool non_overlapping=true) {
+BedIndex readIntervals(string bed_filename, bool non_overlapping=true, string[]* lines=null) {
     BedIndex index;
 
-    auto f = File(bed_filename);
-    foreach (line; f.byLine()) {
-        auto str = cast(string)line;
+    auto bed = cast(string)(std.file.readText(bed_filename));
+    foreach (str; bed.splitter('\n')) {
         auto fields = split(str);
         if (fields.length < 2)
             continue;
-        string chr = fields[0].dup;
+        string chr = fields[0];
         Interval interval;
         if (fields.length >= 3) {
             interval.beg = to!long(fields[1]);
@@ -72,8 +71,14 @@ BedIndex readIntervals(string bed_filename, bool non_overlapping=true) {
             interval.end = interval.beg + 1;
         }
 
+        if (interval.beg == interval.end)
+            interval.end = interval.beg + 1;
         if (interval.beg < interval.end)
             index[chr] ~= interval;
+
+        if (lines !is null) {
+            (*lines) ~= str;
+        }
     }
 
     if (non_overlapping) {
@@ -113,8 +118,8 @@ unittest {
 import bio.bam.reader;
 import bio.bam.region;
 
-BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlapping=true) {
-    auto index = sambamba.utils.common.bed.readIntervals(bed_filename, non_overlapping);
+BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlapping=true, string[]* bed_lines=null) {
+    auto index = sambamba.utils.common.bed.readIntervals(bed_filename, non_overlapping, bed_lines);
     BamRegion[] regions;
     foreach (reference, intervals; index) {
         if (!bam.hasReference(reference))

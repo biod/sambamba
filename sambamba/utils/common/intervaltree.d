@@ -51,20 +51,19 @@ class IntervalTree(T, pos_t) {
         center = 0;
     }
 
-    this(interval[] ivals, uint depth=16, uint minBucket=64,
+    this(ref interval[] ivals, uint depth=16, uint minBucket=2,//64,
          int leftExtent=0, int rightExtent=0)
     {
         left = right = null;
-        intervals.length = ivals.length;
-        intervals[] = ivals;
 
         --depth;
         if (depth == 0 || ivals.length < minBucket)
         {
-            sort!((a, b) => a.start < b.start)(intervals[]);
+            sort!((a, b) => a.start < b.start)(ivals[]);
+            intervals = ivals.dup;
         } else {
             if (leftExtent == 0 && rightExtent == 0) {
-                sort!((a, b) => a.start < b.start)(intervals[]);
+                sort!((a, b) => a.start < b.start)(ivals[]);
             }
 
             int leftP = 0;
@@ -75,11 +74,11 @@ class IntervalTree(T, pos_t) {
                 leftP = leftExtent;
                 rightP = rightExtent;
             } else {
-                leftP = intervals.front.start;
-                rightP = intervals.map!(iv => iv.stop).reduce!max;
+                leftP = ivals.front.start;
+                rightP = ivals.map!(iv => iv.stop).reduce!max;
             }
 
-            centerP = intervals[intervals.length / 2].start;
+            centerP = ivals[ivals.length / 2].start;
             center = centerP;
 
             interval[] lefts;
@@ -116,19 +115,20 @@ class IntervalTree(T, pos_t) {
                         if (result != 0)
                             return result;
                     }
-
-                if (tree.left !is null && start < tree.center) {
-                    result = tree.left.eachOverlap(start, stop).opApply(dg);
-                    if (result != 0)
-                        return result;
-                }
-
-                if (tree.right !is null && stop >= tree.center) {
-                    result = tree.right.eachOverlap(start, stop).opApply(dg);
-                    if (result != 0)
-                        return result;
-                }
             }
+
+            if (tree.left !is null && start < tree.center) {
+                result = tree.left.eachOverlap(start, stop).opApply(dg);
+                if (result != 0)
+                    return result;
+            }
+
+            if (tree.right !is null && stop >= tree.center) {
+                result = tree.right.eachOverlap(start, stop).opApply(dg);
+                if (result != 0)
+                    return result;
+            }
+
             return result;
         }
     }
