@@ -5,6 +5,10 @@ import std.file;
 import std.process;
 import std.conv;
 
+string defaultTmpDir() {
+    return environment.get("TMPDIR", "/tmp");
+}
+
 string randomSubdir(string tmpdir) {
     auto gen = Random(unpredictableSeed);
     char[4] subdirname;

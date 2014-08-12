@@ -20,6 +20,7 @@
 module sambamba.pileup;
 
 import sambamba.utils.common.bed;
+import sambamba.utils.common.tmpdir;
 
 import bio.bam.multireader;
 import bio.bam.reader;
@@ -368,7 +369,7 @@ int pileup_main(string[] args) {
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(args[1 .. $]);
 
-        char[] buf = "/tmp/sambamba-fork-XXXXXX\0".dup;
+        char[] buf = defaultTmpDir() ~ "/sambamba-fork-XXXXXX\0".dup;
         mkdtemp(buf.ptr);
 
         string tmp_dir = to!string(buf.ptr);

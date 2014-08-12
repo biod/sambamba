@@ -92,12 +92,16 @@ class Sorter {
     BamReader bam;
     TaskPool task_pool;
     size_t memory_limit = 512 * 1024 * 1024;
-    string tmpdir = "/tmp";
+    string tmpdir;
     int compression_level = -1;
     bool uncompressed_chunks = false;
     string output_filename = null;
     string filename = null;
     string filter_str = null;
+
+    this() {
+        tmpdir = defaultTmpDir();
+    }
 
     struct UnsortedChunk {
         size_t max_sz;

@@ -277,7 +277,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
     }
 
     this(R reads, ubyte table_size_log2, size_t overflow_list_size,
-         string tmp_dir = "/tmp", TaskPool task_pool = taskPool)
+         string tmp_dir, TaskPool task_pool = taskPool)
     {
         enforce(overflow_list_size > 0);
         _tmp_dir = tmp_dir;
@@ -513,15 +513,15 @@ if (isInputRange!R && is(ElementType!R == ubyte))
 }
 
 auto readPairs(alias hashFunc=simpleHash, R)
-(R reads, ubyte table_size_log2=18, size_t overflow_list_size=200000,
- string tmp_dir="/tmp", TaskPool task_pool=taskPool) {
+(R reads, ubyte table_size_log2, size_t overflow_list_size,
+ string tmp_dir, TaskPool task_pool=taskPool) {
     return CollateReadPairRange!(R, false, hashFunc)
             (reads, table_size_log2, overflow_list_size, tmp_dir, task_pool);
 }
 
 auto readPairsAndFragments(alias hashFunc=simpleHash, R)
-(R reads, ubyte table_size_log2=18, size_t overflow_list_size=200000,
- string tmp_dir="/tmp", TaskPool task_pool=taskPool) {
+(R reads, ubyte table_size_log2, size_t overflow_list_size,
+ string tmp_dir, TaskPool task_pool=taskPool) {
     return CollateReadPairRange!(R, true, hashFunc)
             (reads, table_size_log2, overflow_list_size, tmp_dir, task_pool);
 }
@@ -633,7 +633,7 @@ bool pairedEndsInfoComparator(P1, P2)(auto ref P1 p1, auto ref P2 p2) {
 struct MarkDuplicatesConfig {
     ubyte hash_table_size_log2 = 18;
     size_t overflow_list_size = 200_000;
-    string tmpdir = "/tmp";
+    string tmpdir;
 
     // called on each group of PE duplicates
     void delegate(PairedEndsInfo[]) pe_callback = null;
@@ -984,7 +984,7 @@ void printUsage() {
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("                    show progressbar in STDERR");
     stderr.writeln("         --tmpdir=TMPDIR");
-    stderr.writeln("                    specify directory for temporary files; default is /tmp");
+    stderr.writeln("                    specify directory for temporary files");
     stderr.writeln();
     stderr.writeln("Performance tweaking parameters");
     stderr.writeln("         --hash-table-size=HASH_TABLE_SIZE");
@@ -1009,6 +1009,8 @@ version(standalone) {
 int markdup_main(string[] args) {
 
     MarkDuplicatesConfig cfg;
+    cfg.tmpdir = defaultTmpDir();
+
     bool remove_duplicates;
     size_t n_threads = totalCPUs;
     bool show_progress;
