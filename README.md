@@ -1,9 +1,10 @@
 # Sambamba
 
 Sambamba is a high performance modern robust and fast tool (and
-library), written in the D programming language, for working
-with BAM files.  Current functionality is an important subset of
-samtools functionality. 
+library), written in the D programming language, for working with SAM
+and BAM files.  Current parallelised functionality is an important
+subset of samtools functionality, including view, index, sort,
+markdup, and mpileup. 
 
 Because of efficient use of modern multicore CPUs, usually `sambamba` is much faster
 than `samtools`. For example, indexing a 2.5 Gb BAM file (fully cached into RAM) 
@@ -18,6 +19,7 @@ on a 8 core machine utilizes all cores at 64% CPU:
 meanwhile samtools is *4x* slower:
 
     time samtools index merged_NIT20120138_F3_20130715.bam
+
       real    1m8.083s
       user    1m6.640s
       sys     0m1.448s
