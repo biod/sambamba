@@ -41,6 +41,19 @@ class IntervalTree(T, pos_t) {
     alias IntervalTreeNode!(T, pos_t) interval;
     alias IntervalTree!(T, pos_t) intervalTree;
 
+    void print(int depth=0) {
+        import std.stdio;
+        writeln(repeat(' ', depth), "INTERVALS: ", intervals);
+        if (left !is null) {
+            writeln(repeat(' ', depth), "LEFT");
+            left.print(depth + 4);
+        }
+        if (right !is null) {
+            writeln(repeat(' ', depth), "RIGHT");
+            right.print(depth + 4);
+        }
+    }
+
     interval[] intervals;
     intervalTree left;
     intervalTree right;
