@@ -44,7 +44,12 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 See Github [releases](https://github.com/lomereiter/sambamba/releases)
 
-# Compiling for Mac OS X
+# Compiling Sambamba
+
+The preferred method for compiling Sambamba is with the LDC compiler
+which targets LLVM.
+
+## Compiling for Mac OS X
 
 (The Dropbox archive differs from the official LDC release in that it also contains `rdmd` executable from DMD distribution.)
 
@@ -55,8 +60,8 @@ See Github [releases](https://github.com/lomereiter/sambamba/releases)
     export PATH=../ldc2-0.12.1-osx-x86_64/bin:$PATH
     make sambamba-ldmd2-64
 
-# Compiling for Linux using Docker
-    
+## Compiling for Linux using Docker
+
 Use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation (its compressed size is just ~100Mb):
 
     docker pull lomereiter/centos5-ldc2-minimal
@@ -65,6 +70,13 @@ Use the [Docker](https://www.docker.io/) image which contains all binaries neces
     $ cd sambamba && make sambamba-ldmd2-64
     $ ^D
     docker cp `docker ps -l -q`:/sambamba/build/sambamba /usr/local/bin/
+
+# Development
+
+Sambamba development and issue tracker is on
+[github](https://github.com/lomereiter/sambamba). Developer
+documentation can be found in the source code and the [development
+documentation](https://github.com/lomereiter/sambamba-dev-docs).
 
 # Copyright
 
