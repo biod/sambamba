@@ -776,8 +776,8 @@ VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
                                   MarkDuplicatesConfig cfg)
 {
     // yeah, that's dirty, but allows to minimize memory usage
-    auto pvo = cast(VirtualOffset*)cast(void*)_pe.data.ptr;
-    auto svo = cast(VirtualOffset*)cast(void*)_se.data.ptr;
+    auto pvo = cast(VirtualOffset*)cast(void*)_pe.data.ptr; // paired end
+    auto svo = cast(VirtualOffset*)cast(void*)_se.data.ptr; // single end
     size_t n_vo_pe, n_vo_se; // how much VOs we store in each array
 
     auto pe = _pe.data;
@@ -787,6 +787,7 @@ VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
     size_t pe_total_mem = pe.length * PairedEndsInfo.sizeof;
     size_t se_total_mem = se.length * SingleEndInfo.sizeof;
 
+    // callback functions for every duplicate
     auto pe_callback = cfg.pe_callback;
     auto se_callback = cfg.se_callback;
 
@@ -1099,20 +1100,21 @@ int markdup_main(string[] args) {
             cfg.se_callback = (se_dups, has_paired) => checker.check(se_dups, has_paired);
         }
 
-        io_buffer_size <<= 20; // -> megabytes
+        io_buffer_size <<= 20; // -> convert to megabytes
 
-        cfg.hash_table_size_log2 = 10;
+        cfg.hash_table_size_log2 = 10; // FIXME: overrides default value of 18
         while ((2UL << cfg.hash_table_size_log2) <= hash_table_size)
             cfg.hash_table_size_log2 += 1;
         // 2^^(cfg.hash_table_size_log2 + 1) > hash_table_size
 
+        // Set up the BAM reader and pass in the thread pool
         auto bam = new BamReader(args[1], pool);
         auto n_refs = bam.reference_sequences.length;
         enforce(n_refs < 16384, "More than 16383 reference sequences are unsupported");
 
         auto rg_index = new ReadGroupIndex(bam.header);
 
-        VirtualOffset[] offsets;
+        VirtualOffset[] offsets; // Harvest (bgzf) BAM read offsets
 
         stderr.writeln("finding positions of the duplicate reads in the file...");
         if (!show_progress)
