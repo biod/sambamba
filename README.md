@@ -1,9 +1,10 @@
 # Sambamba
 
 Sambamba is a high performance modern robust and fast tool (and
-library), written in the D programming language, for working
-with BAM files.  Current functionality is an important subset of
-samtools functionality. 
+library), written in the D programming language, for working with SAM
+and BAM files.  Current parallelised functionality is an important
+subset of samtools functionality, including view, index, sort,
+markdup, and mpileup. 
 
 Because of efficient use of modern multicore CPUs, usually `sambamba` is much faster
 than `samtools`. For example, indexing a 2.5 Gb BAM file (fully cached into RAM) 
@@ -18,6 +19,7 @@ on a 8 core machine utilizes all cores at 64% CPU:
 meanwhile samtools is *4x* slower:
 
     time samtools index merged_NIT20120138_F3_20130715.bam
+
       real    1m8.083s
       user    1m6.640s
       sys     0m1.448s
@@ -42,7 +44,12 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 See Github [releases](https://github.com/lomereiter/sambamba/releases)
 
-# Compiling for Mac OS X
+# Compiling Sambamba
+
+The preferred method for compiling Sambamba is with the LDC compiler
+which targets LLVM.
+
+## Compiling for Mac OS X
 
 (The Dropbox archive differs from the official LDC release in that it also contains `rdmd` executable from DMD distribution.)
 
@@ -53,8 +60,8 @@ See Github [releases](https://github.com/lomereiter/sambamba/releases)
     export PATH=../ldc2-0.12.1-osx-x86_64/bin:$PATH
     make sambamba-ldmd2-64
 
-# Compiling for Linux using Docker
-    
+## Compiling for Linux using Docker
+
 Use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation (its compressed size is just ~100Mb):
 
     docker pull lomereiter/centos5-ldc2-minimal
@@ -63,6 +70,13 @@ Use the [Docker](https://www.docker.io/) image which contains all binaries neces
     $ cd sambamba && make sambamba-ldmd2-64
     $ ^D
     docker cp `docker ps -l -q`:/sambamba/build/sambamba /usr/local/bin/
+
+# Development
+
+Sambamba development and issue tracker is on
+[github](https://github.com/lomereiter/sambamba). Developer
+documentation can be found in the source code and the [development
+documentation](https://github.com/lomereiter/sambamba-dev-docs).
 
 # Copyright
 
