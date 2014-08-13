@@ -53,19 +53,19 @@ which targets LLVM.
 
 (The Dropbox archive differs from the official LDC release in that it also contains `rdmd` executable from DMD distribution.)
 
-    wget https://dl.dropboxusercontent.com/u/7916095/ldc2-0.12.1-osx-x86_64.tar.bz2
-    tar xjf ldc2-0.12.1-osx-x86_64.tar.bz2
+    wget https://dl.dropboxusercontent.com/u/7916095/ldc2-0.13.0-osx-x86_64.tar.bz2
+    tar xjf ldc2-0.13.0-osx-x86_64.tar.bz2
     git clone --recursive https://github.com/lomereiter/sambamba.git
     cd sambamba
-    export PATH=../ldc2-0.12.1-osx-x86_64/bin:$PATH
+    export PATH=../ldc2-0.13.0-osx-x86_64/bin:$PATH
     make sambamba-ldmd2-64
 
 ## Compiling for Linux using Docker
 
-Use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation (its compressed size is just ~100Mb):
+Use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation:
 
-    docker pull lomereiter/centos5-ldc2-minimal
-    docker run -i -t lomereiter/centos5-ldc2-minimal /bin/bash
+    docker pull lomereiter/centos-ldc
+    docker run -i -t lomereiter/centos-ldc /bin/bash
     $ git clone --recursive https://github.com/lomereiter/sambamba.git
     $ cd sambamba && make sambamba-ldmd2-64
     $ ^D
