@@ -289,12 +289,27 @@ class PerWindowPrinter : ColumnPrinter {
 }
 
 class PerSampleRegionData {
+    this(size_t n_coverage_counters, size_t n_regions) {
+        coverage_counters_ = new uint[][](n_coverage_counters, n_regions);
+        n_reads_.length = n_regions;
+        n_bases_.length = n_regions;
+    }
+
     // for each coverage threshold, we hold here numbers of bases with
     // cov. >= that threshold, for each region
-    uint[][] coverage_counters;
-    uint[] n_reads; // for each region
-    uint[] n_bases; // ditto
+    uint[][] coverage_counters_;
+    private uint[] n_reads_; // for each region
+    private uint[] n_bases_; // ditto
+
+
+    ref uint coverage_count(size_t cov_id, size_t region_id) {
+        return coverage_counters_[cov_id][region_id];
+    }
+
+    ref uint n_reads(size_t id) { return n_reads_[id]; }
+    ref uint n_bases(size_t id) { return n_bases_[id]; }
 }
+// in case of windows, we have at most size / (size - overlap) windows
 
 class PerRegionPrinter : ColumnPrinter {
     RegionStatsCollector stats_collector;
@@ -321,18 +336,15 @@ class PerRegionPrinter : ColumnPrinter {
     private void countRead(R)(auto ref R read, size_t id) {
         auto sample = getSampleName(read);
         auto data = getSampleData(sample);
-        data.n_reads[id] += 1;
-        data.n_bases[id] += overlap(raw_bed[id], read);
+        data.n_reads(id) += 1;
+        data.n_bases(id) += overlap(raw_bed[id], read);
     }
 
     PerSampleRegionData getSampleData(string sample) {
         auto ptr = sample in samples;
         if (ptr)
             return *ptr;
-        auto data = new PerSampleRegionData();
-        data.coverage_counters = new uint[][](cov_thresholds.length, raw_bed.length);
-        data.n_reads.length = raw_bed.length;
-        data.n_bases.length = raw_bed.length;
+        auto data = new PerSampleRegionData(cov_thresholds.length, raw_bed.length);
         samples[sample] = data;
         return data;
     }
@@ -387,28 +399,40 @@ class PerRegionPrinter : ColumnPrinter {
                 auto data = getSampleData(sample);
                 foreach (i, threshold; cov_thresholds)
                     if (cov >= threshold)
-                        data.coverage_counters[i][id] += 1;
+                        data.coverage_count(i, id) += 1;
             }
         });
+    }
+
+    void writeOriginalBedLine(size_t id) {
+        write(raw_bed_lines[id]);
+        if (!isWhite(raw_bed_lines[id].back))
+            write('\t');
+    }
+
+    BamRegion getRegionById(size_t id) {
+        return raw_bed[id];
+    }
+
+    void printRegionStats(ref File f, size_t id, PerSampleRegionData data) {
+        auto region = getRegionById(id);
+        auto length = region.end - region.start;
+        with(f) {
+            writeOriginalBedLine(id);
+            auto mean_cov = data.n_bases(id).to!float / length;
+            write(data.n_reads(id), '\t', mean_cov);
+            foreach (j; 0 .. cov_thresholds.length)
+                write('\t', data.coverage_count(j, id).to!float * 100 / length);
+            writeln();
+        }
     }
 
     override void close() {
         foreach (sample_name, data; samples) {
             auto output_fn = output_prefix ~ sample_name ~ ".bed";
             auto f = File(output_fn, "w+");
-            foreach (i, region; raw_bed) {
-                auto length = region.end - region.start;
-                with(f) {
-                    write(raw_bed_lines[i]);
-                    auto mean_cov = data.n_bases[i].to!float / length;
-                    if (!isWhite(raw_bed_lines[i].back))
-                        write('\t');
-                    write(data.n_reads[i], '\t', mean_cov);
-                    auto coverage_counters = data.coverage_counters;
-                    foreach (j; 0 .. cov_thresholds.length)
-                        write('\t', coverage_counters[j][i].to!float * 100 / length);
-                    writeln();
-                }
+            foreach (id; 0 .. raw_bed.length) {
+                printRegionStats(f, id, data);
             }
         }
     }
