@@ -363,7 +363,6 @@ int pileup_main(string[] args) {
                "nthreads|t",        &n_threads,
                "buffer-size|b",     &buffer_size);
 
-        writeln(own_args);
         if (own_args.length < 2) {
             printUsage();
             return 0;
