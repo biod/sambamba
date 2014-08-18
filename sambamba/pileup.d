@@ -61,6 +61,21 @@ import core.stdc.errno;
 extern(C) char* mkdtemp(char* template_);
 extern(C) int mkfifo(immutable(char)* fn, int mode);
 
+string samtoolsBin = null;  // cached path to samtools binary
+
+// Return path to samtools after testing whether it exists and supports mpileup (FIXME)
+auto samtoolsPath()
+{
+  if (samtoolsBin == null) {
+    auto paths = environment["PATH"].split(":");
+    auto a = array(filter!(path => std.file.exists(path ~ "/samtools"))(paths));
+    if (a.length == 0) 
+      throw new Exception("failed to locate samtools executable in PATH");
+    samtoolsBin = a[0] ~ "/samtools";
+  }
+  return samtoolsBin;
+}
+
 void makeFifo(string filename) {
     auto s = toStringz(filename);
     int ret = mkfifo(s, octal!"666");
@@ -113,7 +128,7 @@ struct MArray(T) { T[] data; T* ptr; }
 MArray!char runSamtools(string filename,
                         string[] samtools_args, string[] bcftools_args)
 {
-    auto samtools_cmd = (["samtools mpileup", filename, "-gu",
+    auto samtools_cmd = ([samtoolsPath(), "mpileup", filename, "-gu",
                           "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
     auto bcftools_cmd = (["bcftools view -"] ~ bcftools_args).join(" ");
     auto cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
@@ -280,6 +295,9 @@ auto chunkDispatcher(ChunkRange)(string tmp_dir, ChunkRange chunks,
     return new ChunkDispatcher!ChunkRange(tmp_dir, chunks, bam, runner);
 }
 
+
+
+
 void printUsage() {
     stderr.writeln("usage: sambamba-pileup [options] input.bam [input2.bam [...]]");
     stderr.writeln("                       [--samtools <samtools mpileup args>]");
@@ -368,6 +386,7 @@ int pileup_main(string[] args) {
             return 0;
         }
 
+        stderr.writeln("Using " ~ samtoolsPath());
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(args[1 .. $]);
 
