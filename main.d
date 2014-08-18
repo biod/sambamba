@@ -37,7 +37,7 @@ void printUsage() {
     stderr.writeln("Usage: sambamba [command] [args...]");
     stderr.writeln();
     stderr.writeln("    Available commands: 'view', 'index', 'merge', 'sort',");
-    stderr.writeln("                        'flagstat', 'slice', 'markdup', 'depth', 'pileup'");
+    stderr.writeln("                        'flagstat', 'slice', 'markdup', 'depth', 'mpileup'");
     stderr.writeln("    To get help on a particular command, just call it without args.");
     stderr.writeln();
     stderr.writeln("Leave bug reports and feature requests at ");
@@ -62,7 +62,7 @@ int main(string[] args) {
         case "slice":    return slice_main(_args);
         case "markdup":  return markdup_main(_args);
         case "depth":    return depth_main(_args);
-        case "pileup":   return pileup_main(_args);
+        case "mpileup":   return pileup_main(_args);
         default: 
             printUsage();
             return 1;
