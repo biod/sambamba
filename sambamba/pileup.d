@@ -63,8 +63,9 @@ extern(C) int mkfifo(immutable(char)* fn, int mode);
 
 string samtoolsBin     = null;  // cached path to samtools binary
 string samtoolsVersion = null; 
+string bcftoolsBin     = null;
 
-// Return path to samtools after testing whether it exists and supports mpileup (FIXME)
+// Return path to samtools after testing whether it exists and supports mpileup
 auto samtoolsInfo()
 {
   if (samtoolsBin == null) {
@@ -83,6 +84,22 @@ auto samtoolsInfo()
 }
 
 auto samtoolsPath() { return samtoolsInfo()[0]; }
+
+auto bcftoolsPath() 
+{
+  if (bcftoolsBin == null) {
+    auto paths = environment["PATH"].split(":");
+    auto a = array(filter!(path => std.file.exists(path ~ "/bcftools"))(paths));
+    if (a.length == 0) 
+      throw new Exception("failed to locate bcftools executable in PATH");
+    samtoolsBin = a[0] ~ "/bcftools";
+    // we found the path, now test the binary
+    auto bcftools = execute([bcftoolsBin]);
+    if (bcftools.status != 1) 
+      throw new Exception("bcftools failed: ", bcftools.output);
+  }
+  return bcftoolsBin;
+}
 
 void makeFifo(string filename) {
     auto s = toStringz(filename);
@@ -138,12 +155,11 @@ MArray!char runSamtools(string filename,
 {
     auto samtools_cmd = ([samtoolsPath(), "mpileup", filename, "-gu",
                           "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
-    auto bcftools_cmd = (["bcftools view -"] ~ bcftools_args).join(" ");
-    string cmd;
-    if (bcftools_args.length > 0)
-      cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
-    else
-      cmd = samtools_cmd;
+    string cmd = samtools_cmd;
+    if (bcftools_args.length > 0) {
+        auto bcftools_cmd = ([bcftoolsPath(),"view -"] ~ bcftools_args).join(" ");
+        cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
+    }
 
     stderr.writeln("[executing] ", cmd);
     auto pp = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
@@ -355,7 +371,7 @@ int pileup_main(string[] args) {
     auto bcftools_args = find(args, "--bcftools");
     auto args1 = (bcftools_args.length>0 ? args[0 .. $-bcftools_args.length] : args );
     auto samtools_args = find(args1, "--samtools");
-    auto args2 = (samtools_args.length>0 ? args1[0 .. $-samtools_args.length] : args1 );
+    auto own_args = (samtools_args.length>0 ? args1[0 .. $-samtools_args.length] : args1 );
 
     if (!samtools_args.empty) {
         samtools_args.popFront();
@@ -371,11 +387,8 @@ int pileup_main(string[] args) {
                          ];
     }
 
-    if (!bcftools_args.empty) {
+    if (!bcftools_args.empty) 
         bcftools_args.popFront();
-    }
-
-    auto own_args = args2;
 
     string bed_filename;
     string query;
@@ -398,9 +411,12 @@ int pileup_main(string[] args) {
             return 0;
         }
 
-        stderr.writeln(samtoolsInfo());
+        stderr.writeln(samtoolsInfo()," options: ",samtools_args.join(" "));
+        if (bcftools_args.length>0)
+            stderr.writeln(bcftoolsPath(),bcftools_args.join(" "));
+
         defaultPoolThreads = n_threads;
-        auto bam = new MultiBamReader(args[1 .. $]);
+        auto bam = new MultiBamReader(own_args[1 .. $]);
 
         char[] buf = defaultTmpDir() ~ "/sambamba-fork-XXXXXX\0".dup;
         mkdtemp(buf.ptr);
