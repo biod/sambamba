@@ -17,6 +17,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
+/** module for executing samtools mpileup in parallel using named pipes,
+ *  after chunking a file 
+ */
+
 module sambamba.pileup;
 
 import sambamba.utils.common.bed;
@@ -318,22 +322,21 @@ version(standalone) {
 }
 
 int pileup_main(string[] args) {
-    auto samtools_args = find(args, "--samtools");
     auto bcftools_args = find(args, "--bcftools");
-    auto n_args = bcftools_args.ptr - samtools_args.ptr;
-    if (n_args > 0)
-        samtools_args = samtools_args[0 .. n_args];
-    else
-        bcftools_args = bcftools_args[0 .. -n_args];
+    auto args1 = (bcftools_args.length>0 ? args[0 .. $-bcftools_args.length] : args );
+    auto samtools_args = find(args1, "--samtools");
+    auto args2 = (samtools_args.length>0 ? args1[0 .. $-samtools_args.length] : args1 );
+
     if (!samtools_args.empty) {
         samtools_args.popFront();
     } else {
-        samtools_args = ["-gu", // uncompressed BCF output
-                         "-S", // per-sample strand bias
-                         "-D", // per-sample DP
-                         "-d", "1000", // max per-BAM depth
-                         "-L", "1000", // max depth for indel calling
-                         "-m", "3", // min. gapped reads for indel candidates
+        // Default values for samtools if not passed 
+        samtools_args = ["-gu",          // uncompressed BCF output
+                         "-S",           // per-sample strand bias
+                         "-D",           // per-sample DP
+                         "-d", "1000",   // max per-BAM depth
+                         "-L", "1000",   // max depth for indel calling
+                         "-m", "3",      // min. gapped reads for indel candidates
                          "-F", "0.0002", // min. fraction of gapped reads
                          ];
     }
@@ -342,8 +345,7 @@ int pileup_main(string[] args) {
         bcftools_args.popFront();
     }
 
-    auto n_own_args = min(samtools_args.ptr, bcftools_args.ptr) - args.ptr;
-    auto own_args = args[0 .. n_own_args];
+    auto own_args = args2;
 
     string bed_filename;
     string query;
@@ -361,7 +363,8 @@ int pileup_main(string[] args) {
                "nthreads|t",        &n_threads,
                "buffer-size|b",     &buffer_size);
 
-        if (args.length < 2) {
+        writeln(own_args);
+        if (own_args.length < 2) {
             printUsage();
             return 0;
         }
