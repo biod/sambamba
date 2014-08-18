@@ -61,10 +61,11 @@ import core.stdc.errno;
 extern(C) char* mkdtemp(char* template_);
 extern(C) int mkfifo(immutable(char)* fn, int mode);
 
-string samtoolsBin = null;  // cached path to samtools binary
+string samtoolsBin     = null;  // cached path to samtools binary
+string samtoolsVersion = null; 
 
 // Return path to samtools after testing whether it exists and supports mpileup (FIXME)
-auto samtoolsPath()
+auto samtoolsInfo()
 {
   if (samtoolsBin == null) {
     auto paths = environment["PATH"].split(":");
@@ -72,9 +73,16 @@ auto samtoolsPath()
     if (a.length == 0) 
       throw new Exception("failed to locate samtools executable in PATH");
     samtoolsBin = a[0] ~ "/samtools";
+    // we found the path, now test the binary
+    auto samtools = execute([samtoolsBin]);
+    if (samtools.status != 1) 
+      throw new Exception("samtools failed: ", samtools.output);
+    samtoolsVersion = samtools.output.split("\n")[2];
   }
-  return samtoolsBin;
+  return [samtoolsBin, samtoolsVersion];
 }
+
+auto samtoolsPath() { return samtoolsInfo()[0]; }
 
 void makeFifo(string filename) {
     auto s = toStringz(filename);
@@ -131,7 +139,11 @@ MArray!char runSamtools(string filename,
     auto samtools_cmd = ([samtoolsPath(), "mpileup", filename, "-gu",
                           "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
     auto bcftools_cmd = (["bcftools view -"] ~ bcftools_args).join(" ");
-    auto cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
+    string cmd;
+    if (bcftools_args.length > 0)
+      cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
+    else
+      cmd = samtools_cmd;
 
     stderr.writeln("[executing] ", cmd);
     auto pp = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
@@ -386,7 +398,7 @@ int pileup_main(string[] args) {
             return 0;
         }
 
-        stderr.writeln("Using " ~ samtoolsPath());
+        stderr.writeln(samtoolsInfo());
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(args[1 .. $]);
 
