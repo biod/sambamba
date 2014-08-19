@@ -61,10 +61,12 @@ import core.stdc.errno;
 extern(C) char* mkdtemp(char* template_);
 extern(C) int mkfifo(immutable(char)* fn, int mode);
 
-string samtoolsBin = null;  // cached path to samtools binary
+string samtoolsBin     = null;  // cached path to samtools binary
+string samtoolsVersion = null; 
+string bcftoolsBin     = null;
 
-// Return path to samtools after testing whether it exists and supports mpileup (FIXME)
-auto samtoolsPath()
+// Return path to samtools after testing whether it exists and supports mpileup
+auto samtoolsInfo()
 {
   if (samtoolsBin == null) {
     auto paths = environment["PATH"].split(":");
@@ -72,8 +74,31 @@ auto samtoolsPath()
     if (a.length == 0) 
       throw new Exception("failed to locate samtools executable in PATH");
     samtoolsBin = a[0] ~ "/samtools";
+    // we found the path, now test the binary
+    auto samtools = execute([samtoolsBin]);
+    if (samtools.status != 1) 
+      throw new Exception("samtools failed: ", samtools.output);
+    samtoolsVersion = samtools.output.split("\n")[2];
   }
-  return samtoolsBin;
+  return [samtoolsBin, samtoolsVersion];
+}
+
+auto samtoolsPath() { return samtoolsInfo()[0]; }
+
+auto bcftoolsPath() 
+{
+  if (bcftoolsBin == null) {
+    auto paths = environment["PATH"].split(":");
+    auto a = array(filter!(path => std.file.exists(path ~ "/bcftools"))(paths));
+    if (a.length == 0) 
+      throw new Exception("failed to locate bcftools executable in PATH");
+    bcftoolsBin = a[0] ~ "/bcftools";
+    // we found the path, now test the binary
+    auto bcftools = execute([bcftoolsBin]);
+    if (bcftools.status != 1) 
+      throw new Exception("bcftools failed: ", bcftools.output);
+  }
+  return bcftoolsBin;
 }
 
 void makeFifo(string filename) {
@@ -130,8 +155,11 @@ MArray!char runSamtools(string filename,
 {
     auto samtools_cmd = ([samtoolsPath(), "mpileup", filename, "-gu",
                           "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
-    auto bcftools_cmd = (["bcftools view -"] ~ bcftools_args).join(" ");
-    auto cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
+    string cmd = samtools_cmd;
+    if (bcftools_args.length > 0) {
+        auto bcftools_cmd = bcftoolsPath() ~ " " ~ bcftools_args.join(" ");
+        cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
+    }
 
     stderr.writeln("[executing] ", cmd);
     auto pp = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
@@ -303,23 +331,23 @@ void printUsage() {
     stderr.writeln("                       [--samtools <samtools mpileup args>]");
     stderr.writeln("                       [--bcftools <bcftools args>]");
     stderr.writeln();
-    stderr.writeln("This subcommand relies on external tools and acts ");
-    stderr.writeln("as a wrapper boosting the performance by parallelization,");
-    stderr.writeln("rather than trying to duplicate or introduce new algorithms");
-    stderr.writeln("for variant calling.");
-    stderr.writeln("The following tools should be present in $PATH:");
+    stderr.writeln("This subcommand relies on external tools and acts as a multi-core implementation of samtools + bcftools ");
+    stderr.writeln("Therefore, the following tools should be present in $PATH:");
     stderr.writeln("    * samtools");
-    stderr.writeln("    * bcftools");
+    stderr.writeln("    * bcftools (when used)");
     stderr.writeln();
+    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments 'samtools -gu -S -D -d 1000 -L 1000 -m 3 -F 0.0002'");
+    stderr.writeln("If --bcftools is used without parameters, bcftools is called as 'bcftools view -Ov'");
     stderr.writeln("If --bcftools is skipped, bcftools is not called");
-    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments -gu -S -D -d 1000 -L 1000 -m 3 -F 0.0002");
     stderr.writeln();
-    stderr.writeln("Splits input into multiple chunks and feeds them");
+    stderr.writeln("Sambamba splits input BAM files into chunks and feeds them");
     stderr.writeln("to samtools mpileup and, optionally, bcftools in parallel.");
     stderr.writeln("The chunks are slightly overlapping so that variant calling");
     stderr.writeln("should not be impacted by these manipulations. The obtained results");
-    stderr.writeln("from the multiple processes are then combined into a single file.");
-    stderr.writeln("Options: -F, --filter=FILTER");
+    stderr.writeln("from the multiple processes are combined as ordered output.");
+    stderr.writeln();
+    stderr.writeln("Sambamba options:");
+    stderr.writeln("         -F, --filter=FILTER");
     stderr.writeln("                    set custom filter for alignments");
     stderr.writeln("         -L, --regions=FILENAME");
     stderr.writeln("                    provide BED file with regions");
@@ -331,6 +359,8 @@ void printUsage() {
     stderr.writeln("                    maximum number of threads to use");
     stderr.writeln("         -b, --buffer-size=4_000_000");
     stderr.writeln("                    chunk size (in bytes)");
+    stderr.writeln();
+    stderr.writeln("Note that sambamba currently only supports bcftools uncompressed VCF output (-Ov). A future version may support more formats, now convert them using bcftools in a separate step.");
 }
 
 version(standalone) {
@@ -343,7 +373,7 @@ int pileup_main(string[] args) {
     auto bcftools_args = find(args, "--bcftools");
     auto args1 = (bcftools_args.length>0 ? args[0 .. $-bcftools_args.length] : args );
     auto samtools_args = find(args1, "--samtools");
-    auto args2 = (samtools_args.length>0 ? args1[0 .. $-samtools_args.length] : args1 );
+    auto own_args = (samtools_args.length>0 ? args1[0 .. $-samtools_args.length] : args1 );
 
     if (!samtools_args.empty) {
         samtools_args.popFront();
@@ -359,11 +389,14 @@ int pileup_main(string[] args) {
                          ];
     }
 
-    if (!bcftools_args.empty) {
+    if (!bcftools_args.empty) 
         bcftools_args.popFront();
-    }
-
-    auto own_args = args2;
+    if (bcftools_args.empty) 
+        bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
+    // Simple check for illegal switches
+    auto check = bcftools_args;
+    if (find(check, "-Ob").length || find(check, "-Ou").length || find(check, "-Oz").length)
+        throw new Exception("bcftools argument not supported",bcftools_args.join(" "));
 
     string bed_filename;
     string query;
@@ -386,9 +419,12 @@ int pileup_main(string[] args) {
             return 0;
         }
 
-        stderr.writeln("Using " ~ samtoolsPath());
+        stderr.writeln(samtoolsInfo()," options: ",samtools_args.join(" "));
+        if (bcftools_args.length>0)
+            stderr.writeln("Using ",bcftoolsPath(),bcftools_args.join(" "));
+
         defaultPoolThreads = n_threads;
-        auto bam = new MultiBamReader(args[1 .. $]);
+        auto bam = new MultiBamReader(own_args[1 .. $]);
 
         char[] buf = defaultTmpDir() ~ "/sambamba-fork-XXXXXX\0".dup;
         mkdtemp(buf.ptr);
