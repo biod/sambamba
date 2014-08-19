@@ -360,7 +360,7 @@ void printUsage() {
     stderr.writeln("         -b, --buffer-size=4_000_000");
     stderr.writeln("                    chunk size (in bytes)");
     stderr.writeln();
-    stderr.writeln("Note that sambamba currently only supports bcftools uncompressed VCF output (-Ov)");
+    stderr.writeln("Note that sambamba currently only supports bcftools uncompressed VCF output (-Ov). A future version may support more formats, now convert them using bcftools in a separate step.");
 }
 
 version(standalone) {
