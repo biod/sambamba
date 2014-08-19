@@ -92,7 +92,7 @@ auto bcftoolsPath()
     auto a = array(filter!(path => std.file.exists(path ~ "/bcftools"))(paths));
     if (a.length == 0) 
       throw new Exception("failed to locate bcftools executable in PATH");
-    samtoolsBin = a[0] ~ "/bcftools";
+    bcftoolsBin = a[0] ~ "/bcftools";
     // we found the path, now test the binary
     auto bcftools = execute([bcftoolsBin]);
     if (bcftools.status != 1) 
@@ -157,7 +157,7 @@ MArray!char runSamtools(string filename,
                           "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
     string cmd = samtools_cmd;
     if (bcftools_args.length > 0) {
-        auto bcftools_cmd = ([bcftoolsPath(),"view -"] ~ bcftools_args).join(" ");
+        auto bcftools_cmd = bcftoolsPath() ~ " " ~ bcftools_args.join(" ");
         cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
     }
 
@@ -389,6 +389,8 @@ int pileup_main(string[] args) {
 
     if (!bcftools_args.empty) 
         bcftools_args.popFront();
+    if (!bcftools_args.empty) 
+        bcftools_args = ["call", "-Ov"];
 
     string bed_filename;
     string query;
