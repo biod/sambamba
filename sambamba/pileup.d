@@ -331,23 +331,23 @@ void printUsage() {
     stderr.writeln("                       [--samtools <samtools mpileup args>]");
     stderr.writeln("                       [--bcftools <bcftools args>]");
     stderr.writeln();
-    stderr.writeln("This subcommand relies on external tools and acts ");
-    stderr.writeln("as a wrapper boosting the performance by parallelization,");
-    stderr.writeln("rather than trying to duplicate or introduce new algorithms");
-    stderr.writeln("for variant calling.");
-    stderr.writeln("The following tools should be present in $PATH:");
+    stderr.writeln("This subcommand relies on external tools and acts as a multi-core implementation of samtools + bcftools ");
+    stderr.writeln("Therefore, the following tools should be present in $PATH:");
     stderr.writeln("    * samtools");
-    stderr.writeln("    * bcftools");
+    stderr.writeln("    * bcftools (when used)");
     stderr.writeln();
+    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments 'samtools -gu -S -D -d 1000 -L 1000 -m 3 -F 0.0002'");
+    stderr.writeln("If --bcftools is used without parameters, bcftools is called as 'bcftools view -Ov'");
     stderr.writeln("If --bcftools is skipped, bcftools is not called");
-    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments -gu -S -D -d 1000 -L 1000 -m 3 -F 0.0002");
     stderr.writeln();
-    stderr.writeln("Splits input into multiple chunks and feeds them");
+    stderr.writeln("Sambamba splits input BAM files into chunks and feeds them");
     stderr.writeln("to samtools mpileup and, optionally, bcftools in parallel.");
     stderr.writeln("The chunks are slightly overlapping so that variant calling");
     stderr.writeln("should not be impacted by these manipulations. The obtained results");
-    stderr.writeln("from the multiple processes are then combined into a single file.");
-    stderr.writeln("Options: -F, --filter=FILTER");
+    stderr.writeln("from the multiple processes are combined as ordered output.");
+    stderr.writeln();
+    stderr.writeln("Sambamba options:");
+    stderr.writeln("         -F, --filter=FILTER");
     stderr.writeln("                    set custom filter for alignments");
     stderr.writeln("         -L, --regions=FILENAME");
     stderr.writeln("                    provide BED file with regions");
@@ -389,8 +389,8 @@ int pileup_main(string[] args) {
 
     if (!bcftools_args.empty) 
         bcftools_args.popFront();
-    if (!bcftools_args.empty) 
-        bcftools_args = ["call", "-Ov"];
+    if (bcftools_args.empty) 
+        bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
 
     string bed_filename;
     string query;
@@ -415,7 +415,7 @@ int pileup_main(string[] args) {
 
         stderr.writeln(samtoolsInfo()," options: ",samtools_args.join(" "));
         if (bcftools_args.length>0)
-            stderr.writeln(bcftoolsPath(),bcftools_args.join(" "));
+            stderr.writeln("Using ",bcftoolsPath(),bcftools_args.join(" "));
 
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(own_args[1 .. $]);
