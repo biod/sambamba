@@ -359,6 +359,8 @@ void printUsage() {
     stderr.writeln("                    maximum number of threads to use");
     stderr.writeln("         -b, --buffer-size=4_000_000");
     stderr.writeln("                    chunk size (in bytes)");
+    stderr.writeln();
+    stderr.writeln("Note that sambamba currently only supports bcftools uncompressed VCF output (-Ov)");
 }
 
 version(standalone) {
@@ -391,6 +393,10 @@ int pileup_main(string[] args) {
         bcftools_args.popFront();
     if (bcftools_args.empty) 
         bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
+    // Simple check for illegal switches
+    auto check = bcftools_args;
+    if (find(check, "-Ob").length || find(check, "-Ou").length || find(check, "-Oz").length)
+        throw new Exception("bcftools argument not supported",bcftools_args.join(" "));
 
     string bed_filename;
     string query;
