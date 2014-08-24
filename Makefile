@@ -51,6 +51,10 @@ sambamba-depth:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -version=standalone -ofbuild/sambamba-depth sambamba/depth.d
 
+sambamba-pileup:
+	mkdir -p build/
+	rdmd $(RDMD_FLAGS) -version=standalone -ofbuild/sambamba-pileup sambamba/pileup.d
+
 .PHONY: clean
 
 clean:
