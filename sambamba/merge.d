@@ -113,6 +113,7 @@ void printUsage() {
 shared(SamHeaderMerger) merger;
 shared(SamHeader) merged_header;
 shared(size_t[size_t][]) ref_id_map;
+shared(size_t[size_t][]) ref_id_reverse_map;
 shared(string[string][]) program_id_map;
 shared(string[string][]) readgroup_id_map;
 
@@ -219,8 +220,12 @@ int merge_main(string[] args) {
         merger = cast(shared) new SamHeaderMerger(headers, validate_headers);
         merged_header = merger.merged_header;
         ref_id_map = merger.ref_id_map;
+        ref_id_reverse_map = merger.ref_id_reverse_map;
         readgroup_id_map = merger.readgroup_id_map;
         program_id_map = merger.program_id_map;
+
+        auto strategy = cast()merger.strategy;
+        auto n_references = (cast()merged_header).sequences.length;
 
         if (header_only) {
             write((cast()merged_header).text);
@@ -261,7 +266,7 @@ int merge_main(string[] args) {
             }
         } // mergeAlignments
 
-        if (show_progress) {
+        if (show_progress && strategy == SamHeaderMerger.Strategy.simple) {
             // tuples of (alignments, file_id)
             shared(float[]) merging_progress;
             merging_progress.length = files.length;
@@ -292,10 +297,34 @@ int merge_main(string[] args) {
 
             bar.finish();
         } else {
-            auto alignmentranges_with_file_ids = array(
-                zip(map!"a.reads"(files), iota(files.length))
-            );
-            mergeAlignments(alignmentranges_with_file_ids);
+            if (strategy == SamHeaderMerger.Strategy.simple) {
+                auto alignmentranges_with_file_ids = array(
+                        zip(map!"a.reads"(files), iota(files.length))
+                        );
+                mergeAlignments(alignmentranges_with_file_ids);
+            } else {
+                alias Tuple!(InputRange!BamRead, size_t) R;
+                auto alignmentranges_with_file_ids = new R[files.length];
+                foreach (k; 0 .. files.length) {
+                    size_t[] order; // order of reference ids to fetch
+                    order.length = files[k].reference_sequences.length;
+                    size_t n_refs; // in this particular file
+                    foreach (j; 0 .. n_references) { // refs from all files
+                        auto old_ref_id_ptr = j in ref_id_reverse_map[k];
+                        if (old_ref_id_ptr !is null) {
+                            order[n_refs++] = *old_ref_id_ptr;
+                        }
+                    }
+                    assert(n_refs == order.length);
+                    order = order[0 .. n_refs];
+                    auto reads = order.map!(
+                            ref_id => files[k].reference(cast(int)ref_id)[]
+                            ).joiner().chain(files[k].unmappedReads())
+                             .map!(r => r.read).inputRangeObject();
+                    alignmentranges_with_file_ids[k] = tuple(reads, k);
+                }
+                mergeAlignments(alignmentranges_with_file_ids);
+            }
         }
     
     } catch (Throwable e) {
