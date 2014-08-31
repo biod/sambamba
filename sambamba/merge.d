@@ -89,6 +89,7 @@ import std.stream;
 import std.getopt;
 
 import core.atomic;
+import core.memory;
 
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
@@ -209,6 +210,8 @@ int merge_main(string[] args) {
         foreach (filename; filenames)
             protectFromOverwrite(filename, output_filename);
 
+        GC.disable();
+
         BamReader[] files;
         files.length = filenames.length;
         foreach (i; 0 .. files.length) {
@@ -226,6 +229,8 @@ int merge_main(string[] args) {
 
         auto strategy = cast()merger.strategy;
         auto n_references = (cast()merged_header).sequences.length;
+
+        GC.enable();
 
         if (header_only) {
             write((cast()merged_header).text);
