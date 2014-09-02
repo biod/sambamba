@@ -94,6 +94,10 @@ import core.memory;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
 import sambamba.utils.common.filtering;
+import sambamba.utils.common.readstorage;
+import bio.core.utils.outbuffer;
+import bio.core.utils.roundbuf;
+import bio.bam.utils.value;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");
@@ -121,52 +125,169 @@ shared(string[string][]) readgroup_id_map;
 __gshared static TaskPool task_pool;
 __gshared static Filter read_filter;
 
-BamRead changeAlignment(Tuple!(BamRead, size_t) al_with_file_id) {
-    auto al = al_with_file_id[0];
-    auto file_id = al_with_file_id[1];
-    // change reference ID
-    auto old_ref_id = al.ref_id;
-
-    assert(file_id < ref_id_map.length);
-
-    if (old_ref_id != -1 && old_ref_id in ref_id_map[file_id]) {
-        auto new_ref_id = to!int(ref_id_map[file_id][old_ref_id]);
-        if (new_ref_id != old_ref_id) {
-            al.ref_id = new_ref_id;
-        }
-    } 
-
-    // change PG tag if it exists
-    auto program = al["PG"];
-    if (!program.is_nothing) {
-        auto pg_str = cast(string)program;
-        if (pg_str in program_id_map[file_id]) {
-            auto new_pg = program_id_map[file_id][pg_str];
-            if (new_pg != pg_str) {
-                al["PG"] = cast()new_pg;
-            }
-        }
-    }
-
-    // change read group tag
-    auto read_group = al["RG"];
-    if (!read_group.is_nothing) {
-        auto rg_str = cast(string)read_group;
-        if (rg_str in readgroup_id_map[file_id]) {
-            auto new_rg = readgroup_id_map[file_id][rg_str];
-            if (new_rg != rg_str) {
-                al["RG"] = cast()new_rg;
-            }
-        }
-    }
-    return al;
+auto modifyAlignmentRange(T)(T alignments_with_file_id) {
+    return AlignmentRangeModifier!T(alignments_with_file_id);
 }
 
-auto modifyAlignmentRange(T)(T alignments_with_file_id) {
-  return task_pool.map!changeAlignment(
-          zip(filtered(alignments_with_file_id[0], read_filter),
-              repeat(alignments_with_file_id[1])),
-          8192);
+ubyte[] modifier(BamRead[] reads, OutBuffer output_buffer, size_t _file_id,
+		 ubyte[] tmp)
+{
+    // it's practically impossible that one will merge > 10000 files,
+    // so add 10 extra bytes for each read (5 for RG and 5 for PG)
+    size_t bytes_required = 0;
+    foreach (read; reads) {
+	bytes_required += read.size_in_bytes + 10;
+    }
+
+    output_buffer.capacity = bytes_required;
+
+    foreach (read; reads) {
+	auto data = read.raw_data;
+
+	auto cigar_offset = 8 * int.sizeof + read.name.length + 1;
+	auto tags_offset = cigar_offset + uint.sizeof * read.cigar.length +
+	    (3 * read.sequence_length + 1) / 2;
+
+	auto start_offset = output_buffer.data.length + int.sizeof;
+	auto p = cast(int*)(output_buffer.data.ptr + start_offset - int.sizeof);
+	output_buffer.putUnsafe(int.init);
+	size_t chunk_size = read.size_in_bytes - int.sizeof;
+
+	// change ref. id
+	auto ref_id_ptr = cast(int*)(data.ptr);
+	auto old_ref_id = *ref_id_ptr;
+	if (old_ref_id != -1 && old_ref_id in ref_id_map[_file_id]) {
+	    auto new_ref_id = to!int(ref_id_map[_file_id][old_ref_id]);
+	    if (new_ref_id != old_ref_id)
+		*ref_id_ptr = new_ref_id;
+	}
+
+	data[cigar_offset - 1] = 0;
+	output_buffer.putUnsafe(data[0 .. tags_offset]);
+
+	auto bytes_written = tags_offset;
+
+	// cool, now change PG and RG tags where needed
+	foreach (tag, value; read) {
+	    Value val = value;
+	    if (tag == "PG") {
+		auto pg_str = *cast(string*)(&val);
+		if (pg_str in program_id_map[_file_id]) {
+		    auto new_pg = program_id_map[_file_id][pg_str];
+		    if (new_pg != pg_str) {
+			val = Value(new_pg);
+			auto delta = new_pg.length - pg_str.length;
+			chunk_size += cast(int)delta;
+		    }
+		}
+	    } else if (tag == "RG") {
+		auto rg_str = *cast(string*)(&val);
+		if (rg_str in readgroup_id_map[_file_id]) {
+		    auto new_rg = readgroup_id_map[_file_id][rg_str];
+		    if (new_rg != rg_str) {
+			val = Value(new_rg);
+			auto delta = new_rg.length - rg_str.length;
+			chunk_size += cast(int)delta;
+		    }
+		}
+	    }
+	    output_buffer.putUnsafe(cast(ubyte[])tag);
+	    emplaceValue(tmp.ptr, val);
+	    auto val_size = sizeInBytes(val);
+	    output_buffer.putUnsafe(tmp[0 .. val_size]);
+	    bytes_written += 2 + val_size;
+	}
+	import std.exception;
+	enforce(bytes_written == chunk_size);
+
+	*p = cast(int)chunk_size;
+    }
+    return output_buffer.data;
+}
+
+struct AlignmentRangeModifier(T) {
+    private {
+	InputRange!BamRead _reads;
+	size_t _file_id;
+
+	alias TaskWithData!(modifier, size_t, ubyte[]) ModifyTask;
+	RoundBuf!ModifyTask _tasks;
+
+	enum _tmp_size = 128 * 1024;
+	size_t _task_index;
+	ubyte[] _tmp;
+	ubyte[] _tmp_space(size_t _task_index) {
+	    auto n_tasks = _tmp.length / _tmp_size;
+	    auto k =_task_index % n_tasks;
+	    return _tmp[k * _tmp_size .. $][0 .. _tmp_size];
+	}
+
+	ubyte[] _curr_data;
+	size_t _bytes_read;
+	size_t _curr_data_len;
+	bool _empty;
+	BamRead _front;
+    }
+
+    bool empty() @property const {
+	return _empty;
+    }
+
+    this(T alignments_with_file_id) {
+	_reads = alignments_with_file_id[0].filtered(read_filter).inputRangeObject;
+	_file_id = alignments_with_file_id[1];
+
+	auto n_tasks = max(task_pool.size, 2) * 4;
+	_tasks = RoundBuf!ModifyTask(n_tasks);
+	_tmp = new ubyte[_tmp_size * n_tasks];
+
+	foreach (i; 0 .. n_tasks) {
+	    if (_reads.empty)
+		break;
+	    auto t = new ModifyTask();
+	    t.input_buffer.fill(&_reads);
+	    t.run(task_pool, _file_id, _tmp_space(_task_index));
+	    _tasks.put(t);
+	    ++_task_index;
+	}
+
+	popFront();
+    }
+
+    BamRead front() {
+	return _front;
+    }
+
+    void popFront() {
+	if (_bytes_read == _curr_data_len) {
+	    if (_tasks.empty) {
+		_empty = true;
+		return;
+	    }
+
+	    auto t = _tasks.front;
+	    auto data = t.conversion_task.yieldForce();
+	    _curr_data.length = max(data.length, _curr_data.length);
+	    _curr_data_len = data.length;
+	    _curr_data[0 .. data.length] = data[];
+	    _bytes_read = 0;
+	    _tasks.popFront();
+	    if (!_reads.empty) {
+		t.input_buffer.clear();
+		t.input_buffer.fill(&_reads);
+		t.output_buffer.clear();
+		t.run(task_pool, _file_id, _tmp_space(_task_index));
+		_tasks.put(t);
+		++_task_index;
+	    }
+	}
+
+	int chunk_size = *(cast(int*)(_curr_data.ptr + _bytes_read));
+	auto chunk = _curr_data[int.sizeof + _bytes_read .. $][0 .. chunk_size];
+	// FIXME big-endian?
+	_front = BamRead(chunk);
+	_bytes_read += int.sizeof + chunk_size;
+    }
 }
 
 version(standalone) {
@@ -217,6 +338,7 @@ int merge_main(string[] args) {
         foreach (i; 0 .. files.length) {
             files[i] = new BamReader(filenames[i], task_pool);
             files[i].setBufferSize(50_000_000 / files.length); //TODO
+	    files[i].assumeSequentialProcessing();
         }
         auto headers = array(map!"a.header"(files));
 
@@ -230,8 +352,6 @@ int merge_main(string[] args) {
 
         auto strategy = cast()merger.strategy;
         auto n_references = (cast()merged_header).sequences.length;
-
-        GC.enable();
 
         if (header_only) {
             write((cast()merged_header).text);
@@ -334,8 +454,12 @@ int merge_main(string[] args) {
         }
     
     } catch (Throwable e) {
-        stderr.writeln("sambamba-merge: ", e.msg);
-        return 1;
+	version(development) {
+	    throw e;
+	} else {
+	    stderr.writeln("sambamba-merge: ", e.msg);
+	    return 1;
+	}
     }
     return 0;
 }

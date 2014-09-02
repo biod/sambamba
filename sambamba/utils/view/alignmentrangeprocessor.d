@@ -24,7 +24,6 @@ import bio.bam.read;
 import bio.bam.writer;
 import bio.bam.thirdparty.msgpack;
 import bio.core.utils.outbuffer;
-import bio.core.utils.roundbuf;
 import bio.core.utils.range;
 import sambamba.utils.common.readstorage;
 
@@ -82,49 +81,6 @@ template chunkToFormat(char format) {
 alias chunkToFormat!'s' chunkToSam;
 alias chunkToFormat!'j' chunkToJson;
 
-class TaskWithData(alias converter) {
-    Task!(converter, BamRead[], OutBuffer)* conversion_task;
-    ReadStorage input_buffer;
-    OutBuffer output_buffer;
-
-    this(size_t n=131072) {
-        input_buffer = ReadStorage(n);
-        output_buffer = new OutBuffer(n * 5);
-    }
-
-    final void run(TaskPool pool) {
-        conversion_task = task!converter(input_buffer.reads, output_buffer);
-        pool.put(conversion_task);
-    }
-}
-
-void runTextConversion(alias converter, R)(R reads, TaskPool pool, File f) {
-    auto n_tasks = max(pool.size, 2) * 4;
-    auto tasks = RoundBuf!(TaskWithData!converter)(n_tasks);
-    foreach (i; 0 .. n_tasks) {
-        if (reads.empty)
-            break;
-        auto t = new TaskWithData!converter();
-        t.input_buffer.fill(&reads);
-        t.run(pool);
-        tasks.put(t);
-    }
-
-    auto w = f.lockingTextWriter;
-    while (!tasks.empty) {
-        auto t = tasks.front;
-        w.put(t.conversion_task.yieldForce());
-        tasks.popFront();
-        if (!reads.empty) {
-            t.input_buffer.clear();
-            t.input_buffer.fill(&reads);
-            t.output_buffer.clear();
-            t.run(pool);
-            tasks.put(t);
-        }
-    }
-}
-
 class TextSerializer {
     this(File f, TaskPool pool) {
         _f = f;
@@ -142,7 +98,8 @@ final class SamSerializer : TextSerializer {
     this(File f, TaskPool pool) { super(f, pool); }
 
     void process(R, SB)(R reads, SB bam) {
-        runTextConversion!chunkToSam(reads, _pool, _f);
+	auto w = _f.lockingTextWriter;
+        runConversion!(chunkToSam, data => w.put(data))(reads, _pool);
     }
 
     enum is_serial = true;
@@ -191,7 +148,8 @@ final class JsonSerializer : TextSerializer {
     this(File f, TaskPool pool) { super(f, pool); }
 
     void process(R, SB)(R reads, SB bam) {
-        runTextConversion!chunkToJson(reads, _pool, _f);
+	auto w = _f.lockingTextWriter;
+        runConversion!(chunkToJson, data => w.put(data))(reads, _pool);
     }
 
     enum is_serial = true;

@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,10 @@ module sambamba.utils.common.readstorage;
 
 import std.c.stdlib;
 import std.c.string;
+import std.parallelism;
+import std.algorithm;
+import bio.core.utils.roundbuf;
+import bio.core.utils.outbuffer;
 
 import bio.bam.read;
 
@@ -89,5 +93,48 @@ struct ReadStorage {
 
         ubyte* read_storage;
         size_t _used;
+    }
+}
+
+class TaskWithData(alias converter, T...) {
+    Task!(converter, BamRead[], OutBuffer, T)* conversion_task;
+    ReadStorage input_buffer;
+    OutBuffer output_buffer;
+
+    this(size_t n=131072) {
+        input_buffer = ReadStorage(n);
+        output_buffer = new OutBuffer(n * 5);
+    }
+
+    final void run(TaskPool pool, T params) {
+        conversion_task = task!converter(input_buffer.reads, output_buffer,
+					 params);
+        pool.put(conversion_task);
+    }
+}
+
+void runConversion(alias converter, alias writer, R)(R reads, TaskPool pool) {
+    auto n_tasks = max(pool.size, 2) * 4;
+    auto tasks = RoundBuf!(TaskWithData!converter)(n_tasks);
+    foreach (i; 0 .. n_tasks) {
+        if (reads.empty)
+            break;
+        auto t = new TaskWithData!converter();
+        t.input_buffer.fill(&reads);
+        t.run(pool);
+        tasks.put(t);
+    }
+
+    while (!tasks.empty) {
+        auto t = tasks.front;
+        writer(t.conversion_task.yieldForce());
+        tasks.popFront();
+        if (!reads.empty) {
+            t.input_buffer.clear();
+            t.input_buffer.fill(&reads);
+            t.output_buffer.clear();
+            t.run(pool);
+            tasks.put(t);
+        }
     }
 }
