@@ -184,11 +184,6 @@ int merge_main(string[] args) {
     bool show_progress = false;
     string filter_str = null;
 
-    if (args.length < 4) {
-        printUsage();
-        return 1;
-    }
-
     try {
 
         getopt(args,
@@ -199,6 +194,11 @@ int merge_main(string[] args) {
                "header|H",              &header_only,
                "show-progress|p",       &show_progress,
                "filter|F",              &filter_str);
+
+        if (args.length < 4) {
+          printUsage();
+          return 1;
+        }
 
         read_filter = createFilterFromQuery(filter_str);
 
