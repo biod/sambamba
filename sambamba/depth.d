@@ -67,11 +67,11 @@ void printUsage() {
     stderr.writeln("         -a, --annotate");
     stderr.writeln("                    add additional column of y/n instead of");
     stderr.writeln("                    skipping records not satisfying the criteria");
-    // stderr.writeln("base subcommand options:");
-    // stderr.writeln("         -L, --regions=FILENAME");
-    // stderr.writeln("                    list or regions of interest (optional)");
-    // stderr.writeln("         -q, --min-base-quality=QUAL");
-    // stderr.writeln("                    don't count bases with lower base quality");
+    stderr.writeln("base subcommand options:");
+    stderr.writeln("         -L, --regions=FILENAME");
+    stderr.writeln("                    list or regions of interest (optional)");
+    stderr.writeln("         -q, --min-base-quality=QUAL");
+    stderr.writeln("                    don't count bases with lower base quality");
     stderr.writeln("region subcommand options:");
     stderr.writeln("         -L, --regions=FILENAME");
     stderr.writeln("                    list or regions of interest (required)");
@@ -277,17 +277,55 @@ abstract class ColumnPrinter {
     abstract void close();
 }
 
-// NYI
 class PerBasePrinter : ColumnPrinter {
     ubyte min_base_quality;
+    NonOverlappingRegionStatsCollector stats_collector;
+    private File _f;
 
     override void init(ref string[] args) {
         getopt(args,
                std.getopt.config.caseSensitive,
                "min-base-quality|q", &min_base_quality);
+
+	if (output_prefix is null)
+	    _f = stdout;
+	else 
+	    _f = File(output_prefix ~ ".cov");
+    }
+
+    override void setBed(BamRegion[] bed) {
+	super.setBed(bed);
+	stats_collector = new NonOverlappingRegionStatsCollector(bed);
+    }
+
+    private void writeColumn(ref File f, ref Column c) {
+	size_t coverage;
+	foreach (qual; c.base_qualities)
+	    if (qual >= min_base_quality)
+		++coverage;
+
+	bool ok = coverage >= min_cov || coverage <= max_cov;
+	if (!ok && !annotate)
+	    return;
+	
+	_f.write(bam.reference_sequences[c.ref_id].name, '\t',
+		 c.position, '\t', coverage);
+
+	if (annotate)
+	    _f.write('\t', ok ? 'y' : 'n');
+	_f.writeln();
     }
 
     override void push(ref Column c) {
+	if (stats_collector !is null) {
+	    bool output = false;
+	    stats_collector.nextColumn(cast(uint)c.ref_id, cast(uint)c.position,
+				       (size_t id) { output = true; });
+	    if (output)
+		writeColumn(_f, c); 
+	} else {
+	    writeColumn(_f, c);
+	}
     }
 
     override void close() {
@@ -657,10 +695,10 @@ int depth_main(string[] args) {
     ColumnPrinter printer;
 
     switch (args[1]) {
-    // case "base":
-    //     mode = Mode.base;
-    //     printer = new PerBasePrinter();
-    //     break;
+    case "base":
+        mode = Mode.base;
+        printer = new PerBasePrinter();
+        break;
     case "region":
         mode = Mode.region;
         printer = new PerBedRegionPrinter();
@@ -694,6 +732,12 @@ int depth_main(string[] args) {
                    "regions|L", &bed_filename);
         }
 
+	if (mode != Mode.base) {
+	    enforce(printer.output_prefix !is null,
+		    "Output prefix must be provided for the " ~ mode.to!string ~
+		    " mode");
+	}
+
         // handles subcommand arguments and removes them from the list
         printer.init(args);
 
@@ -719,7 +763,9 @@ int depth_main(string[] args) {
         InputRange!(CustomBamRead) reads;
         if (bed_filename !is null) {
             auto bed = parseBed(bed_filename, bam);
-            printer.setBed(parseBed(bed_filename, bam, false, &printer.raw_bed_lines));
+	    bool simplify = mode == Mode.base;
+            printer.setBed(parseBed(bed_filename, bam, simplify,
+				    &printer.raw_bed_lines));
             reads = inputRangeObject(bam.getReadsOverlapping(bed)
                                      .map!(r => CustomBamRead(r, rg2sm)));
         } else {
@@ -737,8 +783,7 @@ int depth_main(string[] args) {
             if (column.ref_id != last_ref_id) {
                 last_ref_id = column.ref_id;
                 stderr.writeln("Processing reference #", column.ref_id + 1,
-                               " (", bam.reference_sequences[column.ref_id].name,
-                               ")");
+                               " (", ref_name, ")");
             }
 
             printer.push(column);
