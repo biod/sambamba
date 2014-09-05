@@ -61,7 +61,7 @@ void printUsage() {
     stderr.writeln("                    output filename prefix");
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
-    stderr.writeln("         -c, --min-coverage=MAXCOVERAGE");
+    stderr.writeln("         -c, --min-coverage=MINCOVERAGE");
     stderr.writeln("                    minimum mean coverage for output");
     stderr.writeln("         -C, --max-coverage=MAXCOVERAGE");
     stderr.writeln("                    maximum mean coverage for output");
@@ -73,6 +73,8 @@ void printUsage() {
     stderr.writeln("                    list or regions of interest (optional)");
     stderr.writeln("         -q, --min-base-quality=QUAL");
     stderr.writeln("                    don't count bases with lower base quality");
+    stderr.writeln("         -z, --report-zero-coverage");
+    stderr.writeln("                    don't skip zero coverage bases");
     stderr.writeln("region subcommand options:");
     stderr.writeln("         -L, --regions=FILENAME");
     stderr.writeln("                    list or regions of interest (required)");
@@ -278,15 +280,23 @@ abstract class ColumnPrinter {
     abstract void close();
 }
 
-class PerBasePrinter : ColumnPrinter {
+final class PerBasePrinter : ColumnPrinter {
     ubyte min_base_quality;
     NonOverlappingRegionStatsCollector stats_collector;
+    bool report_zero_coverage;
     private File _f;
+
+    private {
+	int _prev_ref_id = -2;
+	size_t _prev_position;
+	bool _bed_is_provided;
+    }
 
     override void init(ref string[] args) {
         getopt(args,
                std.getopt.config.caseSensitive,
-               "min-base-quality|q", &min_base_quality);
+               "min-base-quality|q", &min_base_quality,
+	       "report-zero-coverage|z", &report_zero_coverage);
 
 	if (output_prefix is null)
 	    _f = stdout;
@@ -298,10 +308,42 @@ class PerBasePrinter : ColumnPrinter {
 
     override void setBed(BamRegion[] bed) {
 	super.setBed(bed);
+	_bed_is_provided = true;
 	stats_collector = new NonOverlappingRegionStatsCollector(bed);
     }
 
-    private void writeColumn(ref File f, ref Column c) {
+    private void writeEmptyColumns(long ref_id, long start, long end) {
+	if (min_cov > 0)
+	    return;
+	auto ref_name = bam.reference_sequences[ref_id].name;
+	string tail = annotate ? "\t0\t0\t0\t0\t0\t0\t0\ty" :
+	                         "\t0\t0\t0\t0\t0\t0\t0";
+	if (!_bed_is_provided) {
+	    foreach (pos; start .. end)
+		_f.writeln(ref_name, '\t', pos, tail);
+	} else {
+	    if (raw_bed.empty || raw_bed.front.ref_id > cast(uint)ref_id)
+		return;
+	    while (!raw_bed.empty && raw_bed.front.ref_id < cast(uint)ref_id)
+		raw_bed.popFront();
+	    while (!raw_bed.empty && raw_bed.front.ref_id == ref_id) {
+		if (raw_bed.front.fullyLeftOf(cast(uint)ref_id, cast(uint)start)) {
+		    raw_bed.popFront();
+		    continue;
+		}
+		auto from = max(start, raw_bed.front.start);
+		auto to = min(end, raw_bed.front.end);
+		if (from >= to)
+		    break;
+		foreach (pos; from .. to)
+		    _f.writeln(ref_name, '\t', pos, tail);
+		raw_bed.popFront();
+	    }
+	    stats_collector = new NonOverlappingRegionStatsCollector(raw_bed);
+	}
+    }
+
+    private void writeColumn(ref Column c) {
 	size_t[5] coverage;
 	size_t deletions;
 	size_t ref_skips;
@@ -320,7 +362,7 @@ class PerBasePrinter : ColumnPrinter {
 
 	size_t total_coverage = reduce!`a+b`(coverage[]) + deletions + ref_skips;
 
-	bool ok = total_coverage >= min_cov || total_coverage <= max_cov;
+	bool ok = total_coverage >= min_cov && total_coverage <= max_cov;
 	if (!ok && !annotate)
 	    return;
 	
@@ -335,19 +377,52 @@ class PerBasePrinter : ColumnPrinter {
 	_f.writeln();
     }
 
+    private bool outputRequired(int ref_id, ulong position) {
+	if (stats_collector is null)
+	    return true;
+	bool output = false;
+	stats_collector.nextColumn(cast(uint)ref_id, cast(uint)position,
+				   (size_t id) { output = true; });
+	return output;
+    }
+
     override void push(ref Column c) {
-	if (stats_collector !is null) {
-	    bool output = false;
-	    stats_collector.nextColumn(cast(uint)c.ref_id, cast(uint)c.position,
-				       (size_t id) { output = true; });
-	    if (output)
-		writeColumn(_f, c); 
-	} else {
-	    writeColumn(_f, c);
+	if (!report_zero_coverage) {
+	    if (outputRequired(c.ref_id, c.position))
+		writeColumn(c);
+	    return;
 	}
+
+	if (_prev_ref_id == -2) {
+	    foreach (id; 0 .. c.ref_id)
+		writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
+	    writeEmptyColumns(c.ref_id, 0, c.position);
+	} else if (_prev_ref_id != c.ref_id) {
+	    writeEmptyColumns(_prev_ref_id, _prev_position + 1, 
+			      bam.reference_sequences[_prev_ref_id].length);
+	    writeEmptyColumns(c.ref_id, 0, c.position);
+	}
+
+	_prev_ref_id = c.ref_id;
+	_prev_position = c.position;
+
+	if (outputRequired(c.ref_id, c.position))
+	    writeColumn(c);
     }
 
     override void close() {
+	if (!report_zero_coverage)
+	    return;
+	
+	if (_prev_ref_id == -2) {
+	    foreach (id; 0 .. bam.reference_sequences.length)
+		writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
+	} else {
+	    writeEmptyColumns(_prev_ref_id, _prev_position + 1,
+			      bam.reference_sequences[_prev_ref_id].length);
+	    foreach (id; _prev_ref_id + 1 .. bam.reference_sequences.length)
+		writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
+	}
     }
 }
 
