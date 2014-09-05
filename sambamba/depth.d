@@ -23,6 +23,7 @@ import bio.bam.reader;
 import bio.bam.pileup;
 import bio.bam.region;
 import bio.bam.multireader;
+import bio.core.base;
 import sambamba.utils.common.bed;
 import sambamba.utils.common.filtering;
 import sambamba.utils.common.intervaltree;
@@ -291,6 +292,8 @@ class PerBasePrinter : ColumnPrinter {
 	    _f = stdout;
 	else 
 	    _f = File(output_prefix ~ ".cov");
+
+	_f.writeln("REF\tPOS\tCOV\tA\tC\tG\tT\tDEL\tREFSKIP");
     }
 
     override void setBed(BamRegion[] bed) {
@@ -299,17 +302,33 @@ class PerBasePrinter : ColumnPrinter {
     }
 
     private void writeColumn(ref File f, ref Column c) {
-	size_t coverage;
-	foreach (qual; c.base_qualities)
-	    if (qual >= min_base_quality)
-		++coverage;
+	size_t[5] coverage;
+	size_t deletions;
+	size_t ref_skips;
+	foreach (read; c.reads) {
+	    if (read.current_base == '-') {
+		if (read.cigar_operation.type == 'D')
+		    deletions += 1;
+		else
+		    ref_skips += 1;
+		continue;
+	    }
+		
+	    if (read.current_base_quality >= min_base_quality)
+		coverage[Base5(read.current_base).internal_code] += 1;
+	}
 
-	bool ok = coverage >= min_cov || coverage <= max_cov;
+	size_t total_coverage = reduce!`a+b`(coverage[]) + deletions + ref_skips;
+
+	bool ok = total_coverage >= min_cov || total_coverage <= max_cov;
 	if (!ok && !annotate)
 	    return;
 	
 	_f.write(bam.reference_sequences[c.ref_id].name, '\t',
-		 c.position, '\t', coverage);
+		 c.position, '\t', total_coverage);
+	foreach (i; 0 .. 4)
+	    _f.write('\t', coverage[i]);
+	_f.write('\t', deletions, '\t', ref_skips);
 
 	if (annotate)
 	    _f.write('\t', ok ? 'y' : 'n');
