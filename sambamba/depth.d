@@ -56,7 +56,8 @@ void printUsage() {
     stderr.writeln();
     stderr.writeln("Common options:");
     stderr.writeln("         -F, --filter=FILTER");
-    stderr.writeln("                    set custom filter for alignments");
+    stderr.writeln("                    set custom filter for alignments; the default value is");
+    stderr.writeln("                    'mapping_quality > 0 and not duplicate and not failed_quality_control'");
     stderr.writeln("         -o, --output-file=FILENAME");
     stderr.writeln("                    output filename (by default /dev/stdout)");
     stderr.writeln("         -t, --nthreads=NTHREADS");
@@ -867,7 +868,11 @@ int depth_main(string[] args) {
 
         if (query !is null) {
             read_filter = createFilterFromQuery(query);
-        }
+        } else {
+	    read_filter = createFilterFromQuery("mapping_quality > 0 and "
+						"not duplicate and "
+						"not failed_quality_control");
+	}
 
         auto bam_filenames = args[1 .. $];
         auto bam = new MultiBamReader(bam_filenames);
