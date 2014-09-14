@@ -109,7 +109,7 @@ class Sorter {
 
         this(size_t max_total_size) {
             max_sz = max_total_size;
-            while (read_storage is null && max_sz > 64_000_000) {
+            while (read_storage is null && max_sz > 65536) {
                 read_storage = cast(ubyte*)std.c.stdlib.malloc(max_sz);
                 if (read_storage is null)
                   max_sz /= 2;
@@ -468,6 +468,9 @@ int sort_main(string[] args) {
 
         if (memory_limit_str !is null) {
             sorter.memory_limit = parseMemory(memory_limit_str);
+            if (sorter.memory_limit / max(n_threads, 1) < 100_000) {
+                throw new Exception("memory limit per thread can't be less than 100Kb");
+            }
         }
 
         sorter.memory_limit = (sorter.memory_limit * 5) / 6;
