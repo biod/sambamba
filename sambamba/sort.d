@@ -109,7 +109,11 @@ class Sorter {
 
         this(size_t max_total_size) {
             max_sz = max_total_size;
-            read_storage = cast(ubyte*)std.c.stdlib.malloc(max_sz);
+            while (read_storage is null && max_sz > 64_000_000) {
+                read_storage = cast(ubyte*)std.c.stdlib.malloc(max_sz);
+                if (read_storage is null)
+                  max_sz /= 2;
+            }
             _reads_capa = 1024;
             auto sz = BamRead.sizeof * _reads_capa;
             _reads = cast(BamRead*)std.c.stdlib.malloc(sz);

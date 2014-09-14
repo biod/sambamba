@@ -10,7 +10,7 @@ testSortByName() {
 }
 
 testSortByCoordinate() {
-    ./build/sambamba sort -t2 ex1_header.nsorted.bam -o ex1_header.sorted.bam
+    ./build/sambamba sort -t2 -m 50M ex1_header.nsorted.bam -o ex1_header.sorted.bam
     ./build/sambamba index -t2 ex1_header.sorted.bam
     assertEquals 0 $?
 }
@@ -31,7 +31,7 @@ testOverwriteProtection() {
     assertNotSame 0 $?
     ./build/sambamba merge ex1_header.sorted.bam ex1_header.sorted.bam ex1_header.sorted.bam 2>/dev/null
     assertNotSame 0 $?
-    ./build/sambamba sort ex1_header.nsorted.bam -o ./build/../ex1_header.nsorted.bam 2>/dev/null
+    ./build/sambamba sort -m 50M ex1_header.nsorted.bam -o ./build/../ex1_header.nsorted.bam 2>/dev/null
     assertNotSame 0 $?
     ./build/sambamba markdup ex1_header.nsorted.bam ./build/../ex1_header.nsorted.bam 2>/dev/null
     assertNotSame 0 $?
@@ -41,7 +41,7 @@ testOverwriteProtection() {
 
 testSortingEmptyFile() {
     ./build/sambamba view ex1_header.sorted.bam -f bam -F "ref_id > 3" -o empty.bam 2>/dev/null
-    ./build/sambamba sort empty.bam -o empty2.bam 2>/dev/null
+    ./build/sambamba sort -m 50M empty.bam -o empty2.bam 2>/dev/null
     assertEquals "0" `./build/sambamba view -c empty2.bam`
 }
 
