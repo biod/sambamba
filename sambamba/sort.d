@@ -39,6 +39,7 @@ import std.path;
 import std.file;
 import std.stream;
 import std.stdio;
+import std.typecons;
 import core.atomic;
 
 import std.c.stdlib;
@@ -55,7 +56,7 @@ void printUsage() {
     stderr.writeln("Usage: sambamba-sort [options] <input.bam>");
     stderr.writeln();
     stderr.writeln("Options: -m, --memory-limit=LIMIT");
-    stderr.writeln("               approximate memory limit (it's not guaranteed that it won't be exceeded, because of garbage collection)");
+    stderr.writeln("               approximate total memory limit for all threads (by default 2GB)");
     stderr.writeln("         --tmpdir=TMPDIR");
     stderr.writeln("               directory for storing intermediate files; default is system directory for temporary files");
     stderr.writeln("         -o, --out=OUTPUTFILE");
@@ -91,7 +92,7 @@ class Sorter {
 
     BamReader bam;
     TaskPool task_pool;
-    size_t memory_limit = 512 * 1024 * 1024;
+    size_t memory_limit = 2 * 1024 * 1024 * 1024;
     string tmpdir;
     int compression_level = -1;
     bool uncompressed_chunks = false;
@@ -180,7 +181,7 @@ class Sorter {
         if (!sort_by_name) {
             mergeSort!(compareCoordinates, false)(chunk, task_pool, tmp);
         } else {
-            mergeSort!(compareReadNames, false)(chunk, task_pool);
+            mergeSort!(compareReadNames, false)(chunk, task_pool, tmp);
         }
         version (development) {
         stderr.writeln("Finished sorting of chunk #", n, " in ", sw.peek().seconds, "s");
@@ -193,8 +194,13 @@ class Sorter {
 
         createHeader();
 
-        bam.setBufferSize(16_000_000);
+        size_t buf_size = 16_000_000;
+        bam.setBufferSize(buf_size);
         bam.assumeSequentialProcessing();
+
+        auto output_buffer_ptr = cast(ubyte*)std.c.stdlib.malloc(buf_size);
+        output_buffer = output_buffer_ptr[0 .. buf_size];
+        scope(exit)std.c.stdlib.free(output_buffer_ptr);
 
         if (show_progress) {
             stderr.writeln("Writing sorted chunks to temporary directory...");
@@ -285,6 +291,8 @@ class Sorter {
             swap(buf1, buf2);
         }
 
+        version(development) stderr.writeln("waiting for the last sorting task...");
+
         if (sorting_task !is null)
             dump(sorting_task.yieldForce());
 
@@ -294,6 +302,8 @@ class Sorter {
             dump([]);
         }
     }
+
+    private ubyte[] output_buffer;
 
     // if there's more than one chunk, first call to dump will be when k == 2
     // because we first submit sorting task and only when dump previous chunk
@@ -316,11 +326,12 @@ class Sorter {
             tmpfiles ~= fn;
         }
 
-        Stream stream = new BufferedFile(fn, FileMode.OutNew, 16_000_000);
+        auto stream = scoped!BufferedFile(fn, FileMode.OutNew, 0);
+        stream.buffer = output_buffer;
         scope(failure) stream.close();
 
         // if there's only one chunk, we will write straight to the output file
-        auto writer = new BamWriter(stream, level, task_pool, 32_000_000);
+        auto writer = scoped!BamWriter(stream, level, task_pool, 32_000_000);
 
         writer.writeSamHeader(header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
@@ -355,8 +366,8 @@ class Sorter {
 
         auto input_buf_size = min(16_000_000, memory_limit / 4 / num_of_chunks);
         auto output_buf_size = min(64_000_000, memory_limit / 6);
-        Stream stream = new BufferedFile(output_filename, FileMode.OutNew, 
-                                         output_buf_size);
+        auto stream = scoped!BufferedFile(output_filename, FileMode.OutNew, 
+                                          output_buf_size);
         scope(failure) stream.close();
 
         alias ReturnType!(BamReader.readsWithProgress!withoutOffsets) AlignmentRangePB;
@@ -397,8 +408,8 @@ class Sorter {
                 alignmentranges[i] = bamfile.readsWithProgress(null);
         }
 
-        auto writer = new BamWriter(stream, compression_level, task_pool,
-                2 * output_buf_size);
+        auto writer = scoped!BamWriter(stream, compression_level, task_pool,
+                                       2 * output_buf_size);
         scope(exit) writer.finish();
         writer.writeSamHeader(header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
@@ -429,7 +440,7 @@ int sort_main(string[] args) {
         string memory_limit_str = null;
         uint n_threads = totalCPUs;
 
-        auto sorter = new Sorter();
+        auto sorter = scoped!Sorter();
 
         getopt(args,
                std.getopt.config.caseSensitive,
@@ -449,17 +460,21 @@ int sort_main(string[] args) {
 
         protectFromOverwrite(args[1], sorter.output_filename);
         sorter.tmpdir = randomSubdir(sorter.tmpdir);
+        scope(success) std.file.rmdirRecurse(sorter.tmpdir);
 
         if (memory_limit_str !is null) {
             sorter.memory_limit = parseMemory(memory_limit_str);
         }
 
-        sorter.memory_limit = (sorter.memory_limit * 2) / 3;
+        sorter.memory_limit = (sorter.memory_limit * 5) / 6;
 
         sorter.task_pool = new TaskPool(n_threads);
         scope(exit) sorter.task_pool.finish();
         sorter.bam = new BamReader(args[1], sorter.task_pool);
         sorter.filename = args[1];
+
+        import core.memory;
+        GC.disable();
 
         sorter.sort();
         return 0;

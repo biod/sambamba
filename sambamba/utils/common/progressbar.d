@@ -23,6 +23,7 @@ module sambamba.utils.common.progressbar;
 import std.stdio;
 import std.range;
 import std.numeric;
+import core.atomic;
 
 /// Common interface for all progressbars.
 shared interface IProgressBar {
@@ -48,7 +49,7 @@ shared class ProgressBar : IProgressBar {
             redraw(percentage);
             _k = 0;
         } else {
-            _k += 1;
+            _k.atomicOp!"+="(1);
         }
     }
 
