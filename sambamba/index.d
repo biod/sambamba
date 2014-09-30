@@ -24,6 +24,7 @@ import std.stream;
 import std.range;
 import std.parallelism;
 import std.getopt;
+import cram.reader;
 
 import sambamba.utils.common.progressbar;
 
@@ -31,10 +32,9 @@ import bio.bam.bai.indexing;
 import bio.bam.reader;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam> [<output.bai>]");
+    stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam|input.cram>");
     stderr.writeln();
-    stderr.writeln("\tIf output filename is not provided, appends '.bai' suffix");
-    stderr.writeln("\tto the name of BAM file");
+    stderr.writeln("\tCreates index for a BAM or CRAM file");
     stderr.writeln();
     stderr.writeln("Options: -t, --nthreads=NTHREADS");
     stderr.writeln("               number of threads to use for decompression");
@@ -42,6 +42,8 @@ void printUsage() {
     stderr.writeln("               show progress bar in STDERR");
     stderr.writeln("         -c, --check-bins");
     stderr.writeln("               check that bins are set correctly");
+    stderr.writeln("         -C, --cram-input");
+    stderr.writeln("               specify that input is in CRAM format");
 }
 
 version(standalone) {
@@ -55,49 +57,52 @@ int index_main(string[] args) {
     bool show_progress;
     bool check_bins;
     uint n_threads = totalCPUs;
+    bool is_cram;
 
     getopt(args,
            std.getopt.config.caseSensitive,
            "show-progress|p", &show_progress,
            "nthreads|t",      &n_threads,
-           "check-bins|c",    &check_bins);
+           "check-bins|c",    &check_bins,
+           "cram-input|C",    &is_cram);
 
     try {
         string out_filename = null;
-        switch (args.length) {
-            case 3:
-                out_filename = args[2];
-                goto case;
-            case 2:
-                if (out_filename is null)
-                    out_filename = args[1] ~ ".bai";
+        if (args.length != 2) {
+            printUsage();
+            return 0;
+        }
 
-                // default taskPool uses only totalCPUs-1 threads,
-                // but in case of indexing the most time is spent
-                // on decompression, and it makes perfect sense
-                // to use all available cores for that
-                //
-                // (this is not the case with the sambamba tool where
-                // filtering can consume significant amount of time)
-                auto task_pool = new TaskPool(n_threads);
-                scope(exit) task_pool.finish();
+        if (!is_cram) {
+            out_filename = args[1] ~ ".bai";
 
-                auto bam = new BamReader(args[1], task_pool);
-                bam.assumeSequentialProcessing();
-                Stream stream = new BufferedFile(out_filename, FileMode.Out);
-                scope(exit) stream.close();
+            // default taskPool uses only totalCPUs-1 threads,
+            // but in case of indexing the most time is spent
+            // on decompression, and it makes perfect sense
+            // to use all available cores for that
+            //
+            // (this is not the case with the sambamba tool where
+            // filtering can consume significant amount of time)
+            auto task_pool = new TaskPool(n_threads);
+            scope(exit) task_pool.finish();
 
-                if (show_progress) {
-                    auto bar = new shared(ProgressBar)();
-                    createIndex(bam, stream, check_bins, (lazy float p) { bar.update(p); });
-                    bar.finish();
-                } else {
-                    createIndex(bam, stream, check_bins);
-                }
-                break;
-            default:
-                printUsage();
-                return 0;
+            auto bam = new BamReader(args[1], task_pool);
+            bam.assumeSequentialProcessing();
+            Stream stream = new BufferedFile(out_filename, FileMode.Out);
+            scope(exit) stream.close();
+
+            if (show_progress) {
+                auto bar = new shared(ProgressBar)();
+                createIndex(bam, stream, check_bins, (lazy float p) { bar.update(p); });
+                bar.finish();
+            } else {
+                createIndex(bam, stream, check_bins);
+            }
+        } else {
+            if (show_progress)
+                stderr.writeln("[info] progressbar is unavailable for CRAM input");
+            auto cram = new CramReader(args[1], n_threads);
+            cram.createIndex();
         }
     } catch (Throwable e) {
         stderr.writeln("sambamba-index: ", e.msg);

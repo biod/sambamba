@@ -15,6 +15,7 @@ before_install:
   - tar xjf ldc2-0.13.0-osx-x86_64.tar.bz2
   - export PATH=ldc2-0.13.0-osx-x86_64/bin:$PATH
   - wget https://github.com/craigcitro/r-travis/raw/master/scripts/dropbox.sh
+  - sudo apt-get install -qq libhts0
   - chmod +x dropbox.sh
   - curl -L "https://dl.dropboxusercontent.com/u/7916095/shunit2-2.0.3.tgz" | tar zx
 

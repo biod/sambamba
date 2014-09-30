@@ -1,11 +1,14 @@
 D_COMPILER=dmd
-D_FLAGS=-IBioD #-O -release -inline # -version=serial
+D_FLAGS=-IBioD -g#-O -release -inline # -version=serial
 
 RDMD_FLAGS=--force --compiler=$(D_COMPILER) --build-only $(D_FLAGS)
 
 all:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -ofbuild/sambamba main.d
+
+htslib:
+	$(MAKE) -C $(HTSLIB_DIR) lib-static
 
 release:
 	mkdir -p build/

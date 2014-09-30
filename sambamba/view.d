@@ -24,6 +24,7 @@ import bio.bam.read;
 import bio.bam.splitter;
 import bio.bam.region;
 import bio.sam.reader;
+import cram.reader;
 import bio.core.region;
 
 import sambamba.utils.common.filtering;
@@ -68,6 +69,8 @@ void printUsage() {
     stderr.writeln("                    output only valid alignments");
     stderr.writeln("         -S, --sam-input");
     stderr.writeln("                    specify that input is in SAM format");
+    stderr.writeln("         -C, --cram-input");
+    stderr.writeln("                    specify that input is in CRAM format");
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("                    show progressbar in STDERR (works only for BAM files with no regions specified)");
     stderr.writeln("         -l, --compression-level");
@@ -112,6 +115,7 @@ bool reference_info_only;
 bool count_only;
 bool skip_invalid_alignments;
 bool is_sam;
+bool is_cram;
 
 bool show_progress;
 
@@ -148,6 +152,7 @@ int view_main(string[] args) {
                "count|c",             &count_only,
                "valid|v",             &skip_invalid_alignments,
                "sam-input|S",         &is_sam,
+               "cram-input|C",        &is_cram, // TODO: autodetection of format
                "show-progress|p",     &show_progress,
                "compression-level|l", &compression_level,
                "output-filename|o",   &output_filename,
@@ -162,14 +167,26 @@ int view_main(string[] args) {
 
         protectFromOverwrite(args[1], output_filename);
         
-        auto task_pool = new TaskPool(n_threads);
-        scope(exit) task_pool.finish();
-        if (!is_sam) {
-            auto bam = new BamReader(args[1], task_pool); 
-            return sambambaMain(bam, task_pool, args);
+        if (is_cram && is_sam)
+            throw new Exception("only one of --sam-input and --cram-input can be specified");
+        
+        if (!is_cram) {
+            auto task_pool = new TaskPool(n_threads);
+            scope(exit) task_pool.finish();
+            if (!is_sam) {
+                auto bam = new BamReader(args[1], task_pool); 
+                return sambambaMain(bam, task_pool, args);
+            } else {
+                auto sam = new SamReader(args[1]);
+                return sambambaMain(sam, task_pool, args);
+            }
         } else {
-            auto sam = new SamReader(args[1]);
-            return sambambaMain(sam, task_pool, args);
+            defaultPoolThreads = 0;
+            import core.memory;
+            GC.disable();
+            // TODO: make it use same task pool
+            auto cram = new CramReader(args[1], n_threads);
+            return sambambaMain(cram, taskPool, args);
         }
     } catch (Exception e) {
         stderr.writeln("sambamba-view: ", e.msg);
@@ -186,9 +203,7 @@ auto filtered(R)(R reads, Filter f) {
     return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
 }
 
-// In fact, $(D bam) is either BAM or SAM file
 int sambambaMain(T)(T _bam, TaskPool pool, string[] args) 
-    if (is(T == SamReader) || is(T == BamReader)) 
 {
     auto bam = _bam; // FIXME: uhm, that was a workaround for some closure-related bug
 
@@ -237,7 +252,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
     int processAlignments(P)(P processor) {
         static if (is(T == SamReader)) {
             if (args.length > 2) {
-                stderr.writeln("region queries are unavailable for SAM input");
+                stderr.writeln("region queries are unavailable for SAM/CRAM input");
                 return 1;
             }
         }
@@ -280,11 +295,12 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
             }
         } else {
         // for BAM, random access is available
-        static if (is(T == BamReader)) {
+        static if (is(T == BamReader) || is(T == CramReader)) {
             if (args.length > 2) {
                 auto regions = map!parseRegion(args[2 .. $]);
 
-                alias InputRange!BamReadBlock AlignmentRange;
+                alias typeof(bam.unmappedReads().front) Read;
+                alias InputRange!Read AlignmentRange;
                 auto alignment_ranges = new AlignmentRange[regions.length];
 
                 size_t i = 0;
@@ -302,9 +318,13 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 auto reads = joiner(alignment_ranges);
                 runProcessor(bam, reads, read_filter);
             } else if (bed_filename.length > 0) {
-                auto regions = parseBed(bed_filename, bam);
-                auto reads = bam.getReadsOverlapping(regions);
-                runProcessor(bam, reads, read_filter);
+                static if (is(T == CramReader)) {
+                    throw new Exception("BED support is unavailable for CRAM");
+                } else {
+                    auto regions = parseBed(bed_filename, bam);
+                    auto reads = bam.getReadsOverlapping(regions);
+                    runProcessor(bam, reads, read_filter);
+                }
             }
         }
         }
