@@ -336,6 +336,7 @@ class Sorter {
 
         // if there's only one chunk, we will write straight to the output file
         auto writer = scoped!BamWriter(stream, level, task_pool, 32_000_000);
+        writer.setFilename(fn);
 
         writer.writeSamHeader(header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
@@ -414,6 +415,7 @@ class Sorter {
 
         auto writer = scoped!BamWriter(stream, compression_level, task_pool,
                                        2 * output_buf_size);
+        writer.setFilename(output_filename);
         scope(exit) writer.finish();
         writer.writeSamHeader(header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);

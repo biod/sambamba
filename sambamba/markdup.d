@@ -1136,6 +1136,7 @@ int markdup_main(string[] args) {
         bam.setBufferSize(io_buffer_size);
         auto out_stream = new BufferedFile(args[2], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level, pool);
+        writer.setFilename(args[2]);
         scope(exit) writer.finish();
         writer.writeSamHeader(bam.header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);

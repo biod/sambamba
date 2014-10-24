@@ -7,9 +7,6 @@ all:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -ofbuild/sambamba main.d
 
-htslib:
-	$(MAKE) -C $(HTSLIB_DIR) lib-static
-
 release:
 	mkdir -p build/
 	rdmd --build-only --force -O -release -inline -IBioD/ -ofbuild/sambamba main.d
@@ -17,10 +14,6 @@ release:
 sambamba-ldmd2-64:
 	mkdir -p build/
 	rdmd --build-only --force --compiler=ldmd2 -O2 -m64 -noboundscheck -release -inline -IBioD/ -ofbuild/sambamba main.d
-
-sambamba-ldmd2-32:
-	mkdir -p build/
-	rdmd --build-only --force --compiler=ldmd2 -O2 -m32 -release -inline -IBioD/ -ofbuild/sambamba main.d
 
 sambamba-flagstat:
 	mkdir -p build/

@@ -182,8 +182,6 @@ int view_main(string[] args) {
             }
         } else {
             defaultPoolThreads = 0;
-            import core.memory;
-            GC.disable();
             // TODO: make it use same task pool
             auto cram = new CramReader(args[1], n_threads);
             return sambambaMain(cram, taskPool, args);
@@ -342,7 +340,9 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         if (format == "bam") {
             // FIXME: dirty hack to avoid closing file twice, depends on std.stdio.File internals
             scope(exit) *(*cast(void***)(&output_file)) = null;
-            return processAlignments(new BamSerializer(output_file, compression_level, pool));
+            return processAlignments(new BamSerializer(output_filename,
+                                                       output_file,
+                                                       compression_level, pool));
         }
 
         scope (exit) output_file.close();

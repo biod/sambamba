@@ -98,7 +98,7 @@ final class SamSerializer : TextSerializer {
     this(File f, TaskPool pool) { super(f, pool); }
 
     void process(R, SB)(R reads, SB bam) {
-	auto w = _f.lockingTextWriter;
+        auto w = _f.lockingTextWriter;
         runConversion!(chunkToSam, data => w.put(data))(reads, _pool);
     }
 
@@ -112,8 +112,10 @@ final class BamSerializer {
     private TaskPool _task_pool;
     private enum BUFSIZE = 4096;//1_048_576;
 
+    string output_filename;
 
-    this(File f, int compression_level, TaskPool pool) {
+    this(string output_fn, File f, int compression_level, TaskPool pool) {
+        output_filename = output_fn;
         _f = f;
         if (!_f.isTty)
             _f.setvbuf(BUFSIZE);
@@ -135,8 +137,8 @@ final class BamSerializer {
         Stream output_stream = new BufferedFile(handle, FileMode.OutNew, 
                                                 BUFSIZE);
         auto writer = new BamWriter(output_stream, _level, _task_pool);
+        writer.setFilename(output_filename);
         scope(exit) writer.finish();
-
         writer.writeSamHeader(bam.header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
         foreach (read; reads)
@@ -148,7 +150,7 @@ final class JsonSerializer : TextSerializer {
     this(File f, TaskPool pool) { super(f, pool); }
 
     void process(R, SB)(R reads, SB bam) {
-	auto w = _f.lockingTextWriter;
+        auto w = _f.lockingTextWriter;
         runConversion!(chunkToJson, data => w.put(data))(reads, _pool);
     }
 

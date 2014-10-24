@@ -375,6 +375,7 @@ int merge_main(string[] args) {
             } 
 
             auto writer = new BamWriter(stream, compression_level, task_pool);
+	    writer.setFilename(output_filename);
             scope(exit) writer.finish();
             writer.writeSamHeader(cast()merged_header);
             writer.writeReferenceSequenceInfo(reference_sequences);
