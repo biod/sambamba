@@ -1,7 +1,7 @@
 D_COMPILER=dmd
 D_FLAGS=-IBioD -g#-O -release -inline # -version=serial
 
-HTSLIB_PATH=-L/home/lomereiter/github/htslib
+HTSLIB_PATH=-Lhtslib
 HTSLIB_SUBCMD=$(HTSLIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic
 RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 
