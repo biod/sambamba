@@ -22,7 +22,7 @@ htslib-static:
 
 sambamba-ldmd2-64-osx:
 	mkdir -p build/
-	rdmd --force --build-only --compiler=ldmd2 -O -release -inline -noboundscheck -ofbuild/sambamba main.d
+	rdmd --force --build-only --compiler=ldmd2 -IBioD -O -L-lhts -release -inline -noboundscheck -ofbuild/sambamba main.d
 
 sambamba-flagstat:
 	mkdir -p build/
