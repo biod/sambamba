@@ -1,6 +1,6 @@
 module cram.htslib;
 
-pragma(lib, "hts");
+//pragma(lib, "hts");
 
 import core.stdc.stdio;
 import core.stdc.config;

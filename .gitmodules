@@ -1,3 +1,6 @@
 [submodule "BioD"]
 	path = BioD
 	url = https://github.com/biod/BioD.git
+[submodule "htslib"]
+	path = htslib
+	url = git@github.com:lomereiter/htslib.git
