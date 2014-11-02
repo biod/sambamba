@@ -53,12 +53,14 @@ which targets LLVM.
 
 (The Dropbox archive differs from the official LDC release in that it also contains `rdmd` executable from DMD distribution.)
 
+    brew tap homebrew/science
+    brew install htslib
     wget https://dl.dropboxusercontent.com/u/7916095/ldc2-0.13.0-osx-x86_64.tar.bz2
     tar xjf ldc2-0.13.0-osx-x86_64.tar.bz2
     git clone --recursive https://github.com/lomereiter/sambamba.git
     cd sambamba
     export PATH=../ldc2-0.13.0-osx-x86_64/bin:$PATH
-    make sambamba-ldmd2-64
+    make sambamba-ldmd2-64-osx
 
 ## Compiling for Linux using Docker
 

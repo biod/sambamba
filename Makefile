@@ -5,19 +5,24 @@ HTSLIB_PATH=-Lhtslib
 HTSLIB_SUBCMD=$(HTSLIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic
 RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 
-all:
+all: htslib-static
 	mkdir -p build/
 	rdmd --force --build-only $(D_FLAGS) -c -ofbuild/sambamba.o main.d
 	gcc -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -Xlinker --export-dynamic -l:libphobos2.a -lrt -lpthread -lm
 
-sambamba-ldmd2-64:
+sambamba-ldmd2-64: htslib-static
 	mkdir -p build/
-	export LIBRARY_PATH=/home/lomereiter/Downloads/ldc2-0.14.0-linux-x86_64/lib
-	export PATH=/home/lomereiter/Downloads/ldc2-0.14.0-linux-x86_64/bin:$$PATH
 	ldmd2 @sambamba-ldmd-release.rsp
 	gcc -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -Xlinker --export-dynamic -l:libphobos2-ldc.a -l:libdruntime-ldc.a -lrt -lpthread -lm
 
+htslib-static:
+	cd htslib && $(MAKE)
+
 # all below link to libhts dynamically for simplicity
+
+sambamba-ldmd2-64-osx:
+	mkdir -p build/
+	rdmd --force --build-only --compiler=ldmd2 -O -release -inline -noboundscheck -ofbuild/sambamba main.d
 
 sambamba-flagstat:
 	mkdir -p build/
