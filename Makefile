@@ -12,6 +12,8 @@ all:
 
 sambamba-ldmd2-64:
 	mkdir -p build/
+	export LIBRARY_PATH=/home/lomereiter/Downloads/ldc2-0.14.0-linux-x86_64/lib
+	export PATH=/home/lomereiter/Downloads/ldc2-0.14.0-linux-x86_64/bin:$$PATH
 	ldmd2 @sambamba-ldmd-release.rsp
 	gcc -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -Xlinker --export-dynamic -l:libphobos2-ldc.a -l:libdruntime-ldc.a -lrt -lpthread -lm
 
