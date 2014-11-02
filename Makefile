@@ -8,12 +8,12 @@ RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 all: htslib-static
 	mkdir -p build/
 	rdmd --force --build-only $(D_FLAGS) -c -ofbuild/sambamba.o main.d
-	gcc -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -Xlinker --export-dynamic -l:libphobos2.a -lrt -lpthread -lm
+	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2.a -lrt -lpthread -lm
 
 sambamba-ldmd2-64: htslib-static
 	mkdir -p build/
 	ldmd2 @sambamba-ldmd-release.rsp
-	gcc -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -Xlinker --export-dynamic -l:libphobos2-ldc.a -l:libdruntime-ldc.a -lrt -lpthread -lm
+	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
 
 htslib-static:
 	cd htslib && $(MAKE)
