@@ -45,5 +45,11 @@ testSortingEmptyFile() {
     assertEquals "0" `./build/sambamba view -c empty2.bam`
 }
 
+testMarkdupEmptyFile() {
+    ./build/sambamba view ex1_header.sorted.bam -f bam -F "ref_id > 3" -o empty.bam 2>/dev/null
+    ./build/sambamba markdup empty.bam empty.dedup.bam
+    assertEquals "0" `./build/sambamba view -c empty.dedup.bam`
+}
+
 
 . shunit2-2.0.3/src/shell/shunit2

@@ -15,6 +15,11 @@ sambamba-ldmd2-64: htslib-static
 	ldmd2 @sambamba-ldmd-release.rsp
 	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
 
+sambamba-ldmd2-debug: htslib-static
+	mkdir -p build/
+	ldmd2 @sambamba-ldmd-debug.rsp
+	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
+
 htslib-static:
 	cd htslib && $(MAKE)
 

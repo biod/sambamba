@@ -357,9 +357,11 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
     void closeTmpWriter() {
         if (_tmp_w !is null)
             _tmp_w.finish();
-        auto vo_fn = _tmp_filenames[$ - 1] ~ ".vo";
-        std.file.write(vo_fn, cast(ubyte[])_tmp_s_vo);
-        std.file.append(vo_fn, cast(ubyte[])_tmp_e_vo);
+        if (_tmp_filenames.length > 0) {
+            auto vo_fn = _tmp_filenames[$ - 1] ~ ".vo";
+            std.file.write(vo_fn, cast(ubyte[])_tmp_s_vo);
+            std.file.append(vo_fn, cast(ubyte[])_tmp_e_vo);
+        }
         _tmp_s_vo.length = 0;
         _tmp_e_vo.length = 0;
         assumeSafeAppend(_tmp_s_vo);
