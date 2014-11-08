@@ -105,6 +105,28 @@ final class SamSerializer : TextSerializer {
     enum is_serial = true;
 }
 
+import cram.writer;
+final class CramSerializer {
+    private CramWriter _writer;
+    this(string output_fn, string ref_fn, size_t n_threads) {
+        if (output_fn is null)
+            output_fn = "-"; // stdout
+        _writer = new CramWriter(output_fn, n_threads);
+        if (ref_fn !is null)
+            _writer.setFastaFilename(ref_fn);
+    }
+
+    enum is_serial = true;
+
+    void process(R, SB)(R reads, SB bam)
+    {
+        scope (exit) _writer.finish();
+        _writer.writeSamHeader(bam.header);
+        foreach (read; reads)
+            _writer.writeRecord(read);
+    }
+}
+
 final class BamSerializer {
 
     private File _f;

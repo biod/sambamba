@@ -1,5 +1,7 @@
 module cram.htslib;
 
+// TODO: structs with bitfields are not represented correctly
+
 //pragma(lib, "hts");
 
 import core.stdc.stdio;
@@ -227,11 +229,8 @@ struct _Anonymous_4
 {
 	int tid;
 	int pos;
-	uint bin;
-	uint qual;
-	uint l_qname;
-	uint flag;
-	uint n_cigar;
+	uint bin_mq_nl;
+	uint flag_nc;
 	int l_qseq;
 	int mtid;
 	int mpos;
@@ -1205,7 +1204,7 @@ int cram_compress_block (cram_fd* fd, cram_block* b, cram_metrics* metrics, int 
 cram_metrics* cram_new_metrics ();
 char* cram_block_method2str (cram_block_method m);
 char* cram_content_type2str (cram_content_type t);
-int cram_load_reference (cram_fd* fd, char* fn);
+int cram_load_reference (cram_fd* fd, const(char)* fn);
 int refs2id (refs_t* r, SAM_hdr* bfd);
 void refs_free (refs_t* r);
 char* cram_get_ref (cram_fd* fd, int id, int start, int end);

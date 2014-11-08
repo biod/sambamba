@@ -53,7 +53,7 @@ void printUsage() {
     stderr.writeln();
     stderr.writeln("Options: -F, --filter=FILTER");
     stderr.writeln("                    set custom filter for alignments");
-    stderr.writeln("         -f, --format=sam|bam|json");
+    stderr.writeln("         -f, --format=sam|bam|cram|json");
     stderr.writeln("                    specify which format to use for output (default is SAM)");
     stderr.writeln("         -h, --with-header");
     stderr.writeln("                    print header before reads (always done for BAM output)");
@@ -71,6 +71,8 @@ void printUsage() {
     stderr.writeln("                    specify that input is in SAM format");
     stderr.writeln("         -C, --cram-input");
     stderr.writeln("                    specify that input is in CRAM format");
+    stderr.writeln("         -T, --ref-filename=FASTA");
+    stderr.writeln("                    specify reference for writing CRAM");
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("                    show progressbar in STDERR (works only for BAM files with no regions specified)");
     stderr.writeln("         -l, --compression-level");
@@ -109,6 +111,7 @@ void outputReferenceInfoJson(T)(T bam) {
 
 string format = "sam";
 string query;
+string ref_fn;
 bool with_header;
 bool header_only;
 bool reference_info_only;
@@ -158,7 +161,8 @@ int view_main(string[] args) {
                "output-filename|o",   &output_filename,
                "nthreads|t",          &n_threads,
                "subsample|s",         &subsample_frac,
-               "subsampling-seed",    &subsampling_seed);
+               "subsampling-seed",    &subsampling_seed,
+               "ref-filename|T",      &ref_fn);
 
         if (args.length < 2) {
             printUsage();
@@ -219,8 +223,9 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
     if (header_only && !count_only) {
         // write header to stdout
         (new HeaderSerializer(stdout, format)).writeln(bam.header);
-    } else if (with_header && !count_only && format != "bam") {
-        // for BAM, header will be written by writeBAM function
+    } else if (with_header && !count_only &&
+               format != "bam" && format != "cram")
+    {
         (new HeaderSerializer(output_file, format)).writeln(bam.header);
     }
     
@@ -250,7 +255,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
     int processAlignments(P)(P processor) {
         static if (is(T == SamReader)) {
             if (args.length > 2) {
-                stderr.writeln("region queries are unavailable for SAM/CRAM input");
+                stderr.writeln("region queries are unavailable for SAM input");
                 return 1;
             }
         }
@@ -292,7 +297,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 runProcessor(bam, bam.reads, read_filter);
             }
         } else {
-        // for BAM, random access is available
+        // for BAM/CRAM, random access is available
         static if (is(T == BamReader) || is(T == CramReader)) {
             if (args.length > 2) {
                 auto regions = map!parseRegion(args[2 .. $]);
@@ -343,6 +348,10 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
             return processAlignments(new BamSerializer(output_filename,
                                                        output_file,
                                                        compression_level, pool));
+        } else if (format == "cram") {
+            output_file.close();
+            return processAlignments(new CramSerializer(output_filename, ref_fn,
+                                                        n_threads));
         }
 
         scope (exit) output_file.close();
@@ -354,7 +363,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
             case "msgpack":
                 return processAlignments(new MsgpackSerializer(output_file));
             default:
-                stderr.writeln("output format must be one of sam, bam, json");
+                stderr.writeln("output format must be one of sam, bam, cram, json");
                 return 1;
         }
     }

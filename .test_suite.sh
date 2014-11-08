@@ -47,7 +47,7 @@ testSortingEmptyFile() {
 
 testMarkdupEmptyFile() {
     ./build/sambamba view ex1_header.sorted.bam -f bam -F "ref_id > 3" -o empty.bam 2>/dev/null
-    ./build/sambamba markdup empty.bam empty.dedup.bam
+    ./build/sambamba markdup empty.bam empty.dedup.bam 2>/dev/null
     assertEquals "0" `./build/sambamba view -c empty.dedup.bam`
 }
 

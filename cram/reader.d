@@ -37,7 +37,7 @@ class CramReader : IBamSamReader {
     }
 
     private auto openCram(string filename) {
-        auto fd = cram_open(toStringz(filename), "r");
+        auto fd = cram_open(toStringz(filename), "rb");
         cram_set_option(fd, cram_option.CRAM_OPT_DECODE_MD);
 // the library is not ready yet for this :C
 //        if (_n_threads > 1)
