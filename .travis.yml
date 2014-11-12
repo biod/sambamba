@@ -10,18 +10,14 @@ env:
   - secure: J1ta2/K8lj5dbHRvk+jTUAMICSnepfyc8ILCfM/HFCRaXMJQJTX1HDzEMwK3tAzzKaKEp9Tbm2b3IwE1tCtFaAfYUGozmHLirkFfKqCu/jNUkxL807M8NiqMx+H7tu2aR6t9opYyBjNhtuthbIdir3c42nldYdpse0ZLhzQTLfs=
 
 before_install:
-  - brew tap homebrew/science
-  - brew install htslib
+  - brew install ldc
   - git submodule update --init --recursive
-  - wget https://dl.dropboxusercontent.com/u/7916095/ldc2-0.13.0-osx-x86_64.tar.bz2
-  - tar xjf ldc2-0.13.0-osx-x86_64.tar.bz2
-  - export PATH=ldc2-0.13.0-osx-x86_64/bin:$PATH
   - wget https://github.com/craigcitro/r-travis/raw/master/scripts/dropbox.sh
   - chmod +x dropbox.sh
   - curl -L "https://dl.dropboxusercontent.com/u/7916095/shunit2-2.0.3.tgz" | tar zx
 
 script:
-  - make sambamba-ldmd2-64-osx
+  - make sambamba-ldmd2-64
   - ./.run_tests.sh
 
 after_success:

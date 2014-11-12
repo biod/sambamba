@@ -5,29 +5,36 @@ HTSLIB_PATH=-Lhtslib
 HTSLIB_SUBCMD=$(HTSLIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic
 RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 
+# Linux & DMD only - this goal is used because of fast compilation speed, during development
 all: htslib-static
 	mkdir -p build/
 	rdmd --force --build-only $(D_FLAGS) -c -ofbuild/sambamba.o main.d
 	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2.a -lrt -lpthread -lm
 
+PLATFORM := $(shell uname -s)
+
+ifeq "$(PLATFORM)" "Darwin"
+LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a build/sambamba.o -o build/sambamba
+else
+LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
+endif
+
+# This is the main Makefile goal, used for building releases (best performance)
 sambamba-ldmd2-64: htslib-static
 	mkdir -p build/
 	ldmd2 @sambamba-ldmd-release.rsp
-	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
+	$(LINK_CMD)
 
+# For debugging; GDB & Valgrind are more friendly to executables created using LDC/GDC than DMD
 sambamba-ldmd2-debug: htslib-static
 	mkdir -p build/
 	ldmd2 @sambamba-ldmd-debug.rsp
-	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
+	$(LINK_CMD)
 
 htslib-static:
 	cd htslib && $(MAKE)
 
 # all below link to libhts dynamically for simplicity
-
-sambamba-ldmd2-64-osx:
-	mkdir -p build/
-	rdmd --force --build-only --compiler=ldmd2 -IBioD -O -L-lhts -release -inline -noboundscheck -ofbuild/sambamba main.d
 
 sambamba-flagstat:
 	mkdir -p build/
