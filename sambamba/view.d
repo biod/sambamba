@@ -174,21 +174,17 @@ int view_main(string[] args) {
         if (is_cram && is_sam)
             throw new Exception("only one of --sam-input and --cram-input can be specified");
         
-        if (!is_cram) {
-            auto task_pool = new TaskPool(n_threads);
-            scope(exit) task_pool.finish();
-            if (!is_sam) {
-                auto bam = new BamReader(args[1], task_pool); 
-                return sambambaMain(bam, task_pool, args);
-            } else {
-                auto sam = new SamReader(args[1]);
-                return sambambaMain(sam, task_pool, args);
-            }
+        auto task_pool = new TaskPool(n_threads);
+        scope(exit) task_pool.finish();
+        if (is_sam) {
+            auto sam = new SamReader(args[1]);
+            return sambambaMain(sam, task_pool, args);
+        } else if (!is_cram) {
+            auto bam = new BamReader(args[1], task_pool); 
+            return sambambaMain(bam, task_pool, args);
         } else {
-            defaultPoolThreads = 0;
-            // TODO: make it use same task pool
-            auto cram = new CramReader(args[1], n_threads);
-            return sambambaMain(cram, taskPool, args);
+            auto cram = new CramReader(args[1], task_pool);
+            return sambambaMain(cram, task_pool, args);
         }
     } catch (Exception e) {
         stderr.writeln("sambamba-view: ", e.msg);
@@ -313,7 +309,10 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                         range = bam.unmappedReads().inputRangeObject;
                     } else {
                         auto r = parseRegion(region_description);
-                        range = bam[r.reference][r.beg .. r.end].inputRangeObject;
+                        auto seq = bam[r.reference];
+                        if (r.end == uint.max)
+                            r.end = seq.length;
+                        range = seq[r.beg .. r.end].inputRangeObject;
                     }
                     alignment_ranges[i++] = range;
                 }

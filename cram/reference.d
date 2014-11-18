@@ -1,9 +1,41 @@
 module cram.reference;
 
-import cram.htslib, cram.exception, cram.readrange;
+import cram.exception, cram.wrappers, cram.slicereader;
+import cram.htslib;
+
 import bio.bam.abstractreader;
 import bio.bam.referenceinfo;
+import bio.bam.read;
 import std.string;
+import std.parallelism;
+
+int ref_seq_id(BamRead r) { return r.ref_id; }
+int ref_seq_start(BamRead r) { return r.position + 1; }
+int ref_seq_span(BamRead r) { return r.basesCovered(); }
+
+struct PositionChecker {
+    cram_range range;
+
+    private FilterResult passImpl(T)(T x) {
+        if (x.ref_seq_id < range.refid) return FilterResult.skip;
+        if (x.ref_seq_id > range.refid) return FilterResult.stop;
+        if (x.ref_seq_start > range.end) return FilterResult.stop;
+
+        // order of checks matters: ref_seq_span is relatively slow for reads
+        if (x.ref_seq_start + x.ref_seq_span - 1 < range.start) 
+            return FilterResult.skip;
+        
+        return FilterResult.pass;
+    }
+
+    auto pass(cram_container* c) {
+        if (c.length == 0) return FilterResult.skip;
+        return passImpl(c);
+    }
+
+    auto pass(cram_slice* s) { return passImpl(s.hdr); }
+    auto pass(BamRead r) { return passImpl(r); }
+}
 
 struct ReferenceSequence {
     /// Name
@@ -21,42 +53,58 @@ struct ReferenceSequence {
         return _ref_id;
     }
 
-		this(IBamSamReader reader, cram_fd* fd, bool seq_op, 
-				int ref_id, ReferenceSequenceInfo info) 
-		{
-				_reader = reader;
-			  _fd = fd;
-				_seq_op = seq_op;
-				_ref_id = ref_id;
-				_info = info;
-		}
+    private TaskPool _task_pool;
 
-		/// Get alignments overlapping [start, end) region.
+    this(IBamSamReader reader, CramFd fd, bool seq_op, 
+         int ref_id, ReferenceSequenceInfo info,
+         TaskPool task_pool)
+    {
+        _reader = reader;
+        _fd = fd;
+        _seq_op = seq_op;
+        _ref_id = ref_id;
+        _info = info;
+        _task_pool = task_pool;
+    }
+
+    /// Get alignments overlapping [start, end) region.
     /// $(BR)
     /// Coordinates are 0-based.
     auto opSlice(uint start, uint end) {
         enforce(start < end, "start must be less than end");
         enforce(_ref_id >= 0, "invalid reference id");
-				import std.stdio;
-				enforce(cram_index_load(_fd, toStringz(_reader.filename)) == 0,
-						"couldn't load CRAM index");
-				
-				cram_range r;
-				r.refid = _ref_id;
-				r.start = start + 1;
-				r.end = end;
-				return CramBamReadRange(_fd, _seq_op, _reader, &r);
+        enforce(cram_index_load(_fd, toStringz(_reader.filename)) == 0,
+                "couldn't load CRAM index");
+
+        cram_range r;
+        r.refid = _ref_id;
+        r.start = start + 1;
+        r.end = end;
+        if (cram_seek_to_refpos(_fd, &r) == -1)
+            throw new CramException("Failure in cram_seek_to_refpos");
+        auto checker = PositionChecker(r);
+        auto alloc = bamReadAlloc(_seq_op);
+
+        return _fd.slices(c => checker.pass(c), s => checker.pass(s),
+                          _task_pool)
+                  .zip(repeat(checker), repeat(_reader), repeat(alloc))
+                  .map!(x => bamReads(x[0], x[2], x[3])
+                             .zip(repeat(x[1]))
+                             .filter!(y => y[1].pass(y[0]) == FilterResult.pass)
+                             .map!(y => y[0]))
+                  .joiner2;
     }
 
-		/// All alignments
-		auto opSlice() {
-			return opSlice(0, length);
-		}
+    /// All alignments
+    auto opSlice() {
+        assert(length > 0);
+        return opSlice(0, length);
+    }
 
-private:
-		IBamSamReader _reader;
-		cram_fd* _fd;
-		int _ref_id;
-		bool _seq_op;
-		ReferenceSequenceInfo _info;
+    private:
+    IBamSamReader _reader;
+    CramFd _fd;
+    int _ref_id;
+    bool _seq_op;
+    ReferenceSequenceInfo _info;
 }

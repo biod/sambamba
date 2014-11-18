@@ -101,7 +101,8 @@ int index_main(string[] args) {
         } else {
             if (show_progress)
                 stderr.writeln("[info] progressbar is unavailable for CRAM input");
-            auto cram = new CramReader(args[1], n_threads);
+            defaultPoolThreads = 0; // decompression not needed for CRAM
+            auto cram = new CramReader(args[1], taskPool);
             cram.createIndex();
         }
     } catch (Throwable e) {
