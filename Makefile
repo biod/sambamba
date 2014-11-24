@@ -75,4 +75,4 @@ sambamba-pileup:
 .PHONY: clean
 
 clean:
-	rm -rf build/
+	rm -rf build/ ; cd htslib ; make clean
