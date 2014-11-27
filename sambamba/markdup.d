@@ -349,6 +349,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         _tmp_filenames ~= _tmp_dir ~ "/sorted." ~ 
                           _tmp_filenames.length.to!string() ~ ".bam";
         _tmp_w = new BamWriter(_tmp_filenames[$ - 1], 1, _task_pool);
+        _tmp_w.disableAutoIndexCreation();
         _tmp_w.writeSamHeader(_reader.header);
         _tmp_w.writeReferenceSequenceInfo(_reader.reference_sequences);
         _tmp_written = 0;
