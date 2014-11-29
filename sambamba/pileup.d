@@ -25,6 +25,7 @@ module sambamba.pileup;
 
 import sambamba.utils.common.bed;
 import sambamba.utils.common.tmpdir;
+import sambamba.utils.common.overwrite;
 
 import bio.bam.multireader;
 import bio.bam.reader;
@@ -161,7 +162,7 @@ MArray!char runSamtools(string filename,
         cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
     }
 
-    stderr.writeln("[executing] ", cmd);
+    // stderr.writeln("[executing] ", cmd);
     auto pp = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
     scope(exit) pp.pid.wait();
 
@@ -389,10 +390,11 @@ int pileup_main(string[] args) {
                          ];
     }
 
-    if (!bcftools_args.empty) 
-        bcftools_args.popFront();
-    if (bcftools_args.empty) 
-        bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
+    if (!bcftools_args.empty) {
+        bcftools_args.popFront(); // remove the switch --bcftools 
+        if (bcftools_args.empty) 
+          bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
+    }
     // Simple check for illegal switches
     auto check = bcftools_args;
     if (find(check, "-Ob").length || find(check, "-Ou").length || find(check, "-Oz").length)
@@ -400,7 +402,7 @@ int pileup_main(string[] args) {
 
     string bed_filename;
     string query;
-    string output_filename;
+    string output_filename = null;
     uint n_threads = defaultPoolThreads;
     std.stdio.File output_file = stdout;
     size_t buffer_size = 4_000_000;
@@ -422,6 +424,12 @@ int pileup_main(string[] args) {
         stderr.writeln(samtoolsInfo()," options: ",samtools_args.join(" "));
         if (bcftools_args.length>0)
             stderr.writeln("Using ",bcftoolsPath(),bcftools_args.join(" "));
+
+        if (output_filename != null) {
+          foreach (filename; own_args[1 .. $])
+            protectFromOverwrite(filename, output_filename);
+          output_file = std.stdio.File(output_filename, "w+");
+	}
 
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(own_args[1 .. $]);
