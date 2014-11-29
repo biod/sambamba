@@ -389,10 +389,11 @@ int pileup_main(string[] args) {
                          ];
     }
 
-    if (!bcftools_args.empty) 
-        bcftools_args.popFront();
-    if (bcftools_args.empty) 
-        bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
+    if (!bcftools_args.empty) {
+        bcftools_args.popFront(); // remove the switch --bcftools 
+        if (bcftools_args.empty) 
+          bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
+    }
     // Simple check for illegal switches
     auto check = bcftools_args;
     if (find(check, "-Ob").length || find(check, "-Ou").length || find(check, "-Oz").length)
