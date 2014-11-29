@@ -161,7 +161,7 @@ MArray!char runSamtools(string filename,
         cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
     }
 
-    stderr.writeln("[executing] ", cmd);
+    // stderr.writeln("[executing] ", cmd);
     auto pp = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
     scope(exit) pp.pid.wait();
 
