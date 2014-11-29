@@ -25,6 +25,7 @@ module sambamba.pileup;
 
 import sambamba.utils.common.bed;
 import sambamba.utils.common.tmpdir;
+import sambamba.utils.common.overwrite;
 
 import bio.bam.multireader;
 import bio.bam.reader;
@@ -401,7 +402,7 @@ int pileup_main(string[] args) {
 
     string bed_filename;
     string query;
-    string output_filename;
+    string output_filename = null;
     uint n_threads = defaultPoolThreads;
     std.stdio.File output_file = stdout;
     size_t buffer_size = 4_000_000;
@@ -423,6 +424,12 @@ int pileup_main(string[] args) {
         stderr.writeln(samtoolsInfo()," options: ",samtools_args.join(" "));
         if (bcftools_args.length>0)
             stderr.writeln("Using ",bcftoolsPath(),bcftools_args.join(" "));
+
+        if (output_filename != null) {
+          foreach (filename; own_args[1 .. $])
+            protectFromOverwrite(filename, output_filename);
+          output_file = std.stdio.File(output_filename, "w+");
+	}
 
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(own_args[1 .. $]);
