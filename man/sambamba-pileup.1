@@ -7,10 +7,35 @@
 \fBsambamba\-mileup\fR \- make a pileup
 .
 .SH "SYNOPSIS"
-\fBsambamba mpileup\fR \fIOPTIONS\fR <input1\.bam> <input2\.bam> [\.\.\.]
+\fBsambamba mpileup\fR \fIOPTIONS\fR <input1\.bam> <input2\.bam> [\.\.\.] [\-\-samtools \fIsamtools mpileup args\fR] [\-\-bcftools \fIbcftools args\fR]
 .
 .SH "DESCRIPTION"
-Parallel version of samtools mpileup in map\-reduce fashion\. Sambamba splits input BAM files into chunks and feeds them to samtools mpileup and, optionally, bcftools in parallel\. The chunks are slightly overlapping so that variant calling should not be impacted by these manipulations\. The obtained results from the multiple processes are combined as ordered output\. Both samtools and bcftools should be in the PATH\.
+Parallel version of samtools mpileup in map\-reduce fashion\. Sambamba splits input BAM files into chunks and feeds them to samtools mpileup and, optionally, bcftools in parallel\. The chunks are slightly overlapping so that variant calling should not be impacted by these manipulations\. The obtained results from the multiple processes are combined as ordered output\. Named pipes are created in TMPDIR\.
+.
+.P
+Sambamba mpileup relies on external tools and acts as a multi\-core implementation of samtools + bcftools\. Therefore, the following tools should be present in the PATH:
+.
+.IP "" 4
+.
+.nf
+
+* samtools
+* bcftools (when used)
+.
+.fi
+.
+.IP "" 0
+.
+.IP "\(bu" 4
+If \-\-samtools is skipped, samtools mpileup is called with default arguments \'samtools \-gu \-S \-D \-d 1000 \-L 1000 \-m 3 \-F 0\.0002\'\.
+.
+.IP "\(bu" 4
+If \-\-bcftools is used without parameters, bcftools is called as \'bcftools view \-Ov\'
+.
+.IP "\(bu" 4
+If \-\-bcftools is skipped, bcftools is not called
+.
+.IP "" 0
 .
 .SH "OPTIONS"
 .

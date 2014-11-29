@@ -25,11 +25,9 @@ should be present in the PATH:
     * samtools
     * bcftools (when used)
 
-If --samtools is skipped, samtools mpileup is called with default arguments 'samtools -gu -S -D -d 1000 -L 1000 -m 3 -F 0.0002'.
-
-If --bcftools is used without parameters, bcftools is called as 'bcftools view -Ov'
-
-If --bcftools is skipped, bcftools is not called
+* If --samtools is skipped, samtools mpileup is called with default arguments 'samtools -gu -S -D -d 1000 -L 1000 -m 3 -F 0.0002'.
+* If --bcftools is used without parameters, bcftools is called as 'bcftools view -Ov'
+* If --bcftools is skipped, bcftools is not called
 
 ## OPTIONS
 
