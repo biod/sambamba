@@ -1,0 +1,40 @@
+sambamba-mileup(1) -- make a pileup
+=============================================================
+
+## SYNOPSIS
+
+`sambamba mpileup` [OPTIONS] <input1.bam> <input2.bam> [...]
+
+## DESCRIPTION
+
+Parallel version of samtools mpileup in map-reduce fashion.  Sambamba
+splits input BAM files into chunks and feeds them to samtools mpileup
+and, optionally, bcftools in parallel.  The chunks are slightly
+overlapping so that variant calling should not be impacted by these
+manipulations. The obtained results from the multiple processes are
+combined as ordered output.  Both samtools and bcftools should be in
+the PATH.
+
+
+## OPTIONS
+
+  * `-F`, `--filter=FILTER`
+    set custom filter for alignments
+    
+  * `-L`, `--regions=FILENAME`
+    provide BED file with regions
+    (no need to duplicate it in samtools args);
+    all input files must be indexed
+		    
+  * `-o`, `--output-filename=<STDOUT>`
+    specify output filename
+  	    
+  * `-t`, `--nthreads=NTHREADS`
+    maximum number of threads to use
+  	    
+  * `-b`, `--buffer-size=4_000_000`
+    chunk size (in bytes)
+
+
+## BUGS
+

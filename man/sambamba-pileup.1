@@ -1,0 +1,35 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "SAMBAMBA\-MILEUP" "1" "November 2014" "" ""
+.
+.SH "NAME"
+\fBsambamba\-mileup\fR \- make a pileup
+.
+.SH "SYNOPSIS"
+\fBsambamba mpileup\fR \fIOPTIONS\fR <input1\.bam> <input2\.bam> [\.\.\.]
+.
+.SH "DESCRIPTION"
+Parallel version of samtools mpileup in map\-reduce fashion\. Sambamba splits input BAM files into chunks and feeds them to samtools mpileup and, optionally, bcftools in parallel\. The chunks are slightly overlapping so that variant calling should not be impacted by these manipulations\. The obtained results from the multiple processes are combined as ordered output\. Both samtools and bcftools should be in the PATH\.
+.
+.SH "OPTIONS"
+.
+.IP "\(bu" 4
+\fB\-F\fR, \fB\-\-filter=FILTER\fR set custom filter for alignments
+.
+.IP "\(bu" 4
+\fB\-L\fR, \fB\-\-regions=FILENAME\fR provide BED file with regions (no need to duplicate it in samtools args); all input files must be indexed
+.
+.IP "\(bu" 4
+\fB\-o\fR, \fB\-\-output\-filename=<STDOUT>\fR specify output filename
+.
+.IP "\(bu" 4
+\fB\-t\fR, \fB\-\-nthreads=NTHREADS\fR maximum number of threads to use
+.
+.IP "\(bu" 4
+\fB\-b\fR, \fB\-\-buffer\-size=4_000_000\fR chunk size (in bytes)
+.
+.IP "" 0
+.
+.SH "BUGS"
+
