@@ -90,13 +90,12 @@ struct CramSliceReader {
         *(cast(int*)ptr + 0) = record.core.tid;
         *(cast(int*)ptr + 1) = record.core.pos;
 
-        // UNDEFINED BEHAVIOUR (bitfields)
-        auto bin = record.core.bin_mq_nl & 0xFFFF;
-        auto mq = (record.core.bin_mq_nl >> 16) & 0xFF;
-        auto nl = record.core.bin_mq_nl >> 24;
+        auto bin = record.core.bin;
+        auto mq = record.core.qual;
+        auto nl = record.core.l_qname;
         *(cast(uint*)ptr + 2) = (bin << 16) | (mq << 8) | nl;
-        auto flag = record.core.flag_nc & 0xFFFF;
-        auto nc = record.core.flag_nc >> 16;
+        auto flag = record.core.flag;
+        auto nc = record.core.n_cigar;
         *(cast(uint*)ptr + 3) = (flag << 16) | nc;
 
         *(cast(int*)ptr + 4) = record.core.l_qseq;
