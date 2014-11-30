@@ -49,6 +49,18 @@ See Github [releases](https://github.com/lomereiter/sambamba/releases)
 The preferred method for compiling Sambamba is with the LDC compiler
 which targets LLVM.
 
+## Compiling for Linux
+
+The LDC compiler's github repository also provides binary images. The current
+preferred release for sambamba is LDC - the LLVM D compiler (0.14.0). After
+installing LDC:
+
+```sh
+    git clone --recursive https://github.com/lomereiter/sambamba.git
+    cd sambamba
+    make sambamba-ldmd2-64
+```
+
 ## Compiling for Mac OS X
 
 ```sh
