@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "SAMBAMBA\-MILEUP" "1" "November 2014" "" ""
+.TH "SAMBAMBA\-MILEUP" "1" "December 2014" "" ""
 .
 .SH "NAME"
 \fBsambamba\-mileup\fR \- make a pileup
@@ -27,10 +27,10 @@ Sambamba mpileup relies on external tools and acts as a multi\-core implementati
 .IP "" 0
 .
 .IP "\(bu" 4
-If \-\-samtools is skipped, samtools mpileup is called with default arguments \'samtools \-gu \-S \-D \-d 1000 \-L 1000 \-m 3 \-F 0\.0002\'\.
+If \-\-samtools is skipped, samtools mpileup is called with default arguments \'samtools\'
 .
 .IP "\(bu" 4
-If \-\-bcftools is used without parameters, bcftools is called as \'bcftools view \-Ov\'
+If \-\-bcftools is used without parameters, samtools is called with switch \'\-gu\' and bcftools is called as \'bcftools view \-Ov\'
 .
 .IP "\(bu" 4
 If \-\-bcftools is skipped, bcftools is not called
