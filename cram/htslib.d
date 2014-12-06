@@ -421,8 +421,11 @@ struct _Anonymous_4
 {
 	int tid;
 	int pos;
-	uint bin_mq_nl;
-	uint flag_nc;
+	ushort bin;
+	ubyte qual;
+	ubyte l_qname;
+	ushort flag;
+	ushort n_cigar;
 	int l_qseq;
 	int mtid;
 	int mpos;

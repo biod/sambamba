@@ -69,15 +69,11 @@ final class CramWriter {
         with (bam_seq.core) {
             tid = read.ref_id;
             pos = read.position;
-
-            // WARNING: THIS IS UNDEFINED BEHAVIOUR THANKS TO BITFIELDS
-            // let's just hope that this order works for everyone :(
-            bin_mq_nl = cast(uint)((read.bin.id << 0) |
-                                   (read.mapping_quality << 16) |
-                                   ((read.name.length + 1) << 24));
-            flag_nc = cast(uint)((read.flag << 0) | 
-                                 (read.cigar.length << 16));
-
+            bin = cast(ushort)read.bin.id;
+            qual = read.mapping_quality;
+            l_qname = cast(ubyte)(read.name.length + 1);
+            flag = read.flag;
+            n_cigar = cast(ushort)read.cigar.length;
             l_qseq = cast(int)read.sequence.length;
             mtid = read.mate_ref_id;
             mpos = read.mate_position;
