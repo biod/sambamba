@@ -154,7 +154,7 @@ struct MArray(T) { T[] data; T* ptr; }
 MArray!char runSamtools(string filename,
                         string[] samtools_args, string[] bcftools_args)
 {
-    auto samtools_cmd = ([samtoolsPath(), "mpileup", filename, "-gu",
+  auto samtools_cmd = ([samtoolsPath(), "mpileup", filename, (bcftools_args.length > 0 ? "-gu" : "" ),
                           "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
     string cmd = samtools_cmd;
     if (bcftools_args.length > 0) {
@@ -332,13 +332,14 @@ void printUsage() {
     stderr.writeln("                       [--samtools <samtools mpileup args>]");
     stderr.writeln("                       [--bcftools <bcftools args>]");
     stderr.writeln();
-    stderr.writeln("This subcommand relies on external tools and acts as a multi-core implementation of samtools + bcftools ");
+    stderr.writeln("This subcommand relies on external tools and acts as a multi-core implementation of samtools and bcftools.");
     stderr.writeln("Therefore, the following tools should be present in $PATH:");
     stderr.writeln("    * samtools");
     stderr.writeln("    * bcftools (when used)");
     stderr.writeln();
-    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments 'samtools -gu -S -D -d 1000 -L 1000 -m 3 -F 0.0002'");
-    stderr.writeln("If --bcftools is used without parameters, bcftools is called as 'bcftools view -Ov'");
+    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments 'samtools'");
+    stderr.writeln("If --bcftools is used without parameters, samtools is called with");
+    stderr.writeln("     switch '-gu' and bcftools is called as 'bcftools view -Ov'");
     stderr.writeln("If --bcftools is skipped, bcftools is not called");
     stderr.writeln();
     stderr.writeln("Sambamba splits input BAM files into chunks and feeds them");
@@ -379,8 +380,9 @@ int pileup_main(string[] args) {
     if (!samtools_args.empty) {
         samtools_args.popFront();
     } else {
-        // Default values for samtools if not passed 
-        samtools_args = ["-gu",          // uncompressed BCF output
+        // Default values for samtools if not passed
+        /*
+         samtools_args = ["-gu",          // uncompressed BCF output
                          "-S",           // per-sample strand bias
                          "-D",           // per-sample DP
                          "-d", "1000",   // max per-BAM depth
@@ -388,6 +390,8 @@ int pileup_main(string[] args) {
                          "-m", "3",      // min. gapped reads for indel candidates
                          "-F", "0.0002", // min. fraction of gapped reads
                          ];
+	*/
+        samtools_args = [];
     }
 
     if (!bcftools_args.empty) {
