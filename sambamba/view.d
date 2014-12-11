@@ -169,6 +169,11 @@ int view_main(string[] args) {
             return 0;
         }
 
+        // <cludge> cram writer doesn't share the task pool
+        if (!is_sam && format == "cram")
+          n_threads /= 2;
+        // </cludge>
+
         protectFromOverwrite(args[1], output_filename);
         
         if (is_cram && is_sam)
