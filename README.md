@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.13200.svg)](http://dx.doi.org/10.5281/zenodo.13200)
 # Sambamba
 
 Sambamba is a high performance modern robust and fast tool (and
