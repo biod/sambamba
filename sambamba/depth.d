@@ -520,7 +520,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
 
     private void countRead(R)(auto ref R read, size_t id) {
         auto sample_id = getSampleId(read);
-        assert(sample_id < sample_names.length, "Invalid sample ID");
+        assert(sample_names.empty || sample_id < sample_names.length, "Invalid sample ID");
         auto data = getSampleData(sample_id);
         data.n_reads(id) += 1;
         data.n_bases(id) += overlap(getRegionById(id), read);
