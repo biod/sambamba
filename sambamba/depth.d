@@ -286,6 +286,13 @@ abstract class ColumnPrinter {
 	    return 0;
 	return read.sample_id;
     }
+
+    string getSampleName(uint sample_id) {
+        if (sample_names.empty)
+            return "*";
+        else
+            return sample_names[sample_id];
+    }
 }
 
 final class PerBasePrinter : ColumnPrinter {
@@ -411,7 +418,7 @@ final class PerBasePrinter : ColumnPrinter {
 	    output_file.write('\t', deletions[sample_id], '\t', ref_skips[sample_id]);
 
 	    if (!combined)
-		output_file.write('\t', sample_names[sample_id]);
+		output_file.write('\t', getSampleName(sample_id.to!uint));
 
 	    if (annotate)
 		output_file.write('\t', ok ? 'y' : 'n');
@@ -592,7 +599,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
 	    }
 
 	    if (!combined)
-		write('\t', sample_names[sample_id], '\t');
+		write('\t', getSampleName(sample_id), '\t');
 
             if (annotate)
                 write('\t', ok ? 'y' : 'n');

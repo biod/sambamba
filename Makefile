@@ -8,8 +8,7 @@ RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 # Linux & DMD only - this goal is used because of fast compilation speed, during development
 all: htslib-static
 	mkdir -p build/
-	rdmd --force --build-only $(D_FLAGS) -c -ofbuild/sambamba.o main.d
-	gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2.a -lrt -lpthread -lm
+	rdmd --force --build-only $(D_FLAGS) -L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -ofbuild/sambamba main.d
 
 PLATFORM := $(shell uname -s)
 
