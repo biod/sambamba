@@ -282,9 +282,9 @@ abstract class ColumnPrinter {
     abstract void close();
 
     uint getSampleId(R)(auto ref R read) {
-	if (combined || sample_names.empty)
-	    return 0;
-	return read.sample_id;
+        if (combined || sample_names.empty)
+            return 0;
+        return read.sample_id;
     }
 
     string getSampleName(uint sample_id) {
@@ -301,177 +301,177 @@ final class PerBasePrinter : ColumnPrinter {
     bool report_zero_coverage;
 
     private {
-	int _prev_ref_id = -2;
-	size_t _prev_position;
-	bool _bed_is_provided;
+        int _prev_ref_id = -2;
+        size_t _prev_position;
+        bool _bed_is_provided;
     }
 
     override void init(ref string[] args) {
         getopt(args,
-               std.getopt.config.caseSensitive,
-               "min-base-quality|q", &min_base_quality,
-	       "report-zero-coverage|z", &report_zero_coverage);
+                std.getopt.config.caseSensitive,
+                "min-base-quality|q", &min_base_quality,
+                "report-zero-coverage|z", &report_zero_coverage);
 
-	output_file.write("REF\tPOS\tCOV\tA\tC\tG\tT\tDEL\tREFSKIP");
-	if (!combined)
-	    output_file.write("\tSAMPLE");
-	if (annotate)
-	    output_file.write("\tFLAG");
-	output_file.writeln();
+        output_file.write("REF\tPOS\tCOV\tA\tC\tG\tT\tDEL\tREFSKIP");
+        if (!combined)
+            output_file.write("\tSAMPLE");
+        if (annotate)
+            output_file.write("\tFLAG");
+        output_file.writeln();
     }
 
     override void setBed(BamRegion[] bed) {
-	super.setBed(bed);
-	_bed_is_provided = true;
-	stats_collector = new NonOverlappingRegionStatsCollector(bed);
+        super.setBed(bed);
+        _bed_is_provided = true;
+        stats_collector = new NonOverlappingRegionStatsCollector(bed);
     }
 
     private void writeEmptyColumns(long ref_id, long start, long end) {
-	if (min_cov > 0 && !annotate)
-	    return;
-	auto ref_name = bam.reference_sequences[ref_id].name;
-	string[] tails;
-	if (combined) {
-	    tails ~= "\t0\t0\t0\t0\t0\t0\t0";
-	    if (annotate)
-		tails[0] = tails[0] ~ (min_cov > 0 ? "\tn" : "\ty");
-	} else {
-	    foreach (sample_name; sample_names) {
-		tails ~= "\t0\t0\t0\t0\t0\t0\t0\t" ~ sample_name;
-		if (annotate)
-		    tails.back = tails.back ~ (min_cov > 0 ? "\tn" : "\ty");
-	    }
-	}
+        if (min_cov > 0 && !annotate)
+            return;
+        auto ref_name = bam.reference_sequences[ref_id].name;
+        string[] tails;
+        if (combined) {
+            tails ~= "\t0\t0\t0\t0\t0\t0\t0";
+            if (annotate)
+                tails[0] = tails[0] ~ (min_cov > 0 ? "\tn" : "\ty");
+        } else {
+            foreach (sample_name; sample_names) {
+                tails ~= "\t0\t0\t0\t0\t0\t0\t0\t" ~ sample_name;
+                if (annotate)
+                    tails.back = tails.back ~ (min_cov > 0 ? "\tn" : "\ty");
+            }
+        }
 
-	if (!_bed_is_provided) {
-	    foreach (pos; start .. end) {
-		foreach (tail; tails)
-		    output_file.writeln(ref_name, '\t', pos, tail);
-	    }
-	} else {
-	    if (raw_bed.empty || raw_bed.front.ref_id > cast(uint)ref_id)
-		return;
-	    while (!raw_bed.empty && raw_bed.front.ref_id < cast(uint)ref_id)
-		raw_bed.popFront();
-	    while (!raw_bed.empty && raw_bed.front.ref_id == ref_id) {
-		if (raw_bed.front.fullyLeftOf(cast(uint)ref_id, cast(uint)start)) {
-		    raw_bed.popFront();
-		    continue;
-		}
-		auto from = max(start, raw_bed.front.start);
-		auto to = min(end, raw_bed.front.end);
-		if (from >= to)
-		    break;
-		foreach (pos; from .. to)
-		    foreach (tail; tails)
-			output_file.writeln(ref_name, '\t', pos, tail);
-		raw_bed.popFront();
-	    }
-	    stats_collector = new NonOverlappingRegionStatsCollector(raw_bed);
-	}
+        if (!_bed_is_provided) {
+            foreach (pos; start .. end) {
+                foreach (tail; tails)
+                    output_file.writeln(ref_name, '\t', pos, tail);
+            }
+        } else {
+            if (raw_bed.empty || raw_bed.front.ref_id > cast(uint)ref_id)
+                return;
+            while (!raw_bed.empty && raw_bed.front.ref_id < cast(uint)ref_id)
+                raw_bed.popFront();
+            while (!raw_bed.empty && raw_bed.front.ref_id == ref_id) {
+                if (raw_bed.front.fullyLeftOf(cast(uint)ref_id, cast(uint)start)) {
+                    raw_bed.popFront();
+                    continue;
+                }
+                auto from = max(start, raw_bed.front.start);
+                auto to = min(end, raw_bed.front.end);
+                if (from >= to)
+                    break;
+                foreach (pos; from .. to)
+                    foreach (tail; tails)
+                    output_file.writeln(ref_name, '\t', pos, tail);
+                raw_bed.popFront();
+            }
+            stats_collector = new NonOverlappingRegionStatsCollector(raw_bed);
+        }
     }
 
     private {
-	size_t[] coverage;
-	size_t[] deletions;
-	size_t[] ref_skips;
+        size_t[] coverage;
+        size_t[] deletions;
+        size_t[] ref_skips;
     }
 
     private void writeColumn(ref Column c) {
-	if (coverage.empty) {
-	    deletions.length = max(1, combined ? 1 : sample_names.length);
-	    ref_skips.length = deletions.length;
-	    coverage.length = 5 * deletions.length;
-	}
+        if (coverage.empty) {
+            deletions.length = max(1, combined ? 1 : sample_names.length);
+            ref_skips.length = deletions.length;
+            coverage.length = 5 * deletions.length;
+        }
 
-	coverage[] = 0;
-	deletions[] = 0;
-	ref_skips[] = 0;
+        coverage[] = 0;
+        deletions[] = 0;
+        ref_skips[] = 0;
 
-	foreach (read; c.reads) {
-	    auto sample_id = getSampleId(read);
-	    if (read.current_base == '-') {
-		if (read.cigar_operation.type == 'D')
-		    deletions[sample_id] += 1;
-		else
-		    ref_skips[sample_id] += 1;
-		continue;
-	    }
-		
-	    if (read.current_base_quality >= min_base_quality)
-		coverage[5 * sample_id + Base5(read.current_base).internal_code] += 1;
-	}
+        foreach (read; c.reads) {
+            auto sample_id = getSampleId(read);
+            if (read.current_base == '-') {
+                if (read.cigar_operation.type == 'D')
+                    deletions[sample_id] += 1;
+                else
+                    ref_skips[sample_id] += 1;
+                continue;
+            }
 
-	foreach (sample_id; 0 .. coverage.length / 5) {
-	    auto cov = coverage[sample_id * 5 .. $][0 .. 5];
-	    size_t total_coverage = reduce!`a+b`(cov[]) +
-		deletions[sample_id] + ref_skips[sample_id];
+            if (read.current_base_quality >= min_base_quality)
+                coverage[5 * sample_id + Base5(read.current_base).internal_code] += 1;
+        }
 
-	    bool ok = total_coverage >= min_cov && total_coverage <= max_cov;
-	    if (!ok && !annotate)
-		return;
-	
-	    output_file.write(bam.reference_sequences[c.ref_id].name, '\t',
-			      c.position, '\t', total_coverage);
-	    foreach (i; 0 .. 4)
-		output_file.write('\t', cov[i]);
-	    output_file.write('\t', deletions[sample_id], '\t', ref_skips[sample_id]);
+        foreach (sample_id; 0 .. coverage.length / 5) {
+            auto cov = coverage[sample_id * 5 .. $][0 .. 5];
+            size_t total_coverage = reduce!`a+b`(cov[]) +
+                deletions[sample_id] + ref_skips[sample_id];
 
-	    if (!combined)
-		output_file.write('\t', getSampleName(sample_id.to!uint));
+            bool ok = total_coverage >= min_cov && total_coverage <= max_cov;
+            if (!ok && !annotate)
+                return;
 
-	    if (annotate)
-		output_file.write('\t', ok ? 'y' : 'n');
-	    output_file.writeln();
-	}
+            output_file.write(bam.reference_sequences[c.ref_id].name, '\t',
+                    c.position, '\t', total_coverage);
+            foreach (i; 0 .. 4)
+                output_file.write('\t', cov[i]);
+            output_file.write('\t', deletions[sample_id], '\t', ref_skips[sample_id]);
+
+            if (!combined)
+                output_file.write('\t', getSampleName(sample_id.to!uint));
+
+            if (annotate)
+                output_file.write('\t', ok ? 'y' : 'n');
+            output_file.writeln();
+        }
     }
 
     private bool outputRequired(int ref_id, ulong position) {
-	if (stats_collector is null)
-	    return true;
-	bool output = false;
-	stats_collector.nextColumn(cast(uint)ref_id, cast(uint)position,
-				   (size_t id) { output = true; });
-	return output;
+        if (stats_collector is null)
+            return true;
+        bool output = false;
+        stats_collector.nextColumn(cast(uint)ref_id, cast(uint)position,
+                                   (size_t id) { output = true; });
+        return output;
     }
 
     override void push(ref Column c) {
-	if (!report_zero_coverage) {
-	    if (outputRequired(c.ref_id, c.position))
-		writeColumn(c);
-	    return;
-	}
+        if (!report_zero_coverage) {
+            if (outputRequired(c.ref_id, c.position))
+                writeColumn(c);
+            return;
+        }
 
-	if (_prev_ref_id == -2) {
-	    foreach (id; 0 .. c.ref_id)
-		writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
-	    writeEmptyColumns(c.ref_id, 0, c.position);
-	} else if (_prev_ref_id != c.ref_id) {
-	    writeEmptyColumns(_prev_ref_id, _prev_position + 1, 
-			      bam.reference_sequences[_prev_ref_id].length);
-	    writeEmptyColumns(c.ref_id, 0, c.position);
-	}
+        if (_prev_ref_id == -2) {
+            foreach (id; 0 .. c.ref_id)
+                writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
+            writeEmptyColumns(c.ref_id, 0, c.position);
+        } else if (_prev_ref_id != c.ref_id) {
+            writeEmptyColumns(_prev_ref_id, _prev_position + 1, 
+                    bam.reference_sequences[_prev_ref_id].length);
+            writeEmptyColumns(c.ref_id, 0, c.position);
+        }
 
-	_prev_ref_id = c.ref_id;
-	_prev_position = c.position;
+        _prev_ref_id = c.ref_id;
+        _prev_position = c.position;
 
-	if (outputRequired(c.ref_id, c.position))
-	    writeColumn(c);
+        if (outputRequired(c.ref_id, c.position))
+            writeColumn(c);
     }
 
     override void close() {
-	if (!report_zero_coverage)
-	    return;
-	
-	if (_prev_ref_id == -2) {
-	    foreach (id; 0 .. bam.reference_sequences.length)
-		writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
-	} else {
-	    writeEmptyColumns(_prev_ref_id, _prev_position + 1,
-			      bam.reference_sequences[_prev_ref_id].length);
-	    foreach (id; _prev_ref_id + 1 .. bam.reference_sequences.length)
-		writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
-	}
+        if (!report_zero_coverage)
+            return;
+
+        if (_prev_ref_id == -2) {
+            foreach (id; 0 .. bam.reference_sequences.length)
+                writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
+        } else {
+            writeEmptyColumns(_prev_ref_id, _prev_position + 1,
+                              bam.reference_sequences[_prev_ref_id].length);
+            foreach (id; _prev_ref_id + 1 .. bam.reference_sequences.length)
+                writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
+        }
     }
 }
 
@@ -520,7 +520,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
 
     private void countRead(R)(auto ref R read, size_t id) {
         auto sample_id = getSampleId(read);
-	assert(sample_id < sample_names.length, "Invalid sample ID");
+        assert(sample_id < sample_names.length, "Invalid sample ID");
         auto data = getSampleData(sample_id);
         data.n_reads(id) += 1;
         data.n_bases(id) += overlap(getRegionById(id), read);
@@ -547,34 +547,34 @@ abstract class PerRegionPrinter : ColumnPrinter {
         uint ref_id = column.ref_id.to!uint;
         pos_t position = column.position.to!pos_t;
 
-	if (cov_per_sample.length == 0) {
-	    cov_per_sample.length = max(1, combined ? 1 : sample_names.length);
-	}
+        if (cov_per_sample.length == 0) {
+            cov_per_sample.length = max(1, combined ? 1 : sample_names.length);
+        }
 
         stats_collector.nextColumn(ref_id, position,
-        (size_t id) {
-            if (isFirstOccurrence(id)) {
-                foreach (read; column.reads)
-                    countRead(read, id);
-                markAsSeen(id);
-            } else {
-                foreach (read; column.reads_starting_here)
-                    countRead(read, id);
-            }
+            (size_t id) {
+                if (isFirstOccurrence(id)) {
+                    foreach (read; column.reads)
+                        countRead(read, id);
+                    markAsSeen(id);
+                } else {
+                    foreach (read; column.reads_starting_here)
+                        countRead(read, id);
+                }
 
-	    cov_per_sample[] = 0;
+                cov_per_sample[] = 0;
 
-            foreach (read; column.reads) {
-                auto sample_id = getSampleId(read);
-                cov_per_sample[sample_id] += 1;
-            }
+                foreach (read; column.reads) {
+                    auto sample_id = getSampleId(read);
+                    cov_per_sample[sample_id] += 1;
+                }
 
-            foreach (sample_id; iota(cov_per_sample.length.to!uint)) {
-                auto data = getSampleData(sample_id);
-                foreach (i, threshold; cov_thresholds)
-                    if (cov_per_sample[sample_id] >= threshold)
-                        data.coverage_count(i, id) += 1;
-            }
+                foreach (sample_id; iota(cov_per_sample.length.to!uint)) {
+                    auto data = getSampleData(sample_id);
+                    foreach (i, threshold; cov_thresholds)
+                        if (cov_per_sample[sample_id] >= threshold)
+                            data.coverage_count(i, id) += 1;
+                }
         });
     }
 
@@ -592,14 +592,14 @@ abstract class PerRegionPrinter : ColumnPrinter {
             writeOriginalBedLine(id);
             write(data.n_reads(id), '\t', mean_cov);
             foreach (j; 0 .. cov_thresholds.length) {
-		auto percentage = data.coverage_count(j, id).to!float * 100 / length;
-		if (cov_thresholds[j] == 0)
-		    percentage = 100.0;
-		write('\t', percentage);
-	    }
+                auto percentage = data.coverage_count(j, id).to!float * 100 / length;
+                if (cov_thresholds[j] == 0)
+                    percentage = 100.0;
+                write('\t', percentage);
+            }
 
-	    if (!combined)
-		write('\t', getSampleName(sample_id), '\t');
+            if (!combined)
+                write('\t', getSampleName(sample_id), '\t');
 
             if (annotate)
                 write('\t', ok ? 'y' : 'n');
@@ -614,14 +614,14 @@ final class PerBedRegionPrinter : PerRegionPrinter {
     bool[] is_first_occurrence;
 
     override PerSampleRegionData getSampleData(uint id) {
-	if (samples.length == 0) {
-	    samples.length = max(1, combined ? 1 : sample_names.length);
-	    foreach (k; 0 .. samples.length)
-		samples[k] = new PerSampleRegionData(cov_thresholds.length, raw_bed.length);
-	}
-	assert(id < samples.length, "Invalid sample ID: " ~
-	       id.to!string ~ "/" ~ samples.length.to!string);
-	assert(samples[id] !is null);
+        if (samples.length == 0) {
+            samples.length = max(1, combined ? 1 : sample_names.length);
+            foreach (k; 0 .. samples.length)
+                samples[k] = new PerSampleRegionData(cov_thresholds.length, raw_bed.length);
+        }
+        assert(id < samples.length, "Invalid sample ID: " ~
+               id.to!string ~ "/" ~ samples.length.to!string);
+        assert(samples[id] !is null);
         return samples[id];
     }
 
@@ -655,10 +655,10 @@ final class PerBedRegionPrinter : PerRegionPrinter {
     }
 
     override void close() {
-	foreach (id; 0 .. raw_bed.length) {
-	    foreach (sample_id; iota(samples.length.to!uint))
-		printRegionStats(sample_id, id, getSampleData(sample_id));
-	}
+        foreach (id; 0 .. raw_bed.length) {
+            foreach (sample_id; iota(samples.length.to!uint))
+                printRegionStats(sample_id, id, getSampleData(sample_id));
+        }
     }
 }
 
@@ -676,7 +676,7 @@ final class PerWindowPrinter : PerRegionPrinter {
     size_t ref_length;
 
     void printWindowStats(size_t id) {
-	foreach (sample_id; iota(samples.length.to!uint))
+        foreach (sample_id; iota(samples.length.to!uint))
             printRegionStats(sample_id, leftmost_window_index, getSampleData(sample_id));
     }
 
@@ -714,11 +714,11 @@ final class PerWindowPrinter : PerRegionPrinter {
     }
 
     override PerSampleRegionData getSampleData(uint id) {
-	if (samples.length == 0) {
-	    samples.length = max(1, combined ? 1 : sample_names.length);
-	    foreach (k; 0 .. samples.length)
-		samples[k] = new PerSampleRegionData(cov_thresholds.length, n);
-	}
+        if (samples.length == 0) {
+            samples.length = max(1, combined ? 1 : sample_names.length);
+            foreach (k; 0 .. samples.length)
+                samples[k] = new PerSampleRegionData(cov_thresholds.length, n);
+        }
         return samples[id];
     }
 
@@ -802,7 +802,7 @@ final class PerWindowPrinter : PerRegionPrinter {
             finishLeftMostWindow();
         foreach (k; window_ref_id + 1 .. bam.reference_sequences.length)
             printEmptyWindows(cast(int)k);
-	output_file.close();
+        output_file.close();
     }
 }
 
@@ -876,10 +876,10 @@ int depth_main(string[] args) {
         if (query !is null) {
             read_filter = createFilterFromQuery(query);
         } else {
-	    read_filter = createFilterFromQuery("mapping_quality > 0 and "
-						"not duplicate and "
-						"not failed_quality_control");
-	}
+            read_filter = createFilterFromQuery("mapping_quality > 0 and "
+                    "not duplicate and "
+                    "not failed_quality_control");
+        }
 
         auto bam_filenames = args[1 .. $];
         auto bam = new MultiBamReader(bam_filenames);
@@ -889,24 +889,24 @@ int depth_main(string[] args) {
 
         printer.bam = bam;
 
-	uint[string] sm2id;
-	uint[string] rg2id;
+        uint[string] sm2id;
+        uint[string] rg2id;
         foreach (rg; bam.header.read_groups) {
-	    if (rg.sample !in sm2id) {
-		sm2id[rg.sample] = printer.sample_names.length.to!uint;
-		printer.sample_names ~= rg.sample;
-	    }
-	    rg2id[rg.identifier] = sm2id[rg.sample];
+            if (rg.sample !in sm2id) {
+                sm2id[rg.sample] = printer.sample_names.length.to!uint;
+                printer.sample_names ~= rg.sample;
+            }
+            rg2id[rg.identifier] = sm2id[rg.sample];
         }
 
         InputRange!(CustomBamRead) reads;
         if (bed_filename !is null) {
             auto bed = parseBed(bed_filename, bam);
-	    bool simplify = mode == Mode.base;
+            bool simplify = mode == Mode.base;
             printer.setBed(parseBed(bed_filename, bam, simplify,
-				    &printer.raw_bed_lines));
+                        &printer.raw_bed_lines));
             reads = inputRangeObject(bam.getReadsOverlapping(bed)
-                                     .map!(r => CustomBamRead(r, rg2id)));
+                    .map!(r => CustomBamRead(r, rg2id)));
         } else {
             reads = inputRangeObject(bam.reads.map!(r => CustomBamRead(r, rg2id)));
         }
