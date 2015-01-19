@@ -256,6 +256,8 @@ final class FlagConditionNode : ConditionNode {
                 condition = new FlagFilter!"failed_quality_control"(); break;
             case "duplicate":
                 condition = new FlagFilter!"is_duplicate"(); break;
+            case "supplementary":
+                condition = new FlagFilter!"is_supplementary"(); break;
             default:
                 throw new Exception("unknown flag '" ~ flagname ~ "'");
         }
@@ -286,7 +288,7 @@ final class QueryGrammar : Grammar!Node {
         auto flagnames = ["paired", "proper_pair", "unmapped", "mate_is_unmapped",
                           "reverse_strand", "mate_is_reverse_strand", "first_of_pair",
                           "second_of_pair", "secondary_alignment", "failed_quality_control",
-                          "duplicate"];
+                          "duplicate", "supplementary"];
 
         addSymbolToDict("(flag condition)", 0)
             .setScanner(makeScanner(flagnames))
