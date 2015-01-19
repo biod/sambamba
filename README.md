@@ -43,7 +43,9 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 # Binaries
 
-See Github [releases](https://github.com/lomereiter/sambamba/releases)
+See Github [releases](https://github.com/lomereiter/sambamba/releases).
+
+Users of Homebrew are advised to use the formula from `homebrew-science`.
 
 # Compiling Sambamba
 
