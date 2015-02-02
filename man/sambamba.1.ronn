@@ -1,5 +1,5 @@
-sambamba(1) -- toolkit for working with SAM/BAM files
-=====================================================
+sambamba(1) -- toolkit for working with SAM/BAM/CRAM files
+==========================================================
 
 ## SYNOPSIS
 
@@ -16,6 +16,9 @@ sambamba(1) -- toolkit for working with SAM/BAM files
 * sambamba-markdup(1)
 * sambamba-flagstat(1)
 * sambamba-slice(1)
+* sambamba-pileup(1)
 
 Thus available subcommands are *view*, *index*, *merge*, *sort*, *markdup*, 
-*flagstat*, and *slice*. Their use is explained on the corresponding man pages.
+*flagstat*, *slice*, and *mpileup*. Their use is explained on the corresponding man pages.
+
+Note that sambamba uses all available cores by default.
