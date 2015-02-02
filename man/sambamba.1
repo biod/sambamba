@@ -1,10 +1,10 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "SAMBAMBA" "1" "February 2014" "" ""
+.TH "SAMBAMBA" "1" "February 2015" "" ""
 .
 .SH "NAME"
-\fBsambamba\fR \- toolkit for working with SAM/BAM files
+\fBsambamba\fR \- toolkit for working with SAM/BAM/CRAM files
 .
 .SH "SYNOPSIS"
 \fBsambamba\fR [subcommand] [arguments\.\.\.]
@@ -33,7 +33,13 @@ sambamba\-flagstat(1)
 .IP "\(bu" 4
 sambamba\-slice(1)
 .
+.IP "\(bu" 4
+sambamba\-pileup(1)
+.
 .IP "" 0
 .
 .P
-Thus available subcommands are \fIview\fR, \fIindex\fR, \fImerge\fR, \fIsort\fR, \fImarkdup\fR, \fIflagstat\fR, and \fIslice\fR\. Their use is explained on the corresponding man pages\.
+Thus available subcommands are \fIview\fR, \fIindex\fR, \fImerge\fR, \fIsort\fR, \fImarkdup\fR, \fIflagstat\fR, \fIslice\fR, and \fImpileup\fR\. Their use is explained on the corresponding man pages\.
+.
+.P
+Note that sambamba uses all available cores by default\.

@@ -15,11 +15,10 @@ for each reference sort corresponding reads by start coordinate.
 'qname' sorting order is when reads are sorted lexicographically by
 their names.
 
-`sambamba sort` does an external sort on input file. That means it
+`sambamba sort` does an external `stable`-type sort on input file. That means it
 reads the source BAM file in chunks that fit into memory, sorts them
 and writes to a temporary directory, and then merges them. After merging
-temporary files are removed automatically. The sort is stable, and efforts 
-have been done to make it multithreaded.
+temporary files are removed automatically.
 
 Both sorting orders are supported. Default one is 'coordinate' 
 because this is the one used for building index later. In order to
@@ -62,6 +61,12 @@ switch to 'qname' sorting order, use `-n`|`--sort-by-name` flag.
   * `-t`, `--nthreads`=<NTHREADS>:
     Number of threads to use.
 
+## SEE ALSO
+
+For more information on the original samtools SORT behaviour, check
+out the [samtools documentation](http://samtools.sourceforge.net/samtools.shtml).
+
 ## BUGS
 
-At the moment, the memory is used quite ineffectively.
+At the moment, the memory is used quite ineffectively for really large files.
+

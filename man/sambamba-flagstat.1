@@ -1,13 +1,13 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "SAMBAMBA\-FLAGSTAT" "1" "July 2013" "" ""
+.TH "SAMBAMBA\-FLAGSTAT" "1" "August 2014" "" ""
 .
 .SH "NAME"
 \fBsambamba\-flagstat\fR \- getting flag statistics from BAM file
 .
 .SH "SYNOPSIS"
-\fBsambamba\-flagstat\fR \fIOPTIONS\fR <input\.bam>
+\fBsambamba flagstat\fR \fIOPTIONS\fR <input\.bam>
 .
 .SH "DESCRIPTION"
 Outputs some statistics drawn from read flags\.
@@ -50,30 +50,10 @@ the same as previous but mapping quality is not less than 5
 .SH "OPTIONS"
 .
 .TP
-\fB\-t\fR, \fB\-\-nthreads\fR=\fINTHREADS\fR:
-.
-.IP "" 4
-.
-.nf
-
+\fB\-t\fR, \fB\-\-nthreads\fR=\fINTHREADS\fR
 Specify number of threads to use for BAM decompression
 .
-.fi
-.
-.IP "" 0
-
-.
 .TP
-\fB\-p\fR, \fB\-\-show\-progress\fR:
-.
-.IP "" 4
-.
-.nf
-
+\fB\-p\fR, \fB\-\-show\-progress\fR
 Show progressbar in STDERR
-.
-.fi
-.
-.IP "" 0
-
 
