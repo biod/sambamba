@@ -33,3 +33,9 @@ Build index file example.bam.bai given a sorted BAM file example.bam:
 Build index file at custom location showing progress:
 
     $ sambamba index --show-progress example.bam /tmp/example.bam.bai
+
+# SEE ALSO
+
+For more information on the original samtools INDEX behaviour, check
+out the [samtools documentation](http://samtools.sourceforge.net/samtools.shtml
+

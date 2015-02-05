@@ -26,3 +26,9 @@ SAM headers are merged automatically like in Picard merging tool.
 
   * `-p`, `--show-progress`:
     Show progressbar in STDERR.
+
+# SEE ALSO
+
+For more information on the original samtools MERGE behaviour, check
+out the [samtools documentation](http://samtools.sourceforge.net/samtools.shtml
+

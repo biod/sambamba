@@ -40,7 +40,7 @@ void printUsage() {
     stderr.writeln("                        'flagstat', 'slice', 'markdup', 'depth', 'mpileup'");
     stderr.writeln("    To get help on a particular command, just call it without args.");
     stderr.writeln();
-    stderr.writeln("Leave bug reports and feature requests at ");
+    stderr.writeln("Leave bug reports and feature requests at");
     stderr.writeln("https://github.com/lomereiter/sambamba/issues");
     stderr.writeln();
 }
