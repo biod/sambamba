@@ -294,7 +294,7 @@ final class QueryGrammar : Grammar!Node {
             .setScanner(makeScanner(flagnames))
             .setParser((in string str) { return cast(Node) new FlagConditionNode(str);});
 
-        auto integer_fields = ["ref_id", "position", "mapping_quality", 
+        auto integer_fields = ["ref_id", "position", "mapping_quality", "avg_base_quality",
                                "sequence_length", "mate_ref_id", "mate_position",
                                "template_length"];
 

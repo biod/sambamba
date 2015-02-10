@@ -165,6 +165,10 @@ final class FlagFilter(string flagname) : Filter {
     }
 }
 
+float avg_base_quality(BamRead r) {
+    return reduce!"a+b"(0.0f, r.base_qualities)/r.sequence_length;
+}
+
 /// Filtering integer fields
 final class IntegerFieldFilter(string op) : Filter {
     private long _value;
@@ -178,6 +182,7 @@ final class IntegerFieldFilter(string op) : Filter {
             case "ref_id": mixin("return a.ref_id " ~ op ~ "_value;");
             case "position": mixin("return a.position " ~ op ~ "_value;");
             case "mapping_quality": mixin("return a.mapping_quality " ~ op ~ "_value;");
+            case "avg_base_quality": mixin("return a.avg_base_quality " ~ op ~ "_value;");
             case "sequence_length": mixin("return a.sequence_length " ~ op ~ "_value;");
             case "mate_ref_id": mixin("return a.mate_ref_id " ~ op ~ "_value;");
             case "mate_position": mixin("return a.mate_position " ~ op ~ "_value;");
