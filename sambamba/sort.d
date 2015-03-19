@@ -466,7 +466,6 @@ int sort_main(string[] args) {
 
         protectFromOverwrite(args[1], sorter.output_filename);
         sorter.tmpdir = randomSubdir(sorter.tmpdir);
-        scope(success) std.file.rmdirRecurse(sorter.tmpdir);
 
         if (memory_limit_str !is null) {
             sorter.memory_limit = parseMemory(memory_limit_str);
@@ -486,6 +485,14 @@ int sort_main(string[] args) {
         GC.disable();
 
         sorter.sort();
+
+        try {
+          std.file.rmdirRecurse(sorter.tmpdir);
+        } catch (FileException e) {
+          // Ignore errors removing temporary directories, due to NFS failure under load
+          // https://github.com/chapmanb/bcbio-nextgen/issues/784
+        }
+
         return 0;
     } catch (Throwable e) {
         version (development) {
