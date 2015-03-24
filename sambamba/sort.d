@@ -92,7 +92,7 @@ class Sorter {
 
     BamReader bam;
     TaskPool task_pool;
-    size_t memory_limit = 2 * 1024 * 1024 * 1024;
+    size_t memory_limit = 2u * 1024 * 1024 * 1024;
     string tmpdir;
     int compression_level = -1;
     bool uncompressed_chunks = false;
