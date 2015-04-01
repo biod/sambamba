@@ -62,7 +62,9 @@ void printUsage() {
     stderr.writeln("         -o, --out=OUTPUTFILE");
     stderr.writeln("               output file name; if not provided, the result is written to a file with .sorted.bam extension");
     stderr.writeln("         -n, --sort-by-name");
-    stderr.writeln("               sort by read name instead of coordinate");
+    stderr.writeln("               sort by read name instead of coordinate (lexicographical order)");
+    stderr.writeln("         -N, --natural-sort");
+    stderr.writeln("               sort by read name instead of coordinate (so-called 'natural' sort as in samtools)");
     stderr.writeln("         -l, --compression-level=COMPRESSION_LEVEL");
     stderr.writeln("               level of compression for sorted BAM, from 0 to 9");
     stderr.writeln("         -u, --uncompressed-chunks");
@@ -82,6 +84,7 @@ version(standalone) {
 }
 
 private __gshared bool sort_by_name;
+private __gshared bool natural_sort;
 private bool show_progress;
 
 private shared(ProgressBar) bar;
@@ -182,10 +185,12 @@ class Sorter {
         auto buf = cast(BamRead*)std.c.stdlib.malloc(chunk.length * BamRead.sizeof);
         BamRead[] tmp = buf[0 .. chunk.length];
         scope (exit) std.c.stdlib.free(buf);
-        if (!sort_by_name) {
-            mergeSort!(compareCoordinates, false)(chunk, task_pool, tmp);
-        } else {
+        if (sort_by_name) {
             mergeSort!(compareReadNames, false)(chunk, task_pool, tmp);
+        } else if (natural_sort) {
+            mergeSort!(mixedCompareReadNames, false)(chunk, task_pool, tmp);
+        } else {
+            mergeSort!(compareCoordinates, false)(chunk, task_pool, tmp);
         }
         version (development) {
         stderr.writeln("Finished sorting of chunk #", n, " in ", sw.peek().seconds, "s");
@@ -231,14 +236,16 @@ class Sorter {
 
         if (sort_by_name)
             mergeSortedChunks!compareReadNames();
+        else if (natural_sort)
+            mergeSortedChunks!mixedCompareReadNames();
         else
             mergeSortedChunks!compareCoordinates();
     }
 
     private void createHeader() {
         header = bam.header;
-        header.sorting_order = sort_by_name ? SortingOrder.queryname :
-                                              SortingOrder.coordinate;
+        header.sorting_order = (sort_by_name || natural_sort) ? SortingOrder.queryname :
+                                                                SortingOrder.coordinate;
     }
 
     private size_t k; // number of sorting tasks submitted
@@ -454,11 +461,17 @@ int sort_main(string[] args) {
                "tmpdir",                &sorter.tmpdir,
                "out|o",                 &sorter.output_filename,
                "sort-by-name|n",        &sort_by_name,
+               "natural-sort|N",        &natural_sort,
                "uncompressed-chunks|u", &sorter.uncompressed_chunks,
                "compression-level|l",   &sorter.compression_level,
                "show-progress|p",       &show_progress,
                "nthreads|t",            &n_threads,
                "filter|F",              &sorter.filter_str);
+
+        if (sort_by_name && natural_sort) {
+            stderr.writeln("only one of -n and -N parameters can be provided");
+            return -1;
+        }
 
         if (sorter.output_filename is null) {
             sorter.output_filename = setExtension(args[1], "sorted.bam");
