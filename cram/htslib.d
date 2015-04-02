@@ -819,7 +819,7 @@ struct _Anonymous_28
 	int ref_seq_start;
 	int ref_seq_span;
 	int num_records;
-	int record_counter;
+	long record_counter;
 	int num_blocks;
 	int num_content_ids;
 	int* block_content_ids;
@@ -833,7 +833,7 @@ struct _Anonymous_29
 	int ref_seq_id;
 	int ref_seq_start;
 	int ref_seq_span;
-	int record_counter;
+	long record_counter;
 	long num_bases;
 	int num_records;
 	int num_blocks;
