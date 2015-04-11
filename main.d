@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@ import sambamba.depth;
 import sambamba.pileup;
 
 import sambamba.utils.common.ldc_gc_workaround;
+
+import utils.strip_bcf_header;
+import utils.lz4;
 
 import std.stdio;
 
@@ -63,6 +66,10 @@ int main(string[] args) {
         case "markdup":  return markdup_main(_args);
         case "depth":    return depth_main(_args);
         case "mpileup":   return pileup_main(_args);
+
+        // hidden commands
+        case "strip_bcf_header": return strip_bcf_header_main(_args);
+        case "lz4compress": return lz4compress_main();
         default: 
             printUsage();
             return 1;

@@ -1,37 +1,40 @@
 D_COMPILER=dmd
 D_FLAGS=-IBioD -g#-O -release -inline # -version=serial
 
-HTSLIB_PATH=-Lhtslib
-HTSLIB_SUBCMD=$(HTSLIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic
+STATIC_LIB_PATH=-Lhtslib -Llz4/lib
+STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic
 RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 
 # Linux & DMD only - this goal is used because of fast compilation speed, during development
-all: htslib-static
+all: htslib-static lz4-static
 	mkdir -p build/
 	rdmd --force --build-only $(D_FLAGS) -L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -ofbuild/sambamba main.d
 
 PLATFORM := $(shell uname -s)
 
 ifeq "$(PLATFORM)" "Darwin"
-LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a build/sambamba.o -o build/sambamba
+LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a lz4/lib/liblz4.a build/sambamba.o -o build/sambamba
 else
-LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(HTSLIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
+LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
 endif
 
 # This is the main Makefile goal, used for building releases (best performance)
-sambamba-ldmd2-64: htslib-static
+sambamba-ldmd2-64: htslib-static lz4-static
 	mkdir -p build/
 	ldmd2 @sambamba-ldmd-release.rsp
 	$(LINK_CMD)
 
 # For debugging; GDB & Valgrind are more friendly to executables created using LDC/GDC than DMD
-sambamba-ldmd2-debug: htslib-static
+sambamba-ldmd2-debug: htslib-static lz4-static
 	mkdir -p build/
 	ldmd2 @sambamba-ldmd-debug.rsp
 	$(LINK_CMD)
 
 htslib-static:
 	cd htslib && $(MAKE)
+
+lz4-static:
+	cd lz4/lib && $(MAKE)
 
 # all below link to libhts dynamically for simplicity
 

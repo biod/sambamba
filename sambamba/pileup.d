@@ -18,7 +18,7 @@
 
 */
 /** module for executing samtools mpileup in parallel using named pipes,
- *  after chunking a file 
+ *  after chunking a file
  */
 
 module sambamba.pileup;
@@ -26,6 +26,7 @@ module sambamba.pileup;
 import sambamba.utils.common.bed;
 import sambamba.utils.common.tmpdir;
 import sambamba.utils.common.overwrite;
+import utils.lz4;
 
 import bio.bam.multireader;
 import bio.bam.reader;
@@ -54,7 +55,7 @@ import std.typecons;
 import std.conv;
 
 import core.thread;
-import core.sync.mutex;
+import core.sync.mutex, core.sync.condition;
 import core.sys.posix.sys.stat;
 import core.sys.posix.stdio : fopen;
 import core.stdc.errno;
@@ -63,8 +64,9 @@ extern(C) char* mkdtemp(char* template_);
 extern(C) int mkfifo(immutable(char)* fn, int mode);
 
 string samtoolsBin     = null;  // cached path to samtools binary
-string samtoolsVersion = null; 
+string samtoolsVersion = null;
 string bcftoolsBin     = null;
+string bcftoolsVersion = null;
 
 // Return path to samtools after testing whether it exists and supports mpileup
 auto samtoolsInfo()
@@ -72,34 +74,39 @@ auto samtoolsInfo()
   if (samtoolsBin == null) {
     auto paths = environment["PATH"].split(":");
     auto a = array(filter!(path => std.file.exists(path ~ "/samtools"))(paths));
-    if (a.length == 0) 
+    if (a.length == 0)
       throw new Exception("failed to locate samtools executable in PATH");
     samtoolsBin = a[0] ~ "/samtools";
     // we found the path, now test the binary
     auto samtools = execute([samtoolsBin]);
-    if (samtools.status != 1) 
+    if (samtools.status != 1)
       throw new Exception("samtools failed: ", samtools.output);
     samtoolsVersion = samtools.output.split("\n")[2];
+    if (samtoolsVersion.startsWith("Version: 0."))
+      throw new Exception("versions 0.* of samtools/bcftools are unsupported");
   }
   return [samtoolsBin, samtoolsVersion];
 }
 
 auto samtoolsPath() { return samtoolsInfo()[0]; }
 
-auto bcftoolsPath() 
+auto bcftoolsPath()
 {
   if (bcftoolsBin == null) {
     auto paths = environment["PATH"].split(":");
     auto a = array(filter!(path => std.file.exists(path ~ "/bcftools"))(paths));
-    if (a.length == 0) 
+    if (a.length == 0)
       throw new Exception("failed to locate bcftools executable in PATH");
     bcftoolsBin = a[0] ~ "/bcftools";
     // we found the path, now test the binary
     auto bcftools = execute([bcftoolsBin]);
-    if (bcftools.status != 1) 
+    if (bcftools.status != 1)
       throw new Exception("bcftools failed: ", bcftools.output);
+    bcftoolsVersion = bcftools.output.split("\n")[2];
+    if (bcftoolsVersion.startsWith("Version: 0."))
+      throw new Exception("versions 0.* of samtools/bcftools are unsupported");
   }
-  return bcftoolsBin;
+  return [bcftoolsBin, bcftoolsVersion];
 }
 
 void makeFifo(string filename) {
@@ -150,20 +157,97 @@ struct ForkData(C) {
 
 struct MArray(T) { T[] data; T* ptr; }
 
-// TODO: detect if samtools writes in pileup format
-MArray!char runSamtools(string filename,
-                        string[] samtools_args, string[] bcftools_args)
-{
-  auto samtools_cmd = ([samtoolsPath(), "mpileup", filename, (bcftools_args.length > 0 ? "-gu" : "" ),
-                          "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
-    string cmd = samtools_cmd;
-    if (bcftools_args.length > 0) {
-        auto bcftools_cmd = bcftoolsPath() ~ " " ~ bcftools_args.join(" ");
-        cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
+MArray!char data;
+
+__gshared string this_app;
+
+private {
+    struct Recipe {
+        string strip_header_cmd;
+        string compression_cmd;
+        void function (ubyte[] data, std.stdio.File output_file) decompressionFunc;
     }
 
-    // stderr.writeln("[executing] ", cmd);
-    auto pp = pipeShell(cmd, Redirect.stdout | Redirect.stderr);
+    void dump(ubyte[] data, std.stdio.File output_file) {
+        output_file.rawWrite(data);
+    }
+
+    void lz4decompress(ubyte[] data, std.stdio.File output_file) {
+        lz4decompressor.decompress(new MemoryStream(data), output_file);
+    }
+
+    __gshared Recipe[FileFormat] recipes;
+    __gshared LZ4Decompressor lz4decompressor;
+}
+
+// TODO: fix bcftoolsCommand and samtoolsCommand in the header
+void init() {
+    lz4decompressor = new LZ4Decompressor();
+
+    recipes[FileFormat.pileup] =          Recipe(null,
+                                                 this_app~" lz4compress",
+                                                 &lz4decompress);
+    recipes[FileFormat.BCF] =             Recipe(this_app~" strip_bcf_header --bcf",
+                                                 null,
+                                                 &dump);
+    recipes[FileFormat.uncompressedBCF] = Recipe(this_app~" strip_bcf_header --ubcf",
+                                                 this_app~" lz4compress",
+                                                 &lz4decompress);
+    recipes[FileFormat.VCF] =             Recipe(this_app~" strip_bcf_header --vcf",
+                                                 this_app~" lz4compress",
+                                                 &lz4decompress);
+}
+
+string makeInputCmdLine(string input_cmd, FileFormat input_format, bool strip_header) {
+    auto recipe = recipes[input_format];
+    string cmd = input_cmd;
+    if (strip_header && recipe.strip_header_cmd !is null)
+        cmd ~= "| " ~ recipe.strip_header_cmd;
+    if (recipe.compression_cmd !is null)
+        cmd ~= "| " ~ recipe.compression_cmd;
+    return cmd;
+}
+
+void decompressIntoFile(char[] data, FileFormat input_format,
+                        std.stdio.File output_file) {
+    recipes[input_format].decompressionFunc(cast(ubyte[])data, output_file);
+}
+
+struct Args {
+    string[] samtools_args;
+    string[] bcftools_args;
+    FileFormat input_format;
+
+    this(string[] samtools_args_, string[] bcftools_args_) {
+        samtools_args = unbundle(samtools_args_);
+        bcftools_args = unbundle(bcftools_args_, "O"); // keep -Ov|-Ob|...
+        auto samtools_output_fmt = fixSamtoolsArgs(samtools_args, !bcftools_args.empty);
+        auto bcftools_output_fmt = fixBcftoolsArgs(bcftools_args);
+
+        input_format = samtools_output_fmt;
+        if (bcftools_args.length > 0)
+            input_format = bcftools_output_fmt;
+    }
+
+    string makeCommandLine(string filename) {
+        auto samtools_cmd = ([samtoolsPath(), "mpileup", filename,
+                "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
+        string cmd = samtools_cmd;
+        if (bcftools_args.length > 0) {
+            auto bcftools_cmd = bcftoolsPath()[0] ~ " " ~ bcftools_args.join(" ");
+            cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
+        }
+
+        bool strip_header = !filename.endsWith("/1");
+        return makeInputCmdLine(cmd, input_format, strip_header);
+    }
+}
+
+MArray!char runSamtools(string filename, Args args, std.stream.File output_stream)
+{
+    auto cmd = args.makeCommandLine(filename);
+    stderr.writeln("[executing] ", cmd);
+    auto pp = pipeShell(cmd, Redirect.stdout);
     scope(exit) pp.pid.wait();
 
     size_t capa = 1_024_576;
@@ -183,94 +267,162 @@ MArray!char runSamtools(string filename,
         used += buf.length;
     }
 
-    auto vcf = result[0 .. used];
-    if (!filename.endsWith("/1")) { 
-        // if it's not the first file
-        // strip lines starting with '#'
-        while (true) {
-            auto pos = vcf.indexOf('\n');
-            if (pos != -1 && pos + 1 < vcf.length && vcf[pos + 1] == '#')
-                vcf = vcf[pos + 1 .. $];
-            else
-                break;
-        }
+    output_stream.close();
 
-        if (vcf.startsWith("#")) {
-            auto pos = vcf.indexOf('\n');
-            if (pos != -1)
-                vcf = vcf[pos + 1.. $];
-            else
-                vcf = vcf[$ .. $];
-        }
-    }
-
-    return typeof(return)(vcf, result);
+    auto output = result[0 .. used];
+    auto arr = MArray!char(output, result);
+    return arr;
 }
 
-class PileupRunner {
-    alias Task!(runSamtools, string, string[], string[])* PileupTask;
-    TaskPool task_pool;
-    PileupTask[] tasks;
-    string[] samtools_args;
-    string[] bcftools_args;
-    std.stdio.File output_file;
+enum FileFormat {
+    pileup,
+    BCF,
+    uncompressedBCF,
+    VCF,
+    gzippedVCF
+}
 
-    size_t finished, submitted;
-
-    this(TaskPool pool, std.stdio.File output_file) {
-        task_pool = pool;
-        this.output_file = output_file;
-        tasks = new PileupTask[task_pool.size * 2];
+string[] unbundle(string[] args, string exclude="") {
+    import std.ascii : isAlpha;
+    import std.format : text;
+    import std.algorithm : count;
+    string[] unbundled;
+    foreach (a; args) {
+        if (a.length >= 2 && a[0] == '-' && exclude.count(a[1]) == 0) {
+            string[] expanded;
+            foreach (j, dchar c; a[1 .. $])
+            {
+                if (!isAlpha(c)) {
+                    expanded ~= a[j + 1 .. $];
+                    break;
+                }
+                expanded ~= text('-', c);
+            }
+            unbundled ~= expanded;
+        } else {
+            unbundled ~= a;
+        }
     }
+    return unbundled;
+}
 
-    void dumpNextVcf() {
-        auto vcf = tasks[finished % $].yieldForce();
-        tasks[finished++ % $] = null;
-        output_file.rawWrite(vcf.data);
-        std.c.stdlib.free(vcf.ptr);
-    }
-    
-    void pushTask(string filename) {
-        if (submitted - finished == tasks.length)
-            dumpNextVcf();
-
-        tasks[submitted % $] = task!runSamtools(filename,
-                                                samtools_args, bcftools_args);
-        task_pool.put(tasks[submitted++ % $]);
-
-        while (finished < submitted && tasks[finished % $].done()) {
-            dumpNextVcf();
+// input: unbundled samtools arguments
+// output: detected output format
+FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
+    bool vcf = false;
+    bool bcf = false;
+    bool uncompressed = false;
+    bool[] keep;
+    foreach (i; 0 .. args.length) {
+        if (args[i] == "-o") {
+            throw new Exception("-o argument of samtools is disallowed, use --output-filename argument of sambamba mpileup");
+        }
+        if (args[i] == "-g") {
+            bcf = true; keep ~= true;
+        } else if (args[i] == "-v") {
+            vcf = true; keep ~= !use_caller;
+        } else if (args[i] == "-u") {
+            uncompressed = true; keep ~= !use_caller;
+        } else {
+            keep ~= true;
         }
     }
 
-    void wait() {
-        while (finished != submitted)
-            dumpNextVcf();
+    string[] fixed_args;
+    foreach (i; 0 .. args.length) {
+        if (keep[i])
+            fixed_args ~= args[i];
     }
+
+    bool fixes_applied;
+    if (vcf && use_caller) {
+        fixed_args ~= ["-g", "-u"];
+        fixes_applied = true;
+    } else if (bcf && use_caller) {
+        fixed_args ~= "-u";
+        fixes_applied = true;
+    }
+
+    args = fixed_args;
+
+    if (fixes_applied && use_caller) {
+        stderr.writeln("NOTE: changed samtools output format to uncompressed BCF for better performance (-gu)");
+    }
+
+    if (bcf && vcf) {
+        throw new Exception("samtools can't be asked for both -g and -v");
+    } else if (bcf && uncompressed) {
+        return FileFormat.uncompressedBCF;
+    } else if (bcf && !uncompressed) {
+        return FileFormat.BCF;
+    } else if (vcf && uncompressed) {
+        return FileFormat.VCF;
+    } else if (vcf && !uncompressed) {
+        // TODO
+        throw new Exception("compressed VCF is not supported, please use bgzip and uncompressed VCF");
+    } else {
+        return FileFormat.pileup;
+    }
+}
+
+// input: unbundled bcftools arguments
+// output: detected output format
+FileFormat fixBcftoolsArgs(ref string[] args) {
+    FileFormat fmt = FileFormat.VCF;
+    bool[] keep;
+    foreach (i; 0 .. args.length) {
+        if (args[i] == "-o") {
+            throw new Exception("-o argument of bcftools is disallowed, use --output-filename argument of sambamba mpileup");
+        }
+        if (args[i] == "-Ov") {
+            fmt = FileFormat.VCF; keep ~= true;
+        } else if (args[i] == "-Oz") {
+            // TODO
+            throw new Exception("compressed VCF is not supported, please use bgzip and uncompressed VCF");
+            fmt = FileFormat.gzippedVCF; keep ~= false;
+        } else if (args[i] == "-Ob") {
+            fmt = FileFormat.BCF; keep ~= true;
+        } else if (args[i] == "-Ou") {
+            fmt = FileFormat.uncompressedBCF; keep ~= true;
+        } else {
+            keep ~= true;
+        }
+    }
+
+    string[] fixed_args;
+    foreach (i; 0 .. args.length) {
+        if (keep[i])
+            fixed_args ~= args[i];
+    }
+
+    args = fixed_args;
+    return fmt;
 }
 
 class ChunkDispatcher(ChunkRange) {
     private string tmp_dir_;
     private ChunkRange chunks_;
     private MultiBamReader bam_;
-    private size_t num_;
+    private size_t num_, curr_num_ = 1;
     private Mutex mutex_;
-    private PileupRunner runner_;
+
+    Mutex dump_mutex;
+    Condition dump_condition;
 
     alias ElementType!(Unqual!(ChunkRange)) Chunk;
 
-    this(string tmp_dir, ChunkRange chunks, MultiBamReader bam,
-         PileupRunner runner) 
-    {
+    this(string tmp_dir, ChunkRange chunks, MultiBamReader bam) {
         tmp_dir_ = tmp_dir;
         chunks_ = chunks;
         bam_ = bam;
         num_ = 0;
         mutex_ = new Mutex();
-        runner_ = runner;
+
+        dump_mutex = new Mutex();
+        dump_condition = new Condition(dump_mutex);
     }
 
-    Nullable!(Tuple!(Chunk, string)) nextChunk() {
+    Nullable!(Tuple!(Chunk, string, size_t)) nextChunk() {
         mutex_.lock();
         scope(exit) mutex_.unlock();
 
@@ -279,27 +431,42 @@ class ChunkDispatcher(ChunkRange) {
             return chunk;
         ++num_;
 
-        auto filename = buildPath(tmp_dir_, num_.to!string()); 
-        makeFifo(filename);
-        chunk = tuple(chunks_.front, filename);
+        auto filename = buildPath(tmp_dir_, num_.to!string());
+        chunk = tuple(chunks_.front, filename, num_);
         chunks_.popFront();
 
         auto ref_name = bam_.reference_sequences[chunk[0].ref_id].name;
         auto start = chunk[0].start_position + 1;
         auto end = chunk[0].end_position;
-            
-        auto bed = BedRecord(ref_name, start - 1, end);
-        std.stdio.File(filename ~ ".bed", "w").writeln(bed);
 
-        runner_.pushTask(filename);
+        auto bed = BedRecord(ref_name, start - 1, end);
+        auto f = std.stdio.File(filename ~ ".bed", "w");
+        f.writeln(bed);
+        f.close();
 
         return chunk;
+    }
+
+    bool tryDump(size_t num, char[] data, FileFormat fmt, std.stdio.File output_file) {
+        bool result;
+        synchronized (dump_mutex) {
+            result = num == curr_num_;
+            if (result) {
+                decompressIntoFile(data, fmt, output_file);
+                ++curr_num_;
+                dump_condition.notifyAll();
+            }
+        }
+
+        return result;
     }
 }
 
 void worker(Dispatcher)(Dispatcher d,
                         MultiBamReader bam,
-                        TaskPool task_pool) {
+                        TaskPool task_pool,
+                        Args args,
+                        std.stdio.File output_file) {
     while (true) {
         auto result = d.nextChunk();
         if (result.isNull)
@@ -307,30 +474,62 @@ void worker(Dispatcher)(Dispatcher d,
 
         auto chunk = result[0];
         auto filename = result[1];
+        auto num = result[2];
+        makeFifo(filename);
 
-        auto writer = new BamWriter(filename, 0, task_pool);
-        scope(exit) writer.finish();
-        with (writer) {
+        auto writing_thread = new Thread(() {
+            auto output_stream = new std.stream.File(filename, FileMode.Out);
+            auto writer = new BamWriter(output_stream, 0, task_pool);
             writer.writeSamHeader(bam.header);
             writer.writeReferenceSequenceInfo(bam.reference_sequences);
             foreach (read; chunk.reads)
                 writer.writeRecord(read);
+            writer.finish(); // don't close the stream, leave that to runSamtools
+            });
+        writing_thread.start();
+
+        auto cmd = args.makeCommandLine(filename);
+        stderr.writeln("[executing] ", cmd);
+        auto pp = pipeShell(cmd, Redirect.stdout);
+        scope(exit) pp.pid.wait();
+
+        size_t capa = 1_024_576;
+        size_t used = 0;
+        char* output = cast(char*)std.c.stdlib.malloc(capa);
+
+        char[4096] buffer = void;
+        while (true) {
+            auto buf = pp.stdout.rawRead(buffer[]);
+            if (buf.length == 0)
+                break;
+            if (used + buf.length > capa) {
+                capa = max(capa * 2, used + buf.length);
+                output = cast(char*)std.c.stdlib.realloc(cast(void*)output, capa);
+            }
+            output[used .. used + buf.length] = buf[];
+            used += buf.length;
         }
+
+        writing_thread.join();
+
+        stderr.writeln("[ready] ", filename);
+        synchronized (d.dump_mutex) {
+            while (!d.tryDump(num, output[0 .. used], args.input_format, output_file))
+                d.dump_condition.wait();
+        }
+        std.c.stdlib.free(output);
     }
 }
 
-auto chunkDispatcher(ChunkRange)(string tmp_dir, ChunkRange chunks, 
-                                 MultiBamReader bam, PileupRunner runner) {
-    return new ChunkDispatcher!ChunkRange(tmp_dir, chunks, bam, runner);
+auto chunkDispatcher(ChunkRange)(string tmp_dir, ChunkRange chunks,
+                                 MultiBamReader bam) {
+    return new ChunkDispatcher!ChunkRange(tmp_dir, chunks, bam);
 }
-
-
-
 
 void printUsage() {
     stderr.writeln("usage: sambamba-pileup [options] input.bam [input2.bam [...]]");
     stderr.writeln("                       [--samtools <samtools mpileup args>]");
-    stderr.writeln("                       [--bcftools <bcftools args>]");
+    stderr.writeln("                       [--bcftools <bcftools call args>]");
     stderr.writeln();
     stderr.writeln("This subcommand relies on external tools and acts as a multi-core implementation of samtools and bcftools.");
     stderr.writeln("Therefore, the following tools should be present in $PATH:");
@@ -361,8 +560,6 @@ void printUsage() {
     stderr.writeln("                    maximum number of threads to use");
     stderr.writeln("         -b, --buffer-size=4_000_000");
     stderr.writeln("                    chunk size (in bytes)");
-    stderr.writeln();
-    stderr.writeln("Note that sambamba currently only supports bcftools uncompressed VCF output (-Ov). A future version may support more formats, now convert them using bcftools in a separate step.");
 }
 
 version(standalone) {
@@ -371,7 +568,12 @@ version(standalone) {
     }
 }
 
+string output_filename = null;
+
 int pileup_main(string[] args) {
+    this_app = args[0];
+    init();
+
     auto bcftools_args = find(args, "--bcftools");
     auto args1 = (bcftools_args.length>0 ? args[0 .. $-bcftools_args.length] : args );
     auto samtools_args = find(args1, "--samtools");
@@ -380,33 +582,15 @@ int pileup_main(string[] args) {
     if (!samtools_args.empty) {
         samtools_args.popFront();
     } else {
-        // Default values for samtools if not passed
-        /*
-         samtools_args = ["-gu",          // uncompressed BCF output
-                         "-S",           // per-sample strand bias
-                         "-D",           // per-sample DP
-                         "-d", "1000",   // max per-BAM depth
-                         "-L", "1000",   // max depth for indel calling
-                         "-m", "3",      // min. gapped reads for indel candidates
-                         "-F", "0.0002", // min. fraction of gapped reads
-                         ];
-	*/
         samtools_args = [];
     }
 
     if (!bcftools_args.empty) {
-        bcftools_args.popFront(); // remove the switch --bcftools 
-        if (bcftools_args.empty) 
-          bcftools_args = ["view", "-Ov"]; // default settings when only --bcftools switch is used
+        bcftools_args.popFront(); // remove the switch --bcftools
     }
-    // Simple check for illegal switches
-    auto check = bcftools_args;
-    if (find(check, "-Ob").length || find(check, "-Ou").length || find(check, "-Oz").length)
-        throw new Exception("bcftools argument not supported",bcftools_args.join(" "));
 
     string bed_filename;
     string query;
-    string output_filename = null;
     uint n_threads = defaultPoolThreads;
     std.stdio.File output_file = stdout;
     size_t buffer_size = 4_000_000;
@@ -425,15 +609,15 @@ int pileup_main(string[] args) {
             return 0;
         }
 
-        stderr.writeln(samtoolsInfo()," options: ",samtools_args.join(" "));
+        stderr.writeln("samtools mpileup options: ",samtools_args.join(" "));
         if (bcftools_args.length>0)
-            stderr.writeln("Using ",bcftoolsPath(),bcftools_args.join(" "));
+            stderr.writeln("bcftools options: ", bcftools_args.join(" "));
 
         if (output_filename != null) {
-          foreach (filename; own_args[1 .. $])
-            protectFromOverwrite(filename, output_filename);
-          output_file = std.stdio.File(output_filename, "w+");
-	}
+            foreach (filename; own_args[1 .. $])
+                protectFromOverwrite(filename, output_filename);
+            output_file = std.stdio.File(output_filename, "w+");
+        }
 
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(own_args[1 .. $]);
@@ -444,9 +628,7 @@ int pileup_main(string[] args) {
         string tmp_dir = to!string(buf.ptr);
         scope(exit) rmdirRecurse(tmp_dir);
 
-        auto pileupRunner = new PileupRunner(taskPool, output_file);
-        pileupRunner.samtools_args = samtools_args;
-        pileupRunner.bcftools_args = bcftools_args;
+        auto bundled_args = Args(samtools_args, bcftools_args);
 
         InputRange!BamRead reads;
         if (bed_filename is null) {
@@ -457,14 +639,15 @@ int pileup_main(string[] args) {
         }
 
         auto chunks = bam.reads().pileupChunks(false, buffer_size);
-        auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam, pileupRunner);
-    
+        auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam);
+
         auto threads = new ThreadGroup();
-        foreach (i; 0 .. n_threads)
-            threads.create(() { worker(dispatcher, bam, taskPool); });
+        foreach (i; 0 .. max(1, n_threads))
+            threads.create(() { worker(dispatcher, bam, taskPool, bundled_args,
+                                       output_file); });
 
         threads.joinAll();
-        pileupRunner.wait();
+        output_file.close();
         return 0;
 
     } catch (Exception e) {
