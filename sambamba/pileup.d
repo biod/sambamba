@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -184,7 +184,7 @@ private {
 void init() {
     lz4decompressor = new LZ4Decompressor();
 
-    recipes[FileFormat.pileup] =          Recipe(null,
+    recipes[FileFormat.pileup] =          Recipe(this_app~" strip_bcf_header --vcf",
                                                  this_app~" lz4compress",
                                                  &lz4decompress);
     recipes[FileFormat.BCF] =             Recipe(this_app~" strip_bcf_header --bcf",
@@ -536,9 +536,9 @@ void printUsage() {
     stderr.writeln("    * samtools");
     stderr.writeln("    * bcftools (when used)");
     stderr.writeln();
-    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments 'samtools'");
+    stderr.writeln("If --samtools is skipped, samtools mpileup is called with default arguments");
     stderr.writeln("If --bcftools is used without parameters, samtools is called with");
-    stderr.writeln("     switch '-gu' and bcftools is called as 'bcftools view -Ov'");
+    stderr.writeln("     switch '-gu' and bcftools is called as 'bcftools view -'");
     stderr.writeln("If --bcftools is skipped, bcftools is not called");
     stderr.writeln();
     stderr.writeln("Sambamba splits input BAM files into chunks and feeds them");
@@ -548,8 +548,8 @@ void printUsage() {
     stderr.writeln("from the multiple processes are combined as ordered output.");
     stderr.writeln();
     stderr.writeln("Sambamba options:");
-    stderr.writeln("         -F, --filter=FILTER");
-    stderr.writeln("                    set custom filter for alignments");
+//    stderr.writeln("         -F, --filter=FILTER");
+//    stderr.writeln("                    set custom filter for alignments");
     stderr.writeln("         -L, --regions=FILENAME");
     stderr.writeln("                    provide BED file with regions");
     stderr.writeln("                    (no need to duplicate it in samtools args);");
@@ -558,7 +558,7 @@ void printUsage() {
     stderr.writeln("                    specify output filename");
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
-    stderr.writeln("         -b, --buffer-size=4_000_000");
+    stderr.writeln("         -b, --buffer-size=64_000_000");
     stderr.writeln("                    chunk size (in bytes)");
 }
 
@@ -590,16 +590,16 @@ int pileup_main(string[] args) {
     }
 
     string bed_filename;
-    string query;
+    //string query;
     uint n_threads = defaultPoolThreads;
     std.stdio.File output_file = stdout;
-    size_t buffer_size = 4_000_000;
+    size_t buffer_size = 64_000_000;
 
     try {
         getopt(own_args,
                std.getopt.config.caseSensitive,
                "regions|L",         &bed_filename,
-               "filter|F",          &query,
+               //"filter|F",          &query,
                "output-filename|o", &output_filename,
                "nthreads|t",        &n_threads,
                "buffer-size|b",     &buffer_size);
@@ -642,12 +642,16 @@ int pileup_main(string[] args) {
         auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam);
 
         auto threads = new ThreadGroup();
+
+        scope (exit) {
+            threads.joinAll();
+            output_file.close();
+        }
+
         foreach (i; 0 .. max(1, n_threads))
             threads.create(() { worker(dispatcher, bam, taskPool, bundled_args,
                                        output_file); });
 
-        threads.joinAll();
-        output_file.close();
         return 0;
 
     } catch (Exception e) {
