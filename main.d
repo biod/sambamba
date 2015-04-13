@@ -35,7 +35,7 @@ import utils.lz4;
 import std.stdio;
 
 void printUsage() {
-    stderr.writeln("sambamba v0.5.2");
+    stderr.writeln("sambamba v0.5.3");
     stderr.writeln();
     stderr.writeln("Usage: sambamba [command] [args...]");
     stderr.writeln();
