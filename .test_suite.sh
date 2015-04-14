@@ -51,5 +51,10 @@ testMarkdupEmptyFile() {
     assertEquals "0" `./build/sambamba view -c empty.dedup.bam`
 }
 
+testCramView() {
+    ./build/sambamba view -S htslib/test/c1\#pad2.sam -T htslib/test/c1.fa -f cram -o c1_pad2.cram
+    ./build/sambamba view -C c1_pad2.cram >/dev/null
+    assertEquals 0 $?
+}
 
 . shunit2-2.0.3/src/shell/shunit2

@@ -42,38 +42,38 @@ alias SAM_hdr_item_s SAM_hdr_type;
 alias _Anonymous_12 SAM_SQ;
 alias _Anonymous_13 SAM_RG;
 alias _Anonymous_14 SAM_PG;
-alias _Anonymous_15 kh_sam_hdr_t;
-alias _Anonymous_16 kh_m_s2i_t;
-alias _Anonymous_17 SAM_hdr;
+alias kh_sam_hdr_s kh_sam_hdr_t;
+alias kh_m_s2i_s kh_m_s2i_t;
+alias _Anonymous_15 SAM_hdr;
 alias t_res t_pool_result;
-alias _Anonymous_18 t_pool_worker_t;
-alias _Anonymous_19 kh_m_i2i_t;
-alias _Anonymous_20 kh_s_i2i_t;
+alias _Anonymous_16 t_pool_worker_t;
+alias _Anonymous_17 mFILE;
+alias kh_m_i2i_s kh_m_i2i_t;
+alias kh_s_i2i_s kh_s_i2i_t;
 alias ubyte uc;
-alias _Anonymous_21 pmap_t;
-alias _Anonymous_22 kh_map_t;
-alias _Anonymous_23 cram_stats;
-alias _Anonymous_24 cram_file_def;
-alias _Anonymous_25 cram_metrics;
-alias _Anonymous_26 cram_block;
-alias _Anonymous_27 cram_block_compression_hdr;
-alias _Anonymous_28 cram_block_slice_hdr;
-alias _Anonymous_29 cram_container;
-alias _Anonymous_30 cram_record;
-alias _Anonymous_31 cram_feature;
-alias _Anonymous_32 kh_refs_t;
-alias _Anonymous_33 refs_t;
-alias _Anonymous_34 cram_range;
-alias _Anonymous_35 cram_huffman_code;
-alias _Anonymous_36 cram_huffman_decoder;
-alias _Anonymous_37 cram_huffman_encoder;
-alias _Anonymous_38 cram_beta_decoder;
-alias _Anonymous_39 cram_gamma_decoder;
-alias _Anonymous_40 cram_subexp_decoder;
-alias _Anonymous_41 cram_external_decoder;
-alias _Anonymous_42 cram_byte_array_len_decoder;
-alias _Anonymous_43 cram_byte_array_stop_decoder;
-alias _Anonymous_44 cram_byte_array_len_encoder;
+alias _Anonymous_18 pmap_t;
+alias kh_map_s kh_map_t;
+alias _Anonymous_19 cram_stats;
+alias _Anonymous_20 cram_file_def;
+alias _Anonymous_21 cram_metrics;
+alias _Anonymous_22 cram_block;
+alias _Anonymous_23 cram_block_compression_hdr;
+alias _Anonymous_24 cram_block_slice_hdr;
+alias _Anonymous_25 cram_container;
+alias _Anonymous_26 cram_record;
+alias _Anonymous_27 cram_feature;
+alias _Anonymous_28 refs_t;
+alias _Anonymous_29 cram_range;
+alias _Anonymous_30 cram_huffman_code;
+alias _Anonymous_31 cram_huffman_decoder;
+alias _Anonymous_32 cram_huffman_encoder;
+alias _Anonymous_33 cram_beta_decoder;
+alias _Anonymous_34 cram_gamma_decoder;
+alias _Anonymous_35 cram_subexp_decoder;
+alias _Anonymous_36 cram_external_decoder;
+alias _Anonymous_37 cram_byte_array_len_decoder;
+alias _Anonymous_38 cram_byte_array_stop_decoder;
+alias _Anonymous_39 cram_byte_array_len_encoder;
 
 extern __gshared int hts_verbose;
 extern __gshared const ubyte[256] seq_nt16_table;
@@ -101,12 +101,11 @@ enum htsExactFormat
 	cram = 6,
 	crai = 7,
 	vcf = 8,
-	bcfv1 = 9,
-	bcf = 10,
-	csi = 11,
-	gzi = 12,
-	tbi = 13,
-	bed = 14,
+	bcf = 9,
+	csi = 10,
+	gzi = 11,
+	tbi = 12,
+	bed = 13,
 	format_maximum = 32767
 }
 
@@ -170,6 +169,14 @@ enum cigar_op
 	BAM_CPAD_ = 6,
 	BAM_CBASE_MATCH = 7,
 	BAM_CBASE_MISMATCH = 8
+}
+
+enum sam_sort_order
+{
+	ORDER_UNKNOWN = -1,
+	ORDER_UNSORTED = 0,
+	ORDER_NAME = 1,
+	ORDER_COORD = 2
 }
 
 enum cram_encoding
@@ -337,15 +344,19 @@ struct htsFormat
 		cram = 6,
 		crai = 7,
 		vcf = 8,
-		bcfv1 = 9,
-		bcf = 10,
-		csi = 11,
-		gzi = 12,
-		tbi = 13,
-		bed = 14,
+		bcf = 9,
+		csi = 10,
+		gzi = 11,
+		tbi = 12,
+		bed = 13,
 		format_maximum = 32767
 	}
 	htsExactFormat format;
+	struct
+	{
+		short major;
+		short minor;
+	}
 	enum htsCompression
 	{
 		no_compression = 0,
@@ -355,6 +366,8 @@ struct htsFormat
 		compression_maximum = 32767
 	}
 	htsCompression compression;
+	short compression_level;
+	void* specific;
 }
 
 struct _Anonymous_0
@@ -394,6 +407,9 @@ struct _Anonymous_2
 	int end;
 	int n_off;
 	int i;
+	int curr_tid;
+	int curr_beg;
+	int curr_end;
 	ulong curr_off;
 	hts_pair64_t* off;
 	int function (BGZF*, void*, void*, int*, int*, int*) readrec;
@@ -531,7 +547,7 @@ struct _Anonymous_14
 	int prev_id;
 }
 
-struct _Anonymous_15
+struct kh_sam_hdr_s
 {
 	khint_t n_buckets;
 	khint_t size;
@@ -542,7 +558,7 @@ struct _Anonymous_15
 	SAM_hdr_type** vals;
 }
 
-struct _Anonymous_16
+struct kh_m_s2i_s
 {
 	khint_t n_buckets;
 	khint_t size;
@@ -553,7 +569,7 @@ struct _Anonymous_16
 	int* vals;
 }
 
-struct _Anonymous_17
+struct _Anonymous_15
 {
 	kstring_t text;
 	kh_sam_hdr_t* h;
@@ -572,6 +588,7 @@ struct _Anonymous_17
 	SAM_PG* pg;
 	kh_m_s2i_t* pg_hash;
 	int* pg_end;
+  sam_sort_order sort_order;
 	char[1024] ID_buf;
 	int ID_cnt;
 	int ref_count;
@@ -594,7 +611,7 @@ struct t_res
 	void* data;
 }
 
-struct _Anonymous_18
+struct _Anonymous_16
 {
 	t_pool* p;
 	int idx;
@@ -635,7 +652,19 @@ struct t_results_queue
 	pthread_cond_t result_avail_c;
 }
 
-struct _Anonymous_19
+struct _Anonymous_17
+{
+	FILE* fp;
+	char* data;
+	size_t alloced;
+	int eof;
+	int mode;
+	size_t size;
+	size_t offset;
+	size_t flush_pos;
+}
+
+struct kh_m_i2i_s
 {
 	khint_t n_buckets;
 	khint_t size;
@@ -646,7 +675,7 @@ struct _Anonymous_19
 	int* vals;
 }
 
-struct _Anonymous_20
+struct kh_s_i2i_s
 {
 	khint_t n_buckets;
 	khint_t size;
@@ -657,7 +686,7 @@ struct _Anonymous_20
 	char* vals;
 }
 
-struct _Anonymous_22
+struct kh_map_s
 {
 	khint_t n_buckets;
 	khint_t size;
@@ -668,7 +697,7 @@ struct _Anonymous_22
 	pmap_t* vals;
 }
 
-struct _Anonymous_23
+struct _Anonymous_19
 {
 	int[1024] freqs;
 	kh_m_i2i_t* h;
@@ -676,7 +705,7 @@ struct _Anonymous_23
 	int nvals;
 }
 
-struct _Anonymous_24
+struct _Anonymous_20
 {
 	char[4] magic;
 	ubyte major_version;
@@ -684,7 +713,7 @@ struct _Anonymous_24
 	char[20] file_id;
 }
 
-struct _Anonymous_25
+struct _Anonymous_21
 {
 	int trial;
 	int next_trial;
@@ -711,7 +740,7 @@ struct _Anonymous_25
 	double lzma_extra;
 }
 
-struct _Anonymous_26
+struct _Anonymous_22
 {
 	enum cram_block_method
 	{
@@ -726,7 +755,7 @@ struct _Anonymous_26
 		GZIP_RLE = 11
 	}
 	cram_block_method method;
-	cram_block_method orig_method;
+  cram_block_method orig_method;
 	enum cram_content_type
 	{
 		CT_ERROR = -1,
@@ -749,7 +778,7 @@ struct _Anonymous_26
 	int bit;
 }
 
-struct _Anonymous_27
+struct _Anonymous_23
 {
 	int ref_seq_id;
 	int ref_seq_start;
@@ -802,7 +831,7 @@ struct cram_map
 	cram_map* next;
 }
 
-struct _Anonymous_28
+struct _Anonymous_24
 {
 	enum cram_content_type
 	{
@@ -827,7 +856,7 @@ struct _Anonymous_28
 	ubyte[16] md5;
 }
 
-struct _Anonymous_29
+struct _Anonymous_25
 {
 	int length;
 	int ref_seq_id;
@@ -871,7 +900,7 @@ struct _Anonymous_29
 	uint crc32;
 }
 
-struct _Anonymous_30
+struct _Anonymous_26
 {
 	cram_slice* s;
 	int ref_id;
@@ -902,7 +931,7 @@ struct _Anonymous_30
 	int mate_flags;
 }
 
-struct _Anonymous_31
+struct _Anonymous_27
 {
 }
 
@@ -914,7 +943,6 @@ struct cram_slice
 	cram_block** block_by_id;
 	int last_apos;
 	int max_apos;
-	ulong id;
 	cram_record* crecs;
 	uint* cigar;
 	uint cigar_alloc;
@@ -957,9 +985,10 @@ struct ref_entry
 	int line_length;
 	long count;
 	char* seq;
+	mFILE* mf;
 }
 
-struct _Anonymous_32
+struct kh_refs_s
 {
 	khint_t n_buckets;
 	khint_t size;
@@ -970,7 +999,9 @@ struct _Anonymous_32
 	ref_entry** vals;
 }
 
-struct _Anonymous_33
+alias kh_refs_s kh_refs_t;
+
+struct _Anonymous_28
 {
 	string_alloc_t* pool;
 	kh_refs_t* h_meta;
@@ -998,7 +1029,7 @@ struct cram_index
 	long offset;
 }
 
-struct _Anonymous_34
+struct _Anonymous_29
 {
 	int refid;
 	int start;
@@ -1019,8 +1050,7 @@ struct cram_fd
 	cram_file_def* file_def;
 	SAM_hdr* header;
 	char* prefix;
-	int record_counter;
-	int slice_num;
+	long record_counter;
 	int err;
 	cram_container* ctr;
 	int first_base;
@@ -1071,7 +1101,7 @@ struct cram_fd
 	int ooc;
 }
 
-struct _Anonymous_35
+struct _Anonymous_30
 {
 	int symbol;
 	int p;
@@ -1079,37 +1109,37 @@ struct _Anonymous_35
 	int len;
 }
 
-struct _Anonymous_36
+struct _Anonymous_31
 {
 	int ncodes;
 	cram_huffman_code* codes;
 }
 
-struct _Anonymous_37
+struct _Anonymous_32
 {
 	cram_huffman_code* codes;
 	int nvals;
 	int[129] val2code;
 }
 
-struct _Anonymous_38
+struct _Anonymous_33
 {
 	int offset;
 	int nbits;
 }
 
-struct _Anonymous_39
+struct _Anonymous_34
 {
 	int offset;
 }
 
-struct _Anonymous_40
+struct _Anonymous_35
 {
 	int offset;
 	int k;
 }
 
-struct _Anonymous_41
+struct _Anonymous_36
 {
 	int content_id;
 	enum cram_external_type
@@ -1123,19 +1153,19 @@ struct _Anonymous_41
 	cram_external_type type;
 }
 
-struct _Anonymous_42
+struct _Anonymous_37
 {
 	cram_codec* len_codec;
 	cram_codec* value_codec;
 }
 
-struct _Anonymous_43
+struct _Anonymous_38
 {
 	ubyte stop;
 	int content_id;
 }
 
-struct _Anonymous_44
+struct _Anonymous_39
 {
 	enum cram_encoding
 	{
@@ -1151,7 +1181,7 @@ struct _Anonymous_44
 		E_GAMMA = 9
 	}
 	cram_encoding len_encoding;
-	cram_encoding val_encoding;
+  cram_encoding val_encoding;
 	void* len_dat;
 	void* val_dat;
 	cram_codec* len_codec;
@@ -1196,7 +1226,10 @@ struct __bam_mplp_t;
 struct __hts_idx_t;
 
 
-union _Anonymous_21
+struct hts_md5_context;
+
+
+union _Anonymous_18
 {
 	int i;
 	char* p;
@@ -1225,12 +1258,20 @@ ubyte* hts_idx_get_meta (hts_idx_t* idx, int* l_meta);
 void hts_idx_set_meta (hts_idx_t* idx, int l_meta, ubyte* meta, int is_copy);
 int hts_idx_get_stat (const(hts_idx_t)* idx, int tid, ulong* mapped, ulong* unmapped);
 ulong hts_idx_get_n_no_coor (const(hts_idx_t)* idx);
-const(char)* hts_parse_reg (const(char)* s, int* beg, int* end);
+long hts_parse_decimal (const(char)* str, char** end);
+const(char)* hts_parse_reg (const(char)* str, int* beg, int* end);
 hts_itr_t* hts_itr_query (const(hts_idx_t)* idx, int tid, int beg, int end, int function (BGZF*, void*, void*, int*, int*, int*) readrec);
 void hts_itr_destroy (hts_itr_t* iter);
 hts_itr_t* hts_itr_querys (const(hts_idx_t)* idx, const(char)* reg, hts_name2id_f getid, void* hdr, hts_itr_t* function (const(hts_idx_t)*, int, int, int, int function (BGZF*, void*, void*, int*, int*, int*)) itr_query, int function (BGZF*, void*, void*, int*, int*, int*) readrec);
 int hts_itr_next (BGZF* fp, hts_itr_t* iter, void* r, void* data);
 const(char*)* hts_idx_seqnames (const(hts_idx_t)* idx, int* n, hts_id2name_f getid, void* hdr);
+int hts_file_type (const(char)* fname);
+hts_md5_context* hts_md5_init ();
+void hts_md5_update (hts_md5_context* ctx, const(void)* data, c_ulong size);
+void hts_md5_final (ubyte* digest, hts_md5_context* ctx);
+void hts_md5_reset (hts_md5_context* ctx);
+void hts_md5_hex (char* hex, const(ubyte)* digest);
+void hts_md5_destroy (hts_md5_context* ctx);
 int hts_reg2bin (long beg, long end, int min_shift, int n_lvls);
 int hts_bin_bot (int bin, int n_lvls);
 int ed_is_big ();
@@ -1348,6 +1389,7 @@ SAM_hdr_type* sam_hdr_find (SAM_hdr* hdr, char* type, char* ID_key, char* ID_val
 char* sam_hdr_find_line (SAM_hdr* hdr, char* type, char* ID_key, char* ID_value);
 SAM_hdr_tag* sam_hdr_find_key (SAM_hdr* sh, SAM_hdr_type* type, char* key, SAM_hdr_tag** prev);
 int sam_hdr_update (SAM_hdr* hdr, SAM_hdr_type* type, ...);
+sam_sort_order sam_hdr_sort_order (SAM_hdr* hdr);
 int sam_hdr_rebuild (SAM_hdr* hdr);
 int sam_hdr_name2ref (SAM_hdr* hdr, const(char)* ref_);
 SAM_RG* sam_hdr_find_rg (SAM_hdr* hdr, const(char)* rg);
@@ -1369,6 +1411,31 @@ void t_results_queue_destroy (t_results_queue* q);
 int t_pool_results_queue_empty (t_results_queue* q);
 int t_pool_results_queue_len (t_results_queue* q);
 int t_pool_results_queue_sz (t_results_queue* q);
+mFILE* mfreopen (const(char)* path, const(char)* mode, FILE* fp);
+mFILE* mfopen (const(char)* path, const(char)* mode);
+int mfdetach (mFILE* mf);
+int mfclose (mFILE* mf);
+int mfdestroy (mFILE* mf);
+int mfseek (mFILE* mf, c_long offset, int whence);
+c_long mftell (mFILE* mf);
+void mrewind (mFILE* mf);
+void mftruncate (mFILE* mf, c_long offset);
+int mfeof (mFILE* mf);
+size_t mfread (void* ptr, size_t size, size_t nmemb, mFILE* mf);
+size_t mfwrite (void* ptr, size_t size, size_t nmemb, mFILE* mf);
+int mfgetc (mFILE* mf);
+int mungetc (int c, mFILE* mf);
+mFILE* mfcreate (char* data, int size);
+mFILE* mfcreate_from (const(char)* path, const(char)* mode_str, FILE* fp);
+void mfrecreate (mFILE* mf, char* data, int size);
+void* mfsteal (mFILE* mf, size_t* size_out);
+char* mfgets (char* s, int size, mFILE* mf);
+int mfflush (mFILE* mf);
+int mfprintf (mFILE* mf, char* fmt, ...);
+mFILE* mstdin ();
+mFILE* mstdout ();
+mFILE* mstderr ();
+void mfascii (mFILE* mf);
 kh_m_i2i_t* kh_init_m_i2i ();
 void kh_destroy_m_i2i (kh_m_i2i_t* h);
 void kh_clear_m_i2i (kh_m_i2i_t* h);
@@ -1401,6 +1468,8 @@ int is_directory (char* fn);
 int is_file (char* fn);
 int file_size (char* fn);
 int itf8_decode (cram_fd* fd, int* val);
+int ltf8_get (char* cp, long* val_p);
+int ltf8_put (char* cp, long val);
 int itf8_put_blk (cram_block* blk, int val);
 cram_block* cram_new_block (cram_content_type content_type, int content_id);
 cram_block* cram_read_block (cram_fd* fd);
@@ -1412,7 +1481,9 @@ int cram_compress_block (cram_fd* fd, cram_block* b, cram_metrics* metrics, int 
 cram_metrics* cram_new_metrics ();
 char* cram_block_method2str (cram_block_method m);
 char* cram_content_type2str (cram_content_type t);
-ubyte* append_uint (ubyte* cp, int i);
+ubyte* append_uint32 (ubyte* cp, uint i);
+ubyte* append_sub32 (ubyte* cp, uint i);
+ubyte* append_uint64 (ubyte* cp, ulong i);
 int cram_load_reference (cram_fd* fd, const(char)* fn);
 int refs2id (refs_t* r, SAM_hdr* bfd);
 void refs_free (refs_t* r);
@@ -1454,6 +1525,7 @@ int cram_get_bam_seq (cram_fd* fd, bam_seq_t** bam);
 cram_block_compression_hdr* cram_decode_compression_header (cram_fd* fd, cram_block* b);
 cram_block_slice_hdr* cram_decode_slice_header (cram_fd* fd, cram_block* b);
 int cram_decode_slice (cram_fd* fd, cram_container* c, cram_slice* s, SAM_hdr* hdr);
+int cram_to_bam (SAM_hdr* bfd, cram_fd* fd, cram_slice* s, cram_record* cr, int rec, bam_seq_t** bam);
 cram_stats* cram_stats_create ();
 void cram_stats_add (cram_stats* st, int val);
 void cram_stats_del (cram_stats* st, int val);
@@ -1467,7 +1539,6 @@ int cram_codec_to_id (cram_codec* c, int* id2);
 int cram_index_load (cram_fd* fd, const(char)* fn);
 void cram_index_free (cram_fd* fd);
 cram_index* cram_index_query (cram_fd* fd, int refid, int pos, cram_index* frm);
-int cram_seek_to_refpos (cram_fd* fd, cram_range* r);
 void cram_index_free (cram_fd* fd);
+int cram_seek_to_refpos (cram_fd* fd, cram_range* r);
 int cram_index_build (cram_fd* fd, const(char)* fn_base);
-int cram_to_bam(SAM_hdr*, cram_fd*, cram_slice*, cram_record*, int, bam_seq_t**);
