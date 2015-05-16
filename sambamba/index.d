@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ import bio.bam.bai.indexing;
 import bio.bam.reader;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam|input.cram>");
+    stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam|input.cram> [output_file]");
     stderr.writeln();
     stderr.writeln("\tCreates index for a BAM or CRAM file");
     stderr.writeln();
@@ -58,6 +58,7 @@ int index_main(string[] args) {
     bool check_bins;
     uint n_threads = totalCPUs;
     bool is_cram;
+    string out_filename = null;
 
     getopt(args,
            std.getopt.config.caseSensitive,
@@ -67,14 +68,16 @@ int index_main(string[] args) {
            "cram-input|C",    &is_cram);
 
     try {
-        string out_filename = null;
-        if (args.length != 2) {
+        if (args.length < 2 || args.length > 3) {
             printUsage();
             return 0;
         }
 
         if (!is_cram) {
-            out_filename = args[1] ~ ".bai";
+            if (args.length > 2)
+                out_filename = args[2];
+            else
+                out_filename = args[1] ~ ".bai";
 
             // default taskPool uses only totalCPUs-1 threads,
             // but in case of indexing the most time is spent
@@ -103,7 +106,7 @@ int index_main(string[] args) {
                 stderr.writeln("[info] progressbar is unavailable for CRAM input");
             defaultPoolThreads = 0; // decompression not needed for CRAM
             auto cram = new CramReader(args[1], taskPool);
-            cram.createIndex();
+            cram.createIndex(args[$-1]);
         }
     } catch (Throwable e) {
         stderr.writeln("sambamba-index: ", e.msg);

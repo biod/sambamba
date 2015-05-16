@@ -113,8 +113,8 @@ class CramReader : IBamSamReader {
         return inputRangeObject(reads());
     }
 
-    void createIndex() {
-        int ret = cram_index_build(_fd, toStringz(_fn));
+    void createIndex(string fn_prefix=null) {
+        int ret = cram_index_build(_fd, toStringz(fn_prefix is null ? _fn : fn_prefix));
         if (ret != 0) {
             throw new Exception("failed to build index for CRAM file " ~ _fn);
         }
