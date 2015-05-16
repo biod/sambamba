@@ -21,12 +21,12 @@ module sambamba.flagstat;
 
 /// port of samtools flagstat tool
 import bio.bam.reader;
-import std.stdio, std.conv, std.parallelism, std.getopt;
+import std.stdio, std.conv, std.parallelism, std.getopt, std.string;
 
 import sambamba.utils.common.progressbar;
 
 ulong[2] reads, pair_all, pair_good, first, second, single, pair_map, mapped,
-         dup, diff_chr, diff_high;
+         dup, diff_chr, diff_high, secondary, supplementary;
 
 void computeFlagStatistics(R)(R alignments) {
     foreach (read; alignments) {
@@ -34,9 +34,13 @@ void computeFlagStatistics(R)(R alignments) {
         ++reads[failed];
         if (!read.is_unmapped) ++mapped[failed];
         if (read.is_duplicate) ++dup[failed];
-        if (read.is_paired) {
+        if (read.is_secondary_alignment) {
+            ++secondary[failed];
+        } else if (read.is_supplementary) {
+            ++supplementary[failed];
+        } else if (read.is_paired) {
             ++pair_all[failed];
-            if (read.proper_pair) ++pair_good[failed];
+            if (read.proper_pair && !read.is_unmapped) ++pair_good[failed];
             if (read.is_first_of_pair) ++first[failed];
             if (read.is_second_of_pair) ++second[failed];
             if (read.mate_is_unmapped && !read.is_unmapped) ++single[failed];
@@ -58,9 +62,15 @@ void writeParam(string description, ulong[2] param) {
 
 float percent(ulong a, ulong b) { return to!float(a) / b * 100.0; }
 
+string percentStr(ulong a, ulong b) {
+    if (b == 0) return "N/A";
+    return format("%.2f%%", percent(a, b));
+}
+
 void writeParamWithPercentage(string description, ulong[2] param, ulong[2] total) {
-    writefln("%s + %s %s (%.2f%%:%.2f%%)", param[0], param[1], description,
-             percent(param[0], total[0]), percent(param[1], total[1]));
+    writefln("%s + %s %s (%s:%s)", param[0], param[1], description,
+             percentStr(param[0], total[0]),
+             percentStr(param[1], total[1]));
 }
 
 version(standalone) {
@@ -109,6 +119,8 @@ int flagstat_main(string[] args) {
         
         scope(exit) {
             writeParam("in total (QC-passed reads + QC-failed reads)", reads);
+            writeParam("secondary", secondary);
+            writeParam("supplementary", supplementary);
             writeParam("duplicates", dup);
             writeParamWithPercentage("mapped", mapped, reads);
             writeParam("paired in sequencing", pair_all);
