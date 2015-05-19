@@ -556,6 +556,8 @@ void printUsage() {
     stderr.writeln("                    all input files must be indexed");
     stderr.writeln("         -o, --output-filename=<STDOUT>");
     stderr.writeln("                    specify output filename");
+    stderr.writeln("         --tmpdir=TMPDIR");
+    stderr.writeln("                    directory for temporary files");
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
     stderr.writeln("         -b, --buffer-size=64_000_000");
@@ -595,12 +597,15 @@ int pileup_main(string[] args) {
     std.stdio.File output_file = stdout;
     size_t buffer_size = 64_000_000;
 
+    string tmp_dir_prefix = defaultTmpDir();
+
     try {
         getopt(own_args,
                std.getopt.config.caseSensitive,
                "regions|L",         &bed_filename,
                //"filter|F",          &query,
                "output-filename|o", &output_filename,
+               "tmpdir",            &tmp_dir_prefix,
                "nthreads|t",        &n_threads,
                "buffer-size|b",     &buffer_size);
 
@@ -622,7 +627,7 @@ int pileup_main(string[] args) {
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(own_args[1 .. $]);
 
-        char[] buf = defaultTmpDir() ~ "/sambamba-fork-XXXXXX\0".dup;
+        char[] buf = tmp_dir_prefix ~ "/sambamba-fork-XXXXXX\0".dup;
         mkdtemp(buf.ptr);
 
         string tmp_dir = to!string(buf.ptr);
