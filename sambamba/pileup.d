@@ -643,7 +643,7 @@ int pileup_main(string[] args) {
             reads = inputRangeObject(bam.getReadsOverlapping(regions).map!`a.read`);
         }
 
-        auto chunks = bam.reads().pileupChunks(false, buffer_size);
+        auto chunks = reads.pileupChunks(false, buffer_size);
         auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam);
 
         auto threads = new ThreadGroup();
