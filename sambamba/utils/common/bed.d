@@ -129,6 +129,7 @@ BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlappi
             regions ~= BamRegion(cast(uint)id,
                                  cast(uint)interval.beg, cast(uint)interval.end);
     }
-    std.algorithm.sort(regions);
+    if (bed_lines is null)
+        std.algorithm.sort(regions);
     return regions;
 }

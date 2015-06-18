@@ -123,28 +123,18 @@ class GeneralRegionStatsCollector : RegionStatsCollector {
         if (bed.length == 0)
             return;
 
-        trees_.length = bed_.back.ref_id + 1;
-
         size_t start_index = 0;
         size_t end_index = start_index;
 
-        intervalTreeNode[] intervals;
-
-        while (start_index < bed.length) {
-            while (end_index < bed.length && bed[end_index].ref_id == bed[start_index].ref_id)
-                ++end_index;
-
-            intervals.length = end_index - start_index;
-            foreach (i; 0 .. intervals.length) {
-                auto start = bed[start_index + i].start;
-                auto stop = bed[start_index + i].end;
-                auto value = start_index + i;
-                intervals[i] = new intervalTreeNode(start, stop, value);
-            }
-
-            trees_[bed[start_index].ref_id] = new intervalTree(intervals);
-            start_index = end_index;
+        intervalTreeNode[][int] intervals;
+        foreach (i, line; bed) {
+            auto node = new intervalTreeNode(line.start, line.end, i);
+            intervals[line.ref_id] ~= node;
         }
+
+        trees_.length = reduce!max(intervals.keys) + 1;
+        foreach (ref_id, ivs; intervals)
+            trees_[ref_id] = new intervalTree(ivs);
     }
 
     override void nextColumn(uint ref_id, pos_t position,
