@@ -26,6 +26,7 @@ import sambamba.slice;
 import sambamba.markdup;
 import sambamba.depth;
 import sambamba.pileup;
+import sambamba.fixbins;
 
 import sambamba.utils.common.ldc_gc_workaround;
 
@@ -65,9 +66,10 @@ int main(string[] args) {
         case "slice":    return slice_main(_args);
         case "markdup":  return markdup_main(_args);
         case "depth":    return depth_main(_args);
-        case "mpileup":   return pileup_main(_args);
+        case "mpileup":  return pileup_main(_args);
 
         // hidden commands
+        case "fixbins":  return fixbins_main(_args);
         case "strip_bcf_header": return strip_bcf_header_main(_args);
         case "lz4compress": return lz4compress_main();
         default: 
