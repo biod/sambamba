@@ -198,7 +198,8 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         static auto wrapper(R reads, TaskPool pool) {
             auto r1 = reads.until!q{ a.ref_id == -1 }
                            .filter!q{ !a.is_unmapped }
-                           .filter!q{ !a.is_secondary_alignment };
+                           .filter!q{ !a.is_secondary_alignment }
+                           .filter!q{ !a.is_supplementary };
 
             static if (keepFragments) {
                 auto r2 = r1;
@@ -1160,7 +1161,7 @@ int markdup_main(string[] args) {
             if (k < offsets.length && read.start_virtual_offset == offsets[k]) {
                 ++k;
                 assumeUnique(read).is_duplicate = true;
-            } else if (!read.is_secondary_alignment) {
+            } else if (!read.is_secondary_alignment && !read.is_supplementary) {
                 assumeUnique(read).is_duplicate = false;
             }
 
