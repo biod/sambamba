@@ -478,19 +478,40 @@ void worker(Dispatcher)(Dispatcher d,
         makeFifo(filename);
 
         auto writing_thread = new Thread(() {
-            auto output_stream = new std.stream.File(filename, FileMode.Out);
+            import core.sys.posix.fcntl : open, O_WRONLY, O_NONBLOCK;
+            import core.sys.posix.unistd : close;
+            int hFile = -1;
+            // wait until the reader opens the FIFO
+            while (hFile == -1) {
+                Thread.sleep(dur!"msecs"(50));
+                hFile = core.sys.posix.fcntl.open(toStringz(filename),
+                                                  O_WRONLY | O_NONBLOCK,
+                                                  octal!644);
+                if (hFile != -1) {
+                    // once it's deduced that the reader opened the FIFO,
+                    // reopen the file in blocking mode
+                    core.sys.posix.unistd.close(hFile);
+                    hFile = core.sys.posix.fcntl.open(toStringz(filename),
+                                                      O_WRONLY, octal!644);
+                }
+            }
+            stderr.writeln("[opened FIFO for writing] ", filename);
+            auto output_stream = new std.stream.File(hFile, FileMode.Out);
             auto writer = new BamWriter(output_stream, 0, task_pool);
             writer.writeSamHeader(bam.header);
             writer.writeReferenceSequenceInfo(bam.reference_sequences);
             foreach (read; chunk.reads)
                 writer.writeRecord(read);
-            writer.finish(); // don't close the stream, leave that to runSamtools
+            writer.finish();
+            core.sys.posix.unistd.close(hFile);
+            stderr.writeln("[closed FIFO] ", filename);
             });
-        writing_thread.start();
 
         auto cmd = args.makeCommandLine(filename);
         stderr.writeln("[executing] ", cmd);
         auto pp = pipeShell(cmd, Redirect.stdout);
+
+        writing_thread.start();
         scope(exit) pp.pid.wait();
 
         size_t capa = 1_024_576;
@@ -512,7 +533,6 @@ void worker(Dispatcher)(Dispatcher d,
 
         writing_thread.join();
 
-        stderr.writeln("[ready] ", filename);
         synchronized (d.dump_mutex) {
             while (!d.tryDump(num, output[0 .. used], args.input_format, output_file))
                 d.dump_condition.wait();
