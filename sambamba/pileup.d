@@ -39,7 +39,7 @@ import bio.core.utils.roundbuf;
 import std.process;
 import std.stdio;
 import std.parallelism;
-import std.file : rmdirRecurse;
+import std.file : rmdirRecurse, mkdirRecurse;
 import std.algorithm;
 import std.array;
 import std.getopt;
@@ -646,8 +646,9 @@ int pileup_main(string[] args) {
 
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(own_args[1 .. $]);
-
+        
         char[] buf = tmp_dir_prefix ~ "/sambamba-fork-XXXXXX\0".dup;
+        mkdirRecurse(tmp_dir_prefix);
         mkdtemp(buf.ptr);
 
         string tmp_dir = to!string(buf.ptr);
