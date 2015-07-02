@@ -647,10 +647,7 @@ int pileup_main(string[] args) {
         defaultPoolThreads = n_threads;
         auto bam = new MultiBamReader(own_args[1 .. $]);
 
-        char[] buf = tmp_dir_prefix ~ "/sambamba-fork-XXXXXX\0".dup;
-        mkdtemp(buf.ptr);
-
-        string tmp_dir = to!string(buf.ptr);
+        string tmp_dir = randomSubdir(tmp_dir_prefix);
         scope(exit) rmdirRecurse(tmp_dir);
 
         auto bundled_args = Args(samtools_args, bcftools_args);
