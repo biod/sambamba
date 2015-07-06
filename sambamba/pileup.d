@@ -132,29 +132,6 @@ struct BedRecord {
     }
 }
 
-struct ForkData(C) {
-    MultiBamReader bam;
-    TaskPool task_pool;
-    C chunk;
-    string filename;
-
-    void toString(scope void delegate(const(char)[]) dg) const {
-        dg.write(filename);
-        dg.write('\n');
-        dg.write(bam.reference_sequences[chunk.ref_id].name);
-        dg.write('\n');
-        dg.write(chunk.start_position);
-        dg.write('\n');
-        dg.write(chunk.end_position);
-    }
-
-    const(BedRecord) bed() @property const {
-        return BedRecord(bam.reference_sequences[chunk.ref_id].name,
-                         chunk.start_position + 1,
-                         chunk.end_position);
-    }
-}
-
 struct MArray(T) { T[] data; T* ptr; }
 
 MArray!char data;
@@ -230,8 +207,9 @@ struct Args {
     }
 
     string makeCommandLine(string filename) {
-        auto samtools_cmd = ([samtoolsPath(), "mpileup", filename,
-                "-l", filename ~ ".bed"] ~ samtools_args).join(" ");
+        auto basic_args = [samtoolsPath(), "mpileup", filename];
+        basic_args ~= ["-l", filename ~ ".bed"];
+        auto samtools_cmd = (basic_args ~ samtools_args).join(" ");
         string cmd = samtools_cmd;
         if (bcftools_args.length > 0) {
             auto bcftools_cmd = bcftoolsPath()[0] ~ " " ~ bcftools_args.join(" ");
@@ -405,12 +383,23 @@ class ChunkDispatcher(ChunkRange) {
         chunks_.popFront();
 
         auto ref_name = bam_.reference_sequences[chunk[0].ref_id].name;
-        auto start = chunk[0].start_position + 1;
-        auto end = chunk[0].end_position;
-
-        auto bed = BedRecord(ref_name, start - 1, end);
         auto f = std.stdio.File(filename ~ ".bed", "w");
-        f.writeln(bed);
+        if (bed_filename is null) {
+            auto start = chunk[0].start_position;
+            auto end = chunk[0].end_position;
+
+            auto bed = BedRecord(ref_name, start, end);
+            f.writeln(bed);
+        } else {
+            foreach (reg; regions) {
+                if (chunk[0].ref_id != reg.ref_id) continue;
+                auto start = max(reg.start, chunk[0].start_position);
+                auto end = min(reg.end, chunk[0].end_position);
+                if (start > end) continue;
+                auto bed = BedRecord(ref_name, start, end);
+                f.writeln(bed);
+            }
+        }
         f.close();
 
         return chunk;
@@ -560,6 +549,8 @@ version(standalone) {
 }
 
 string output_filename = null;
+__gshared string bed_filename = null;
+__gshared BamRegion[] regions;
 
 int pileup_main(string[] args) {
     this_app = args[0];
@@ -580,7 +571,6 @@ int pileup_main(string[] args) {
         bcftools_args.popFront(); // remove the switch --bcftools
     }
 
-    string bed_filename;
     //string query;
     uint n_threads = defaultPoolThreads;
     std.stdio.File output_file = stdout;
@@ -625,7 +615,7 @@ int pileup_main(string[] args) {
         if (bed_filename is null) {
             reads = inputRangeObject(bam.reads().map!`a.read`);
         } else {
-            auto regions = parseBed(bed_filename, bam);
+            regions = parseBed(bed_filename, bam);
             reads = inputRangeObject(bam.getReadsOverlapping(regions).map!`a.read`);
         }
 

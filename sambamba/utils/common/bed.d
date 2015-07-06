@@ -116,7 +116,7 @@ unittest {
 }
 
 import bio.bam.reader;
-import bio.bam.region;
+public import bio.bam.region;
 
 BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlapping=true, string[]* bed_lines=null) {
     auto index = sambamba.utils.common.bed.readIntervals(bed_filename, non_overlapping, bed_lines);
