@@ -243,37 +243,6 @@ struct Args {
     }
 }
 
-MArray!char runSamtools(string filename, Args args, std.stream.File output_stream)
-{
-    auto cmd = args.makeCommandLine(filename);
-    stderr.writeln("[executing] ", cmd);
-    auto pp = pipeShell(cmd, Redirect.stdout);
-    scope(exit) pp.pid.wait();
-
-    size_t capa = 1_024_576;
-    size_t used = 0;
-    char* result = cast(char*)std.c.stdlib.malloc(capa);
-
-    char[4096] buffer = void;
-    while (true) {
-        auto buf = pp.stdout.rawRead(buffer[]);
-        if (buf.length == 0)
-            break;
-        if (used + buf.length > capa) {
-            capa = max(capa * 2, used + buf.length);
-            result = cast(char*)std.c.stdlib.realloc(cast(void*)result, capa);
-        }
-        result[used .. used + buf.length] = buf[];
-        used += buf.length;
-    }
-
-    output_stream.close();
-
-    auto output = result[0 .. used];
-    auto arr = MArray!char(output, result);
-    return arr;
-}
-
 enum FileFormat {
     pileup,
     BCF,
