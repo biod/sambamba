@@ -35,6 +35,7 @@ import bio.bam.pileup;
 
 import bio.core.utils.format : write;
 import bio.core.utils.roundbuf;
+import bio.core.utils.stream;
 
 import std.process;
 import std.stdio;
@@ -435,33 +436,19 @@ void worker(Dispatcher)(Dispatcher d,
         auto num = result[2];
         makeFifo(filename);
 
+        import core.sys.posix.signal;
+        signal(SIGPIPE, SIG_IGN);
+
         auto writing_thread = new Thread(() {
-            import core.sys.posix.fcntl : open, O_WRONLY, O_NONBLOCK;
-            import core.sys.posix.unistd : close;
-            int hFile = -1;
-            // wait until the reader opens the FIFO
-            while (hFile == -1) {
-                Thread.sleep(dur!"msecs"(50));
-                hFile = core.sys.posix.fcntl.open(toStringz(filename),
-                                                  O_WRONLY | O_NONBLOCK,
-                                                  octal!644);
-                if (hFile != -1) {
-                    // once it's deduced that the reader opened the FIFO,
-                    // reopen the file in blocking mode
-                    core.sys.posix.unistd.close(hFile);
-                    hFile = core.sys.posix.fcntl.open(toStringz(filename),
-                                                      O_WRONLY, octal!644);
-                }
-            }
+
+            auto output_stream = new bio.core.utils.stream.File(filename, "w");
             stderr.writeln("[opened FIFO for writing] ", filename);
-            auto output_stream = new std.stream.File(hFile, FileMode.Out);
             auto writer = new BamWriter(output_stream, 0, task_pool);
             writer.writeSamHeader(bam.header);
             writer.writeReferenceSequenceInfo(bam.reference_sequences);
             foreach (read; chunk.reads)
                 writer.writeRecord(read);
             writer.finish();
-            core.sys.posix.unistd.close(hFile);
             stderr.writeln("[closed FIFO] ", filename);
             });
 
@@ -627,6 +614,7 @@ int pileup_main(string[] args) {
         scope (exit) {
             threads.joinAll();
             output_file.close();
+            stderr.writeln("[Successful exit]");
         }
 
         foreach (i; 0 .. max(1, n_threads))
