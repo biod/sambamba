@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -66,6 +66,8 @@ void printUsage() {
     stderr.writeln("                    minimum mean coverage for output");
     stderr.writeln("         -C, --max-coverage=MAXCOVERAGE");
     stderr.writeln("                    maximum mean coverage for output");
+    stderr.writeln("         -q, --min-base-quality=QUAL");
+    stderr.writeln("                    don't count bases with lower base quality");
     stderr.writeln("         --combined");
     stderr.writeln("                    output combined statistics for all samples");
     stderr.writeln("         -a, --annotate");
@@ -74,8 +76,6 @@ void printUsage() {
     stderr.writeln("base subcommand options:");
     stderr.writeln("         -L, --regions=FILENAME");
     stderr.writeln("                    list or regions of interest (optional)");
-    stderr.writeln("         -q, --min-base-quality=QUAL");
-    stderr.writeln("                    don't count bases with lower base quality");
     stderr.writeln("         -z, --report-zero-coverage");
     stderr.writeln("                    don't skip zero coverage bases");
     stderr.writeln("region subcommand options:");
@@ -251,6 +251,7 @@ alias Column = PileupRange!(InputRange!CustomBamRead).Column;
 abstract class ColumnPrinter {
     double min_cov = 0.0;
     double max_cov = 1e50;
+    ubyte min_base_quality = 0;
     MultiBamReader bam;
 
     bool combined = false;
@@ -286,7 +287,6 @@ abstract class ColumnPrinter {
 }
 
 final class PerBasePrinter : ColumnPrinter {
-    ubyte min_base_quality;
     NonOverlappingRegionStatsCollector stats_collector;
     bool report_zero_coverage;
 
@@ -299,7 +299,6 @@ final class PerBasePrinter : ColumnPrinter {
     override void init(ref string[] args) {
         getopt(args,
                 std.getopt.config.caseSensitive,
-                "min-base-quality|q", &min_base_quality,
                 "report-zero-coverage|z", &report_zero_coverage);
 
         output_file.write("REF\tPOS\tCOV\tA\tC\tG\tT\tDEL\tREFSKIP");
@@ -545,11 +544,13 @@ abstract class PerRegionPrinter : ColumnPrinter {
             (size_t id) {
                 if (isFirstOccurrence(id)) {
                     foreach (read; column.reads)
-                        countRead(read, id);
+                        if (read.current_base_quality >= min_base_quality)
+                            countRead(read, id);
                     markAsSeen(id);
                 } else {
                     foreach (read; column.reads_starting_here)
-                        countRead(read, id);
+                        if (read.current_base_quality >= min_base_quality)
+                            countRead(read, id);
                 }
 
                 cov_per_sample[] = 0;
@@ -843,6 +844,7 @@ int depth_main(string[] args) {
                "nthreads|t",             &n_threads,
                "min-coverage|c",         &printer.min_cov,
                "max-coverage|C",         &printer.max_cov,
+               "min-base-quality|q",     &printer.min_base_quality,
                "annotate|a",             &printer.annotate,
                "combined",               &printer.combined);
 
