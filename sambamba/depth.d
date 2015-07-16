@@ -848,16 +848,21 @@ int depth_main(string[] args) {
                "annotate|a",             &printer.annotate,
                "combined",               &printer.combined);
 
-	if (output_fn is null)
-	    printer.output_file = stdout;
-	else
-	    printer.output_file = File(output_fn, "w+");
+        if (output_fn is null)
+            printer.output_file = stdout;
+        else
+            printer.output_file = File(output_fn, "w+");
 
         if (mode != Mode.window) {
             getopt(args,
                    std.getopt.config.caseSensitive,
                    std.getopt.config.passThrough,
                    "regions|L", &bed_filename);
+        }
+
+        if (mode == Mode.region && bed_filename is null) {
+            stderr.writeln("BED file must be provided in region mode");
+            return 1;
         }
 
         // handles subcommand arguments and removes them from the list
