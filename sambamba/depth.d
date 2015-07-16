@@ -87,7 +87,7 @@ void printUsage() {
     stderr.writeln("                    the percentage of bases in the region");
     stderr.writeln("                    where coverage is more than this value");
     stderr.writeln("window subcommand options:");
-    stderr.writeln("         --window-size=WINDOWSIZE");
+    stderr.writeln("         -w, --window-size=WINDOWSIZE");
     stderr.writeln("                    breadth of the window, in bp (required)");
     stderr.writeln("         --overlap=OVERLAP");
     stderr.writeln("                    overlap of successive windows, in bp (default is 0)");
@@ -507,6 +507,26 @@ abstract class PerRegionPrinter : ColumnPrinter {
     RegionStatsCollector stats_collector;
     private PerSampleRegionData[] samples;
 
+    static immutable default_bed_fields = ["chrom", "chromStart", "chromEnd"];
+
+    private void printBedHeader(size_t n_before) {
+        output_file.write("# ");
+        foreach (field; default_bed_fields[0 .. min($, n_before)])
+            output_file.write(field, "\t");
+        foreach (k; 3 .. n_before)
+            output_file.write("F", k, "\t");
+        output_file.write("readCount\tmeanCoverage");
+        foreach (cov; cov_thresholds)
+            output_file.write("\tpercentage", cov);
+        if (!combined)
+            output_file.write("\tsampleName");
+
+        if (annotate)
+            output_file.write("\tmeanCovWithinBounds");
+        output_file.write("\n");
+        output_file.flush();
+    }
+
     private void countRead(R)(auto ref R read, size_t id) {
         auto sample_id = getSampleId(read);
         assert(sample_names.empty || sample_id < sample_names.length, "Invalid sample ID");
@@ -643,6 +663,8 @@ final class PerBedRegionPrinter : PerRegionPrinter {
             stats_collector = new NonOverlappingRegionStatsCollector(raw_bed);
         else
             stats_collector = new GeneralRegionStatsCollector(raw_bed);
+
+        printBedHeader(raw_bed_lines[0].split().length);
     }
 
     override void close() {
@@ -736,7 +758,7 @@ final class PerWindowPrinter : PerRegionPrinter {
 
     override void init(ref string[] args) {
         getopt(args, std.getopt.config.caseSensitive,
-               "window-size", &window_size,
+               "window-size|w", &window_size,
                "overlap", &overlap,
                "cov-threshold|T", &cov_thresholds);
 
@@ -755,6 +777,8 @@ final class PerWindowPrinter : PerRegionPrinter {
         is_first_occurrence[] = false;
 
         stats_collector = new WindowStatsCollector(bam, window_size, overlap, n);
+
+        printBedHeader(3);
     }
 
     private void printEmptyWindows(int ref_id) {
