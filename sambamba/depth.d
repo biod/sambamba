@@ -24,6 +24,7 @@ import bio.bam.pileup;
 import bio.bam.region;
 import bio.bam.multireader;
 import bio.core.base;
+import bio.core.region;
 import sambamba.utils.common.bed;
 import sambamba.utils.common.filtering;
 import sambamba.utils.common.intervaltree;
@@ -74,13 +75,13 @@ void printUsage() {
     stderr.writeln("                    add additional column of y/n instead of");
     stderr.writeln("                    skipping records not satisfying the criteria");
     stderr.writeln("base subcommand options:");
-    stderr.writeln("         -L, --regions=FILENAME");
-    stderr.writeln("                    list or regions of interest (optional)");
+    stderr.writeln("         -L, --regions=FILENAME|REGION");
+    stderr.writeln("                    list or regions of interest or a single region in form chr:beg-end (optional)");
     stderr.writeln("         -z, --report-zero-coverage");
     stderr.writeln("                    don't skip zero coverage bases");
     stderr.writeln("region subcommand options:");
-    stderr.writeln("         -L, --regions=FILENAME");
-    stderr.writeln("                    list or regions of interest (required)");
+    stderr.writeln("         -L, --regions=FILENAME|REGION");
+    stderr.writeln("                    list or regions of interest or a single region in form chr:beg-end (required)");
     stderr.writeln("         -T, --cov-threshold=COVTHRESHOLD");
     stderr.writeln("                    multiple thresholds can be provided,");
     stderr.writeln("                    for each one an extra column will be added,");
@@ -892,7 +893,7 @@ int depth_main(string[] args) {
         }
 
         if (mode == Mode.region && bed_filename is null) {
-            stderr.writeln("BED file must be provided in region mode");
+            stderr.writeln("BED file or a region must be provided in region mode");
             return 1;
         }
 
@@ -929,10 +930,27 @@ int depth_main(string[] args) {
 
         InputRange!(CustomBamRead) reads;
         if (bed_filename !is null) {
-            auto bed = parseBed(bed_filename, bam);
-            bool simplify = mode == Mode.base;
-            printer.setBed(parseBed(bed_filename, bam, simplify,
-                        &printer.raw_bed_lines));
+            BamRegion[] bed;
+            try {
+                bed = parseBed(bed_filename, bam);
+                bool simplify = mode == Mode.base;
+                printer.setBed(parseBed(bed_filename, bam, simplify,
+                            &printer.raw_bed_lines));
+            } catch (Exception e) {
+                auto region = parseRegion(bed_filename);
+                enforce(bam.hasReference(region.reference),
+                    "couldn't open file " ~ bed_filename ~
+                    " or find reference " ~ region.reference);
+                auto ref_id = bam[region.reference].id;
+                bed ~= BamRegion(ref_id, region.beg, region.end);
+                if (bed[0].end == uint.max)
+                    bed[0].end = bam[region.reference].length;
+                auto s = region.reference ~ "\t" ~
+                         bed[0].start.to!string() ~ "\t" ~
+                         bed[0].end.to!string();
+                printer.raw_bed_lines = [s];
+                printer.setBed(bed);
+            }
             reads = inputRangeObject(bam.getReadsOverlapping(bed)
                     .map!(r => CustomBamRead(r, rg2id)));
         } else {
