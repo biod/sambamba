@@ -492,17 +492,6 @@ final class PerSampleRegionData {
     }
 }
 
-private size_t overlap(R)(BamRegion region, auto ref R read) {
-    assert(region.ref_id == read.ref_id);
-    size_t s1 = region.start;
-    size_t e1 = region.end;
-    size_t s2 = read.position;
-    size_t e2 = read.end_position;
-    if (e1 <= s2 || e2 <= s1)
-        return 0;
-    return min(e1, e2) - max(s1, s2);
-}
-
 abstract class PerRegionPrinter : ColumnPrinter {
     RegionStatsCollector stats_collector;
     private PerSampleRegionData[] samples;
@@ -531,8 +520,27 @@ abstract class PerRegionPrinter : ColumnPrinter {
         auto sample_id = getSampleId(read);
         assert(sample_names.empty || sample_id < sample_names.length, "Invalid sample ID");
         auto data = getSampleData(sample_id);
-        data.n_reads(id) += 1;
-        data.n_bases(id) += overlap(getRegionById(id), read);
+        auto region = getRegionById(id);
+
+        auto pos = read.position; // current position on the reference
+        auto q = read.base_qualities;
+        size_t n; // number of read bases that are not insertions
+                  // and also have good quality
+        foreach (op; read.cigar) {
+            if (op.is_match_or_mismatch)
+                foreach (qual; q[0 .. min(op.length, $)])
+                    n += region.overlaps(region.ref_id, pos++) &&
+                         qual >= min_base_quality;
+            else if (op.is_reference_consuming)
+                pos += op.length;
+
+            // min(op.length, $) protects from invalid memory accesses
+            // possible only when the input data is incorrect
+            if (op.is_query_consuming)
+                q = q[min(op.length, $) .. $];
+        }
+        data.n_bases(id) += n;
+        if (n > 0) data.n_reads(id) += 1;
     }
 
     abstract BamRegion getRegionById(size_t id);
@@ -564,20 +572,19 @@ abstract class PerRegionPrinter : ColumnPrinter {
             (size_t id) {
                 if (isFirstOccurrence(id)) {
                     foreach (read; column.reads)
-                        if (read.current_base_quality >= min_base_quality)
-                            countRead(read, id);
+                        countRead(read, id);
                     markAsSeen(id);
                 } else {
                     foreach (read; column.reads_starting_here)
-                        if (read.current_base_quality >= min_base_quality)
-                            countRead(read, id);
+                        countRead(read, id);
                 }
 
                 cov_per_sample[] = 0;
 
                 foreach (read; column.reads) {
                     auto sample_id = getSampleId(read);
-                    cov_per_sample[sample_id] += 1;
+                    if (read.current_base_quality >= min_base_quality)
+                        cov_per_sample[sample_id] += 1;
                 }
 
                 foreach (sample_id; iota(cov_per_sample.length.to!uint)) {
