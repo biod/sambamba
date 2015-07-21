@@ -270,7 +270,7 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
         } else if (args[i] == "-v") {
             vcf = true; keep ~= !use_caller;
         } else if (args[i] == "-u") {
-            uncompressed = true; keep ~= !use_caller;
+            bcf = true; uncompressed = true; keep ~= true;
         } else {
             keep ~= true;
         }
@@ -286,7 +286,7 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
     if (vcf && use_caller) {
         fixed_args ~= ["-g", "-u"];
         fixes_applied = true;
-    } else if (bcf && use_caller) {
+    } else if (bcf && use_caller && !uncompressed) {
         fixed_args ~= "-u";
         fixes_applied = true;
     }
