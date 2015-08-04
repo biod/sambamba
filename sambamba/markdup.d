@@ -1050,7 +1050,8 @@ int markdup_main(string[] args) {
             return 0;
         }
 
-        protectFromOverwrite(args[1], args[2]);
+        foreach (arg; args[1 .. $-1])
+            protectFromOverwrite(arg, args[$-1]);
         cfg.tmpdir = randomSubdir(cfg.tmpdir);
 
         auto pool = new TaskPool(n_threads);
@@ -1151,7 +1152,7 @@ int markdup_main(string[] args) {
         // marking or removing duplicates
         bam = new MultiBamReader(args[1 .. $-1], pool);
         bam.setBufferSize(io_buffer_size);
-        auto out_stream = new BufferedFile(args[2], FileMode.OutNew, io_buffer_size);
+        auto out_stream = new BufferedFile(args[$-1], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level, pool);
         writer.setFilename(args[$-1]);
         scope(exit) writer.finish();
