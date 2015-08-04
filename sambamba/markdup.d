@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,29 +29,41 @@ import thirdparty.unstablesort;
 
 import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
        bio.bam.read, bio.sam.header, bio.bam.abstractreader,
-       bio.core.bgzf.virtualoffset;
+       bio.bam.multireader;
 import std.traits, std.typecons, std.range, std.algorithm, std.parallelism, 
        std.exception, std.file, std.typetuple, std.conv, std.array, std.bitmanip,
        std.c.stdlib, std.datetime, std.stream : BufferedFile, FileMode;
 
-struct ReadPair {
-    BamReadBlock read1;
-    BamReadBlock read2;
-    this(BamReadBlock r1, BamReadBlock r2) {
-        read1 = r1;
-        read2 = r2;
+/// Read + its index (0-based)
+struct IndexedBamRead {
+    ulong index;
+    BamRead read;
+    alias read this;
+
+    IndexedBamRead dup() @property const {
+        return IndexedBamRead(index, read.dup);
     }
 }
 
-struct ReadPairOrFragment {
-    BamReadBlock read1;
-    Nullable!BamReadBlock read2;
+auto withIndices(R)(R reads) {
+    return reads.zip(sequence!((a,n)=>n)())
+                .map!(t => IndexedBamRead(t[1], t[0]))();
+}
 
-    this(BamReadBlock r1) {
+struct ReadPair {
+    IndexedBamRead read1;
+    IndexedBamRead read2;
+}
+
+struct ReadPairOrFragment {
+    IndexedBamRead read1;
+    Nullable!IndexedBamRead read2;
+
+    this(IndexedBamRead r1) {
         read1 = r1;
     }
 
-    this(BamReadBlock r1, BamReadBlock r2) {
+    this(IndexedBamRead r1, IndexedBamRead r2) {
         read1 = r1;
         read2 = r2;
     }
@@ -98,7 +110,7 @@ class MallocArray(T) {
 /// 48 bytes; fast access to read group;
 /// also stores precomputed hash.
 struct HReadBlock {
-    BamReadBlock read;
+    IndexedBamRead read;
     alias read this;
     alias read get;
     uint hash;
@@ -122,7 +134,7 @@ struct HReadBlock {
         return result;
     }
 }
-static assert(HReadBlock.sizeof == 48);
+static assert(HReadBlock.sizeof == 40);
 
 template makeHReadBlock(alias charsHashFunc) {
     HReadBlock makeHReadBlock(R)(auto ref R read) {
@@ -168,35 +180,32 @@ bool compareReadNamesAndReadGroups(R1, R2)(auto ref R1 r1, auto ref R2 r2) {
 }
 
 // LDC doesn't like lambdas :-(
-auto _rse2brb(T)(T t) { return BamReadBlock(t[1], t[2], t[0]); }
-auto _rse2rs(T)(T t) { return map!_rse2brb(zip(t[0].reads, t[1], t[2])); }
-auto _rse2r(BamReader[] r, VirtualOffset[][] s, VirtualOffset[][] e) {
-    return map!_rse2rs(zip(r, s, e)).array()
+auto _rse2brb(T)(T t) { return IndexedBamRead(t[1], t[0]); }
+auto _rse2rs(T)(T t) { return map!_rse2brb(zip(t[0].reads, t[1])); }
+auto _rse2r(BamReader[] r, ulong[][] s) {
+    return map!_rse2rs(zip(r, s)).array()
               .nWayUnion!compareReadNamesAndReadGroups();
 }
 
 private auto readsFromTempFiles(size_t buf_size, string[] tmp_filenames,
                                 TaskPool pool) {
     BamReader[] readers;
-    VirtualOffset[][] start_virtual_offsets;
-    VirtualOffset[][] end_virtual_offsets;
+    ulong[][] indices;
     foreach (fn; tmp_filenames) {
         readers ~= new BamReader(fn, pool);
-        auto offsets = cast(VirtualOffset[])std.file.read(fn ~ ".vo");
-        start_virtual_offsets ~= offsets[0 .. $ / 2];
-        end_virtual_offsets ~= offsets[$ / 2 .. $];
+        indices ~= cast(ulong[])std.file.read(fn ~ ".idx");
         readers[$ - 1].setBufferSize(buf_size / tmp_filenames.length);
     }
 
-    return _rse2r(readers, start_virtual_offsets, end_virtual_offsets);
+    return _rse2r(readers, indices);
 }
 
 struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
-    if (isInputRange!R && is(Unqual!(ElementType!R) == BamReadBlock))
+    if (isInputRange!R && is(Unqual!(ElementType!R) == IndexedBamRead))
 {
     private {
         static auto wrapper(R reads, TaskPool pool) {
-            auto r1 = reads.until!q{ a.ref_id == -1 }
+            auto r1 = reads.filter!q{ a.ref_id != -1 }
                            .filter!q{ !a.is_unmapped }
                            .filter!q{ !a.is_secondary_alignment }
                            .filter!q{ !a.is_supplementary };
@@ -213,12 +222,12 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         ReturnType!wrapper _reads;
         TaskPool _task_pool;
 
-        alias BamReadBlock Read;
+        alias IndexedBamRead Read;
 
         HReadBlock[] _table; // size is always power of two
         size_t _table_mask;
 
-        ulong _min_vo, _max_vo;
+        ulong _min_idx, _max_idx;
 
         version(profile) {
             size_t _duped_during_compaction;
@@ -226,21 +235,21 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         }
 
         void _compact() {
-            enum max_diff = 10_000_000UL << 16;
-            if (_max_vo - _min_vo < max_diff * 6)
+            enum max_diff = 2_000UL;
+            if (_max_idx - _min_idx < max_diff * 6)
                 return;
 
             version(profile) { _compact_sw.start(); scope(exit) _compact_sw.stop(); }
             
-            _min_vo = _max_vo;
+            _min_idx = _max_idx;
             foreach (ref r; _table)
                 if (!r.isNull && r.is_slice_backed
-                    && _max_vo - cast(ulong)r.start_virtual_offset > max_diff)
+                    && _max_idx - r.index > max_diff)
                 {
                     version(profile) ++_duped_during_compaction;
                     r = r.dup;
                 } else if (!r.isNull && r.is_slice_backed) {
-                    _min_vo = min(_min_vo, cast(ulong)r.start_virtual_offset);
+                    _min_idx = min(_min_idx, r.index);
                 }
         }
 
@@ -271,8 +280,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         string[] _tmp_filenames;
         BamWriter _tmp_w;
         size_t _tmp_written;
-        VirtualOffset[] _tmp_s_vo;
-        VirtualOffset[] _tmp_e_vo;
+        ulong[] _tmp_idx;
         Nullable!Read _tmp_r1;
         ReturnType!readsFromTempFiles _tmp_reads;
     }
@@ -334,7 +342,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
     }
 
     void updateHashTableEntry(size_t position, ref HReadBlock read) {
-        _max_vo = max(_max_vo, cast(ulong)read.start_virtual_offset);
+        _max_idx = max(_max_idx, read.index);
         _table[position] = read;
     }
 
@@ -360,22 +368,18 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         if (_tmp_w !is null)
             _tmp_w.finish();
         if (_tmp_filenames.length > 0) {
-            auto vo_fn = _tmp_filenames[$ - 1] ~ ".vo";
-            std.file.write(vo_fn, cast(ubyte[])_tmp_s_vo);
-            std.file.append(vo_fn, cast(ubyte[])_tmp_e_vo);
+            auto idx_fn = _tmp_filenames[$ - 1] ~ ".idx";
+            std.file.write(idx_fn, cast(ubyte[])_tmp_idx);
         }
-        _tmp_s_vo.length = 0;
-        _tmp_e_vo.length = 0;
-        assumeSafeAppend(_tmp_s_vo);
-        assumeSafeAppend(_tmp_e_vo);
+        _tmp_idx.length = 0;
+        assumeSafeAppend(_tmp_idx);
     }
 
     void dumpTmpRecord(R)(auto ref R read) {
         assert(_tmp_w !is null);
         _tmp_w.writeRecord(read);
         _tmp_written++;
-        _tmp_s_vo ~= read.start_virtual_offset;
-        _tmp_e_vo ~= read.end_virtual_offset;
+        _tmp_idx ~= read.index;
     }
         
     void popFrontHashTable() {
@@ -499,7 +503,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
 
         foreach (fn; _tmp_filenames) {
             std.file.remove(fn);
-            std.file.remove(fn ~ ".vo");
+            std.file.remove(fn ~ ".idx");
         }
         setSource(Source.none);
     } 
@@ -553,7 +557,7 @@ static assert(SingleEndBasicInfo.sizeof == 8);
 struct SingleEndInfo {
     SingleEndBasicInfo basic_info;
     alias basic_info this;
-    VirtualOffset vo;
+    ulong idx;
     ushort score;
 }
 
@@ -568,7 +572,7 @@ struct PairedEndsInfo {
     ushort ref_id2;
 
     ushort score; // sum of base qualities that are >= 15 
-    VirtualOffset vo1, vo2;
+    ulong idx1, idx2;
 
     SingleEndBasicInfo read1_basic_info() @property {
         typeof(return) result = void;
@@ -585,12 +589,12 @@ static assert(PairedEndsInfo.sizeof == 32);
 
 // Assumptions needed to save memory.
 // Trivial ones:
-static assert(2 * VirtualOffset.sizeof <= PairedEndsInfo.sizeof);
-static assert(VirtualOffset.sizeof <= SingleEndInfo.sizeof);
+static assert(2 * ulong.sizeof <= PairedEndsInfo.sizeof);
+static assert(ulong.sizeof <= SingleEndInfo.sizeof);
 // Not so trivial:
 //
 // Suppose we have A pairs and B single reads.
-// Our goal is to place virtual offsets of duplicates into one of
+// Our goal is to place indices of duplicates into one of
 // already existing chunks of memory. The two already existing arrays
 // consume A * P and B * S bytes where P and S are the sizeofs.
 // In order to reuse the memory, we need
@@ -601,10 +605,10 @@ static assert(VirtualOffset.sizeof <= SingleEndInfo.sizeof);
 // Therefore, if V / (P - 2V) <= (S - V) / 2V, everything is fine.
 // This is equivalent to 2V^2 <= (S - V) * (P - 2V)
 //                       (S - V) * P >= 2 * S * V
-static assert(SingleEndInfo.sizeof > VirtualOffset.sizeof);
-static assert((SingleEndInfo.sizeof - VirtualOffset.sizeof)
+static assert(SingleEndInfo.sizeof > ulong.sizeof);
+static assert((SingleEndInfo.sizeof - ulong.sizeof)
                                     * PairedEndsInfo.sizeof
-              >= 2 * SingleEndInfo.sizeof * VirtualOffset.sizeof);
+              >= 2 * SingleEndInfo.sizeof * ulong.sizeof);
 
 bool singleEndInfoComparator(S1, S2)(auto ref S1 s1, auto ref S2 s2) {
     if (s1.library_id < s2.library_id) return true;
@@ -704,12 +708,12 @@ ushort computeScore(R)(auto ref R read) {
     return reduce!"a + b"(0, read.base_qualities.filter!"a >= 15").to!ushort;
 }
 
-auto collectSingleEndInfo(BamReadBlock read, ReadGroupIndex read_group_index) {
+auto collectSingleEndInfo(IndexedBamRead read, ReadGroupIndex read_group_index) {
     assert(read.ref_id != -1);
         
     SingleEndInfo result = void;
     result.coord = computeFivePrimeCoord(read);
-    result.vo = read.start_virtual_offset;
+    result.idx = read.index;
     result.score = computeScore(read);
     result.ref_id = cast(ushort)read.ref_id;
     result.reversed = read.is_reverse_strand ? 1 : 0;
@@ -740,8 +744,8 @@ PairedEndsInfo combine(ref SingleEndInfo s1, ref SingleEndInfo s2) {
     result.coord1 = s1.coord;
     result.coord2 = s2.coord;
     result.score = cast(ushort)(s1.score + s2.score);
-    result.vo1 = s1.vo;
-    result.vo2 = s2.vo;
+    result.idx1 = s1.idx;
+    result.idx2 = s2.idx;
     return result;
 }
 
@@ -774,15 +778,15 @@ bool positionLess(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
 
 /// Frees one of $(D _pe) or $(D _se). Reuses memory of the other.
 /// Returns an array pointing to data which is to be freed after use.
-VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
-                                  MallocArray!SingleEndInfo _se,
-                                  MallocArray!SingleEndBasicInfo _pos,
-                                  MarkDuplicatesConfig cfg)
+ulong[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
+                          MallocArray!SingleEndInfo _se,
+                          MallocArray!SingleEndBasicInfo _pos,
+                          MarkDuplicatesConfig cfg)
 {
     // yeah, that's dirty, but allows to minimize memory usage
-    auto pvo = cast(VirtualOffset*)cast(void*)_pe.data.ptr; // paired end
-    auto svo = cast(VirtualOffset*)cast(void*)_se.data.ptr; // single end
-    size_t n_vo_pe, n_vo_se; // how much VOs we store in each array
+    auto pidx = cast(ulong*)cast(void*)_pe.data.ptr; // paired end
+    auto sidx = cast(ulong*)cast(void*)_se.data.ptr; // single end
+    size_t n_idx_pe, n_idx_se; // how much read indices we store in each array
 
     auto pe = _pe.data;
     auto se = _se.data;
@@ -818,14 +822,14 @@ VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
             if (pe_callback !is null)
                 pe_callback(pe[0 .. k]);
             
-            // virtual offsets are places to the chunk of memory
+            // read indices are placed to the chunk of memory
             // that we already processed => it's safe because
-            // 2 * VirtualOffset.sizeof <= PairedEndsInfo.sizeof
+            // 2 * ulong.sizeof <= PairedEndsInfo.sizeof
             for (size_t i = 0; i < k; ++i) {
                 if (i != best_k) {
                     auto paired_ends = pe[i];
-                    pvo[n_vo_pe++] = paired_ends.vo1;
-                    pvo[n_vo_pe++] = paired_ends.vo2;
+                    pidx[n_idx_pe++] = paired_ends.idx1;
+                    pidx[n_idx_pe++] = paired_ends.idx2;
                 }
             }
 
@@ -870,7 +874,7 @@ VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
                 // => mark all single reads as duplicates
                 for (size_t i = 0; i < k; ++i)
                     if (!se[i].paired)
-                        svo[n_vo_se++] = se[i].vo;
+                        sidx[n_idx_se++] = se[i].idx;
             } else {
                 size_t best_i = 0;
                 for (size_t i = 0; i < k; ++i) {
@@ -879,7 +883,7 @@ VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
                 }
                 for (size_t i = 0; i < k; ++i) {
                     if (i != best_i)
-                        svo[n_vo_se++] = se[i].vo;
+                        sidx[n_idx_se++] = se[i].idx;
                 }
             }
             se_proc = k;
@@ -897,27 +901,27 @@ VirtualOffset[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
 
     // finished collecting duplicates but they are in two different arrays;
     // now we can join them.
-    size_t pe_used = n_vo_pe * VirtualOffset.sizeof;
-    size_t se_used = n_vo_se * VirtualOffset.sizeof;
+    size_t pe_used = n_idx_pe * ulong.sizeof;
+    size_t se_used = n_idx_se * ulong.sizeof;
 
-    VirtualOffset* p;
-    size_t n = n_vo_pe + n_vo_se;
+    ulong* p;
+    size_t n = n_idx_pe + n_idx_se;
     if (pe_used + se_used <= pe_total_mem) {
-        pvo[n_vo_pe .. n] = svo[0 .. n_vo_se];
+        pidx[n_idx_pe .. n] = sidx[0 .. n_idx_se];
         _se.free();
-        p = pvo;
+        p = pidx;
     } else {
-        svo[n_vo_se .. n_vo_pe + n_vo_se] = pvo[0 .. n_vo_pe];
+        sidx[n_idx_se .. n_idx_pe + n_idx_se] = pidx[0 .. n_idx_pe];
         _pe.free();
-        p = svo;
+        p = sidx;
     }
-    std.c.stdlib.realloc(p, n * VirtualOffset.sizeof);
+    std.c.stdlib.realloc(p, n * ulong.sizeof);
     return p[0 .. n];
 }
 
 /// The returned result must be freed using std.c.malloc.free
-VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
-                                       TaskPool pool, MarkDuplicatesConfig cfg) {
+ulong[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
+                               TaskPool pool, MarkDuplicatesConfig cfg) {
 
     auto single_ends = new MallocArray!SingleEndInfo();
     auto paired_ends = new MallocArray!PairedEndsInfo();
@@ -961,7 +965,7 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
     unstableSort!singleEndInfoComparator(single_ends.data, pool);
     sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms"); sw.reset();
 
-    stderr.write("  collecting virtual offsets of duplicate reads... ");
+    stderr.write("  collecting indices of duplicate reads... ");
     sw.start();
     auto duplicates = collectDuplicates(paired_ends, single_ends, second_ends, cfg);
     sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
@@ -977,7 +981,7 @@ VirtualOffset[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
 } /* end of algorithm */
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-markdup [options] <input.bam> <output.bam>");
+    stderr.writeln("Usage: sambamba-markdup [options] <input.bam> [<input2.bam> [...]] <output.bam>");
     stderr.writeln("       By default, marks the duplicates without removing them");
     stderr.writeln();
     stderr.writeln("Options: -r, --remove-duplicates");
@@ -1084,16 +1088,16 @@ int markdup_main(string[] args) {
 
                 void check(PairedEndsInfo[] dups) {
                     if (dups.length != 2 || dups[0].score != dups[1].score) {
-                        writefln("weird group of PE duplicates found, their virtual offsets: %(%s, %); scores: %(%s, %)",
-                                 roundRobin(dups.map!"a.vo1", dups.map!"a.vo2"),
+                        writefln("weird group of PE duplicates found, their indices: %(%s, %); scores: %(%s, %)",
+                                 roundRobin(dups.map!"a.idx1", dups.map!"a.idx2"),
                                  dups.map!"a.score");
                     }
                 }
 
                 void check(SingleEndInfo[] dups, bool has_paired) {
                     if (has_paired || dups.length != 2 || dups[0].score != dups[1].score) {
-                        writefln("weird group of SE duplicates found, their virtual offsets: %(%s, %); scores: %(%s, %)",
-                                 dups.map!"a.vo", dups.map!"a.score");
+                        writefln("weird group of SE duplicates found, their indices: %(%s, %); scores: %(%s, %)",
+                                 dups.map!"a.idx", dups.map!"a.score");
                     }
                 }
             }
@@ -1112,23 +1116,32 @@ int markdup_main(string[] args) {
         // 2^^(cfg.hash_table_size_log2 + 1) > hash_table_size
 
         // Set up the BAM reader and pass in the thread pool
-        auto bam = new BamReader(args[1], pool);
+        auto bam = new MultiBamReader(args[1 .. $-1], pool);
         auto n_refs = bam.reference_sequences.length;
         enforce(n_refs < 16384, "More than 16383 reference sequences are unsupported");
 
         auto rg_index = new ReadGroupIndex(bam.header);
 
-        VirtualOffset[] offsets; // Harvest (bgzf) BAM read offsets
+        ulong[] indices; // Harvest BAM read indices
 
         stderr.writeln("finding positions of the duplicate reads in the file...");
-        if (!show_progress)
-            offsets = getDuplicateOffsets(bam.reads!withOffsets(), rg_index, pool, cfg);
-        else {
-            auto bar = new shared(ProgressBar)();
-            auto reads = bam.readsWithProgress!withOffsets((lazy float p) { bar.update(p); },
-                                                           () { bar.finish(); });
-            offsets = getDuplicateOffsets(reads, rg_index, pool, cfg);
+
+        InputRange!IndexedBamRead reads;
+        shared(ProgressBar) bar;
+
+        void initInputs() {
+            if (!show_progress)
+                reads = bam.reads.withIndices.inputRangeObject;
+            else {
+                bar = new shared(ProgressBar)();
+                reads = bam.readsWithProgress((lazy float p) { bar.update(p); },
+                                              () { bar.finish(); }).withIndices
+                           .inputRangeObject;
+            }
         }
+
+        initInputs();
+        indices = getDuplicateOffsets(reads, rg_index, pool, cfg);
 
         auto elapsed = sw.peek();
         stderr.writeln("collected list of positions in ",
@@ -1136,29 +1149,22 @@ int markdup_main(string[] args) {
                        elapsed.seconds % 60, " sec");
 
         // marking or removing duplicates
-        bam = new BamReader(args[1], pool);
+        bam = new MultiBamReader(args[1 .. $-1], pool);
         bam.setBufferSize(io_buffer_size);
         auto out_stream = new BufferedFile(args[2], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level, pool);
-        writer.setFilename(args[2]);
+        writer.setFilename(args[$-1]);
         scope(exit) writer.finish();
         writer.writeSamHeader(bam.header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
 
         stderr.writeln(remove_duplicates ? "removing" : "marking", " duplicates...");
         
-        InputRange!BamReadBlock reads;
-        if (!show_progress) {
-            reads = inputRangeObject(bam.reads!withOffsets());
-        } else {
-            auto bar = new shared(ProgressBar)();
-            reads = inputRangeObject(bam.readsWithProgress!withOffsets((lazy float p) { bar.update(p); },
-                                                                       () { bar.finish(); }));
-        }
+        initInputs();
 
         size_t k = 0;
         foreach (read; reads) {
-            if (k < offsets.length && read.start_virtual_offset == offsets[k]) {
+            if (k < indices.length && read.index == indices[k]) {
                 ++k;
                 assumeUnique(read).is_duplicate = true;
             } else if (!read.is_secondary_alignment && !read.is_supplementary) {
