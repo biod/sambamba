@@ -8,6 +8,7 @@ import bio.bam.referenceinfo;
 import bio.bam.read;
 import std.string;
 import std.parallelism;
+import std.range, std.algorithm;
 
 int ref_seq_id(BamRead r) { return r.ref_id; }
 int ref_seq_start(BamRead r) { return r.position + 1; }
@@ -16,20 +17,20 @@ int ref_seq_span(BamRead r) { return r.basesCovered(); }
 struct PositionChecker {
     cram_range range;
 
-    private FilterResult passImpl(T)(T x) {
-        if (x.ref_seq_id < range.refid) return FilterResult.skip;
-        if (x.ref_seq_id > range.refid) return FilterResult.stop;
-        if (x.ref_seq_start > range.end) return FilterResult.stop;
+    private CramFilterResult passImpl(T)(T x) {
+        if (x.ref_seq_id < range.refid) return CramFilterResult.skip;
+        if (x.ref_seq_id > range.refid) return CramFilterResult.stop;
+        if (x.ref_seq_start > range.end) return CramFilterResult.stop;
 
         // order of checks matters: ref_seq_span is relatively slow for reads
         if (x.ref_seq_start + x.ref_seq_span - 1 < range.start) 
-            return FilterResult.skip;
+            return CramFilterResult.skip;
         
-        return FilterResult.pass;
+        return CramFilterResult.pass;
     }
 
     auto pass(cram_container* c) {
-        if (c.length == 0) return FilterResult.skip;
+        if (c.length == 0) return CramFilterResult.skip;
         return passImpl(c);
     }
 
@@ -90,7 +91,7 @@ struct ReferenceSequence {
                   .zip(repeat(checker), repeat(_reader), repeat(alloc))
                   .map!(x => bamReads(x[0], x[2], x[3])
                              .zip(repeat(x[1]))
-                             .filter!(y => y[1].pass(y[0]) == FilterResult.pass)
+                             .filter!(y => y[1].pass(y[0]) == CramFilterResult.pass)
                              .map!(y => y[0]))
                   .joiner2;
     }

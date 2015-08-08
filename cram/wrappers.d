@@ -103,7 +103,7 @@ CramFd openCram(string filename) {
     return CramFd(fd);
 }
 
-enum FilterResult {
+enum CramFilterResult {
     skip, // skip over the object
     pass, // the filter doesn't reject the object
     stop  // skip, and further iteration won't give any results
@@ -111,10 +111,10 @@ enum FilterResult {
 
 alias RcCramContainer = RcPtr!(cram_container, cram_free_container);
 alias CramContainer = RcCramContainer;
-alias CramContainerFilter = FilterResult delegate(cram_container*);
+alias CramContainerFilter = CramFilterResult delegate(cram_container*);
 
 alias RcCramSlice = RcPtr!(cram_slice, cram_free_slice);
-alias UndecodedSliceFilter = FilterResult delegate(cram_slice*);
+alias UndecodedSliceFilter = CramFilterResult delegate(cram_slice*);
 
 struct CramSlice {
     CramFd fd;
@@ -170,12 +170,12 @@ struct CramContainerRange {
             if (_filter is null) break;
             auto res = _filter(front);
 
-            if (res == FilterResult.stop) {
+            if (res == CramFilterResult.stop) {
                 empty = true;
                 break;
             }
 
-            if (res == FilterResult.pass) {
+            if (res == CramFilterResult.pass) {
                 break;
             }
 
@@ -251,8 +251,8 @@ class UndecodedSliceRange {
 
         if (_sf is null) { setupFront(ptr); return true; }
         auto ret = _sf(ptr);
-        if (ret == FilterResult.pass) { setupFront(ptr); return true; }
-        if (ret == FilterResult.stop) { empty = true; return true; }
+        if (ret == CramFilterResult.pass) { setupFront(ptr); return true; }
+        if (ret == CramFilterResult.stop) { empty = true; return true; }
         return false;
     }
 

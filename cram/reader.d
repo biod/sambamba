@@ -10,7 +10,7 @@ import cram.slicereader;
 
 import bio.bam.abstractreader, bio.bam.referenceinfo,
        bio.sam.header, bio.bam.reference, bio.bam.read;
-import std.string, std.array, std.range, std.conv, std.typecons;
+import std.string, std.array, std.range, std.algorithm, std.conv, std.typecons;
 import std.parallelism;
 
 class CramReader : IBamSamReader {
@@ -98,7 +98,7 @@ class CramReader : IBamSamReader {
     }
 
     auto reads() {
-        alias R = FilterResult;
+        alias R = CramFilterResult;
         auto s = fd().slices(c => c.length > 0 ? R.pass : R.skip, 
                              null, 
                              _task_pool);

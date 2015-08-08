@@ -232,7 +232,7 @@ enum FileFormat {
 
 string[] unbundle(string[] args, string exclude="") {
     import std.ascii : isAlpha;
-    import std.format : text;
+    import std.conv : text;
     import std.algorithm : count;
     string[] unbundled;
     foreach (a; args) {

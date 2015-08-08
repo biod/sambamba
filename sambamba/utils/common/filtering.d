@@ -31,6 +31,7 @@ import std.parallelism;
 import std.range;
 import std.algorithm;
 import std.array;
+import std.string : representation;
 
 auto filtered(R)(R reads, Filter f) {
     return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!"a[0]"();
