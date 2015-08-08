@@ -653,9 +653,9 @@ final class PerBedRegionPrinter : PerRegionPrinter {
     }
 
     override void writeOriginalBedLine(size_t id) {
-        output_file.write(raw_bed_lines[id]);
-        if (!isWhite(raw_bed_lines[id].back))
-            output_file.write('\t');
+        import std.string;
+        raw_bed_lines[id] = std.string.stripRight(raw_bed_lines[id]);
+        output_file.write(raw_bed_lines[id], "\t");
     }
 
     override BamRegion getRegionById(size_t id) {

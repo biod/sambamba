@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2013-2014    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2013-2015    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ import std.conv;
 import std.math;
 import std.array;
 import std.range;
+import std.typecons;
 
 struct Interval {
     long beg;
@@ -53,7 +54,8 @@ Interval[] nonOverlappingIntervals(Interval[] list) {
 
 alias Interval[][string] BedIndex;
 
-BedIndex readIntervals(string bed_filename, bool non_overlapping=true, string[]* lines=null) {
+// TODO: rewrite this mess
+BedIndex readIntervals(string bed_filename, bool non_overlapping=true, string[]* lines=null, Tuple!(string, Interval)[]* intervals=null) {
     BedIndex index;
 
     auto bed = cast(string)(std.file.readText(bed_filename));
@@ -73,8 +75,12 @@ BedIndex readIntervals(string bed_filename, bool non_overlapping=true, string[]*
 
         if (interval.beg == interval.end)
             interval.end = interval.beg + 1;
-        if (interval.beg < interval.end)
-            index[chr] ~= interval;
+        if (interval.beg < interval.end) {
+            if (lines is null)
+                index[chr] ~= interval;
+            else
+                (*intervals) ~= tuple(chr, interval);
+        }
 
         if (lines !is null) {
             (*lines) ~= str;
@@ -119,17 +125,27 @@ import bio.bam.reader;
 public import bio.bam.region;
 
 BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlapping=true, string[]* bed_lines=null) {
-    auto index = sambamba.utils.common.bed.readIntervals(bed_filename, non_overlapping, bed_lines);
+    Tuple!(string, Interval)[] ivs;
+    auto index = sambamba.utils.common.bed.readIntervals(bed_filename, non_overlapping, bed_lines, &ivs);
     BamRegion[] regions;
-    foreach (reference, intervals; index) {
-        if (!bam.hasReference(reference))
-            continue;
-        auto id = bam[reference].id;
-        foreach (interval; intervals)
-            regions ~= BamRegion(cast(uint)id,
-                                 cast(uint)interval.beg, cast(uint)interval.end);
-    }
-    if (bed_lines is null)
+    if (non_overlapping) {
+        foreach (reference, intervals; index) {
+            if (!bam.hasReference(reference))
+                continue;
+            auto id = bam[reference].id;
+            foreach (interval; intervals)
+                regions ~= BamRegion(cast(uint)id,
+                                     cast(uint)interval.beg, cast(uint)interval.end);
+        }
         std.algorithm.sort(regions);
+    } else {
+        foreach (t; ivs) {
+            if (!bam.hasReference(t[0]))
+                continue;
+            auto id = bam[t[0]].id;
+            regions ~= BamRegion(cast(uint)id,
+                                 cast(uint)t[1].beg, cast(uint)t[1].end);
+        }
+    }
     return regions;
 }
