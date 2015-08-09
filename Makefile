@@ -1,5 +1,5 @@
 D_COMPILER=dmd
-D_FLAGS=-IBioD -g#-O -release -inline # -version=serial
+D_FLAGS=--compiler=dmd -IBioD -g#-O -release -inline # -version=serial
 
 STATIC_LIB_PATH=-Lhtslib -Llz4/lib
 STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic
@@ -8,7 +8,7 @@ RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 # Linux & DMD only - this goal is used because of fast compilation speed, during development
 all: htslib-static lz4-static
 	mkdir -p build/
-	rdmd --force --build-only $(D_FLAGS) -L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -ofbuild/sambamba main.d
+	rdmd --force --build-only $(D_FLAGS) -L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -L-Llz4/lib -L-l:liblz4.a -ofbuild/sambamba main.d
 
 PLATFORM := $(shell uname -s)
 
@@ -33,8 +33,10 @@ sambamba-ldmd2-debug: htslib-static lz4-static
 htslib-static:
 	cd htslib && $(MAKE)
 
-lz4-static:
-	cd lz4/lib && $(MAKE)
+lz4-static: lz4/lib/liblz4.a
+
+lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhash.c
+	cd lz4/lib && $(CC) -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
 
 # all below link to libhts dynamically for simplicity
 
