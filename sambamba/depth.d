@@ -934,8 +934,8 @@ int depth_main(string[] args) {
             try {
                 bed = parseBed(bed_filename, bam);
                 bool simplify = mode == Mode.base;
-                printer.setBed(parseBed(bed_filename, bam, simplify,
-                            &printer.raw_bed_lines));
+                parseBed(bed_filename, bam, simplify, &printer.raw_bed_lines);
+                printer.setBed(parseBed(bed_filename, bam, simplify));
             } catch (Exception e) {
                 auto region = parseRegion(bed_filename);
                 enforce(bam.hasReference(region.reference),
