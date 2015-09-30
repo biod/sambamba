@@ -933,9 +933,12 @@ int depth_main(string[] args) {
             BamRegion[] bed;
             try {
                 bed = parseBed(bed_filename, bam);
-                bool simplify = mode == Mode.base;
-                parseBed(bed_filename, bam, simplify, &printer.raw_bed_lines);
-                printer.setBed(parseBed(bed_filename, bam, simplify));
+                if (mode == Mode.base) {
+                    parseBed(bed_filename, bam, true, &printer.raw_bed_lines);
+                    printer.setBed(parseBed(bed_filename, bam, true));
+                } else {
+                    printer.setBed(parseBed(bed_filename, bam, false, &printer.raw_bed_lines));
+                }
             } catch (Exception e) {
                 auto region = parseRegion(bed_filename);
                 enforce(bam.hasReference(region.reference),
