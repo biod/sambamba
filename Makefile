@@ -5,18 +5,20 @@ STATIC_LIB_PATH=-Lhtslib -Llz4/lib
 STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic
 RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 
-# Linux & DMD only - this goal is used because of fast compilation speed, during development
-all: htslib-static lz4-static
-	mkdir -p build/
-	rdmd --force --build-only $(D_FLAGS) -L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -L-Llz4/lib -L-l:liblz4.a -ofbuild/sambamba main.d
-
 PLATFORM := $(shell uname -s)
 
 ifeq "$(PLATFORM)" "Darwin"
 LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a lz4/lib/liblz4.a build/sambamba.o -o build/sambamba
+DMD_STATIC_LIBS=htslib/libhts.a lz4/lib/liblz4.a
 else
 LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
+DMD_STATIC_LIBS=-L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -L-Llz4/lib -L-l:liblz4.a
 endif
+
+# DMD only - this goal is used because of fast compilation speed, during development
+all: htslib-static lz4-static
+	mkdir -p build/
+	rdmd --force --build-only $(D_FLAGS) $(DMD_STATIC_LIBS) -ofbuild/sambamba main.d
 
 # This is the main Makefile goal, used for building releases (best performance)
 sambamba-ldmd2-64: htslib-static lz4-static

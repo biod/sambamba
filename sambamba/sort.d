@@ -49,6 +49,7 @@ import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
 import sambamba.utils.common.tmpdir;
 import sambamba.utils.common.filtering;
+import sambamba.utils.common.file;
 
 import thirdparty.mergesort;
 
@@ -337,7 +338,7 @@ class Sorter {
             tmpfiles ~= fn;
         }
 
-        auto stream = scoped!BufferedFile(fn, FileMode.OutNew, 0);
+        auto stream = bufferedFile(fn, FileMode.OutNew, 0);
         stream.buffer = output_buffer;
         scope(failure) stream.close();
 
@@ -378,8 +379,8 @@ class Sorter {
 
         auto input_buf_size = min(16_000_000, memory_limit / 4 / num_of_chunks);
         auto output_buf_size = min(64_000_000, memory_limit / 6);
-        auto stream = scoped!BufferedFile(output_filename, FileMode.OutNew, 
-                                          output_buf_size);
+        auto stream = bufferedFile(output_filename, FileMode.OutNew, 
+                                   output_buf_size);
         scope(failure) stream.close();
 
         alias ReturnType!(BamReader.readsWithProgress!withoutOffsets) AlignmentRangePB;

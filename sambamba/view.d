@@ -216,7 +216,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
     }
 
     File output_file;
-    if (output_filename is null)
+    if (output_filename is null || output_filename == "-")
         output_file = stdout;
     else
         output_file = File(output_filename, "w+");
