@@ -1,5 +1,5 @@
 D_COMPILER=dmd
-D_FLAGS=--compiler=dmd -IBioD -g#-O -release -inline # -version=serial
+D_FLAGS=--compiler=dmd -IBioD -g -d#-O -release -inline # -version=serial
 
 STATIC_LIB_PATH=-Lhtslib -Llz4/lib
 STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic
