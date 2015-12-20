@@ -9,7 +9,7 @@ string defaultTmpDir() {
     return environment.get("TMPDIR", "/tmp");
 }
 
-string randomSubdir(string tmpdir) {
+string randomSubdir(string tmpdir, string prefix="") {
     auto gen = Random(unpredictableSeed);
     char[4] subdirname;
     string result;
@@ -17,7 +17,7 @@ string randomSubdir(string tmpdir) {
       foreach (ref c; subdirname[])
           c = uniform!"[]"('a', 'z', gen);
       result = buildPath(tmpdir, "sambamba-pid" ~ thisProcessID.to!string ~ 
-                                 "-" ~ subdirname[]);
+                                 "-" ~ prefix ~ subdirname[]);
     } while (std.file.exists(result));
     std.file.mkdirRecurse(result);
     return result;

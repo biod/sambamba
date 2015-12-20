@@ -95,6 +95,15 @@ class MallocArray(T) {
         return _p[0 .. _cur];
     }
 
+    size_t capacity() @property const {
+        return _sz;
+    }
+
+    /// sets length to zero without releasing the memory
+    void reset() {
+        _cur = 0;
+    }
+
     void put(ref T element) {
         if (_cur < _sz) {
             _p[_cur++] = element;
@@ -104,6 +113,10 @@ class MallocArray(T) {
             _p = cast(T*)std.c.stdlib.realloc(_p, _sz * T.sizeof);
             _p[_cur++] = element;
         }
+    }
+
+    void put(T element) {
+        put(element);
     }
 }
 
@@ -587,29 +600,6 @@ struct PairedEndsInfo {
 
 static assert(PairedEndsInfo.sizeof == 32);
 
-// Assumptions needed to save memory.
-// Trivial ones:
-static assert(2 * ulong.sizeof <= PairedEndsInfo.sizeof);
-static assert(ulong.sizeof <= SingleEndInfo.sizeof);
-// Not so trivial:
-//
-// Suppose we have A pairs and B single reads.
-// Our goal is to place indices of duplicates into one of
-// already existing chunks of memory. The two already existing arrays
-// consume A * P and B * S bytes where P and S are the sizeofs.
-// In order to reuse the memory, we need
-// (2A + B) * V <= max(A * P, B * S)  (where V = VirtualOffset.sizeof)
-// Suppose the contrary: (2A + B) * V > A * P and (2A + B) * V > B * S.
-// This implies B * V > A * (P - 2V), A * 2V > B * (S - V), or
-// V / (P - 2V) > A/B > (S - V) / 2V (in real arithmetic).
-// Therefore, if V / (P - 2V) <= (S - V) / 2V, everything is fine.
-// This is equivalent to 2V^2 <= (S - V) * (P - 2V)
-//                       (S - V) * P >= 2 * S * V
-static assert(SingleEndInfo.sizeof > ulong.sizeof);
-static assert((SingleEndInfo.sizeof - ulong.sizeof)
-                                    * PairedEndsInfo.sizeof
-              >= 2 * SingleEndInfo.sizeof * ulong.sizeof);
-
 bool singleEndInfoComparator(S1, S2)(auto ref S1 s1, auto ref S2 s2) {
     if (s1.library_id < s2.library_id) return true;
     if (s1.library_id > s2.library_id) return false;
@@ -642,6 +632,7 @@ struct MarkDuplicatesConfig {
     ubyte hash_table_size_log2 = 18;
     size_t overflow_list_size = 200_000;
     string tmpdir;
+    size_t bufsize = 500_000_000; // for sorting storage
 
     // called on each group of PE duplicates
     void delegate(PairedEndsInfo[]) pe_callback = null;
@@ -776,60 +767,160 @@ bool positionLess(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
     return !positionLessOrEq(e2, e1);
 }
 
-/// Frees one of $(D _pe) or $(D _se). Reuses memory of the other.
-/// Returns an array pointing to data which is to be freed after use.
-ulong[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
-                          MallocArray!SingleEndInfo _se,
-                          MallocArray!SingleEndBasicInfo _pos,
-                          MarkDuplicatesConfig cfg)
+class SortedStorage(T, alias Cmp=(a,b)=>a<b) {
+    private {
+        string _tmp_dir, _salt;
+        string[] _filenames;
+        MallocArray!T _buffer;
+        TaskPool _pool;
+        size_t _length;
+    }
+
+    this(string tmp_dir, TaskPool pool, size_t max_memory_usage) {
+        _buffer = new MallocArray!T(max_memory_usage / T.sizeof);
+        _tmp_dir = tmp_dir;
+        _pool = pool;
+
+        import std.random;
+        char[4] tmp;
+        auto gen = Random(unpredictableSeed);
+        foreach (ref c; tmp[]) c = uniform!"[]"('a', 'z', gen);
+        _salt = tmp[].idup;
+    }
+
+    void put(T item) {
+        if (_buffer.capacity == _buffer.data.length)
+            flush();
+        _buffer.put(item);
+        ++_length;
+    }
+
+    size_t length() @property const {
+        return _length;
+    }
+
+    void flush() {
+        if (_buffer.data.length == 0)
+            return;
+
+        unstableSort!Cmp(_buffer.data, _pool);
+
+        auto fn = buildPath(_tmp_dir, T.stringof ~ _salt ~
+                            _filenames.length.to!string);
+        std.file.write(fn, cast(ubyte[])_buffer.data);
+        _filenames ~= fn;
+        _buffer.reset();
+    }
+
+    void close(bool remove_files=false) {
+        flush();
+        _buffer.free();
+
+        if (remove_files)
+            removeTemporaryFiles();
+    }
+
+    void removeTemporaryFiles() {
+        foreach (fn; _filenames)
+            std.file.remove(fn);
+    }
+
+    auto reader() {
+        SimpleReader!T[] readers;
+        foreach (fn; _filenames)
+            readers ~= new SimpleReader!T(fn);
+        return nWayUnion!Cmp(readers);
+    }
+}
+
+class SimpleReader(T) {
+    this(string filename) {
+        _n = std.file.getSize(filename) / T.sizeof;
+        _file = File(filename);
+        _buf = new ubyte[T.sizeof * 1024];
+        popFront();
+    }
+
+    private {
+        size_t _n;
+        size_t _idx;
+        std.stdio.File _file;
+        T _front;
+        bool _empty;
+        ubyte[] _buf;
+        T[] _data;
+    }
+
+    bool empty() @property const { return _empty; }
+    T front() @property const { return _front; }
+
+    void popFront() {
+        if (_idx == _n) {
+            _empty = true;
+            return;
+        }
+        if (_data.empty)
+            _data = cast(T[])_file.rawRead(_buf);
+        _front = _data[0];
+        ++_idx;
+        _data = _data[1 .. $];
+    }
+}
+
+alias PEStorage = SortedStorage!(PairedEndsInfo, pairedEndsInfoComparator);
+alias SEStorage = SortedStorage!(SingleEndInfo, singleEndInfoComparator);
+alias SEBStorage = SortedStorage!(SingleEndBasicInfo, singleEndInfoComparator);
+
+SortedStorage!ulong collectDuplicates(PEStorage pe_storage,
+                                      SEStorage se_storage,
+                                      SEBStorage pos_storage,
+                                      MarkDuplicatesConfig cfg,
+                                      TaskPool pool)
 {
-    // yeah, that's dirty, but allows to minimize memory usage
-    auto pidx = cast(ulong*)cast(void*)_pe.data.ptr; // paired end
-    auto sidx = cast(ulong*)cast(void*)_se.data.ptr; // single end
-    size_t n_idx_pe, n_idx_se; // how much read indices we store in each array
+    auto pe_tmp = new MallocArray!PairedEndsInfo();
+    auto se_tmp = new MallocArray!SingleEndInfo();
 
-    auto pe = _pe.data;
-    auto se = _se.data;
-    auto pos = _pos.data;
+    auto pe = pe_storage.reader;
+    auto se = se_storage.reader;
+    auto pos = pos_storage.reader;
 
-    size_t pe_total_mem = pe.length * PairedEndsInfo.sizeof;
-    size_t se_total_mem = se.length * SingleEndInfo.sizeof;
+    auto duplicate_indices = new SortedStorage!ulong(cfg.tmpdir, pool, cfg.bufsize);
 
-    // callback functions for every duplicate
-    auto pe_callback = cfg.pe_callback;
-    auto se_callback = cfg.se_callback;
-
-    // sort of three-way merge
     while (true) {
+        // sort of three-way merge
+
         // number of elements processed at the current position
         size_t pe_proc;
         size_t se_proc;
+
+        pe_tmp.reset(); se_tmp.reset();
 
         // process paired ends
         if (!pe.empty && (se.empty || positionLessOrEq(pe.front, se.front))) {
             // this is essentially group-by operation,
             // but maximum score is computed on the fly for efficiency
-            auto cur = pe.front;
-            size_t k = 0;
+            pe_tmp.put(pe.front);
+            pe.popFront();
+            size_t k = 1;
             size_t best_k = 0;
-            ++k;
-            while (k < pe.length && samePosition(pe[k], cur)) {
-                if (pe[k].score > pe[best_k].score)
+            while (!pe.empty) {
+                if (!samePosition(pe.front, pe_tmp.data[0]))
+                    break;
+                if (pe.front.score > pe_tmp.data[best_k].score)
                     best_k = k;
+                pe_tmp.put(pe.front);
+                pe.popFront();
                 ++k;
             }
 
-            if (pe_callback !is null)
-                pe_callback(pe[0 .. k]);
+            if (cfg.pe_callback !is null)
+                cfg.pe_callback(pe_tmp.data);
             
-            // read indices are placed to the chunk of memory
-            // that we already processed => it's safe because
-            // 2 * ulong.sizeof <= PairedEndsInfo.sizeof
             for (size_t i = 0; i < k; ++i) {
                 if (i != best_k) {
-                    auto paired_ends = pe[i];
-                    pidx[n_idx_pe++] = paired_ends.idx1;
-                    pidx[n_idx_pe++] = paired_ends.idx2;
+                    auto paired_ends = pe_tmp.data[i];
+                    duplicate_indices.put(paired_ends.idx1);
+                    duplicate_indices.put(paired_ends.idx2);
                 }
             }
 
@@ -837,7 +928,7 @@ ulong[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
         }
 
         // process single ends
-        if (!se.empty && (pe.empty || positionLessOrEq(se.front, pe.front))) {
+        if (!se.empty && (pe_tmp.data.empty || positionLessOrEq(se.front, pe_tmp.data[0]))) {
             while (!pos.empty && positionLess(pos.front, se.front))
                 pos.popFront();
 
@@ -846,93 +937,83 @@ ulong[] collectDuplicates(MallocArray!PairedEndsInfo _pe,
 
             auto cur = se.front;
             size_t k = 0;
-            while (k < se.length && samePosition(se[k], cur)) {
-                if (se[k].paired)
+            while (!se.empty) {
+                if (!samePosition(se.front, cur))
+                    break;
+                if (se.front.paired)
                     seen_paired_read = true;
                 else
                     seen_fragment = true;
-                ++k;
+                se_tmp.put(se.front); ++k;
+                se.popFront();
             }
 
             size_t k_pe, k_pos;
-            while (k_pe < pe.length && samePosition(pe[k_pe], cur))
+            while (k_pe < pe_tmp.data.length && samePosition(pe_tmp.data[k_pe], cur)) {
                 ++k_pe;
-            while (k_pos < pos.length && samePosition(pos[k_pos], cur))
+            }
+            while (!pos.empty && samePosition(pos.front, cur)) {
                 ++k_pos;
+                pos.popFront();
+            }
 
             if (k_pe + k_pos > 0)
                 seen_paired_read = true;
 
             size_t total = k + k_pe + k_pos;
 
-            if (se_callback !is null)
-                se_callback(se[0 .. k], seen_paired_read);
+            if (cfg.se_callback !is null)
+                cfg.se_callback(se_tmp.data, seen_paired_read);
 
             if (total < 2 || !seen_fragment) { /* do nothing */ }
             else if (seen_paired_read) {
                 // there was a paired read at this position
                 // => mark all single reads as duplicates
                 for (size_t i = 0; i < k; ++i)
-                    if (!se[i].paired)
-                        sidx[n_idx_se++] = se[i].idx;
+                    if (!se_tmp.data[i].paired)
+                        duplicate_indices.put(se_tmp.data[i].idx);
             } else {
                 size_t best_i = 0;
                 for (size_t i = 0; i < k; ++i) {
-                    if (se[i].score > se[best_i].score)
+                    if (se_tmp.data[i].score > se_tmp.data[best_i].score)
                         best_i = i;
                 }
                 for (size_t i = 0; i < k; ++i) {
                     if (i != best_i)
-                        sidx[n_idx_se++] = se[i].idx;
+                        duplicate_indices.put(se_tmp.data[i].idx);
                 }
             }
             se_proc = k;
         }
 
-        // move to the next position
-        pe = pe[pe_proc .. $];
-        se = se[se_proc .. $];
-
-        if (se.empty && pe.empty)
+        if (se.empty && pe.empty) {
             break;
+        }
             
         assert(pe_proc + se_proc > 0);
     }
 
-    // finished collecting duplicates but they are in two different arrays;
-    // now we can join them.
-    size_t pe_used = n_idx_pe * ulong.sizeof;
-    size_t se_used = n_idx_se * ulong.sizeof;
+    pe_tmp.free();
+    se_tmp.free();
 
-    ulong* p;
-    size_t n = n_idx_pe + n_idx_se;
-    if (pe_used + se_used <= pe_total_mem) {
-        pidx[n_idx_pe .. n] = sidx[0 .. n_idx_se];
-        _se.free();
-        p = pidx;
-    } else {
-        sidx[n_idx_se .. n_idx_pe + n_idx_se] = pidx[0 .. n_idx_pe];
-        _pe.free();
-        p = sidx;
-    }
-    std.c.stdlib.realloc(p, n * ulong.sizeof);
-    return p[0 .. n];
+    duplicate_indices.close();
+    return duplicate_indices;
 }
 
-/// The returned result must be freed using std.c.malloc.free
-ulong[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
-                               TaskPool pool, MarkDuplicatesConfig cfg) {
+auto getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
+                            TaskPool pool, MarkDuplicatesConfig cfg) {
 
-    auto single_ends = new MallocArray!SingleEndInfo();
-    auto paired_ends = new MallocArray!PairedEndsInfo();
-    auto second_ends = new MallocArray!SingleEndBasicInfo();
+    auto single_ends = new SEStorage(cfg.tmpdir, pool, cfg.bufsize);
+    auto paired_ends = new PEStorage(cfg.tmpdir, pool, cfg.bufsize);
+    auto second_ends = new SEBStorage(cfg.tmpdir, pool, cfg.bufsize);
 
     scope(failure) {
-        paired_ends.free();
-        single_ends.free();
+        paired_ends.close(true);
+        single_ends.close(true);
+        second_ends.close(true);
     }
 
-    scope(exit) second_ends.free();
+    size_t unmatched_pairs;
 
     foreach (pf; readPairsAndFragments(reads,
                                        cfg.hash_table_size_log2,
@@ -945,35 +1026,31 @@ ulong[] getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
             paired_ends.put(pair);
             second_ends.put(end2.basic_info);
         } else {
+            if (end1.paired)
+                ++unmatched_pairs;
             single_ends.put(end1);
         }
     }
 
+    paired_ends.flush();
+    single_ends.flush();
+    second_ends.flush();
+
+    stderr.writeln("  sorted ", paired_ends.length, " end pairs");
+
+    stderr.writeln("     and ", single_ends.length, " single ends",
+                   " (among them ", unmatched_pairs, " unmatched pairs)");
+
     StopWatch sw;
-
-    stderr.write("  sorting ", paired_ends.data.length, " end pairs... ");
-    sw.start();
-    unstableSort!pairedEndsInfoComparator(paired_ends.data, pool);
-    unstableSort!singleEndInfoComparator(second_ends.data, pool);
-    sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
-
-    stderr.write("  sorting ", single_ends.data.length, " single ends",
-                 " (among them ",
-                 single_ends.data.filter!q{ a.paired }.walkLength(),
-                 " unmatched pairs)... ");
-    sw.start();
-    unstableSort!singleEndInfoComparator(single_ends.data, pool);
-    sw.stop(); stderr.writeln("done in ", sw.peek().msecs, " ms"); sw.reset();
-
     stderr.write("  collecting indices of duplicate reads... ");
     sw.start();
-    auto duplicates = collectDuplicates(paired_ends, single_ends, second_ends, cfg);
+    auto duplicates = collectDuplicates(paired_ends, single_ends, second_ends, cfg, pool);
     sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
+    stderr.writeln("  found ", duplicates.length, " duplicates");
 
-    stderr.write("  found ", duplicates.length, " duplicates, sorting the list... ");
-    sw.start();
-    unstableSort(duplicates, pool);
-    sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
+    paired_ends.removeTemporaryFiles();
+    single_ends.removeTemporaryFiles();
+    second_ends.removeTemporaryFiles();
 
     return duplicates;
 }
@@ -1052,7 +1129,7 @@ int markdup_main(string[] args) {
 
         foreach (arg; args[1 .. $-1])
             protectFromOverwrite(arg, args[$-1]);
-        cfg.tmpdir = randomSubdir(cfg.tmpdir);
+        cfg.tmpdir = randomSubdir(cfg.tmpdir, "markdup-");
 
         auto pool = new TaskPool(n_threads);
         scope(exit) pool.finish();
@@ -1123,8 +1200,6 @@ int markdup_main(string[] args) {
 
         auto rg_index = new ReadGroupIndex(bam.header);
 
-        ulong[] indices; // Harvest BAM read indices
-
         stderr.writeln("finding positions of the duplicate reads in the file...");
 
         InputRange!IndexedBamRead reads;
@@ -1142,7 +1217,7 @@ int markdup_main(string[] args) {
         }
 
         initInputs();
-        indices = getDuplicateOffsets(reads, rg_index, pool, cfg);
+        auto dup_idx_storage = getDuplicateOffsets(reads, rg_index, pool, cfg);
 
         auto elapsed = sw.peek();
         stderr.writeln("collected list of positions in ",
@@ -1163,11 +1238,12 @@ int markdup_main(string[] args) {
         
         initInputs();
 
-        size_t k = 0;
+        auto indices = dup_idx_storage.reader;
+
         foreach (read; reads) {
-            if (k < indices.length && read.index == indices[k]) {
-                ++k;
+            if (!indices.empty && read.index == indices.front) {
                 assumeUnique(read).is_duplicate = true;
+                indices.popFront();
             } else if (!read.is_secondary_alignment && !read.is_supplementary) {
                 assumeUnique(read).is_duplicate = false;
             }
@@ -1177,6 +1253,8 @@ int markdup_main(string[] args) {
 
             writer.writeRecord(read);
         }
+
+        dup_idx_storage.removeTemporaryFiles();
 
         sw.stop();
         stderr.writeln("total time elapsed: ",
