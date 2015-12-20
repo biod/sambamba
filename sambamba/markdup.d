@@ -767,7 +767,7 @@ bool positionLess(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
     return !positionLessOrEq(e2, e1);
 }
 
-class SortedStorage(T, alias Cmp=(a,b)=>a<b) {
+class SortedStorage(T, alias Cmp="a<b") {
     private {
         string _tmp_dir, _salt;
         string[] _filenames;
@@ -871,11 +871,11 @@ alias PEStorage = SortedStorage!(PairedEndsInfo, pairedEndsInfoComparator);
 alias SEStorage = SortedStorage!(SingleEndInfo, singleEndInfoComparator);
 alias SEBStorage = SortedStorage!(SingleEndBasicInfo, singleEndInfoComparator);
 
-SortedStorage!ulong collectDuplicates(PEStorage pe_storage,
-                                      SEStorage se_storage,
-                                      SEBStorage pos_storage,
-                                      MarkDuplicatesConfig cfg,
-                                      TaskPool pool)
+auto collectDuplicates(PEStorage pe_storage,
+                       SEStorage se_storage,
+                       SEBStorage pos_storage,
+                       MarkDuplicatesConfig cfg,
+                       TaskPool pool)
 {
     auto pe_tmp = new MallocArray!PairedEndsInfo();
     auto se_tmp = new MallocArray!SingleEndInfo();
