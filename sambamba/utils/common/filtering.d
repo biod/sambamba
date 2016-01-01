@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2013    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2013-2016    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -163,6 +163,13 @@ final class BedFilter : Filter {
 final class FlagFilter(string flagname) : Filter {
     bool accepts(ref BamRead a) {
         mixin("return a." ~ flagname ~ ";");
+    }
+}
+
+final class ChimericFilter : Filter {
+    bool accepts(ref BamRead a) {
+        return a.is_paired && !a.is_unmapped && !a.mate_is_unmapped &&
+               a.ref_id != a.mate_ref_id;
     }
 }
 
