@@ -91,11 +91,12 @@ class LZ4Compressor {
     LZ4F_preferences_t prefs;
     ubyte[] in_buff;
     ubyte[] out_buff;
+    LZ4F_compressionContext_t ctx;
 
     LZ4F_compressionContext_t createCompressionContext() {
       LZ4F_compressionContext_t ctx;
       auto code = LZ4F_createCompressionContext(&ctx, LZ4F_VERSION);
-      if (LZ4F_isError(code)) 
+      if (LZ4F_isError(code))
         throw new LZ4Exception("Failure in LZ4F_createCompressionContext", code);
       return ctx;
     }
@@ -118,14 +119,7 @@ class LZ4Compressor {
     out_buff.length = LZ4F_compressBound(block_size, &prefs);
   }
 
-  void compress(std.stdio.File input_file, std.stdio.File output_file,
-                int compressionLevel=0) 
-  {
-    prefs.compressionLevel = compressionLevel;
-
-    auto ctx = createCompressionContext();
-    assert(ctx !is null);
-
+  private {
     size_t compressBegin() {
       auto sz = LZ4F_compressBegin(ctx, out_buff.ptr, out_buff.length, &prefs);
       if (LZ4F_isError(sz))
@@ -146,12 +140,22 @@ class LZ4Compressor {
         throw new LZ4Exception("Failure in LZ4F_compressEnd", sz);
       return sz;
     }
+  }
+
+  void compress(ubyte[] function(ubyte[], void*) read_block, void* data,
+                std.stdio.File output_file,
+                int compressionLevel=0)
+  {
+    prefs.compressionLevel = compressionLevel;
+
+    ctx = createCompressionContext();
+    assert(ctx !is null);
 
     auto sz = compressBegin();
     output_file.rawWrite(out_buff[0 .. sz]);
 
     while (true) {
-      ubyte[] block = input_file.rawRead(in_buff);
+      ubyte[] block = read_block(in_buff, data);
       if (block.length == 0) break;
       sz = compressUpdate(block);
       output_file.rawWrite(out_buff[0 .. sz]);
@@ -162,25 +166,112 @@ class LZ4Compressor {
 
     freeCompressionContext(ctx);
   }
+
+  private {
+    static ubyte[] read_block_from_file(ubyte[] buf, void* data) {
+      auto input_file = cast(std.stdio.File*)data;
+      return input_file.rawRead(buf);
+    }
+
+    import std.algorithm : min;
+    static ubyte[] read_block_from_array(ubyte[] buf, void* data) {
+      auto arr = cast(ubyte[]*)data;
+      auto n = min(buf.length, (*arr).length);
+      buf[0 .. n] = (*arr)[0 .. n];
+      *arr = (*arr)[n .. $];
+      return buf[0 .. n];
+    }
+  }
+  void compress(std.stdio.File input_file, std.stdio.File output_file,
+                int compressionLevel=0) {
+    compress(&read_block_from_file, &input_file, output_file, compressionLevel);
+  }
+
+  void compress(ubyte[] data, std.stdio.File output_file,
+                int compressionLevel=0) {
+    compress(&read_block_from_array, &data, output_file, compressionLevel);
+  }
+}
+
+private {
+  LZ4F_decompressionContext_t createDecompressionContext() {
+    LZ4F_decompressionContext_t ctx;
+    auto code = LZ4F_createDecompressionContext(&ctx, LZ4F_VERSION);
+    if (LZ4F_isError(code))
+      throw new LZ4Exception("Failure in LZ4F_createDecompressionContext", code);
+    return ctx;
+  }
+
+  void freeDecompressionContext(LZ4F_compressionContext_t ctx) {
+    auto code = LZ4F_freeDecompressionContext(ctx);
+    if (LZ4F_isError(code))
+      throw new LZ4Exception("Failed to free LZ4F decompression context", code);
+  }
+}
+
+class LZ4File {
+  private {
+    std.stdio.File input_file;
+    LZ4F_decompressionContext_t ctx;
+
+    size_t bytes_read, bytes_written;
+
+    void decompress(ubyte[] block, ubyte[] out_buff) {
+        bytes_read = block.length;
+        bytes_written = out_buff.length;
+        auto code = LZ4F_decompress(ctx, out_buff.ptr, &bytes_written, block.ptr, &bytes_read, null);
+        if (LZ4F_isError(code))
+          throw new LZ4Exception("Failure in LZ4F_decompress", code);
+    }
+
+    ubyte[] in_buff;
+    ubyte[] block;
+  }
+
+  this(string filename) {
+    input_file = std.stdio.File(filename);
+
+    in_buff.length = 256 << 10;
+
+    ctx = createDecompressionContext();
+    assert(ctx !is null);
+
+    auto header = input_file.rawRead(in_buff[0 .. 4]);
+    assert(header.length == 4);
+
+    ubyte[256] tmp;
+    decompress(in_buff[0 .. 4], tmp[]); // header
+    assert(bytes_read == 4);
+    assert(bytes_written == 0);
+  }
+
+  void close() {
+    freeDecompressionContext(ctx);
+    input_file.close();
+  }
+
+  ubyte[] rawRead(ubyte[] buffer) {
+    while (true) {
+      decompress(block, buffer);
+      block = block[bytes_read .. $];
+      if (bytes_written > 0)
+        break;
+      if (block.length == 0 && !readNextBlock())
+        break;
+    }
+    return buffer[0 .. bytes_written];
+  }
+
+  private bool readNextBlock() {
+      block = input_file.rawRead(in_buff);
+      return block.length > 0;
+  }
 }
 
 class LZ4Decompressor {
   private {
     ubyte[] in_buff;
     ubyte[] out_buff;
-    LZ4F_decompressionContext_t createDecompressionContext() {
-      LZ4F_decompressionContext_t ctx;
-      auto code = LZ4F_createDecompressionContext(&ctx, LZ4F_VERSION);
-      if (LZ4F_isError(code)) 
-        throw new LZ4Exception("Failure in LZ4F_createDecompressionContext", code);
-      return ctx;
-    }
-
-    void freeDecompressionContext(LZ4F_compressionContext_t ctx) {
-      auto code = LZ4F_freeDecompressionContext(ctx);
-      if (LZ4F_isError(code))
-        throw new LZ4Exception("Failed to free LZ4F decompression context", code);
-    }
   }
 
   this() {
