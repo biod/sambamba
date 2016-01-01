@@ -26,6 +26,7 @@ import sambamba.utils.common.tmpdir;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
 import thirdparty.unstablesort;
+import utils.lz4;
 
 import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
        bio.bam.read, bio.sam.header, bio.bam.abstractreader,
@@ -781,11 +782,18 @@ class SortedStorage(T, alias Cmp="a<b") {
         _tmp_dir = tmp_dir;
         _pool = pool;
 
-        import std.random;
-        char[4] tmp;
-        auto gen = Random(unpredictableSeed);
-        foreach (ref c; tmp[]) c = uniform!"[]"('a', 'z', gen);
-        _salt = tmp[].idup;
+        import std.file : dirEntries, SpanMode;
+        _filenames = dirEntries(tmp_dir, T.stringof ~ "*",
+                                SpanMode.shallow).map!(a => a.name).array;
+        if (!_filenames.empty) { // this if-branch is for debug purposes only
+            _salt = _filenames[0][T.stringof.length .. $][0 .. 4];
+        } else {
+            import std.random;
+            char[4] tmp;
+            auto gen = Random(unpredictableSeed);
+            foreach (ref c; tmp[]) c = uniform!"[]"('a', 'z', gen);
+            _salt = tmp[].idup;
+        }
     }
 
     void put(T item) {
@@ -807,7 +815,12 @@ class SortedStorage(T, alias Cmp="a<b") {
 
         auto fn = buildPath(_tmp_dir, T.stringof ~ _salt ~
                             _filenames.length.to!string);
-        std.file.write(fn, cast(ubyte[])_buffer.data);
+
+        auto compressor = new LZ4Compressor();
+        auto lz4_output = std.stdio.File(fn, "w+");
+        compressor.compress(cast(ubyte[])_buffer.data, lz4_output, 1);
+        lz4_output.close();
+
         _filenames ~= fn;
         _buffer.reset();
     }
@@ -835,35 +848,39 @@ class SortedStorage(T, alias Cmp="a<b") {
 
 class SimpleReader(T) {
     this(string filename) {
-        _n = std.file.getSize(filename) / T.sizeof;
-        _file = File(filename);
+        _file = new LZ4File(filename);
         _buf = new ubyte[T.sizeof * 1024];
         popFront();
     }
 
     private {
-        size_t _n;
-        size_t _idx;
-        std.stdio.File _file;
+        LZ4File _file;
         T _front;
         bool _empty;
         ubyte[] _buf;
-        T[] _data;
+        ubyte[] _raw_data;
     }
 
     bool empty() @property const { return _empty; }
     T front() @property const { return _front; }
 
     void popFront() {
-        if (_idx == _n) {
-            _empty = true;
-            return;
+        import std.algorithm : copy;
+
+        while (_raw_data.length < T.sizeof) {
+            auto remaining = _raw_data.length;
+            copy(_raw_data[], _buf[0 .. remaining]);
+            _raw_data = _file.rawRead(_buf[remaining .. $]);
+            _raw_data = _buf[0 .. remaining + _raw_data.length];
+
+            if (_raw_data.length == 0) {
+                _empty = true;
+                _file.close();
+                return;
+            }
         }
-        if (_data.empty)
-            _data = cast(T[])_file.rawRead(_buf);
-        _front = _data[0];
-        ++_idx;
-        _data = _data[1 .. $];
+        _front = *(cast(T*)_raw_data.ptr);
+        _raw_data = _raw_data[T.sizeof .. $];
     }
 }
 
@@ -1255,6 +1272,10 @@ int markdup_main(string[] args) {
         }
 
         dup_idx_storage.removeTemporaryFiles();
+        try {
+          std.file.rmdirRecurse(cfg.tmpdir);
+        } catch (FileException e) {
+        }
 
         sw.stop();
         stderr.writeln("total time elapsed: ",
