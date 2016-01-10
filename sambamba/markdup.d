@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -196,7 +196,7 @@ bool compareReadNamesAndReadGroups(R1, R2)(auto ref R1 r1, auto ref R2 r2) {
 // LDC doesn't like lambdas :-(
 auto _rse2brb(T)(T t) { return IndexedBamRead(t[1], t[0]); }
 auto _rse2rs(T)(T t) { return map!_rse2brb(zip(t[0].reads, t[1])); }
-auto _rse2r(BamReader[] r, ulong[][] s) {
+auto _rse2r(BamReader[] r, SimpleReader!(ulong, std.stdio.File)[] s) {
     return map!_rse2rs(zip(r, s)).array()
               .nWayUnion!compareReadNamesAndReadGroups();
 }
@@ -204,10 +204,10 @@ auto _rse2r(BamReader[] r, ulong[][] s) {
 private auto readsFromTempFiles(size_t buf_size, string[] tmp_filenames,
                                 TaskPool pool) {
     BamReader[] readers;
-    ulong[][] indices;
+    SimpleReader!(ulong, std.stdio.File)[] indices;
     foreach (fn; tmp_filenames) {
         readers ~= new BamReader(fn, pool);
-        indices ~= cast(ulong[])std.file.read(fn ~ ".idx");
+        indices ~= new SimpleReader!(ulong, std.stdio.File)(fn ~ ".idx");
         readers[$ - 1].setBufferSize(buf_size / tmp_filenames.length);
     }
 
@@ -294,7 +294,10 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         string[] _tmp_filenames;
         BamWriter _tmp_w;
         size_t _tmp_written;
-        ulong[] _tmp_idx;
+
+        std.stdio.File _tmp_w_idx;
+        MallocArray!ulong _tmp_idx;
+
         Nullable!Read _tmp_r1;
         ReturnType!readsFromTempFiles _tmp_reads;
     }
@@ -312,6 +315,8 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         _table = new HReadBlock[1 << table_size_log2];
         _table_mask = (1 << table_size_log2) - 1;
         _overflow_list = new HReadBlock[overflow_list_size];
+
+        _tmp_idx = new MallocArray!ulong(8192);
 
         popFront();
     }
@@ -369,9 +374,11 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
             _tmp_w = null;
             return;
         }
+
         _tmp_filenames ~= _tmp_dir ~ "/sorted." ~ 
                           _tmp_filenames.length.to!string() ~ ".bam";
         _tmp_w = new BamWriter(_tmp_filenames[$ - 1], 1, _task_pool);
+        _tmp_w_idx = std.stdio.File(_tmp_filenames[$ - 1] ~ ".idx", "w+");
         _tmp_w.disableAutoIndexCreation();
         _tmp_w.writeSamHeader(_reader.header);
         _tmp_w.writeReferenceSequenceInfo(_reader.reference_sequences);
@@ -382,18 +389,21 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         if (_tmp_w !is null)
             _tmp_w.finish();
         if (_tmp_filenames.length > 0) {
-            auto idx_fn = _tmp_filenames[$ - 1] ~ ".idx";
-            std.file.write(idx_fn, cast(ubyte[])_tmp_idx);
+            _tmp_w_idx.rawWrite(_tmp_idx.data);
+            _tmp_w_idx.close();
         }
-        _tmp_idx.length = 0;
-        assumeSafeAppend(_tmp_idx);
+        _tmp_idx.reset();
     }
 
     void dumpTmpRecord(R)(auto ref R read) {
         assert(_tmp_w !is null);
         _tmp_w.writeRecord(read);
         _tmp_written++;
-        _tmp_idx ~= read.index;
+        _tmp_idx.put(read.index);
+        if (_tmp_idx.data.length == _tmp_idx.capacity) {
+            _tmp_w_idx.rawWrite(_tmp_idx.data);
+            _tmp_idx.reset();
+        }
     }
         
     void popFrontHashTable() {
@@ -839,22 +849,22 @@ class SortedStorage(T, alias Cmp="a<b") {
     }
 
     auto reader() {
-        SimpleReader!T[] readers;
+        SimpleReader!(T, LZ4File)[] readers;
         foreach (fn; _filenames)
-            readers ~= new SimpleReader!T(fn);
+            readers ~= new SimpleReader!(T, LZ4File)(fn);
         return nWayUnion!Cmp(readers);
     }
 }
 
-class SimpleReader(T) {
+class SimpleReader(T, U) {
     this(string filename) {
-        _file = new LZ4File(filename);
+        _file = U(filename);
         _buf = new ubyte[T.sizeof * 1024];
         popFront();
     }
 
     private {
-        LZ4File _file;
+        U _file;
         T _front;
         bool _empty;
         ubyte[] _buf;
