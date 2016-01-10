@@ -209,7 +209,7 @@ private {
   }
 }
 
-class LZ4File {
+struct LZ4File {
   private {
     std.stdio.File input_file;
     LZ4F_decompressionContext_t ctx;
