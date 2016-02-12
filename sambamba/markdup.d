@@ -31,7 +31,7 @@ import utils.lz4;
 import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
        bio.bam.read, bio.sam.header, bio.bam.abstractreader,
        bio.bam.multireader;
-import std.traits, std.typecons, std.range, std.algorithm, std.parallelism, 
+import std.traits, std.typecons, std.range, std.algorithm, std.parallelism,
        std.exception, std.file, std.typetuple, std.conv, std.array, std.bitmanip,
        std.c.stdlib, std.datetime, std.stream : BufferedFile, FileMode;
 
@@ -254,7 +254,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
                 return;
 
             version(profile) { _compact_sw.start(); scope(exit) _compact_sw.stop(); }
-            
+
             _min_idx = _max_idx;
             foreach (ref r; _table)
                 if (!r.isNull && r.is_slice_backed
@@ -375,7 +375,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
             return;
         }
 
-        _tmp_filenames ~= _tmp_dir ~ "/sorted." ~ 
+        _tmp_filenames ~= _tmp_dir ~ "/sorted." ~
                           _tmp_filenames.length.to!string() ~ ".bam";
         _tmp_w = new BamWriter(_tmp_filenames[$ - 1], 1, _task_pool);
         _tmp_w_idx = std.stdio.File(_tmp_filenames[$ - 1] ~ ".idx", "w+");
@@ -405,7 +405,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
             _tmp_idx.reset();
         }
     }
-        
+
     void popFrontHashTable() {
         while (!_reads.empty) {
             _compact();
@@ -530,10 +530,10 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
             std.file.remove(fn ~ ".idx");
         }
         setSource(Source.none);
-    } 
+    }
 }
 
-auto simpleHash(R)(R chars) 
+auto simpleHash(R)(R chars)
 if (isInputRange!R && is(ElementType!R == ubyte))
 {
     hash_t h = 0;
@@ -595,7 +595,7 @@ struct PairedEndsInfo {
     int coord2;
     ushort ref_id2;
 
-    ushort score; // sum of base qualities that are >= 15 
+    ushort score; // sum of base qualities that are >= 15
     ulong idx1, idx2;
 
     SingleEndBasicInfo read1_basic_info() @property {
@@ -712,7 +712,7 @@ ushort computeScore(R)(auto ref R read) {
 
 auto collectSingleEndInfo(IndexedBamRead read, ReadGroupIndex read_group_index) {
     assert(read.ref_id != -1);
-        
+
     SingleEndInfo result = void;
     result.coord = computeFivePrimeCoord(read);
     result.idx = read.index;
@@ -730,7 +730,7 @@ auto collectSingleEndInfo(IndexedBamRead read, ReadGroupIndex read_group_index) 
 PairedEndsInfo combine(ref SingleEndInfo s1, ref SingleEndInfo s2) {
     assert(s1.library_id == s2.library_id);
     assert(s1.paired && s2.paired);
-        
+
     if ((s2.ref_id < s1.ref_id) ||
         ((s2.ref_id == s1.ref_id) &&
          ((s2.coord < s1.coord) ||
@@ -760,7 +760,7 @@ SingleEndBasicInfo basicInfo(E)(auto ref E e) {
     else static if (is(E == PairedEndsInfo))
              return e.read1_basic_info;
 }
-    
+
 bool samePosition(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
     static if (is(E1 == PairedEndsInfo) && is(E2 == PairedEndsInfo)) {
         return *cast(ulong*)(&e1) == *cast(ulong*)(&e2) &&
@@ -773,7 +773,7 @@ bool samePosition(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
 bool positionLessOrEq(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
     return !singleEndInfoComparator(basicInfo(e2), basicInfo(e1));
 }
-    
+
 bool positionLess(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
     return !positionLessOrEq(e2, e1);
 }
@@ -942,7 +942,7 @@ auto collectDuplicates(PEStorage pe_storage,
 
             if (cfg.pe_callback !is null)
                 cfg.pe_callback(pe_tmp.data);
-            
+
             for (size_t i = 0; i < k; ++i) {
                 if (i != best_k) {
                     auto paired_ends = pe_tmp.data[i];
@@ -1016,7 +1016,7 @@ auto collectDuplicates(PEStorage pe_storage,
         if (se.empty && pe.empty) {
             break;
         }
-            
+
         assert(pe_proc + se_proc > 0);
     }
 
@@ -1125,17 +1125,17 @@ int markdup_main(string[] args) {
     cfg.tmpdir = defaultTmpDir();
 
     bool remove_duplicates;
-    size_t n_threads = totalCPUs;
+    uint n_threads = totalCPUs;
     bool show_progress;
     size_t io_buffer_size = 128;
     size_t hash_table_size;
     int compression_level = -1;
 
     bool cmp_with_picard_mode; // for development purposes!
-    
+
     StopWatch sw;
-    sw.start();  
-    
+    sw.start();
+
     try {
         getopt(args,
            std.getopt.config.caseSensitive,
@@ -1158,8 +1158,8 @@ int markdup_main(string[] args) {
             protectFromOverwrite(arg, args[$-1]);
         cfg.tmpdir = randomSubdir(cfg.tmpdir, "markdup-");
 
-        auto pool = new TaskPool(n_threads);
-        scope(exit) pool.finish();
+        if (n_threads == 0) n_threads = 1;
+        std.parallelism.defaultPoolThreads = n_threads - 1;
 
         if (cmp_with_picard_mode) {
             static class PicardChecker {
@@ -1206,7 +1206,7 @@ int markdup_main(string[] args) {
                     }
                 }
             }
-            auto checker = new PicardChecker(cfg, args[1], args[2], pool);
+            auto checker = new PicardChecker(cfg, args[1], args[2], taskPool);
             args[1] = checker.output_filename;
             args[2] = "/dev/null";
             cfg.pe_callback = (pe_dups) => checker.check(pe_dups);
@@ -1221,7 +1221,7 @@ int markdup_main(string[] args) {
         // 2^^(cfg.hash_table_size_log2 + 1) > hash_table_size
 
         // Set up the BAM reader and pass in the thread pool
-        auto bam = new MultiBamReader(args[1 .. $-1], pool);
+        auto bam = new MultiBamReader(args[1 .. $-1], taskPool);
         auto n_refs = bam.reference_sequences.length;
         enforce(n_refs < 16384, "More than 16383 reference sequences are unsupported");
 
@@ -1244,7 +1244,7 @@ int markdup_main(string[] args) {
         }
 
         initInputs();
-        auto dup_idx_storage = getDuplicateOffsets(reads, rg_index, pool, cfg);
+        auto dup_idx_storage = getDuplicateOffsets(reads, rg_index, taskPool, cfg);
 
         auto elapsed = sw.peek();
         stderr.writeln("collected list of positions in ",
@@ -1252,17 +1252,17 @@ int markdup_main(string[] args) {
                        elapsed.seconds % 60, " sec");
 
         // marking or removing duplicates
-        bam = new MultiBamReader(args[1 .. $-1], pool);
+        bam = new MultiBamReader(args[1 .. $-1]);
         bam.setBufferSize(io_buffer_size);
         auto out_stream = new BufferedFile(args[$-1], FileMode.OutNew, io_buffer_size);
-        auto writer = new BamWriter(out_stream, compression_level, pool);
+        auto writer = new BamWriter(out_stream, compression_level);
         writer.setFilename(args[$-1]);
         scope(exit) writer.finish();
         writer.writeSamHeader(bam.header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
 
         stderr.writeln(remove_duplicates ? "removing" : "marking", " duplicates...");
-        
+
         initInputs();
 
         auto indices = dup_idx_storage.reader;
