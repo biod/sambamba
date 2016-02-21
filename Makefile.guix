@@ -1,0 +1,39 @@
+# GNU Guix makefile
+#
+# To build sambamba on GNU Guix:
+#
+#   make -f Makefile.guix
+#
+# Outside GNU Guix run with
+#
+#   env LD_LIBRARY_PATH=$HOME/.guix-profile/lib ./build/sambamba
+
+D_COMPILER=ldc2
+D_FLAGS=-IBioD -release -inline -O2 -c -noboundscheck -ofbuild/sambamba.o -odbuild -I. 
+
+LDC_LIB_PATH=$(HOME)/.guix-profile/lib
+
+STATIC_LIB_PATH=-Lhtslib -L$(LDC_LIB_PATH)
+STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic
+
+PLATFORM := $(shell uname -s)
+
+LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -llz4
+
+all: sambamba-ldmd2 
+
+install:
+	install -m 0755 build/sambamba $(prefix)/bin
+
+sambamba-ldmd2: htslib-static 
+	mkdir -p build/
+	ldmd2 $(D_FLAGS) @sambamba-ldmd-guix.rsp
+	$(LINK_CMD)
+
+htslib-static:
+	cd htslib && $(MAKE)
+
+.PHONY: clean
+
+clean:
+	rm -rf build/ ; cd htslib ; make clean
