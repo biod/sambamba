@@ -128,8 +128,8 @@ struct HReadBlock {
     alias read this;
     alias read get;
     uint hash;
-    mixin(bitfields!(ushort, "_rg_pos", 16,
-                     ushort, "_rg_len", 15,
+    uint _rg_pos;
+    mixin(bitfields!(ushort, "_rg_len", 15,
                      bool, "_is_not_null", 1));
     bool isNull() @property const { return !_is_not_null; }
     string read_group() @property const {
@@ -148,7 +148,7 @@ struct HReadBlock {
         return result;
     }
 }
-static assert(HReadBlock.sizeof == 40);
+static assert(HReadBlock.sizeof == 48);
 
 template makeHReadBlock(alias charsHashFunc) {
     HReadBlock makeHReadBlock(R)(auto ref R read) {
@@ -157,8 +157,7 @@ template makeHReadBlock(alias charsHashFunc) {
         auto rg = cast(ubyte[])getRG(read);
         if (rg.length > 0) {
             assert(rg.length <= ushort.max / 2);
-            assert(rg.ptr - read.raw_data.ptr <= ushort.max);
-            r._rg_pos = cast(ushort)(rg.ptr - read.raw_data.ptr);
+            r._rg_pos = cast(uint)(rg.ptr - read.raw_data.ptr);
             r._rg_len = cast(ushort)(rg.length);
         } else {
             r._rg_pos = 0;
