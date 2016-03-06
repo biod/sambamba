@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ import utils.lz4;
 import std.stdio;
 
 void printUsage() {
-    stderr.writeln("sambamba v0.5.9");
+    stderr.writeln("sambamba v0.6.0");
     stderr.writeln();
     stderr.writeln("Usage: sambamba [command] [args...]");
     stderr.writeln();
@@ -72,7 +72,7 @@ int main(string[] args) {
         case "fixbins":  return fixbins_main(_args);
         case "strip_bcf_header": return strip_bcf_header_main(_args);
         case "lz4compress": return lz4compress_main();
-        default: 
+        default:
             printUsage();
             return 1;
     }
