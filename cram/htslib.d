@@ -5,7 +5,7 @@ module cram.htslib;
 import core.stdc.stdio;
 import core.stdc.config;
 import core.stdc.stdarg;
-import std.c.linux.pthread;
+import core.sys.posix.pthread;
 
 extern (C):
 
