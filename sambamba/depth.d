@@ -293,7 +293,7 @@ final class PerBasePrinter : ColumnPrinter {
 
     private {
         int _prev_ref_id = -2;
-        size_t _prev_position;
+        long _prev_position;
         bool _bed_is_provided;
     }
 
@@ -319,7 +319,7 @@ final class PerBasePrinter : ColumnPrinter {
     private void writeEmptyColumns(long ref_id, long start, long end) {
         if (min_cov > 0 && !annotate)
             return;
-        auto ref_name = bam.reference_sequences[ref_id].name;
+        auto ref_name = bam.reference_sequences[cast(uint)ref_id].name;
         string[] tails;
         if (combined) {
             tails ~= "\t0\t0\t0\t0\t0\t0\t0";

@@ -148,7 +148,6 @@ struct HReadBlock {
         return result;
     }
 }
-static assert(HReadBlock.sizeof == 48);
 
 template makeHReadBlock(alias charsHashFunc) {
     HReadBlock makeHReadBlock(R)(auto ref R read) {
