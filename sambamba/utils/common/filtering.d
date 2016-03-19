@@ -38,7 +38,7 @@ auto filtered(R)(R reads, Filter f) {
 }
 
 Filter createFilterFromQuery(string query) {
-    if (query is null)
+    if (query == "")
         return new NullFilter();
     auto query_grammar = new QueryGrammar();
     auto node = query_grammar.parse(query);
