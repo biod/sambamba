@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2015    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ version(standalone) {
 alias uint pos_t;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-depth region|window [options] input.bam  [input2.bam [...]]");
+    stderr.writeln("Usage: sambamba-depth region|window|base [options] input.bam  [input2.bam [...]]");
     stderr.writeln();
     stderr.writeln("          All BAM files must be coordinate-sorted and indexed.");
     stderr.writeln();
@@ -437,7 +437,7 @@ final class PerBasePrinter : ColumnPrinter {
                 writeEmptyColumns(id, 0, bam.reference_sequences[id].length);
             writeEmptyColumns(c.ref_id, 0, c.position);
         } else if (_prev_ref_id != c.ref_id) {
-            writeEmptyColumns(_prev_ref_id, _prev_position + 1, 
+            writeEmptyColumns(_prev_ref_id, _prev_position + 1,
                     bam.reference_sequences[_prev_ref_id].length);
             writeEmptyColumns(c.ref_id, 0, c.position);
         }
@@ -760,8 +760,8 @@ final class PerWindowPrinter : PerRegionPrinter {
     override void writeOriginalBedLine(size_t id) {
         auto region = getRegionById(id);
         output_file.write(bam.reference_sequences[region.ref_id].name, '\t',
-			  region.start, '\t',
-			  region.end, '\t');
+                          region.start, '\t',
+                          region.end, '\t');
     }
 
     override void init(ref string[] args) {
