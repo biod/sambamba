@@ -231,9 +231,13 @@ struct CustomBamRead {
     this(MultiBamRead!BamRead read, uint[string] rg2id) {
         this.read = read;
         auto rg_value = read["RG"];
-        if (!rg_value.is_nothing) {
+        if (rg2id.length > 0 && !rg_value.is_nothing) {
             auto rg_str = *(cast(string*)(&rg_value));
-            sample_id = rg2id[rg_str];
+            auto p = rg_str in rg2id;
+            if (!p)
+              throw new Exception("error in read " ~ read.name ~
+                                  ": read group " ~ rg_str ~ " is not present in the header");
+            sample_id = *p;
         }
     }
 
