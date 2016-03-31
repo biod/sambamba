@@ -96,3 +96,9 @@ documentation](https://github.com/lomereiter/sambamba-dev-docs).
 # Copyright
 
 Sambamba is distributed under GNU Public License v2+.
+
+# Citation
+
+If you are using Sambamba in your research, please cite the following article:
+
+A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. Sambamba: fast processing of NGS alignment formats. Bioinformatics, 2015.
