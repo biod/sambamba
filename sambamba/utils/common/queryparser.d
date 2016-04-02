@@ -304,7 +304,7 @@ final class QueryGrammar : Grammar!Node {
             .setScanner(makeScanner(integer_fields))
             .setParser((in string str) { return cast(Node) new IntegerFieldNode(str);});
                
-        auto string_fields = ["read_name", "sequence", "cigar"];
+        auto string_fields = ["read_name", "sequence", "cigar", "strand", "ref_name", "mate_ref_name"];
 
         addSymbolToDict("(string field)", 0)
             .setScanner(makeScanner(string_fields))
