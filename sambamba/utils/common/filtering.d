@@ -251,6 +251,9 @@ final class StringFieldFilter(string op) : Filter {
             case "read_name": mixin("return a.name " ~ op ~ " _value;");
             case "sequence": mixin("return cmp(a.sequence, _value) " ~ op ~ " 0;");
             case "cigar": mixin("return a.cigarString() " ~ op ~ " _value;");
+            case "strand": mixin("return a.strand " ~ op ~ " _value[0];"); // FIXME: a separate filter would be cleaner
+            case "ref_name": mixin("return a.ref_name " ~ op ~ " _value;");
+            case "mate_ref_name": mixin("return a.mate_ref_name " ~ op ~ " _value;");
             default: throw new Exception("unknown string field '" ~ _fieldname ~ "'");
         }
     }
