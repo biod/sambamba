@@ -229,7 +229,8 @@ class WindowStatsCollector : RegionStatsCollector {
 enum MateOverlapStatus : ubyte {
     none,
     detected,
-    fixed
+    fixed,
+    past
 }
 
 struct CustomBamRead {
@@ -342,8 +343,12 @@ abstract class ColumnPrinter {
         size_t n_overlaps = 0;
 
         for (size_t i = 0; i < n - 1; i++) {
-            if (read_name_hashes_buf[i][0] != read_name_hashes_buf[i + 1][0])
+            if (read_name_hashes_buf[i][0] != read_name_hashes_buf[i + 1][0]) {
+                auto idx = read_name_hashes_buf[i][1];
+                if (column.reads[idx].mate_overlap != MateOverlapStatus.none)
+                    column.reads[idx].mate_overlap = MateOverlapStatus.past;
                 continue;
+            }
 
             auto idx1 = read_name_hashes_buf[i][1];
             auto idx2 = read_name_hashes_buf[i + 1][1];
@@ -356,6 +361,7 @@ abstract class ColumnPrinter {
                 {
                     assert(column.reads[idx1].mate_overlap == MateOverlapStatus.fixed);
                     assert(column.reads[idx2].mate_overlap == MateOverlapStatus.fixed);
+                    i += 1;
                     continue;
                 }
 
@@ -639,7 +645,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
             data.n_reads(id) += 1;
     }
 
-    private size_t countOverlappingBases(R)(auto ref R read, size_t id) {
+    private size_t countOverlappingBases(R)(auto ref R read, size_t id, ulong start_pos=0) {
         auto sample_id = getSampleId(read);
         assert(sample_names.empty || sample_id < sample_names.length, "Invalid sample ID");
         auto data = getSampleData(sample_id);
@@ -652,9 +658,11 @@ abstract class PerRegionPrinter : ColumnPrinter {
                   // and also have good quality
         foreach (op; read.cigar) {
             if (op.is_match_or_mismatch)
-                foreach (qual; q[0 .. min(op.length, $)])
-                    n += region.overlaps(region.ref_id, pos++) &&
-                         qual >= min_base_quality;
+                foreach (qual; q[0 .. min(op.length, $)]) {
+                    n += region.overlaps(region.ref_id, pos) &&
+                         qual >= min_base_quality && pos >= start_pos;
+                    ++pos;
+                }
             else if (op.is_reference_consuming)
                 pos += op.length;
 
@@ -683,7 +691,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
                "cov-threshold|T", &cov_thresholds);
     }
 
-    private void uncountOverlappingMates(R)(ref R r1, ref R r2, size_t id) {
+    private void uncountOverlappingMates(R)(ref R r1, ref R r2, size_t id, ulong curr_pos) {
         if (r1.mate_overlap == MateOverlapStatus.fixed &&
             r2.mate_overlap == MateOverlapStatus.fixed)
             return;
@@ -691,15 +699,20 @@ abstract class PerRegionPrinter : ColumnPrinter {
         assert(r1.mate_overlap == MateOverlapStatus.detected);
         assert(r2.mate_overlap == MateOverlapStatus.detected);
 
-        auto n1 = countOverlappingBases(r1, id);
-        auto n2 = countOverlappingBases(r2, id);
+        // re-count all good bases
+        auto n1_full = countOverlappingBases(r1, id);
+        auto n2_full = countOverlappingBases(r2, id);
+
+        // now count bases starting from the current column
+        auto n1 = r1.position == curr_pos ? n1_full : countOverlappingBases(r1, id, curr_pos);
+        auto n2 = r2.position == curr_pos ? n2_full : countOverlappingBases(r2, id, curr_pos);
 
         auto data = getSampleData(r1.sample_id);
 
         data.n_bases(id) -= n1 + n2; // this count is then dealt with on per-base basis
 
-        data.n_reads(id) -= (n1 > 0) + (n2 > 0);
-        data.n_reads(id) += (n1 + n2 > 0); // count only one read instead of two
+        data.n_reads(id) -= (n1_full > 0) + (n2_full > 0);
+        data.n_reads(id) += (n1_full + n2_full > 0); // count only one read instead of two
 
         // don't set status to fixed just yet, there might be other regions as well
     }
@@ -707,7 +720,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
     private void fixRegionBaseCounter(ref Column column, size_t region_id) {
         foreach (p; overlapping_mate_positions)
             uncountOverlappingMates(column.reads[p[0]],
-                                    column.reads[p[1]], region_id);
+                                    column.reads[p[1]], region_id, column.position);
     }
 
     private void markOverlappingMatesAsFixed(ref Column column) {
@@ -727,6 +740,15 @@ abstract class PerRegionPrinter : ColumnPrinter {
 
         detectOverlappingMates(column);
 
+        void processCurrentBase(R)(auto ref R read, size_t region_id) {
+            if (read.current_base_quality < min_base_quality)
+                return;
+            auto sample_id = getSampleId(read);
+            auto data = getSampleData(sample_id);
+            data.n_bases(region_id) += 1;
+            cov_per_sample[sample_id] += 1;
+        }
+
         stats_collector.nextColumn(ref_id, position,
             (size_t id) {
                 if (isFirstOccurrence(id)) {
@@ -744,7 +766,11 @@ abstract class PerRegionPrinter : ColumnPrinter {
 
                 foreach (ref read; column.reads) {
                     if (read.mate_overlap != MateOverlapStatus.none)
-                        continue;
+                    {
+                        if (read.mate_overlap != MateOverlapStatus.past)
+                            continue;
+                        processCurrentBase(read, id);
+                    }
 
                     if (read.current_base_quality >= min_base_quality)
                         cov_per_sample[getSampleId(read)] += 1;
@@ -752,13 +778,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
 
                 foreach (pair; overlapping_mate_positions) {
                     auto m1 = column.reads[pair[0]], m2 = column.reads[pair[1]];
-                    auto read = selectBetterMate(m1, m2);
-                    if (read.current_base_quality >= min_base_quality) {
-                        auto sample_id = getSampleId(read);
-                        auto data = getSampleData(sample_id);
-                        data.n_bases(id) += 1;
-                        cov_per_sample[sample_id] += 1;
-                    }
+                    processCurrentBase(selectBetterMate(m1, m2), id);
                 }
 
                 foreach (sample_id; iota(cov_per_sample.length.to!uint)) {
