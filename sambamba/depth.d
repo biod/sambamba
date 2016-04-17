@@ -74,6 +74,8 @@ void printUsage() {
     stderr.writeln("         -a, --annotate");
     stderr.writeln("                    add additional column of y/n instead of");
     stderr.writeln("                    skipping records not satisfying the criteria");
+    stderr.writeln("         -m, --fix-mate-overlaps");
+    stderr.writeln("                    detect overlaps of mate reads and handle them on per-base basis");
     stderr.writeln("base subcommand options:");
     stderr.writeln("         -L, --regions=FILENAME|REGION");
     stderr.writeln("                    list or regions of interest or a single region in form chr:beg-end (optional)");
@@ -224,6 +226,12 @@ class WindowStatsCollector : RegionStatsCollector {
     }
 }
 
+enum MateOverlapStatus : ubyte {
+    none,
+    detected,
+    fixed
+}
+
 struct CustomBamRead {
     MultiBamRead!BamRead read;
     alias read this;
@@ -239,14 +247,26 @@ struct CustomBamRead {
                                   ": read group " ~ rg_str ~ " is not present in the header");
             sample_id = *p;
         }
+
+        // FNV hashing
+        ulong h = 14695981039346656037UL;
+        foreach (ubyte b; read.name) {
+            h ^= b;
+            h *= 1099511628211UL;
+        }
+        read_name_hash = h;
     }
 
+    ulong read_name_hash;
     uint sample_id;
+    MateOverlapStatus mate_overlap = MateOverlapStatus.none;
 
     CustomBamRead dup() @property const {
         CustomBamRead r = void;
         r.read = read.dup;
         r.sample_id = sample_id;
+        r.read_name_hash = read_name_hash;
+        r.mate_overlap = mate_overlap;
         return r;
     }
 }
@@ -261,6 +281,7 @@ abstract class ColumnPrinter {
 
     bool combined = false;
     bool annotate = false;
+    bool fix_mate_overlaps = false;
     File output_file;
 
     string[] sample_names;
@@ -288,6 +309,79 @@ abstract class ColumnPrinter {
             return "*";
         else
             return sample_names[sample_id];
+    }
+
+    private {
+        Tuple!(ulong, size_t)[] read_name_hashes_buf;
+        Tuple!(size_t, size_t)[] overlapping_mate_positions_buf;
+    }
+
+    Tuple!(size_t, size_t)[] overlapping_mate_positions;
+
+    void detectOverlappingMates(ref Column column) {
+        if (!fix_mate_overlaps)
+            return;
+
+        size_t n = column.coverage;
+
+        if (n == 0) {
+            overlapping_mate_positions = [];
+            return;
+        }
+
+        if (n > read_name_hashes_buf.length) {
+            read_name_hashes_buf.length = n;
+            overlapping_mate_positions_buf.length = n;
+        }
+
+        for (size_t i = 0; i < n; i++)
+            read_name_hashes_buf[i] = tuple(column.reads[i].read_name_hash, i);
+
+        sort!((a, b) => a[0] < b[0])(read_name_hashes_buf[0 .. n]);
+
+        size_t n_overlaps = 0;
+
+        for (size_t i = 0; i < n - 1; i++) {
+            if (read_name_hashes_buf[i][0] != read_name_hashes_buf[i + 1][0])
+                continue;
+
+            auto idx1 = read_name_hashes_buf[i][1];
+            auto idx2 = read_name_hashes_buf[i + 1][1];
+
+            if (column.reads[idx1].sample_id == column.reads[idx2].sample_id &&
+                column.reads[idx1].name == column.reads[idx2].name)
+            {
+                if (column.reads[idx1].mate_overlap != MateOverlapStatus.none &&
+                    column.reads[idx2].mate_overlap != MateOverlapStatus.none)
+                {
+                    assert(column.reads[idx1].mate_overlap == MateOverlapStatus.fixed);
+                    assert(column.reads[idx2].mate_overlap == MateOverlapStatus.fixed);
+                    continue;
+                }
+
+                overlapping_mate_positions_buf[n_overlaps++] = tuple(idx1, idx2);
+
+                column.reads[idx1].mate_overlap = MateOverlapStatus.detected;
+                column.reads[idx2].mate_overlap = MateOverlapStatus.detected;
+
+                // don't consider rare cases of >= 3 reads with the same name
+                i += 1;
+            }
+        }
+
+        // store positions of overlapping mates for this column
+        overlapping_mate_positions = overlapping_mate_positions_buf[0 .. n_overlaps];
+    }
+
+    // selects a mate of better quality out of two overlapping candidates
+    auto ref R selectBetterMate(R)(auto ref R m1, auto ref R m2) {
+        if (m1.current_base == '-' || m2.current_base == '-') {
+            // if either one hits an indel, look at the mapping quality
+            return m1.mapping_quality > m2.mapping_quality ?  m1 : m2;
+        } else {
+            // otherwise, choose one with higher base quality
+            return m1.current_base_quality > m2.current_base_quality ? m1 : m2;
+        }
     }
 }
 
@@ -382,18 +476,32 @@ final class PerBasePrinter : ColumnPrinter {
         deletions[] = 0;
         ref_skips[] = 0;
 
-        foreach (read; c.reads) {
+        void processCurrentBase(R)(auto ref R read) {
             auto sample_id = getSampleId(read);
             if (read.current_base == '-') {
                 if (read.cigar_operation.type == 'D')
                     deletions[sample_id] += 1;
                 else
                     ref_skips[sample_id] += 1;
-                continue;
+                return;
             }
 
             if (read.current_base_quality >= min_base_quality)
                 coverage[5 * sample_id + Base5(read.current_base).internal_code] += 1;
+        }
+
+        detectOverlappingMates(c);
+
+        foreach (read; c.reads) {
+            if (read.mate_overlap != MateOverlapStatus.none)
+                continue; // process overlapping mates separately
+            else
+                processCurrentBase(read);
+        }
+
+        foreach (pair; overlapping_mate_positions) {
+            auto read = selectBetterMate(c.reads[pair[0]], c.reads[pair[1]]);
+            processCurrentBase(read);
         }
 
         foreach (sample_id; 0 .. coverage.length / 5) {
@@ -522,9 +630,20 @@ abstract class PerRegionPrinter : ColumnPrinter {
     }
 
     private void countRead(R)(auto ref R read, size_t id) {
+        auto n = countOverlappingBases(read, id);
+        auto data = getSampleData(getSampleId(read));
+        data.n_bases(id) += n;
+
+        // count the read only if at least one base is good
+        if (n > 0)
+            data.n_reads(id) += 1;
+    }
+
+    private size_t countOverlappingBases(R)(auto ref R read, size_t id) {
         auto sample_id = getSampleId(read);
         assert(sample_names.empty || sample_id < sample_names.length, "Invalid sample ID");
         auto data = getSampleData(sample_id);
+
         auto region = getRegionById(id);
 
         auto pos = read.position; // current position on the reference
@@ -544,8 +663,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
             if (op.is_query_consuming)
                 q = q[min(op.length, $) .. $];
         }
-        data.n_bases(id) += n;
-        if (n > 0) data.n_reads(id) += 1;
+        return n;
     }
 
     abstract BamRegion getRegionById(size_t id);
@@ -565,6 +683,40 @@ abstract class PerRegionPrinter : ColumnPrinter {
                "cov-threshold|T", &cov_thresholds);
     }
 
+    private void uncountOverlappingMates(R)(ref R r1, ref R r2, size_t id) {
+        if (r1.mate_overlap == MateOverlapStatus.fixed &&
+            r2.mate_overlap == MateOverlapStatus.fixed)
+            return;
+
+        assert(r1.mate_overlap == MateOverlapStatus.detected);
+        assert(r2.mate_overlap == MateOverlapStatus.detected);
+
+        auto n1 = countOverlappingBases(r1, id);
+        auto n2 = countOverlappingBases(r2, id);
+
+        auto data = getSampleData(r1.sample_id);
+
+        data.n_bases(id) -= n1 + n2; // this count is then dealt with on per-base basis
+
+        data.n_reads(id) -= (n1 > 0) + (n2 > 0);
+        data.n_reads(id) += (n1 + n2 > 0); // count only one read instead of two
+
+        // don't set status to fixed just yet, there might be other regions as well
+    }
+
+    private void fixRegionBaseCounter(ref Column column, size_t region_id) {
+        foreach (p; overlapping_mate_positions)
+            uncountOverlappingMates(column.reads[p[0]],
+                                    column.reads[p[1]], region_id);
+    }
+
+    private void markOverlappingMatesAsFixed(ref Column column) {
+        foreach (p; overlapping_mate_positions) {
+            column.reads[p[0]].mate_overlap = MateOverlapStatus.fixed;
+            column.reads[p[1]].mate_overlap = MateOverlapStatus.fixed;
+        }
+    }
+
     override void push(ref Column column) {
         uint ref_id = column.ref_id.to!uint;
         pos_t position = column.position.to!pos_t;
@@ -572,6 +724,8 @@ abstract class PerRegionPrinter : ColumnPrinter {
         if (cov_per_sample.length == 0) {
             cov_per_sample.length = max(1, combined ? 1 : sample_names.length);
         }
+
+        detectOverlappingMates(column);
 
         stats_collector.nextColumn(ref_id, position,
             (size_t id) {
@@ -584,12 +738,27 @@ abstract class PerRegionPrinter : ColumnPrinter {
                         countRead(read, id);
                 }
 
+                fixRegionBaseCounter(column, id);
+
                 cov_per_sample[] = 0;
 
-                foreach (read; column.reads) {
-                    auto sample_id = getSampleId(read);
+                foreach (ref read; column.reads) {
+                    if (read.mate_overlap != MateOverlapStatus.none)
+                        continue;
+
                     if (read.current_base_quality >= min_base_quality)
+                        cov_per_sample[getSampleId(read)] += 1;
+                }
+
+                foreach (pair; overlapping_mate_positions) {
+                    auto m1 = column.reads[pair[0]], m2 = column.reads[pair[1]];
+                    auto read = selectBetterMate(m1, m2);
+                    if (read.current_base_quality >= min_base_quality) {
+                        auto sample_id = getSampleId(read);
+                        auto data = getSampleData(sample_id);
+                        data.n_bases(id) += 1;
                         cov_per_sample[sample_id] += 1;
+                    }
                 }
 
                 foreach (sample_id; iota(cov_per_sample.length.to!uint)) {
@@ -599,6 +768,8 @@ abstract class PerRegionPrinter : ColumnPrinter {
                             data.coverage_count(i, id) += 1;
                 }
         });
+
+        markOverlappingMatesAsFixed(column);
     }
 
     void printRegionStats(uint sample_id, size_t id, PerSampleRegionData data) {
@@ -882,7 +1053,8 @@ int depth_main(string[] args) {
                "max-coverage|C",         &printer.max_cov,
                "min-base-quality|q",     &printer.min_base_quality,
                "annotate|a",             &printer.annotate,
-               "combined",               &printer.combined);
+               "combined",               &printer.combined,
+               "fix-mate-overlaps|m",    &printer.fix_mate_overlaps);
 
         if (output_fn is null)
             printer.output_file = stdout;
