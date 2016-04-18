@@ -1,8 +1,8 @@
 # this file is used in order to build sambamba for Mac OS X on Travis CI
 language: objective-c
 
-env: 
-  global: 
+env:
+  global:
   - ACCESS_LEVEL=sandbox
   - secure: blVtZH4Ia+4MkeTm0gRwL07r/bzhVRJJjUEbtvt0pIQNAtDq5aYuKnCI9sIw99XmEbv9+tSLc6DXq9d6LrDDR0EG7UUB4sTP6XW1XNJXm/kLIuoOCxTnVk6WBHZ4jusMWE0MNNDVmIS8nHrpoDp2ERXbfasD/9GT+3avVUvnsMg=
   - secure: Kzdt/6PLGBhD5f8yOPaPdX5yxHisCPvmfYEKUcEVksKOEurQoIpsNjzAky/yzso4R21T6xycjawFvDXvlVA83m/WJZSDDiFLZVgGoaMoZl9UYOPESeZlJR57/HkjgCss0iz/AX9abUzJ1jGfRt9ujtwcoXB15PqUhbjk2iHF0f0=
@@ -10,6 +10,7 @@ env:
   - secure: J1ta2/K8lj5dbHRvk+jTUAMICSnepfyc8ILCfM/HFCRaXMJQJTX1HDzEMwK3tAzzKaKEp9Tbm2b3IwE1tCtFaAfYUGozmHLirkFfKqCu/jNUkxL807M8NiqMx+H7tu2aR6t9opYyBjNhtuthbIdir3c42nldYdpse0ZLhzQTLfs=
 
 before_install:
+  - brew update
   - brew install ldc
   - git submodule update --init --recursive
   - wget https://github.com/craigcitro/r-travis/raw/master/scripts/dropbox.sh
@@ -23,4 +24,3 @@ script:
 after_success:
   - tar cjvf sambamba_osx.tar.bz2 ./build/sambamba
   - ./dropbox.sh upload sambamba_osx.tar.bz2
-
