@@ -10,8 +10,11 @@ env:
   - secure: J1ta2/K8lj5dbHRvk+jTUAMICSnepfyc8ILCfM/HFCRaXMJQJTX1HDzEMwK3tAzzKaKEp9Tbm2b3IwE1tCtFaAfYUGozmHLirkFfKqCu/jNUkxL807M8NiqMx+H7tu2aR6t9opYyBjNhtuthbIdir3c42nldYdpse0ZLhzQTLfs=
 
 before_install:
-  - brew update
-  - brew install ldc
+  - brew install wget xz
+  - wget https://github.com/ldc-developers/ldc/releases/download/v0.17.1/ldc2-0.17.1-osx-x86_64.tar.xz
+  - tar xJf ldc2-0.17.1-osx-x86_64.tar.xz
+  - export PATH=`pwd`/ldc2-0.17.1-osx-x86_64/bin:$PATH
+  - export LIBRARY_PATH=`pwd`/ldc2-0.17.1-osx-x86_64/lib
   - git submodule update --init --recursive
   - wget https://github.com/craigcitro/r-travis/raw/master/scripts/dropbox.sh
   - chmod +x dropbox.sh
