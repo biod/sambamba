@@ -55,13 +55,22 @@ which targets LLVM.
 ## Compiling for Linux
 
 The LDC compiler's github repository also provides binary images. The current
-preferred release for sambamba is LDC - the LLVM D compiler (0.14.0). After
+preferred release for sambamba is LDC - the LLVM D compiler (>= 0.16.1). After
 installing LDC:
 
 ```sh
     git clone --recursive https://github.com/lomereiter/sambamba.git
     cd sambamba
     make sambamba-ldmd2-64
+```
+
+Installing LDC only means unpacking an archive and setting some environmental variables, e.g. unpacking into `$HOME`:
+```sh
+cd
+wget https://github.com/ldc-developers/ldc/releases/download/v0.17.1/ldc2-0.17.1-linux-x86_64.tar.xz
+tar xJf ldc2-0.17.1-linux-x86_64.tar.xz
+export PATH=~/ldc2-0.17.1-linux-x86_64/bin/:$PATH
+export LIBRARY_PATH=~/ldc2-0.17.1-linux-x86_64/lib/
 ```
 
 ## Compiling for Mac OS X
@@ -71,19 +80,6 @@ installing LDC:
     git clone --recursive https://github.com/lomereiter/sambamba.git
     cd sambamba
     make sambamba-ldmd2-64
-```
-
-## Compiling for Linux using Docker
-
-Use the [Docker](https://www.docker.io/) image which contains all binaries necessary for compilation:
-
-```sh
-    docker pull lomereiter/centos-ldc
-    docker run -i -t lomereiter/centos-ldc /bin/bash
-    $ git clone --recursive https://github.com/lomereiter/sambamba.git
-    $ cd sambamba && make sambamba-ldmd2-64
-    $ ^D
-    docker cp `docker ps -l -q`:/sambamba/build/sambamba /usr/local/bin/
 ```
 
 # Development
