@@ -227,10 +227,10 @@ class WindowStatsCollector : RegionStatsCollector {
 }
 
 enum MateOverlapStatus : ubyte {
-    none,
-    detected,
-    fixed,
-    past
+    none = 0,
+    detected = 1,
+    fixed = 2,
+    past = 3
 }
 
 struct CustomBamRead {
@@ -359,21 +359,28 @@ abstract class ColumnPrinter {
                 if (column.reads[idx1].mate_overlap != MateOverlapStatus.none &&
                     column.reads[idx2].mate_overlap != MateOverlapStatus.none)
                 {
-                    assert(column.reads[idx1].mate_overlap == MateOverlapStatus.fixed);
-                    assert(column.reads[idx2].mate_overlap == MateOverlapStatus.fixed);
-                    i += 1;
-                    continue;
+                    assert(column.reads[idx1].mate_overlap == column.reads[idx2].mate_overlap);
                 }
 
                 overlapping_mate_positions_buf[n_overlaps++] = tuple(idx1, idx2);
 
-                column.reads[idx1].mate_overlap = MateOverlapStatus.detected;
-                column.reads[idx2].mate_overlap = MateOverlapStatus.detected;
+                // don't touch status if it's already set
+                if (column.reads[idx1].mate_overlap == MateOverlapStatus.none)
+                    column.reads[idx1].mate_overlap = MateOverlapStatus.detected;
+
+                if (column.reads[idx2].mate_overlap == MateOverlapStatus.none)
+                    column.reads[idx2].mate_overlap = MateOverlapStatus.detected;
 
                 // don't consider rare cases of >= 3 reads with the same name
                 i += 1;
             }
         }
+
+        auto idx = read_name_hashes_buf[n - 1][1];
+        if (column.reads[idx].mate_overlap != MateOverlapStatus.none &&
+            ((n == 1) ||
+             (read_name_hashes_buf[n - 2][0] != read_name_hashes_buf[n - 1][0])))
+            column.reads[idx].mate_overlap = MateOverlapStatus.past;
 
         // store positions of overlapping mates for this column
         overlapping_mate_positions = overlapping_mate_positions_buf[0 .. n_overlaps];
@@ -499,7 +506,7 @@ final class PerBasePrinter : ColumnPrinter {
         detectOverlappingMates(c);
 
         foreach (read; c.reads) {
-            if (read.mate_overlap != MateOverlapStatus.none)
+            if (read.mate_overlap == MateOverlapStatus.detected)
                 continue; // process overlapping mates separately
             else
                 processCurrentBase(read);
@@ -725,6 +732,8 @@ abstract class PerRegionPrinter : ColumnPrinter {
 
     private void markOverlappingMatesAsFixed(ref Column column) {
         foreach (p; overlapping_mate_positions) {
+            assert(column.reads[p[0]].mate_overlap != MateOverlapStatus.past);
+            assert(column.reads[p[1]].mate_overlap != MateOverlapStatus.past);
             column.reads[p[0]].mate_overlap = MateOverlapStatus.fixed;
             column.reads[p[1]].mate_overlap = MateOverlapStatus.fixed;
         }
@@ -749,11 +758,34 @@ abstract class PerRegionPrinter : ColumnPrinter {
             cov_per_sample[sample_id] += 1;
         }
 
+        void countPreviouslySeenMateOverlaps(size_t id) {
+            foreach (pair; overlapping_mate_positions) {
+                auto m1 = column.reads[pair[0]];
+                auto m2 = column.reads[pair[1]];
+                if (m1.mate_overlap != MateOverlapStatus.fixed)
+                    continue;
+
+                // don't set n_bases here, only n_reads
+                auto n1 = countOverlappingBases(m1, id);
+                auto n2 = countOverlappingBases(m2, id);
+
+                if (n1 + n2 == 0)
+                    continue;
+
+                auto data = getSampleData(m1.sample_id);
+                data.n_reads(id) += 1;
+            }
+        }
+
+        bool fixes_applied = false;
+
         stats_collector.nextColumn(ref_id, position,
             (size_t id) {
                 if (isFirstOccurrence(id)) {
                     foreach (read; column.reads)
-                        countRead(read, id);
+                        if (read.mate_overlap != MateOverlapStatus.fixed)
+                            countRead(read, id);
+                    countPreviouslySeenMateOverlaps(id);
                     markAsSeen(id);
                 } else {
                     foreach (read; column.reads_starting_here)
@@ -761,6 +793,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
                 }
 
                 fixRegionBaseCounter(column, id);
+                fixes_applied = true;
 
                 cov_per_sample[] = 0;
 
@@ -789,7 +822,8 @@ abstract class PerRegionPrinter : ColumnPrinter {
                 }
         });
 
-        markOverlappingMatesAsFixed(column);
+        if (fixes_applied)
+            markOverlappingMatesAsFixed(column);
     }
 
     void printRegionStats(uint sample_id, size_t id, PerSampleRegionData data) {
