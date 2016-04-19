@@ -67,4 +67,10 @@ testIndexUsage() {
     assertEquals 0 $?
 }
 
+testIssue193() {
+    ./build/sambamba depth base test/issue_193.bam > output_193.txt 2>/dev/null
+    diff -q output_193.txt test/issue_193_expected_output.txt
+    assertEquals 0 $?
+}
+
 . shunit2-2.0.3/src/shell/shunit2
