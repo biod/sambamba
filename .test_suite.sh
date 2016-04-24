@@ -82,4 +82,10 @@ testIssue204() {
     assertEquals 0 $?
 }
 
+testIssue206() {
+    ./build/sambamba markdup ex1_header.sorted.bam ex1_header.dedup.bam 2>/dev/null
+    ./build/sambamba view -H ex1_header.dedup.bam | grep '@PG' | grep -q 'sambamba markdup'
+    assertEquals 0 $?
+}
+
 . shunit2-2.0.3/src/shell/shunit2
