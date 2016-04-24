@@ -803,10 +803,10 @@ abstract class PerRegionPrinter : ColumnPrinter {
                         if (read.mate_overlap != MateOverlapStatus.past)
                             continue;
                         processCurrentBase(read, id);
+                    } else {
+                        if (read.current_base_quality >= min_base_quality)
+                            cov_per_sample[getSampleId(read)] += 1;
                     }
-
-                    if (read.current_base_quality >= min_base_quality)
-                        cov_per_sample[getSampleId(read)] += 1;
                 }
 
                 foreach (pair; overlapping_mate_positions) {

@@ -68,9 +68,17 @@ testIndexUsage() {
 }
 
 testIssue193() {
+    rm -f output_193.txt
     ./build/sambamba depth base test/issue_193.bam > output_193.txt 2>/dev/null
     diff -q output_193.txt test/issue_193_expected_output.txt
     assertEquals 0 $?
+}
+
+testIssue204() {
+    rm -f output_204.txt
+    ./build/sambamba index test/issue_204.bam
+    ./build/sambamba depth region test/issue_204.bam -L 2:166868600-166868813 -T 15 -T 20 -T 25 -m > output_204.txt 2>/dev/null
+    diff -q output_204.txt test/issue_204_expected_output.txt
 }
 
 . shunit2-2.0.3/src/shell/shunit2
