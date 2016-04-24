@@ -27,6 +27,7 @@ import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
 import thirdparty.unstablesort;
 import utils.lz4;
+import utils.version_ : addPG;
 
 import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
        bio.bam.read, bio.sam.header, bio.bam.abstractreader,
@@ -1121,6 +1122,8 @@ int markdup_main(string[] args) {
 
     MarkDuplicatesConfig cfg;
     cfg.tmpdir = defaultTmpDir();
+    
+    auto unparsed_args = args.dup;
 
     bool remove_duplicates;
     uint n_threads = totalCPUs;
@@ -1256,7 +1259,8 @@ int markdup_main(string[] args) {
         auto writer = new BamWriter(out_stream, compression_level);
         writer.setFilename(args[$-1]);
         scope(exit) writer.finish();
-        writer.writeSamHeader(bam.header);
+        auto header = addPG("markdup", unparsed_args, bam.header);
+        writer.writeSamHeader(header);
         writer.writeReferenceSequenceInfo(bam.reference_sequences);
 
         stderr.writeln(remove_duplicates ? "removing" : "marking", " duplicates...");
