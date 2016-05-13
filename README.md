@@ -1,3 +1,5 @@
+[![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
+
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.13200.svg)](http://dx.doi.org/10.5281/zenodo.13200)
 # Sambamba
 
@@ -43,9 +45,12 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 # Binaries
 
-See Github [releases](https://github.com/lomereiter/sambamba/releases).
+If you are already a Conda user, please use [`bioconda`](https://bioconda.github.io/) channel.
+If you are not, strongly consider becoming one.
 
-Users of Homebrew are advised to use the formula from `homebrew-science`.
+Users of Homebrew can also use the formula from `homebrew-science`.
+
+For those not in the mood to learn/install new package managers, there are of course Github [releases](https://github.com/lomereiter/sambamba/releases).
 
 # Compiling Sambamba
 
