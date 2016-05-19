@@ -377,6 +377,12 @@ class ChunkDispatcher(ChunkRange) {
         typeof(return) chunk;
         if (chunks_.empty)
             return chunk;
+
+        if (chunks_.front.ref_id >= bam_.reference_sequences.length) {
+            if (chunks_.front.ref_id != -1)
+              stderr.writeln("Invalid ref. id ", chunks_.front.ref_id, " in chunk #", num_ + 1);
+            return chunk;
+        }
         ++num_;
 
         auto filename = buildPath(tmp_dir_, num_.to!string());
@@ -423,7 +429,6 @@ class ChunkDispatcher(ChunkRange) {
 
 void worker(Dispatcher)(Dispatcher d,
                         MultiBamReader bam,
-                        TaskPool task_pool,
                         Args args,
                         std.stdio.File output_file) {
     while (true) {
@@ -443,7 +448,7 @@ void worker(Dispatcher)(Dispatcher d,
 
             auto output_stream = new bio.core.utils.stream.File(filename, "w");
             stderr.writeln("[opened FIFO for writing] ", filename);
-            auto writer = new BamWriter(output_stream, 0, task_pool);
+            auto writer = new BamWriter(output_stream, 0);
             writer.writeSamHeader(bam.header);
             writer.writeReferenceSequenceInfo(bam.reference_sequences);
             foreach (read; chunk.reads)
@@ -457,7 +462,6 @@ void worker(Dispatcher)(Dispatcher d,
         auto pp = pipeShell(cmd, Redirect.stdout);
 
         writing_thread.start();
-        scope(exit) pp.pid.wait();
 
         size_t capa = 1_024_576;
         size_t used = 0;
@@ -471,12 +475,15 @@ void worker(Dispatcher)(Dispatcher d,
             if (used + buf.length > capa) {
                 capa = max(capa * 2, used + buf.length);
                 output = cast(char*)std.c.stdlib.realloc(cast(void*)output, capa);
+                if (output is null)
+                    throw new Exception("failed to allocate " ~ capa.to!string ~ " bytes");
             }
             output[used .. used + buf.length] = buf[];
             used += buf.length;
         }
 
         writing_thread.join();
+        pp.pid.wait();
 
         synchronized (d.dump_mutex) {
             while (!d.tryDump(num, output[0 .. used], args.input_format, output_file))
@@ -618,7 +625,7 @@ int pileup_main(string[] args) {
         }
 
         foreach (i; 0 .. max(1, n_threads))
-            threads.create(() { worker(dispatcher, bam, taskPool, bundled_args,
+            threads.create(() { worker(dispatcher, bam, bundled_args,
                                        output_file); });
 
         return 0;
