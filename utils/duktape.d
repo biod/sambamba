@@ -375,3 +375,21 @@ duk_context duk_create_heap_default() {
 void duk_eval_string (duk_context ctx, const(char)* src) {
   duk_eval_raw((ctx), (src), 0, 1 /*args*/ | DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_STRLEN | DUK_COMPILE_NOFILENAME);
 }
+
+import std.traits;
+
+void push(T)(duk_context ctx, T value) if (isBoolean!T) {
+  duk_push_boolean(ctx, value);
+}
+
+void push(T)(duk_context ctx, T value) if (isNumeric!T) {
+  duk_push_number(ctx, value);
+}
+
+void push(T)(duk_context ctx, T value) if (isSomeChar!T) {
+  duk_push_lstring(ctx, &value, 1);
+}
+
+void push(T)(duk_context ctx, T value) if (is(T == string)) {
+  duk_push_lstring(ctx, value.ptr, value.length);
+}
