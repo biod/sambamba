@@ -1,6 +1,9 @@
 /*
   most of the file scaffolded with dstep on ubuntu with llvm 3.9 installed:
   ./dstep -c -Iduktape-1.5.0/src -I/usr/lib/llvm-3.9/lib/clang/3.9.0/include -o duktape.d duktape-1.5.0/src/duktape.h
+
+  Duktape's choice of macros for API is questionable,
+  it's easiest to just stick to version 1.5.0 for the time being :(
 */
 module utils.duktape;
 
@@ -87,6 +90,21 @@ immutable DUK_LOG_INFO =                       2;
 immutable DUK_LOG_WARN =                       3;
 immutable DUK_LOG_ERROR =                      4;
 immutable DUK_LOG_FATAL =                      5;
+
+immutable DUK_BUFOBJ_CREATE_ARRBUF =       (1 << 4)  /* internal flag: create backing ArrayBuffer; keep in one byte */;
+immutable DUK_BUFOBJ_DUKTAPE_BUFFER =      0;
+immutable DUK_BUFOBJ_NODEJS_BUFFER =       1;
+immutable DUK_BUFOBJ_ARRAYBUFFER =          2;
+immutable DUK_BUFOBJ_DATAVIEW =             (3 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_INT8ARRAY =            (4 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_UINT8ARRAY =           (5 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_UINT8CLAMPEDARRAY =    (6 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_INT16ARRAY =           (7 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_UINT16ARRAY =          (8 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_INT32ARRAY =           (9 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_UINT32ARRAY =          (10 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_FLOAT32ARRAY =         (11 | DUK_BUFOBJ_CREATE_ARRBUF);
+immutable DUK_BUFOBJ_FLOAT64ARRAY =         (12 | DUK_BUFOBJ_CREATE_ARRBUF);
 
 alias void* duk_context;
 alias int duk_idx_t;
@@ -374,6 +392,14 @@ duk_context duk_create_heap_default() {
 
 void duk_eval_string (duk_context ctx, const(char)* src) {
   duk_eval_raw((ctx), (src), 0, 1 /*args*/ | DUK_COMPILE_EVAL | DUK_COMPILE_NOSOURCE | DUK_COMPILE_STRLEN | DUK_COMPILE_NOFILENAME);
+}
+
+immutable DUK_BUF_FLAG_DYNAMIC =   (1 << 0)    /* internal flag: dynamic buffer */;
+immutable DUK_BUF_FLAG_EXTERNAL =  (1 << 1)    /* internal flag: external buffer */;
+immutable DUK_BUF_FLAG_NOZERO =    (1 << 2)    /* internal flag: don't zero allocated buffer */;
+
+void duk_push_external_buffer(duk_context ctx) {
+  duk_push_buffer_raw((ctx), 0, DUK_BUF_FLAG_DYNAMIC | DUK_BUF_FLAG_EXTERNAL);
 }
 
 import std.traits;

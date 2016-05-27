@@ -11,10 +11,54 @@ import std.regex;
 import std.string;
 import std.meta : AliasSeq;
 
+import bio.bam.tagvalue;
+void push(T)(duk_context ctx, T value) if (is(T == bio.bam.tagvalue.Value))
+{
+  if (value.is_nothing) ctx.duk_push_null();
+  else if (value.is_character) utils.duktape.push(ctx, value.to!char);
+  else if (value.is_float) utils.duktape.push(ctx, value.to!float);
+  else if (value.is_integer) utils.duktape.push(ctx, value.to!long);
+  else if (value.is_string) utils.duktape.push(ctx, value.to!string);
+  else if (value.is_numeric_array) {
+    ctx.duk_push_external_buffer();
+    void[] buf = *cast(void[]*)(&value);
+    uint type_size = bio.bam.tagvalue.charToSizeof(value.bam_typeid);
+    ctx.duk_config_buffer(-1, buf.ptr, buf.length * type_size);
+    duk_uint_t type_tag;
+    switch (value.bam_typeid) {
+      case 'c': type_tag = DUK_BUFOBJ_INT8ARRAY; break;
+      case 'C': type_tag = DUK_BUFOBJ_UINT8ARRAY; break;
+      case 's': type_tag = DUK_BUFOBJ_INT16ARRAY; break;
+      case 'S': type_tag = DUK_BUFOBJ_UINT16ARRAY; break;
+      case 'i': type_tag = DUK_BUFOBJ_INT32ARRAY; break;
+      case 'I': type_tag = DUK_BUFOBJ_UINT32ARRAY; break;
+      case 'f': type_tag = DUK_BUFOBJ_FLOAT32ARRAY; break;
+      default: throw new Exception("unsupported tag type");
+    }
+    ctx.duk_push_buffer_object(-1, 0, buf.length * type_size, type_tag);
+  }
+}
+
 extern(C) duk_ret_t
 getField(alias field)(duk_context ctx) {
-  auto read = cast(BamRead*)duk_get_pointer(ctx, 0);
-  mixin(`ctx.push(read.` ~ field ~ `);`);
+  auto read = cast(BamRead*)duk_require_pointer(ctx, 0);
+  mixin(`utils.duktape.push(ctx, read.` ~ field ~ `);`);
+  return 1;
+}
+
+extern(C) duk_ret_t
+getTag(duk_context ctx) {
+  auto read = cast(BamRead*)duk_require_pointer(ctx, 0);
+
+  duk_size_t s_len;
+  auto s_ptr = ctx.duk_require_lstring(1, &s_len);
+  if (s_len != 2) {
+    push(ctx, Value(null));
+    return 1;
+  }
+
+  auto tag = cast(string)(s_ptr[0 .. s_len]);
+  push(ctx, (*read)[tag]);
   return 1;
 }
 
@@ -46,6 +90,9 @@ void main(string[] args) {
       "is_duplicate", "is_supplementary",
       "basesCovered", "cigarString"))
       ctx.registerField!field();
+
+  duk_push_c_function(ctx, &getTag, 2);
+  duk_put_global_string(ctx, "getTag");
 
   auto filter = toStringz("(function(r) {return " ~ args[2] ~ "})");
   duk_eval_string(ctx, filter); // stack: [func]
