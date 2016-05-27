@@ -62,6 +62,22 @@ getTag(duk_context ctx) {
   return 1;
 }
 
+extern(C) duk_ret_t
+getSequence(duk_context ctx) {
+  auto read = cast(BamRead*)duk_require_pointer(ctx, 0);
+  utils.duktape.push(ctx, read.sequence.to!string);
+  return 1;
+}
+
+extern(C) duk_ret_t
+getBaseQualities(duk_context ctx) {
+  auto buf = (cast(BamRead*)duk_require_pointer(ctx, 0)).base_qualities;
+  ctx.duk_push_external_buffer();
+  ctx.duk_config_buffer(-1, buf.ptr, buf.length);
+  ctx.duk_push_buffer_object(-1, 0, buf.length, DUK_BUFOBJ_UINT8ARRAY);
+  return 1;
+}
+
 void registerField(alias field)(duk_context ctx, string js_name=field) {
   js_name = js_name.replaceAll!(m => m.hit[1 .. $].toUpper)(regex(r"_\w"));
 
@@ -92,7 +108,13 @@ void main(string[] args) {
       ctx.registerField!field();
 
   duk_push_c_function(ctx, &getTag, 2);
-  duk_put_global_string(ctx, "getTag");
+  duk_put_global_string(ctx, "tag");
+
+  duk_push_c_function(ctx, &getSequence, 1);
+  duk_put_global_string(ctx, "sequence");
+
+  duk_push_c_function(ctx, &getBaseQualities, 1);
+  duk_put_global_string(ctx, "baseQualities");
 
   auto filter = toStringz("(function(r) {return " ~ args[2] ~ "})");
   duk_eval_string(ctx, filter); // stack: [func]
