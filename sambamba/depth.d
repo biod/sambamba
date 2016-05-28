@@ -1036,7 +1036,7 @@ final class PerWindowPrinter : PerRegionPrinter {
                 printEmptyWindows(k);
             moveToReference(column.ref_id);
         } else if (column.ref_id != window_ref_id) {
-            while (leftmost_window_start_pos + window_size < ref_length)
+            while (leftmost_window_start_pos + window_size <= ref_length)
                 finishLeftMostWindow();
             resetAllWindows();
             foreach (k; window_ref_id + 1 .. column.ref_id)
@@ -1050,7 +1050,7 @@ final class PerWindowPrinter : PerRegionPrinter {
     }
 
     override void close() {
-        while (leftmost_window_start_pos + window_size < ref_length)
+        while (leftmost_window_start_pos + window_size <= ref_length)
             finishLeftMostWindow();
         foreach (k; window_ref_id + 1 .. bam.reference_sequences.length)
             printEmptyWindows(cast(int)k);
