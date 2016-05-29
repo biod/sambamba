@@ -86,10 +86,11 @@ void registerField(alias field)(duk_context ctx, string js_name=field) {
 }
 
 void main(string[] args) {
-  auto read = new BamReader(args[1]).reads.front;
-
   duk_context ctx = duk_create_heap_default();
   scope(exit) duk_destroy_heap(ctx);
+
+  import std.parallelism;
+  defaultPoolThreads = 0;
 
   // make each of these fields available as JS functions;
   // e.g. mate_ref_id can be accessed as mateRefId(r)
@@ -119,11 +120,16 @@ void main(string[] args) {
   auto filter = toStringz("(function(r) {return " ~ args[2] ~ "})");
   duk_eval_string(ctx, filter); // stack: [func]
 
-  duk_push_pointer(ctx, &read); // stack: [func bamread]
-  duk_call(ctx, 1);             // stack: [result]
+  size_t count = 0;
+  foreach (read; new BamReader(args[1]).reads) {
+    duk_dup(ctx, -1);
+    duk_push_pointer(ctx, &read); // stack: [func func bamread]
+    duk_call(ctx, 1);             // stack: [func result]
 
-  duk_bool_t result = duk_get_boolean(ctx, -1);
-  duk_pop(ctx);
+    duk_bool_t result = duk_get_boolean(ctx, -1);
+    duk_pop(ctx);
 
-  writeln("filter result:", to!bool(result));
+    count += to!bool(result);
+  }
+  writeln(count);
 }
