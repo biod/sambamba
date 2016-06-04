@@ -18,11 +18,10 @@ for each reference sort corresponding reads by start coordinate.</p>
 <p>'qname' sorting order is when reads are sorted lexicographically by
 their names.</p>
 
-<p><code>sambamba sort</code> does an external sort on input file. That means it
+<p><code>sambamba sort</code> does an external <code>stable</code>-type sort on input file. That means it
 reads the source BAM file in chunks that fit into memory, sorts them
 and writes to a temporary directory, and then merges them. After merging
-temporary files are removed automatically. The sort is stable, and efforts
-have been done to make it multithreaded.</p>
+temporary files are removed automatically.</p>
 
 <p>Both sorting orders are supported. Default one is 'coordinate'
 because this is the one used for building index later. In order to
@@ -32,7 +31,7 @@ switch to 'qname' sorting order, use <code>-n</code>|<code>--sort-by-name</code>
 
 <dl>
 <dt><code>-m</code>, <code>--memory-limit</code>=<var>LIMIT</var></dt><dd><p>Sets an upper bound for used memory. However, this is very approximate.
-Default memory limit is 512MiB. Increasing it will allow to make chunk
+Default memory limit is 2GB. Increasing it will allow to make chunk
 sizes larger and also reduce amount of I/O seeks thus improving the overall
 performance.</p>
 
@@ -41,7 +40,9 @@ The following endings are recognized: K, KiB, KB, M, MiB, MB, G, GiB, GB.</p></d
 <dt><code>--tmpdir</code>=<var>TMPDIR</var></dt><dd><p>Use <var>TMPDIR</var> to output sorted chunks. Default behaviour is to use system
 temporary directory.</p></dd>
 <dt><code>-o</code>, <code>--out</code>=<var>OUTPUTFILE</var></dt><dd><p>Output file name. If not provided, the result is written to a file with .sorted.bam extension.</p></dd>
-<dt><code>-n</code>, <code>--sort-by-name</code></dt><dd><p>Sort by read name instead of doing coordinate sort.</p></dd>
+<dt><code>-n</code>, <code>--sort-by-name</code></dt><dd><p>Sort by read name lexicographically</p></dd>
+<dt><code>-N</code>, <code>--natural-sort</code></dt><dd><p>Sort by read name using natural order (like samtools)</p></dd>
+<dt><code>-F</code>, <code>--filter</code>=<var>FILTER</var></dt><dd><p>Keep only reads that pass <var>FILTER</var>. More on that in <code>sambamba-view</code> documentation.</p></dd>
 <dt><code>-l</code>, <code>--compression-level</code>=<var>COMPRESSION_LEVEL</var></dt><dd><p>Compression level to use for <em>sorted</em> BAM, from 0 (known as uncompressed BAM in samtools) to 9.</p></dd>
 <dt><code>-u</code>, <code>--uncompressed-chunks</code></dt><dd><p>Write sorted chunks as uncompressed BAM.
 Default behaviour is to write them with compression level 1, because that reduces time spent on I/O,
@@ -53,8 +54,9 @@ and then another one for merging).</p></dd>
 </dl>
 
 
-<h2 id="BUGS">BUGS</h2>
+<h2 id="SEE-ALSO">SEE ALSO</h2>
 
-<p>At the moment, the memory is used quite ineffectively.</p>
+<p>For more information on the original samtools SORT behaviour, check
+out the <a href="http://samtools.sourceforge.net/samtools.shtml">samtools documentation</a>.</p>
 
 </div>
