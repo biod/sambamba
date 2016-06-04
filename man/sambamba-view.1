@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "SAMBAMBA\-VIEW" "1" "February 2015" "" ""
+.TH "SAMBAMBA\-VIEW" "1" "June 2016" "" ""
 .
 .SH "NAME"
 \fBsambamba\-view\fR \- tool for extracting information from SAM/BAM/CRAM files
@@ -13,7 +13,7 @@
 \fBsambamba view\fR allows to efficiently filter SAM/BAM/CRAM files for alignments satisfying various conditions, as well as access its SAM header and information about reference sequences\. In order to make these data readily available for consumption by scripts in Perl/Python/Ruby, JSON output is provided\.
 .
 .P
-By default, the tool expects BAM file as an input\. In order to work with CRAM, specify \-C and for SAM, specify \fB\-S\fR|\fB\-\-sam\-input\fR as a command\-line option, the tool does NOT try to guess file format from the extension\. Beware that when reading SAM, the tool will skip tags which don\'t conform to the SAM/BAM specification, and set invalid fields to their default values\. However, only syntax is checked, use \fB\-\-valid\fR for full validation\.
+By default, the tool expects BAM file as an input\. In order to work with CRAM, specify \-C and for SAM, specify \fB\-S\fR|\fB\-\-sam\-input\fR as a command\-line option, the tool does NOT try to guess file format from the extension\. Beware that when reading SAM, the tool will skip tags which don\'t conform to the SAM/BAM specification, and set invalid fields to their default values\.
 .
 .SH "FILTERING"
 Filtering is presented in two ways\. First, you can specify a condition with \fB\-F\fR option, using a special language for filtering, described at
@@ -43,94 +43,13 @@ Alignment record JSON representation is a hash with keys \'qname\', \'flag\', \'
 22,26,19,27,26,27,26,26,26,26,26,24,19,27,26],"tags":{"MF":192}}
 .
 .P
-JSON representation mimics SAM format except quality is given as an array of integers\. This format might change in the future\.
-.
-.SH "MsgPack"
-MessagePack output format is more effective with respect to performance, while almost as easy to parse as JSON representation\. Libraries for parsing MessagePack are available for all popular languages\. See http://msgpack\.org for more information\.
+JSON representation mimics SAM format except quality is given as an array of integers\.
 .
 .P
-Alignment record representation is an array, per\-element description is given below\.
-.
-.IP "" 4
-.
-.nf
-
-[ 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 ]
-.
-.fi
-.
-.IP "" 0
-.
-.IP "\(bu" 4
-0 \- read name (string)
-.
-.IP "\(bu" 4
-1 \- flag (integer)
-.
-.IP "\(bu" 4
-2 \- reference sequence ID (integer)
-.
-.IP "\(bu" 4
-3 \- 1\-based leftmost mapping position (integer)
-.
-.IP "\(bu" 4
-4 \- mapping quality (integer)
-.
-.IP "\(bu" 4
-5 \- lengths of CIGAR operations (array of integers)
-.
-.IP "\(bu" 4
-6 \- types of CIGAR operations (array of chars)
-.
-.IP "\(bu" 4
-7 \- mate reference sequence ID (integer)
-.
-.IP "\(bu" 4
-8 \- 1\-based mate leftmost mapping position (integer)
-.
-.IP "\(bu" 4
-9 \- template length (integer)
-.
-.IP "\(bu" 4
-10 \- segment sequence (string)
-.
-.IP "\(bu" 4
-11 \- phred\-base quality (array of integers)
-.
-.IP "\(bu" 4
-12 \- tags (map : string \-> value)
-.
-.IP "" 0
+Postprocessing JSON output is best accomplished with https://stedolan\.github\.io/jq/
 .
 .P
-Header representation is also an array containing the following:
-.
-.IP "" 4
-.
-.nf
-
-[ 0 | 1 | 2 | 3 | 4 ]
-.
-.fi
-.
-.IP "" 0
-.
-.IP "\(bu" 4
-0 \- format version (string)
-.
-.IP "\(bu" 4
-1 \- sorting order (string)
-.
-.IP "\(bu" 4
-2 \- @SQ lines (array of maps : string \-> value)
-.
-.IP "\(bu" 4
-3 \- @RG lines (ditto)
-.
-.IP "\(bu" 4
-4 \- @PG lines (ditto)
-.
-.IP "" 0
+The output is one line per read, for building a proper JSON array pipe the output into \fBjq \-\-slurp\fR\.
 .
 .SH "OPTIONS"
 .
@@ -140,7 +59,7 @@ Set custom filter for alignments\.
 .
 .TP
 \fB\-f\fR, \fB\-\-format\fR=\fIFORMAT\fR
-Specify output format\. \fIFORMAT\fR must be one of sam, bam, cram, json, or msgpack (in lowercase)\. Default is SAM\.
+Specify output format\. \fIFORMAT\fR must be one of sam, bam, cram, or json (in lowercase)\. Default is SAM\.
 .
 .TP
 \fB\-h\fR, \fB\-\-with\-header\fR
@@ -253,6 +172,3 @@ Output header in JSON format:
 .
 .SH "SEE ALSO"
 For more information on the original samtools VIEW behaviour, check out the samtools documentation \fIhttp://samtools\.sourceforge\.net/samtools\.shtml\fR\.
-.
-.SH "BUGS"
-There\'s no way to see validation error messages or to set validation stringency at the moment\.
