@@ -18,8 +18,7 @@ with CRAM, specify -C and for SAM, specify `-S`|`--sam-input` as a
 command-line option, the tool does NOT try to guess file format from
 the extension.  Beware that when reading SAM, the tool will skip tags
 which don't conform to the SAM/BAM specification, and set invalid
-fields to their default values.  However, only syntax is checked, use
-`--valid` for full validation.
+fields to their default values.
 
 ## FILTERING
 
@@ -44,41 +43,10 @@ Alignment record JSON representation is a hash with keys 'qname', 'flag', 'rname
  22,26,19,27,26,27,26,26,26,26,26,24,19,27,26],"tags":{"MF":192}}
 
 JSON representation mimics SAM format except quality is given as an array of integers.
-This format might change in the future.
 
-## MsgPack
+Postprocessing JSON output is best accomplished with https://stedolan.github.io/jq/
 
-MessagePack output format is more effective with respect to performance, while almost as easy
-to parse as JSON representation. Libraries for parsing MessagePack are available for all
-popular languages. See http://msgpack.org for more information.
-
-Alignment record representation is an array, per-element description is given below.
-
-    [ 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 ]
-
-  *  0 - read name (string)
-  *  1 - flag (integer)
-  *  2 - reference sequence ID (integer)
-  *  3 - 1-based leftmost mapping position (integer)
-  *  4 - mapping quality (integer)
-  *  5 - lengths of CIGAR operations (array of integers)
-  *  6 - types of CIGAR operations (array of chars)
-  *  7 - mate reference sequence ID (integer)
-  *  8 - 1-based mate leftmost mapping position (integer)
-  *  9 - template length (integer)
-  * 10 - segment sequence (string)
-  * 11 - phred-base quality (array of integers)
-  * 12 - tags (map : string -> value)
-
-Header representation is also an array containing the following:
-
-    [ 0 | 1 | 2 | 3 | 4 ]
-
-  * 0 - format version (string)
-  * 1 - sorting order (string)
-  * 2 - @SQ lines (array of maps : string -> value)
-  * 3 - @RG lines (ditto)
-  * 4 - @PG lines (ditto)
+The output is one line per read, for building a proper JSON array pipe the output into `jq --slurp`.
 
 ## OPTIONS
 
@@ -86,7 +54,7 @@ Header representation is also an array containing the following:
     Set custom filter for alignments.
 
   * `-f`, `--format`=<FORMAT>:
-    Specify output format. <FORMAT> must be one of sam, bam, cram, json, or msgpack (in lowercase).
+    Specify output format. <FORMAT> must be one of sam, bam, cram, or json (in lowercase).
     Default is SAM.
 
   * `-h`, `--with-header`:
@@ -158,8 +126,3 @@ Header representation is also an array containing the following:
 
 For more information on the original samtools VIEW behaviour, check
 out the [samtools documentation](http://samtools.sourceforge.net/samtools.shtml).
-
-## BUGS
-
-There's no way to see validation error messages or 
-to set validation stringency at the moment.
