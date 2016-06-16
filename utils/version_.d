@@ -1,6 +1,6 @@
 module utils.version_;
 
-immutable string VERSION = "0.6.1";
+immutable string VERSION = "0.6.2";
 
 import bio.sam.header;
 import std.array : join;
