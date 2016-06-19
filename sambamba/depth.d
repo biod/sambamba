@@ -64,7 +64,7 @@ void printUsage() {
     stderr.writeln("         -t, --nthreads=NTHREADS");
     stderr.writeln("                    maximum number of threads to use");
     stderr.writeln("         -c, --min-coverage=MINCOVERAGE");
-    stderr.writeln("                    minimum mean coverage for output");
+    stderr.writeln("                    minimum mean coverage for output (default: 0 for region/window, 1 for base)");
     stderr.writeln("         -C, --max-coverage=MAXCOVERAGE");
     stderr.writeln("                    maximum mean coverage for output");
     stderr.writeln("         -q, --min-base-quality=QUAL");
@@ -79,7 +79,7 @@ void printUsage() {
     stderr.writeln("base subcommand options:");
     stderr.writeln("         -L, --regions=FILENAME|REGION");
     stderr.writeln("                    list or regions of interest or a single region in form chr:beg-end (optional)");
-    stderr.writeln("         -z, --report-zero-coverage");
+    stderr.writeln("         -z, --report-zero-coverage (DEPRECATED, use --min-coverage=0 instead)");
     stderr.writeln("                    don't skip zero coverage bases");
     stderr.writeln("region subcommand options:");
     stderr.writeln("         -L, --regions=FILENAME|REGION");
@@ -300,16 +300,13 @@ abstract class ColumnPrinter {
     abstract void close();
 
     uint getSampleId(R)(auto ref R read) {
-        if (combined || sample_names.empty)
+        if (combined || sample_names.length == 1)
             return 0;
         return read.sample_id;
     }
 
     string getSampleName(uint sample_id) {
-        if (sample_names.empty)
-            return "*";
-        else
-            return sample_names[sample_id];
+        return sample_names[sample_id];
     }
 
     private {
@@ -412,6 +409,10 @@ final class PerBasePrinter : ColumnPrinter {
         getopt(args,
                 std.getopt.config.caseSensitive,
                 "report-zero-coverage|z", &report_zero_coverage);
+        if (report_zero_coverage)
+            min_cov = 0;
+        if (min_cov == 0)
+            report_zero_coverage = true;
 
         output_file.write("REF\tPOS\tCOV\tA\tC\tG\tT\tDEL\tREFSKIP");
         if (!combined)
@@ -427,11 +428,10 @@ final class PerBasePrinter : ColumnPrinter {
         stats_collector = new NonOverlappingRegionStatsCollector(bed);
     }
 
-    private void writeEmptyColumns(long ref_id, long start, long end) {
-        if (min_cov > 0 && !annotate)
-            return;
-        auto ref_name = bam.reference_sequences[cast(uint)ref_id].name;
-        string[] tails;
+    private string[] tails;
+    private void initTails() {
+        if (!tails.empty) return;
+
         if (combined) {
             tails ~= "\t0\t0\t0\t0\t0\t0\t0";
             if (annotate)
@@ -443,6 +443,14 @@ final class PerBasePrinter : ColumnPrinter {
                     tails.back = tails.back ~ (min_cov > 0 ? "\tn" : "\ty");
             }
         }
+    }
+
+    private void writeEmptyColumns(long ref_id, long start, long end) {
+        if (min_cov > 0 && !annotate)
+            return;
+        auto ref_name = bam.reference_sequences[cast(uint)ref_id].name;
+
+        initTails();
 
         if (!_bed_is_provided) {
             foreach (pos; start .. end) {
@@ -466,7 +474,9 @@ final class PerBasePrinter : ColumnPrinter {
                 foreach (pos; from .. to)
                     foreach (tail; tails)
                     output_file.writeln(ref_name, '\t', pos, tail);
-                raw_bed.popFront();
+                raw_bed.front.start = cast(uint)to;
+                if (raw_bed.front.start >= raw_bed.front.end)
+                    raw_bed.popFront();
             }
             stats_collector = new NonOverlappingRegionStatsCollector(raw_bed);
         }
@@ -551,7 +561,7 @@ final class PerBasePrinter : ColumnPrinter {
     }
 
     override void push(ref Column c) {
-        if (!report_zero_coverage) {
+        if (min_cov > 0) {
             if (outputRequired(c.ref_id, c.position))
                 writeColumn(c);
             return;
@@ -565,6 +575,8 @@ final class PerBasePrinter : ColumnPrinter {
             writeEmptyColumns(_prev_ref_id, _prev_position + 1,
                     bam.reference_sequences[_prev_ref_id].length);
             writeEmptyColumns(c.ref_id, 0, c.position);
+        } else if (_prev_position != c.position - 1) {
+            writeEmptyColumns(c.ref_id, _prev_position + 1, c.position);
         }
 
         _prev_ref_id = c.ref_id;
@@ -1092,6 +1104,9 @@ int depth_main(string[] args) {
         return 0;
     }
 
+    if (mode == Mode.base)
+        printer.min_cov = 1;
+
     string output_fn;
 
     args = args[1 .. $];
@@ -1157,6 +1172,9 @@ int depth_main(string[] args) {
             }
             rg2id[rg.identifier] = sm2id[rg.sample];
         }
+
+        if (printer.sample_names.empty)
+            printer.sample_names = ["*"];
 
         InputRange!(CustomBamRead) reads;
         if (bed_filename !is null) {
