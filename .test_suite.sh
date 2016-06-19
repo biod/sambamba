@@ -88,4 +88,23 @@ testIssue206() {
     assertEquals 0 $?
 }
 
+testIssue225() {
+    ./build/sambamba depth base -c 1 test/issue225.bam 2>/dev/null > depth_base_225_1.txt
+    diff -q depth_base_225_1.txt test/issue225.out
+    assertEquals 0 $?
+
+    ./build/sambamba depth base -c 0 test/issue225.bam 2>/dev/null > depth_base_225_0.txt
+    diff -q depth_base_225_0.txt test/issue225.z.out
+    assertEquals 0 $?
+
+    # exercise BED codepath as well
+    ./build/sambamba depth base -c 1 -L chrM test/issue225.bam 2>/dev/null > depth_base_225_1.txt
+    diff -q depth_base_225_1.txt test/issue225.out
+    assertEquals 0 $?
+
+    ./build/sambamba depth base -c 0 -L chrM test/issue225.bam 2>/dev/null > depth_base_225_0.txt
+    diff -q depth_base_225_0.txt test/issue225.z.out
+    assertEquals 0 $?
+}
+
 . shunit2-2.0.3/src/shell/shunit2
