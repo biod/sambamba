@@ -89,20 +89,21 @@ testIssue206() {
 }
 
 testIssue225() {
-    ./build/sambamba depth base -c 1 test/issue225.bam 2>/dev/null > depth_base_225_1.txt
+    ./build/sambamba index test/issue225.bam
+    ./build/sambamba depth base -c 1 test/issue225.bam > depth_base_225_1.txt 2>/dev/null
     diff -q depth_base_225_1.txt test/issue225.out
     assertEquals 0 $?
 
-    ./build/sambamba depth base -c 0 test/issue225.bam 2>/dev/null > depth_base_225_0.txt
+    ./build/sambamba depth base -c 0 test/issue225.bam > depth_base_225_0.txt 2>/dev/null
     diff -q depth_base_225_0.txt test/issue225.z.out
     assertEquals 0 $?
 
     # exercise BED codepath as well
-    ./build/sambamba depth base -c 1 -L chrM test/issue225.bam 2>/dev/null > depth_base_225_1.txt
+    ./build/sambamba depth base -c 1 -L chrM test/issue225.bam > depth_base_225_1.txt 2>/dev/null
     diff -q depth_base_225_1.txt test/issue225.out
     assertEquals 0 $?
 
-    ./build/sambamba depth base -c 0 -L chrM test/issue225.bam 2>/dev/null > depth_base_225_0.txt
+    ./build/sambamba depth base -c 0 -L chrM test/issue225.bam > depth_base_225_0.txt 2>/dev/null
     diff -q depth_base_225_0.txt test/issue225.z.out
     assertEquals 0 $?
 }
