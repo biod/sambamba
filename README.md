@@ -87,6 +87,18 @@ export LIBRARY_PATH=~/ldc2-0.17.1-linux-x86_64/lib/
     make sambamba-ldmd2-64
 ```
 
+# Troubleshooting
+
+In case of crashes it's helpful to have GDB stacktraces (`bt` command).
+
+Note that GDB should be made aware of D garbage collector:
+```
+handle SIGUSR1 nostop
+handle SIGUSR1 noprint
+handle SIGUSR2 nostop
+handle SIGUSR2 noprint
+```
+
 # Development
 
 Sambamba development and issue tracker is on
