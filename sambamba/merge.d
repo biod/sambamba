@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -284,8 +284,8 @@ struct AlignmentRangeModifier(T) {
 
         int chunk_size = *(cast(int*)(_curr_data.ptr + _bytes_read));
         auto chunk = _curr_data[int.sizeof + _bytes_read .. $][0 .. chunk_size];
-        // FIXME big-endian?
-        _front = BamRead(chunk);
+        bool fix_byte_order = false;
+        _front = BamRead(chunk, fix_byte_order);
         _bytes_read += int.sizeof + chunk_size;
     }
 }
