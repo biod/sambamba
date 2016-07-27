@@ -81,4 +81,4 @@ sambamba-pileup:
 .PHONY: clean
 
 clean:
-	rm -rf build/ ; cd htslib ; make clean
+	rm -rf build/ ; $(MAKE) -C htslib clean ; $(MAKE) -C lz4 clean
