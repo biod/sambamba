@@ -54,6 +54,7 @@ import std.path;
 import std.traits;
 import std.typecons;
 import std.conv;
+import std.container;
 
 import core.thread;
 import core.sync.mutex, core.sync.condition;
@@ -352,22 +353,31 @@ class ChunkDispatcher(ChunkRange) {
     private ChunkRange chunks_;
     private MultiBamReader bam_;
     private size_t num_, curr_num_ = 1;
-    private Mutex mutex_;
+    private FileFormat format_;
+    private std.stdio.File output_file_;
 
-    Mutex dump_mutex;
-    Condition dump_condition;
+    private Mutex mutex_, queue_mutex_;
+    private Condition queue_condition_;
+
+    alias Tuple!(size_t, "num", char[], "data") Result;
+    alias Array!(Result) ResultQueue;
+    private BinaryHeap!(ResultQueue, "a.num > b.num") result_queue_;
 
     alias ElementType!(Unqual!(ChunkRange)) Chunk;
 
-    this(string tmp_dir, ChunkRange chunks, MultiBamReader bam) {
+    bool workers_running = true;
+
+    this(string tmp_dir, ChunkRange chunks, MultiBamReader bam, FileFormat format, std.stdio.File output_file) {
         tmp_dir_ = tmp_dir;
         chunks_ = chunks;
         bam_ = bam;
         num_ = 0;
         mutex_ = new Mutex();
-
-        dump_mutex = new Mutex();
-        dump_condition = new Condition(dump_mutex);
+        queue_mutex_ = new Mutex();
+        queue_condition_ = new Condition(queue_mutex_);
+        result_queue_ = heapify!("a.num > b.num", ResultQueue)(ResultQueue());
+        format_ = format;
+        output_file_ = output_file;
     }
 
     Nullable!(Tuple!(Chunk, string, size_t)) nextChunk() {
@@ -412,25 +422,42 @@ class ChunkDispatcher(ChunkRange) {
         return chunk;
     }
 
-    bool tryDump(size_t num, char[] data, FileFormat fmt, std.stdio.File output_file) {
-        bool result;
-        synchronized (dump_mutex) {
-            result = num == curr_num_;
-            if (result) {
-                decompressIntoFile(data, fmt, output_file);
-                ++curr_num_;
-                dump_condition.notifyAll();
-            }
+    void queueResult(size_t num, char[] data) {
+        synchronized(queue_mutex_) {
+            result_queue_.insert(Result(num, data));
+            queue_condition_.notify();
         }
+        stderr.writeln("[chunk queued for dumping] ", num);
+    }
 
-        return result;
+    void dumpResults() {
+        Result result;
+        while (workers_running || hasDumpableResult()) {
+            synchronized(queue_mutex_) {
+                while (!hasDumpableResult()) {
+                    queue_condition_.wait();
+                }
+                result = result_queue_.front;
+                result_queue_.popFront();
+                ++curr_num_;
+            }
+            decompressIntoFile(result.data, format_, output_file_);
+            stderr.writeln("[chunk dumped] ", result.num);
+            std.c.stdlib.free(result.data.ptr);
+        }
+    }
+
+private:
+    bool hasDumpableResult() {
+        synchronized(queue_mutex_) {
+            return !result_queue_.empty() && result_queue_.front.num == curr_num_;
+        }
     }
 }
 
 void worker(Dispatcher)(Dispatcher d,
                         MultiBamReader bam,
-                        Args args,
-                        std.stdio.File output_file) {
+                        Args args) {
     while (true) {
         auto result = d.nextChunk();
         if (result.isNull)
@@ -485,17 +512,13 @@ void worker(Dispatcher)(Dispatcher d,
         writing_thread.join();
         pp.pid.wait();
 
-        synchronized (d.dump_mutex) {
-            while (!d.tryDump(num, output[0 .. used], args.input_format, output_file))
-                d.dump_condition.wait();
-        }
-        std.c.stdlib.free(output);
+        d.queueResult(num, output[0 .. used]);
     }
 }
 
 auto chunkDispatcher(ChunkRange)(string tmp_dir, ChunkRange chunks,
-                                 MultiBamReader bam) {
-    return new ChunkDispatcher!ChunkRange(tmp_dir, chunks, bam);
+                                 MultiBamReader bam, FileFormat format, std.stdio.File output_file) {
+    return new ChunkDispatcher!ChunkRange(tmp_dir, chunks, bam, format, output_file);
 }
 
 void printUsage() {
@@ -614,19 +637,22 @@ int pileup_main(string[] args) {
         }
 
         auto chunks = reads.pileupChunks(false, buffer_size);
-        auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam);
+        auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam, bundled_args.input_format, output_file);
 
+        auto writer = new Thread(&dispatcher.dumpResults);
+        writer.start();
         auto threads = new ThreadGroup();
 
         scope (exit) {
             threads.joinAll();
+            dispatcher.workers_running = false;
+            writer.join();
             output_file.close();
             stderr.writeln("[Successful exit]");
         }
 
         foreach (i; 0 .. max(1, n_threads))
-            threads.create(() { worker(dispatcher, bam, bundled_args,
-                                       output_file); });
+            threads.create(() { worker(dispatcher, bam, bundled_args); });
 
         return 0;
 
