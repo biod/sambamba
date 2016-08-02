@@ -355,9 +355,10 @@ class ChunkDispatcher(ChunkRange) {
     private size_t num_, curr_num_ = 1;
     private FileFormat format_;
     private std.stdio.File output_file_;
+    private size_t max_queue_length_;
 
     private Mutex mutex_, queue_mutex_;
-    private Condition queue_condition_;
+    private Condition queue_not_empty_condition_, queue_not_full_condition_;
 
     alias Tuple!(size_t, "num", char[], "data") Result;
     alias Array!(Result) ResultQueue;
@@ -367,17 +368,20 @@ class ChunkDispatcher(ChunkRange) {
 
     bool workers_running = true;
 
-    this(string tmp_dir, ChunkRange chunks, MultiBamReader bam, FileFormat format, std.stdio.File output_file) {
+    this(string tmp_dir, ChunkRange chunks, MultiBamReader bam,
+         FileFormat format, std.stdio.File output_file, size_t max_queue_length) {
         tmp_dir_ = tmp_dir;
         chunks_ = chunks;
         bam_ = bam;
         num_ = 0;
         mutex_ = new Mutex();
         queue_mutex_ = new Mutex();
-        queue_condition_ = new Condition(queue_mutex_);
+        queue_not_empty_condition_ = new Condition(queue_mutex_);
+        queue_not_full_condition_ = new Condition(queue_mutex_);
         result_queue_ = heapify!("a.num > b.num", ResultQueue)(ResultQueue());
         format_ = format;
         output_file_ = output_file;
+        max_queue_length_ = max_queue_length;
     }
 
     Nullable!(Tuple!(Chunk, string, size_t)) nextChunk() {
@@ -424,8 +428,12 @@ class ChunkDispatcher(ChunkRange) {
 
     void queueResult(size_t num, char[] data) {
         synchronized(queue_mutex_) {
+            while(result_queue_.length >= max_queue_length_ && num != curr_num_) {
+                stderr.writeln("[chunk waiting for dump queue] ", num, " (output is too slow: reduce threads or improve output speed)");
+                queue_not_full_condition_.wait();
+            }
             result_queue_.insert(Result(num, data));
-            queue_condition_.notify();
+            queue_not_empty_condition_.notify();
         }
         stderr.writeln("[chunk queued for dumping] ", num);
     }
@@ -435,11 +443,12 @@ class ChunkDispatcher(ChunkRange) {
         while (workers_running || hasDumpableResult()) {
             synchronized(queue_mutex_) {
                 while (!hasDumpableResult()) {
-                    queue_condition_.wait();
+                    queue_not_empty_condition_.wait();
                 }
                 result = result_queue_.front;
                 result_queue_.popFront();
                 ++curr_num_;
+                queue_not_full_condition_.notifyAll();
             }
             decompressIntoFile(result.data, format_, output_file_);
             stderr.writeln("[chunk dumped] ", result.num);
@@ -517,8 +526,9 @@ void worker(Dispatcher)(Dispatcher d,
 }
 
 auto chunkDispatcher(ChunkRange)(string tmp_dir, ChunkRange chunks,
-                                 MultiBamReader bam, FileFormat format, std.stdio.File output_file) {
-    return new ChunkDispatcher!ChunkRange(tmp_dir, chunks, bam, format, output_file);
+                                 MultiBamReader bam, FileFormat format,
+                                 std.stdio.File output_file, size_t max_queue_length) {
+    return new ChunkDispatcher!ChunkRange(tmp_dir, chunks, bam, format, output_file, max_queue_length);
 }
 
 void printUsage() {
@@ -637,7 +647,7 @@ int pileup_main(string[] args) {
         }
 
         auto chunks = reads.pileupChunks(false, buffer_size);
-        auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam, bundled_args.input_format, output_file);
+        auto dispatcher = chunkDispatcher(tmp_dir, chunks, bam, bundled_args.input_format, output_file, 2 * n_threads);
 
         auto writer = new Thread(&dispatcher.dumpResults);
         writer.start();
