@@ -1107,6 +1107,10 @@ void printUsage() {
     stderr.writeln("                    size of the overflow list where reads, thrown from the hash table,");
     stderr.writeln("                    get a second chance to meet their pairs (default is 200000 reads);");
     stderr.writeln("                    increasing the size reduces the number of temporary files created");
+    stderr.writeln("         --sort-buffer-size=SORT_BUFFER_SIZE");
+    stderr.writeln("                    total amount of memory (in *megabytes*) used for sorting purposes;");
+    stderr.writeln("                    the default is 2048, increasing it will reduce the number of created");
+    stderr.writeln("                    temporary files and the time spent in the main thread");
     stderr.writeln("         --io-buffer-size=BUFFER_SIZE");
     stderr.writeln("                    two buffers of BUFFER_SIZE *megabytes* each are used");
     stderr.writeln("                    for reading and writing BAM during the second pass (default is 128)");
@@ -1122,7 +1126,7 @@ int markdup_main(string[] args) {
 
     MarkDuplicatesConfig cfg;
     cfg.tmpdir = defaultTmpDir();
-    
+
     auto unparsed_args = args.dup;
 
     bool remove_duplicates;
@@ -1130,6 +1134,7 @@ int markdup_main(string[] args) {
     bool show_progress;
     size_t io_buffer_size = 128;
     size_t hash_table_size;
+    size_t sort_buffer_size = 2048;
     int compression_level = -1;
 
     bool cmp_with_picard_mode; // for development purposes!
@@ -1148,6 +1153,7 @@ int markdup_main(string[] args) {
            "hash-table-size", &hash_table_size,
            "overflow-list-size", &cfg.overflow_list_size,
            "io-buffer-size", &io_buffer_size,
+           "sort-buffer-size", &sort_buffer_size,
            "compare-with-picard-mode", &cmp_with_picard_mode);
 
         if (args.length < 3) {
@@ -1215,6 +1221,9 @@ int markdup_main(string[] args) {
         }
 
         io_buffer_size <<= 20; // -> convert to megabytes
+
+        // max. 4 at the same time (single/paired/second reads + dup. indices)
+        cfg.bufsize = sort_buffer_size << 18;
 
         cfg.hash_table_size_log2 = 10; // FIXME: overrides default value of 18
         while ((2UL << cfg.hash_table_size_log2) <= hash_table_size)
