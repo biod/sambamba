@@ -150,10 +150,26 @@ struct HReadBlock {
     }
 }
 
+auto toMallocHeap(R)(auto ref R read) {
+    auto len = read.raw_data.length;
+    auto data = cast(ubyte*)std.c.stdlib.malloc(len);
+    data[0 .. len] = read.raw_data[];
+    R r2 = read;
+    r2.raw_data = data[0 .. len];
+    return r2;
+}
+
+void free(R)(auto ref R read) {
+    std.c.stdlib.free(read.raw_data.ptr);
+    read.raw_data = null;
+}
+
+
+
 template makeHReadBlock(alias charsHashFunc) {
     HReadBlock makeHReadBlock(R)(auto ref R read) {
         HReadBlock r = void;
-        r.read = read;
+        r.read = toMallocHeap(read);
         auto rg = cast(ubyte[])getRG(read);
         if (rg.length > 0) {
             assert(rg.length <= ushort.max / 2);
@@ -210,7 +226,7 @@ private auto readsFromTempFiles(size_t buf_size, string[] tmp_filenames,
         readers[$ - 1].setBufferSize(buf_size / tmp_filenames.length);
     }
 
-    return _rse2r(readers, indices);
+    return _rse2r(readers, indices).map!toMallocHeap;
 }
 
 struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
@@ -239,39 +255,6 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
 
         HReadBlock[] _table; // size is always power of two
         size_t _table_mask;
-
-        ulong _min_idx, _max_idx;
-
-        version(profile) {
-            size_t _duped_during_compaction;
-            StopWatch _compact_sw;
-        }
-
-        void _compact() {
-            enum max_diff = 2_000UL;
-            if (_max_idx - _min_idx < max_diff * 6)
-                return;
-
-            version(profile) { _compact_sw.start(); scope(exit) _compact_sw.stop(); }
-
-            _min_idx = _max_idx;
-            foreach (ref r; _table)
-                if (!r.isNull && r.is_slice_backed
-                    && _max_idx - r.index > max_diff)
-                {
-                    version(profile) ++_duped_during_compaction;
-                    r = r.dup;
-                } else if (!r.isNull && r.is_slice_backed) {
-                    _min_idx = min(_min_idx, r.index);
-                }
-        }
-
-        version(profile) {
-            ~this() {
-                stderr.writeln("duped during compaction:     ", _duped_during_compaction);
-                stderr.writeln("time spent on compaction:    ", _compact_sw.peek().msecs, " ms");
-            }
-        }
 
         HReadBlock[] _overflow_list;
         size_t _stored_in_overflow_list; // current number of elements
@@ -354,13 +337,11 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         return r.hash & _table_mask;
     }
 
-    void copyToOverflowList(ref HReadBlock r) {
-        auto old = r.is_slice_backed ? r.dup : r;
-        _overflow_list[_stored_in_overflow_list++] = old;
+    void moveToOverflowList(ref HReadBlock r) {
+        _overflow_list[_stored_in_overflow_list++] = r;
     }
 
     void updateHashTableEntry(size_t position, ref HReadBlock read) {
-        _max_idx = max(_max_idx, read.index);
         _table[position] = read;
     }
 
@@ -403,11 +384,11 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
             _tmp_w_idx.rawWrite(_tmp_idx.data);
             _tmp_idx.reset();
         }
+        free(read);
     }
 
     void popFrontHashTable() {
         while (!_reads.empty) {
-            _compact();
             auto read = next(_reads);
 
             if (_reader is null) {
@@ -429,10 +410,10 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
                 removeHashTableEntry(h);
                 return;
             } else if (_stored_in_overflow_list < _overflow_list.length) {
-                copyToOverflowList(_table[h]);
+                moveToOverflowList(_table[h]);
                 updateHashTableEntry(h, read);
             } else {
-                _process_after_dumping = read.dup;
+                _process_after_dumping = read;
                 sort!compareReadNamesAndReadGroups(_overflow_list[]);
                 createTmpWriter();
                 _overflow_list_cur_pos = 0;
@@ -488,7 +469,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         _stored_in_overflow_list = 0;
         if (!_process_after_dumping.isNull) {
             auto h = computeHash(_process_after_dumping);
-            copyToOverflowList(_table[h]);
+            moveToOverflowList(_table[h]);
             updateHashTableEntry(h, _process_after_dumping);
             _process_after_dumping.nullify();
         }
@@ -1051,11 +1032,13 @@ auto getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
             auto pair = combine(end1, end2);
             paired_ends.put(pair);
             second_ends.put(end2.basic_info);
+            free(pf.read2);
         } else {
             if (end1.paired)
                 ++unmatched_pairs;
             single_ends.put(end1);
         }
+        free(pf.read1);
     }
 
     paired_ends.flush();
