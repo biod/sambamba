@@ -84,7 +84,12 @@ testIssue204() {
 
 testIssue206() {
     ./build/sambamba markdup ex1_header.sorted.bam ex1_header.dedup.bam 2>/dev/null
-    ./build/sambamba view -H ex1_header.dedup.bam | grep '@PG' | grep -q 'sambamba markdup'
+    ./build/sambamba view -H ex1_header.dedup.bam | grep '@PG' | grep -q 'sambamba'
+    assertEquals 0 $?
+
+    ./build/sambamba view ex1_header.sorted.bam -f bam -o ex1_header.filtered.bam\
+                     -F "supplementary or secondary_alignment"
+    ./build/sambamba view -H ex1_header.filtered.bam | grep '@PG' | grep -q 'secondary'
     assertEquals 0 $?
 }
 
