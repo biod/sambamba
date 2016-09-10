@@ -7,8 +7,8 @@ import std.array : join;
 
 SamHeader addPG(string tool, string[] args, SamHeader header) {
     auto pg_line = PgLine();
-    pg_line.identifier = "sambamba " ~ tool;
-    pg_line.command_line = args[0] ~ " " ~ tool ~ " " ~ join(args[1 .. $], " ");
+    pg_line.identifier = "sambamba";
+    pg_line.command_line = tool ~ " " ~ join(args[1 .. $], " ");
     pg_line.program_version = VERSION;
 
     if (header.programs.length > 0) {
