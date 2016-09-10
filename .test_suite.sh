@@ -5,7 +5,7 @@ testSortByName() {
     ./build/sambamba sort -t2 -n BioD/test/data/ex1_header.bam -o ex1_header.nsorted.bam -m 200K
     ./build/sambamba view -t2 ex1_header.nsorted.bam > ex1_header.nsorted.sam
     assertEquals "3270" `wc -l < ex1_header.nsorted.sam`
-    cat ex1_header.nsorted.sam | cut -f1 | LC_COLLATE=C sort -c
+    cat ex1_header.nsorted.sam | cut -f1 | LC_ALL=C sort -c
     assertEquals 0 $?
 }
 
