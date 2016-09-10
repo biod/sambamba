@@ -89,7 +89,7 @@ void printUsage() {
 }
 
 void outputReferenceInfoJson(T)(T bam) {
-  
+
     auto w = stdout.lockingTextWriter;
     w.put('[');
 
@@ -144,7 +144,7 @@ int view_main(string[] args) {
     subsampling_seed = unpredictableSeed;
     subsampling_seed <<= 32;
     subsampling_seed += unpredictableSeed;
-    
+
     unparsed_args = args.dup;
 
     try {
@@ -180,17 +180,17 @@ int view_main(string[] args) {
         // </cludge>
 
         protectFromOverwrite(args[1], output_filename);
-        
+
         if (is_cram && is_sam)
             throw new Exception("only one of --sam-input and --cram-input can be specified");
-        
+
         auto task_pool = new TaskPool(n_threads);
         scope(exit) task_pool.finish();
         if (is_sam) {
             auto sam = new SamReader(args[1]);
             return sambambaMain(sam, task_pool, args);
         } else if (!is_cram) {
-            auto bam = new BamReader(args[1], task_pool); 
+            auto bam = new BamReader(args[1], task_pool);
             return sambambaMain(bam, task_pool, args);
         } else {
             auto cram = new CramReader(args[1], task_pool);
@@ -211,7 +211,7 @@ auto filtered(R)(R reads, Filter f) {
     return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
 }
 
-int sambambaMain(T)(T _bam, TaskPool pool, string[] args) 
+int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
 {
     auto bam = _bam; // FIXME: uhm, that was a workaround for some closure-related bug
 
@@ -237,7 +237,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
     {
         (new HeaderSerializer(output_file, format)).writeln(bam.header);
     }
-    
+
     if (header_only) {
         output_file.close();
         return 0;
@@ -250,7 +250,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
     }
 
     if (query !is null) {
-        auto query_filter = createFilterFromQuery(query); 
+        auto query_filter = createFilterFromQuery(query);
         if (query_filter is null)
             return 1;
         read_filter = new AndFilter(read_filter, query_filter);
@@ -278,7 +278,7 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
                 processor.process(reads.filtered(filter), bam);
         }
 
-        bool output_all_reads = args.length == 2 && 
+        bool output_all_reads = args.length == 2 &&
           (bed_filename.empty || bam.header.sorting_order != SortingOrder.coordinate);
         static if (is(T == SamReader))
           output_all_reads = true;
