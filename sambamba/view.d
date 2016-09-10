@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2014    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ import sambamba.utils.view.headerserializer;
 import sambamba.utils.common.bed;
 
 import bio.core.utils.format;
+import utils.version_ : addPG;
 
 import std.stdio;
 import std.string;
@@ -129,6 +130,8 @@ double subsample_frac; // NaN by default
 ulong subsampling_seed;
 string bed_filename;
 
+string[] unparsed_args;
+
 version(standalone) {
     int main(string[] args) {
         return view_main(args);
@@ -142,6 +145,8 @@ int view_main(string[] args) {
     subsampling_seed <<= 32;
     subsampling_seed += unpredictableSeed;
     
+    unparsed_args = args.dup;
+
     try {
 
         getopt(args,
@@ -220,6 +225,9 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
         output_file = stdout;
     else
         output_file = File(output_filename, "w+");
+
+    if (!header_only)  // = some processing is done
+        addPG("view", unparsed_args, bam.header);
 
     if (header_only && !count_only) {
         // write header to stdout
