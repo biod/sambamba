@@ -353,6 +353,7 @@ class ChunkDispatcher(ChunkRange) {
     private ChunkRange chunks_;
     private MultiBamReader bam_;
     private size_t num_, curr_num_ = 1;
+    private int total_num_;
     private FileFormat format_;
     private std.stdio.File output_file_;
     private size_t max_queue_length_;
@@ -366,14 +367,13 @@ class ChunkDispatcher(ChunkRange) {
 
     alias ElementType!(Unqual!(ChunkRange)) Chunk;
 
-    bool workers_running = true;
-
     this(string tmp_dir, ChunkRange chunks, MultiBamReader bam,
          FileFormat format, std.stdio.File output_file, size_t max_queue_length) {
         tmp_dir_ = tmp_dir;
         chunks_ = chunks;
         bam_ = bam;
         num_ = 0;
+        total_num_ = -1;
         mutex_ = new Mutex();
         queue_mutex_ = new Mutex();
         queue_not_empty_condition_ = new Condition(queue_mutex_);
@@ -389,8 +389,11 @@ class ChunkDispatcher(ChunkRange) {
         scope(exit) mutex_.unlock();
 
         typeof(return) chunk;
-        if (chunks_.empty)
+        if (chunks_.empty) {
+            if (num_ == 0)
+                total_num_ = num_.to!int();
             return chunk;
+        }
 
         if (chunks_.front.ref_id >= bam_.reference_sequences.length) {
             if (chunks_.front.ref_id != -1)
@@ -402,6 +405,10 @@ class ChunkDispatcher(ChunkRange) {
         auto filename = buildPath(tmp_dir_, num_.to!string());
         chunk = tuple(chunks_.front, filename, num_);
         chunks_.popFront();
+        if (chunks_.empty) {
+            stderr.writeln("[Last chunk fetched] ", num_);
+            total_num_ = num_.to!int();
+        }
 
         auto ref_name = bam_.reference_sequences[chunk[0].ref_id].name;
         auto f = std.stdio.File(filename ~ ".bed", "w");
@@ -440,7 +447,7 @@ class ChunkDispatcher(ChunkRange) {
 
     void dumpResults() {
         Result result;
-        while (workers_running || hasDumpableResult()) {
+        while (!dumpFinished()) {
             synchronized(queue_mutex_) {
                 while (!hasDumpableResult()) {
                     queue_not_empty_condition_.wait();
@@ -461,6 +468,10 @@ private:
         synchronized(queue_mutex_) {
             return !result_queue_.empty() && result_queue_.front.num == curr_num_;
         }
+    }
+
+    bool dumpFinished() {
+        return total_num_ >= 0 && curr_num_.to!int() > total_num_;
     }
 }
 
@@ -654,15 +665,15 @@ int pileup_main(string[] args) {
         auto threads = new ThreadGroup();
 
         scope (exit) {
-            threads.joinAll();
-            dispatcher.workers_running = false;
-            writer.join();
             output_file.close();
-            stderr.writeln("[Successful exit]");
         }
 
         foreach (i; 0 .. max(1, n_threads))
             threads.create(() { worker(dispatcher, bam, bundled_args); });
+
+        threads.joinAll();
+        writer.join();
+        stderr.writeln("[Successful exit]");
 
         return 0;
 
