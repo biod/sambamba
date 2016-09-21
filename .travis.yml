@@ -10,7 +10,7 @@ env:
   - secure: J1ta2/K8lj5dbHRvk+jTUAMICSnepfyc8ILCfM/HFCRaXMJQJTX1HDzEMwK3tAzzKaKEp9Tbm2b3IwE1tCtFaAfYUGozmHLirkFfKqCu/jNUkxL807M8NiqMx+H7tu2aR6t9opYyBjNhtuthbIdir3c42nldYdpse0ZLhzQTLfs=
 
 before_install:
-  - brew install wget xz
+  - brew install xz
   - wget https://github.com/ldc-developers/ldc/releases/download/v0.17.1/ldc2-0.17.1-osx-x86_64.tar.xz
   - tar xJf ldc2-0.17.1-osx-x86_64.tar.xz
   - export PATH=`pwd`/ldc2-0.17.1-osx-x86_64/bin:$PATH
