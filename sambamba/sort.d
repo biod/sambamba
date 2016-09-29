@@ -121,11 +121,23 @@ class Sorter {
             _reads_capa = 1024;
             auto sz = BamRead.sizeof * _reads_capa;
             _reads = cast(BamRead*)std.c.stdlib.malloc(sz);
+            if (_reads is null) {
+                throw new Exception("alloc failed: no space for read pointers");
+            }
         }
 
         void clear() {
             _used = 0;
             _n_reads = 0;
+            if (_low_memory) {
+                auto realloc_storage = cast(ubyte*)std.c.stdlib.realloc(read_storage, max_sz / 2);
+                if (realloc_storage !is null) {
+                    max_sz /= 2;
+                    read_storage = realloc_storage;
+                    stderr.writeln("reduced maximum buffer size to ", max_sz);
+                }
+                _low_memory = false;
+            }
         }
 
         void fill(R)(R* reads) {
@@ -135,11 +147,18 @@ class Sorter {
                 if (len + _used > max_sz)
                     break;
                 
-                std.c.string.memcpy(read_storage + _used, read.raw_data.ptr, len);
                 if (_n_reads == _reads_capa) {
-                    _reads_capa *= 2;
-                    _reads = cast(BamRead*)std.c.stdlib.realloc(_reads, _reads_capa * BamRead.sizeof);
+                    auto realloc_reads = cast(BamRead*)std.c.stdlib.realloc(_reads, 2 * _reads_capa * BamRead.sizeof);
+                    if (realloc_reads is null) {
+                        _low_memory = true;
+                        stderr.writeln("realloc failed: system low on memory, limited to ", _reads_capa, " reads in buffer");
+                        break;
+                    } else {
+                        _reads_capa *= 2;
+                        _reads = realloc_reads;
+                    }
                 }
+                std.c.string.memcpy(read_storage + _used, read.raw_data.ptr, len);
                 _reads[_n_reads].raw_data = read_storage[_used .. _used + len];
                 _reads[_n_reads].associateWithReader(read.reader);
 
@@ -154,7 +173,13 @@ class Sorter {
                 auto len = read.raw_data.length;
                 assert(len > max_sz);
                 _n_reads = 1;
-                read_storage = cast(ubyte*)std.c.stdlib.realloc(read_storage, len);
+                auto realloc_storage = cast(ubyte*)std.c.stdlib.realloc(read_storage, len);
+                if (realloc_storage is null) {
+                    throw new Exception("realloc failed: not enough memory for read");
+                } else {
+                    read_storage = realloc_storage;
+                    max_sz = len;
+                }
                 _used = len;
                 read_storage[0 .. len] = read.raw_data[];
                 _reads[0].raw_data = read_storage[0 .. _used];
@@ -175,6 +200,7 @@ class Sorter {
 
         ubyte* read_storage;
         size_t _used;
+        bool _low_memory;
     }
 
     static BamRead[] sortChunk(size_t n, BamRead[] chunk, TaskPool task_pool) {
