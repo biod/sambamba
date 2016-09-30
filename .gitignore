@@ -1,1 +1,8 @@
 build/
+shunit*
+/*.sam
+/*.bam
+/*.bai
+/*.cram
+/*.crai
+/*.txt
