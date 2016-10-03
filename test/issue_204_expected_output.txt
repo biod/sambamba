@@ -1,2 +1,2 @@
 # chrom	chromStart	chromEnd	readCount	meanCoverage	percentage15	percentage20	percentage25	sampleName
-2	166868599	166868813	29	17.8084	89.7196	29.9065	0	12878	
+2	166868599	166868813	29	17.8084	89.7196	29.9065	0	12878
