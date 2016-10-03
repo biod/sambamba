@@ -859,7 +859,7 @@ abstract class PerRegionPrinter : ColumnPrinter {
             }
 
             if (!combined)
-                write('\t', getSampleName(sample_id), '\t');
+                write('\t', getSampleName(sample_id));
 
             if (annotate)
                 write('\t', ok ? 'y' : 'n');
