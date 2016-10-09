@@ -357,6 +357,8 @@ class ChunkDispatcher(ChunkRange) {
     private FileFormat format_;
     private std.stdio.File output_file_;
     private size_t max_queue_length_;
+    private int prev_ref_id;
+    private ulong prev_pos_diff;
 
     private Mutex mutex_, queue_mutex_;
     private Condition queue_not_empty_condition_, queue_not_full_condition_;
@@ -408,6 +410,16 @@ class ChunkDispatcher(ChunkRange) {
         if (chunks_.empty) {
             stderr.writeln("[Last chunk fetched] ", num_);
             total_num_ = num_.to!int();
+        }
+
+        if (num_ > 1) {
+            ulong diff = chunk[0].end_position - chunk[0].start_position;
+            int ref_id = chunk[0].ref_id;
+            if (ref_id == prev_ref_id && !chunk[0].front.reads.empty &&
+                prev_pos_diff + diff < chunk[0].front.reads[0].sequence_length) // assume reads are ~same length
+                stderr.writeln("[WARNING] COVERAGE IS TOO HIGH, INCREASE --buffer-size TO AVOID WRONG RESULTS");
+            prev_pos_diff = diff;
+            prev_ref_id = ref_id;
         }
 
         auto ref_name = bam_.reference_sequences[chunk[0].ref_id].name;
