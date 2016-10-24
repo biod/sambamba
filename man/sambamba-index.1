@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "SAMBAMBA\-INDEX" "1" "October 2016" "" ""
+.TH "SAMBAMBA\-INDEX" "1" "2016-10-24" "" ""
 .
 .SH "NAME"
 \fBsambamba\-index\fR \- tool for building standard index files for BAM data
@@ -28,26 +28,14 @@ Number of threads to use\.
 .SH "EXAMPLES"
 Build index file example\.bam\.bai given a sorted BAM file example\.bam:
 .
-.IP "" 4
-.
-.nf
-
+.P
 $ sambamba index example\.bam
-.
-.fi
-.
-.IP "" 0
 .
 .P
 Build index file at custom location showing progress:
 .
-.IP "" 4
-.
-.nf
-
+.P
 $ sambamba index \-\-show\-progress example\.bam /tmp/example\.bam\.bai
 .
-.fi
-.
-.IP "" 0
-For more information on the original samtools INDEX behaviour, check out the [samtools documentation](http://samtools\.sourceforge\.net/samtools\.shtml
+.SH "SEE ALSO"
+For more information on the original samtools INDEX behaviour, check out the samtools documentation \fIhttp://samtools\.sourceforge\.net/samtools\.shtml\fR
