@@ -31,17 +31,15 @@ argument.</p>
 
 <p>Build index file example.bam.bai given a sorted BAM file example.bam:</p>
 
-<pre><code>$ sambamba index example.bam
-</code></pre>
+<p>  $ sambamba index example.bam</p>
 
 <p>Build index file at custom location showing progress:</p>
 
-<pre><code>$ sambamba index --show-progress example.bam /tmp/example.bam.bai
-</code></pre>
+<p>  $ sambamba index --show-progress example.bam /tmp/example.bam.bai</p>
 
-<h1>SEE ALSO</h1>
+<h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <p>For more information on the original samtools INDEX behaviour, check
-out the [samtools documentation](http://samtools.sourceforge.net/samtools.shtml</p>
+out the <a href="http://samtools.sourceforge.net/samtools.shtml">samtools documentation</a></p>
 
 </div>
