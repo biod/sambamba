@@ -1,13 +1,13 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "SAMBAMBA\-INDEX" "1" "February 2015" "" ""
+.TH "SAMBAMBA\-INDEX" "1" "October 2016" "" ""
 .
 .SH "NAME"
 \fBsambamba\-index\fR \- tool for building standard index files for BAM data
 .
 .SH "SYNOPSIS"
-\fBsambamba index\fR [\fB\-p\fR|\fB\-\-show\-progress\fR] [\fB\-n\fR|\fB\-\-threads\fR=NTHREADS] <input\.bam> [<output\.bai>]
+\fBsambamba index\fR [\fB\-p\fR|\fB\-\-show\-progress\fR] [\fB\-t\fR|\fB\-\-nthreads\fR=NTHREADS] <input\.bam> [<output\.bai>]
 .
 .SH "DESCRIPTION"
 \fBsambamba index\fR builds an index for a sorted by coordinate BAM file\. This step is required for effective region querying in most tools for working with BAM data\.
