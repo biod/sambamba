@@ -6,7 +6,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>sambamba index</code> [<code>-p</code>|<code>--show-progress</code>] [<code>-n</code>|<code>--threads</code>=NTHREADS] &lt;input.bam> [&lt;output.bai>]</p>
+<p><code>sambamba index</code> [<code>-p</code>|<code>--show-progress</code>] [<code>-t</code>|<code>--nthreads</code>=NTHREADS] &lt;input.bam> [&lt;output.bai>]</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -38,5 +38,10 @@ argument.</p>
 
 <pre><code>$ sambamba index --show-progress example.bam /tmp/example.bam.bai
 </code></pre>
+
+<h1>SEE ALSO</h1>
+
+<p>For more information on the original samtools INDEX behaviour, check
+out the [samtools documentation](http://samtools.sourceforge.net/samtools.shtml</p>
 
 </div>
