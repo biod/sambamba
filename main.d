@@ -33,6 +33,7 @@ import sambamba.utils.common.ldc_gc_workaround;
 import utils.strip_bcf_header;
 import utils.lz4;
 import utils.version_ : VERSION;
+import utils.ldc_version_info_ : LDC_VERSION_STRING, DMD_VERSION_STRING, LLVM_VERSION_STRING, BOOTSTRAP_VERSION_STRING;
 
 import std.stdio;
 
@@ -47,6 +48,17 @@ void printUsage() {
     stderr.writeln();
     stderr.writeln("Leave bug reports and feature requests at");
     stderr.writeln("https://github.com/lomereiter/sambamba/issues");
+    stderr.writeln();
+}
+
+void printVersion() {
+    stderr.writeln("sambamba " ~ VERSION);
+    stderr.writeln();
+    stderr.writeln("This version was built with:");
+    stderr.writeln("    LDC " ~ LDC_VERSION_STRING);
+    stderr.writeln("    using DMD " ~ DMD_VERSION_STRING);
+    stderr.writeln("    using LLVM " ~ LLVM_VERSION_STRING);
+    stderr.writeln("    bootstrapped with " ~ BOOTSTRAP_VERSION_STRING);
     stderr.writeln();
 }
 
@@ -73,6 +85,7 @@ int main(string[] args) {
         case "fixbins":  return fixbins_main(_args);
         case "strip_bcf_header": return strip_bcf_header_main(_args);
         case "lz4compress": return lz4compress_main();
+        case "--version": printVersion(); return 0;
         default:
             printUsage();
             return 1;
