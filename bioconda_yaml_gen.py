@@ -25,8 +25,7 @@ test:
 about:
   home: https://github.com/lomereiter/sambamba
   license: GPLv2
-  summary: Tools for working with SAM/BAM data
-"""
+  summary: Tools for working with SAM/BAM data"""
 
 import json
 from urllib2 import urlopen
