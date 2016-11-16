@@ -8,11 +8,27 @@ RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
 PLATFORM := $(shell uname -s)
 
 ifeq "$(PLATFORM)" "Darwin"
+
 LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a lz4/lib/liblz4.a build/sambamba.o -o build/sambamba
 DMD_STATIC_LIBS=htslib/libhts.a lz4/lib/liblz4.a
+
+define split-debug
+dsymutil build/sambamba -o build/sambamba.dSYM
+strip -S build/sambamba
+endef
+
 else
+
 LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm
 DMD_STATIC_LIBS=-L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -L-Llz4/lib -L-l:liblz4.a
+
+define split-debug
+objcopy --only-keep-debug build/sambamba sambamba.debug
+objcopy --strip-debug build/sambamba
+objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
+mv sambamba.debug build/
+endef
+
 endif
 
 # DMD only - this goal is used because of fast compilation speed, during development
@@ -25,6 +41,7 @@ sambamba-ldmd2-64: htslib-static lz4-static
 	mkdir -p build/
 	ldmd2 @sambamba-ldmd-release.rsp
 	$(LINK_CMD)
+	$(split-debug)
 
 # For debugging; GDB & Valgrind are more friendly to executables created using LDC/GDC than DMD
 sambamba-ldmd2-debug: htslib-static lz4-static
