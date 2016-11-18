@@ -6,3 +6,4 @@ shunit*
 /*.cram
 /*.crai
 /*.txt
+/utils/ldc_version_info_.d

@@ -1,5 +1,6 @@
 D_COMPILER=dmd
 D_FLAGS=--compiler=dmd -IBioD -g -d#-O -release -inline # -version=serial
+LDMD=ldmd2
 
 STATIC_LIB_PATH=-Lhtslib -Llz4/lib
 STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic
@@ -31,23 +32,28 @@ endef
 
 endif
 
+PREREQS := utils/ldc_version_info_.d htslib-static lz4-static
+
 # DMD only - this goal is used because of fast compilation speed, during development
-all: htslib-static lz4-static
+all: $(PREREQS)
 	mkdir -p build/
 	rdmd --force --build-only $(D_FLAGS) $(DMD_STATIC_LIBS) -ofbuild/sambamba main.d
 
 # This is the main Makefile goal, used for building releases (best performance)
-sambamba-ldmd2-64: htslib-static lz4-static
+sambamba-ldmd2-64: $(PREREQS)
 	mkdir -p build/
-	ldmd2 @sambamba-ldmd-release.rsp
+	$(LDMD) @sambamba-ldmd-release.rsp
 	$(LINK_CMD)
 	$(split-debug)
 
 # For debugging; GDB & Valgrind are more friendly to executables created using LDC/GDC than DMD
-sambamba-ldmd2-debug: htslib-static lz4-static
+sambamba-ldmd2-debug: $(PREREQS)
 	mkdir -p build/
-	ldmd2 @sambamba-ldmd-debug.rsp
+	$(LDMD) @sambamba-ldmd-debug.rsp
 	$(LINK_CMD)
+
+utils/ldc_version_info_.d:
+	./gen_ldc_version_info.py $(shell which $(LDMD)) > $@
 
 htslib-static:
 	cd htslib && $(MAKE)
