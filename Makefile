@@ -32,7 +32,7 @@ endef
 
 endif
 
-PREREQS := utils/ldc_version_info_.d htslib-static lz4-static
+PREREQS := ldc-version-info htslib-static lz4-static
 
 # DMD only - this goal is used because of fast compilation speed, during development
 all: $(PREREQS)
@@ -52,8 +52,8 @@ sambamba-ldmd2-debug: $(PREREQS)
 	$(LDMD) @sambamba-ldmd-debug.rsp
 	$(LINK_CMD)
 
-utils/ldc_version_info_.d:
-	./gen_ldc_version_info.py $(shell which $(LDMD)) > $@
+ldc-version-info:
+	./gen_ldc_version_info.py $(shell which $(LDMD)) > utils/ldc_version_info_.d
 
 htslib-static:
 	cd htslib && $(MAKE)
@@ -101,7 +101,7 @@ sambamba-pileup:
 	mkdir -p build/
 	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-pileup sambamba/pileup.d
 
-.PHONY: clean
+.PHONY: clean ldc-version-info
 
 clean:
 	rm -rf build/ ; $(MAKE) -C htslib clean ; $(MAKE) -C lz4 clean
