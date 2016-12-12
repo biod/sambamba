@@ -173,6 +173,19 @@ final class ChimericFilter : Filter {
     }
 }
 
+final class FlagBitFilter : Filter {
+    private ushort _bits_set, _bits_unset;
+    this(ushort bits_set, ushort bits_unset) {
+        _bits_set = bits_set;
+        _bits_unset = bits_unset;
+    }
+
+    bool accepts(ref BamRead a) {
+        return ((a.flag & _bits_set) == _bits_set) &&
+               ((a.flag & _bits_unset) == 0);
+    }
+}
+
 float avg_base_quality(BamRead r) {
     return reduce!"a+b"(0.0f, r.base_qualities)/r.sequence_length;
 }

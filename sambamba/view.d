@@ -54,6 +54,9 @@ void printUsage() {
     stderr.writeln();
     stderr.writeln("Options: -F, --filter=FILTER");
     stderr.writeln("                    set custom filter for alignments");
+    stderr.writeln("         --num-filter=NUMFILTER");
+    stderr.writeln("                    filter flag bits; 'i1/i2' corresponds to -f i1 -F i2 samtools arguments;");
+    stderr.writeln("                    either of the numbers can be omitted");
     stderr.writeln("         -f, --format=sam|bam|cram|json");
     stderr.writeln("                    specify which format to use for output (default is SAM)");
     stderr.writeln("         -h, --with-header");
@@ -112,6 +115,7 @@ void outputReferenceInfoJson(T)(T bam) {
 
 string format = "sam";
 string query;
+string numfilter;
 string ref_fn;
 bool with_header;
 bool header_only;
@@ -152,6 +156,7 @@ int view_main(string[] args) {
         getopt(args,
                std.getopt.config.caseSensitive,
                "filter|F",            &query,
+               "num-filter",          &numfilter,
                "format|f",            &format,
                "with-header|h",       &with_header,
                "header|H",            &header_only,
@@ -247,6 +252,14 @@ int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
 
     if (skip_invalid_alignments) {
         read_filter = new AndFilter(read_filter, new ValidAlignmentFilter());
+    }
+
+    if (numfilter !is null) {
+        ushort i1, i2;
+        auto masks = numfilter.splitter("/").array();
+        if (masks.length > 0 && masks[0].length > 0) i1 = masks[0].to!ushort;
+        if (masks.length > 1 && masks[1].length > 0) i2 = masks[1].to!ushort;
+        read_filter = new AndFilter(read_filter, new FlagBitFilter(i1, i2));
     }
 
     if (query !is null) {
