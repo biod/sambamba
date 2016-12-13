@@ -1,19 +1,20 @@
-# export LD_LIBRARY_PATH=/gnu/store/cx6lj63hjdazy97wb2zbk7dldsx2lhd5-ldc-0.17.2/lib:./htslib/
+# export LD_LIBRARY_PATH=/gnu/store/3h5g5g0d12n4mvfmmrcda90m0r1f5h1y-ldc-1.1.0-beta4/lib:/gnu/store/2qchmfj02bj0f3x3d0xk3d6j0inrscwl-lz4-131/lib:./htslib/
 
-D_COMPILER=/gnu/store/cx6lj63hjdazy97wb2zbk7dldsx2lhd5-ldc-0.17.2/bin/ldmd2
+D_PATH=/gnu/store/3h5g5g0d12n4mvfmmrcda90m0r1f5h1y-ldc-1.1.0-beta4
+D_COMPILER=$(D_PATH)/bin/ldmd2
 D_FLAGS=-IBioD -g -d#-O -release -inline # -version=serial
 LDMD=$(D_COMPILER)
 
 STATIC_LIB_PATH=-Lhtslib -Llz4
 STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic
-RDMD_FLAGS=--compiler=$(D_COMPILER) --force --build-only $(D_FLAGS)  $(DMD_STATIC_LIBS)
+RDMD_FLAGS=--compiler=$(D_COMPILER) --force --build-only $(D_FLAGS) $(DMD_STATIC_LIBS)
 
 PLATFORM := $(shell uname -s)
 
 ifeq "$(PLATFORM)" "Darwin"
 
 # LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a lz4/lib/liblz4.a build/sambamba.o -o build/sambamba
-LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a build/sambamba.o -o build/sambamba
+LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread /gnu/store/2qchmfj02bj0f3x3d0xk3d6j0inrscwl-lz4-131/lib/liblz4.a htslib/libhts.a build/sambamba.o -o build/sambamba
 DMD_STATIC_LIBS=htslib/libhts.a
 # lz4/lib/liblz4.a
 
@@ -41,7 +42,7 @@ PREREQS := ldc-version-info htslib-static # lz4-static
 # DMD only - this goal is used because of fast compilation speed, during development
 all: $(PREREQS)
 	mkdir -p build/
-	rdmd $(RMD_FLAGS) $(DMD_STATIC_LIBS) -ofbuild/sambamba main.d
+	rdmd $(RDMD_FLAGS) -L-lhts /gnu/store/2qchmfj02bj0f3x3d0xk3d6j0inrscwl-lz4-131/lib/liblz4.a htslib/libhts.a -ofbuild/sambamba main.d
 
 # This is the main Makefile goal, used for building releases (best performance)
 sambamba-ldmd2-64: $(PREREQS)
