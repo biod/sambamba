@@ -9,7 +9,8 @@
 #   env LD_LIBRARY_PATH=$HOME/.guix-profile/lib ./build/sambamba
 
 D_COMPILER=ldc2
-D_FLAGS=-IBioD -release -inline -O2 -c -noboundscheck -ofbuild/sambamba.o -odbuild -I. 
+# D_FLAGS=-IBioD -release -inline -O2 -c -boundscheck=off -ofbuild/sambamba.o -odbuild -I. 
+D_FLAGS=-IBioD -release -O2 -c -ofbuild/sambamba.o -odbuild -I. 
 
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
