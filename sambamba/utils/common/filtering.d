@@ -51,7 +51,7 @@ Filter createFilterFromQuery(string query) {
 }
 
 /**
-  Set of filters for alignments. 
+  Set of filters for alignments.
   All share a common interface and can be easily combined.
 */
 
@@ -76,7 +76,7 @@ final class NullFilter : Filter {
 
 /// Validating filter
 final class ValidAlignmentFilter : Filter {
-    
+
     bool accepts(ref BamRead a) {
         return isValid(a);
     }
@@ -222,9 +222,9 @@ final class TagExistenceFilter(string op) : Filter {
     }
     bool accepts(ref BamRead a) {
         auto v = a[_tagname];
-        if (_should_exist) 
+        if (_should_exist)
             return !v.is_nothing;
-        else 
+        else
             return v.is_nothing;
     }
 }
@@ -241,7 +241,7 @@ final class IntegerTagFilter(string op) : Filter {
 
     bool accepts(ref BamRead a) {
         auto v = a[_tagname];
-        if (!v.is_integer && !v.is_float) 
+        if (!v.is_integer && !v.is_float)
             return false;
         if (v.is_float) {
             mixin(`return cast(float)v` ~ op ~ `_value;`);
@@ -300,15 +300,17 @@ final class StringTagFilter(string op) : Filter {
 final class RegexpFieldFilter : Filter {
     private string _fieldname;
     private Regex!char _pattern;
-    
+
     this(string fieldname, Regex!char pattern) {
-        _fieldname = fieldname; 
+        _fieldname = fieldname;
         _pattern = pattern;
     }
 
     bool accepts(ref BamRead a) {
         switch(_fieldname) {
             case "read_name": return !match(a.name, cast()_pattern).empty;
+            case "ref_name": return !match(a.ref_name, cast()_pattern).empty;
+            case "mate_ref_name": return !match(a.mate_ref_name, cast()_pattern).empty;
             case "sequence": return !match(to!string(a.sequence), cast()_pattern).empty;
             case "cigar": return !match(a.cigarString(), cast()_pattern).empty;
             default: throw new Exception("unknown string field '" ~ _fieldname ~ "'");
@@ -317,10 +319,10 @@ final class RegexpFieldFilter : Filter {
 }
 
 /// Filtering string tags with a regular expression
-final class RegexpTagFilter : Filter { 
+final class RegexpTagFilter : Filter {
     private string _tagname;
     private Regex!char _pattern;
-    
+
     this(string tagname, Regex!char pattern) {
         _tagname = tagname;
         _pattern = pattern;
@@ -338,7 +340,7 @@ final class RegexpTagFilter : Filter {
 final class SubsampleFilter : Filter {
     private ulong _threshold;
     private ulong _seed;
-    
+
     this(double subsample_frac, ulong seed) {
         _threshold = (0x100000000UL * subsample_frac).to!ulong;
         _seed = seed;
