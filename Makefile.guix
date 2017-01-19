@@ -14,7 +14,7 @@ D_FLAGS=-IBioD -release -O2 -c -ofbuild/sambamba.o -odbuild -I.
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
 STATIC_LIB_PATH=-Lhtslib -L$(LDC_LIB_PATH)
-STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -lhts -Wl,-Bdynamic # linker options
+STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic # linker options
 
 PLATFORM := $(shell uname -s)
 
