@@ -4,21 +4,21 @@
 #
 #   make -f Makefile.guix
 #
-# Outside GNU Guix run with
+# run with
 #
 #   env LD_LIBRARY_PATH=$HOME/.guix-profile/lib ./build/sambamba
 
+# The following two are modified by the Guix package:
 D_COMPILER=ldc2
-D_FLAGS=-IBioD -release -O2 -c -ofbuild/sambamba.o -odbuild -I.
-
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
-STATIC_LIB_PATH=-Lhtslib -L$(LDC_LIB_PATH)
-STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic # linker options default to dynamic here
+D_FLAGS=-IBioD -release -O2 -c -ofbuild/sambamba.o -odbuild -I.
+D_DEBUG_FLAGS=-IBioD -O0 -g -c -ofbuild/sambamba.o -odbuild -I.
 
-PLATFORM := $(shell uname -s)
+SMB_LIB_PATH=-Lhtslib -L$(LDC_LIB_PATH)
+SMB_LINK_FLAGS=$(SMB_LIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic # linker options default to dynamic here
 
-LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -llz4
+LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(SMB_LINK_FLAGS) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -llz4
 
 all: sambamba-ldmd2
 
@@ -33,7 +33,13 @@ sambamba-ldmd2: htslib-static ldc-version-info
 	ldmd2 $(D_FLAGS) @sambamba-ldmd-guix.rsp
 	$(LINK_CMD)
 
+sambamba-ldmd2-debug: htslib-static ldc-version-info
+	mkdir -p build/
+	ldmd2 $(D_DEBUG_FLAGS) @sambamba-ldmd-guix.rsp
+	$(LINK_CMD)
+
 htslib-static:
+        # for some reason htslib compiles with debug flag
 	cd htslib && $(MAKE)
 
 .PHONY: clean
