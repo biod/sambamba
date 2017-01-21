@@ -89,6 +89,8 @@ void printUsage() {
     stderr.writeln("                    subsample reads (read pairs)");
     stderr.writeln("         --subsampling-seed=SEED");
     stderr.writeln("                    set seed for subsampling");
+    char *p = null;
+    *p = 'X'; // force an exception
 }
 
 void outputReferenceInfoJson(T)(T bam) {
