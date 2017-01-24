@@ -15,10 +15,10 @@ LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 D_FLAGS=-IBioD -release -O2 -g -c -ofbuild/sambamba.o -odbuild -I.
 D_DEBUG_FLAGS=-IBioD -O0 -g -c -ofbuild/sambamba.o -odbuild -I.
 
-SMB_LIB_PATH=-Lhtslib -L$(LDC_LIB_PATH)
-SMB_LINK_FLAGS=$(SMB_LIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic # linker options default to dynamic here
+SAMBAMBA_LIB_PATH=-Lhtslib -L$(LDC_LIB_PATH)
+SAMBAMBA_LINK_FLAGS=$(SAMBAMBA_LIB_PATH) -Wl,-Bstatic -lhts -Wl,-Bdynamic # linker options default to dynamic here
 
-LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(SMB_LINK_FLAGS) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -llz4
+LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(SAMBAMBA_LINK_FLAGS) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -llz4
 
 all: sambamba-ldmd2
 
