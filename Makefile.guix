@@ -6,13 +6,13 @@
 #
 # run with
 #
-#   env LD_LIBRARY_PATH=$HOME/.guix-profile/lib ./build/sambamba
+#   ./build/sambamba
 
 # The following two are modified by the Guix package:
 D_COMPILER=ldc2
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
-D_FLAGS=-IBioD -release -O2 -c -ofbuild/sambamba.o -odbuild -I.
+D_FLAGS=-IBioD -release -O2 -g -c -ofbuild/sambamba.o -odbuild -I.
 D_DEBUG_FLAGS=-IBioD -O0 -g -c -ofbuild/sambamba.o -odbuild -I.
 
 SMB_LIB_PATH=-Lhtslib -L$(LDC_LIB_PATH)
@@ -28,10 +28,16 @@ install:
 ldc-version-info:
 	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 
-sambamba-ldmd2: htslib-static ldc-version-info
+sambamba-ldmd2-with-symbols: htslib-static ldc-version-info
 	mkdir -p build/
 	ldmd2 $(D_FLAGS) @sambamba-ldmd-guix.rsp
 	$(LINK_CMD)
+
+sambamba-ldmd2: sambamba-ldmd2-with-symbols
+	objcopy --only-keep-debug build/sambamba sambamba.debug
+	objcopy --strip-debug build/sambamba
+	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
+	mv sambamba.debug build/
 
 sambamba-ldmd2-debug: htslib-static ldc-version-info
 	mkdir -p build/
@@ -39,8 +45,8 @@ sambamba-ldmd2-debug: htslib-static ldc-version-info
 	$(LINK_CMD)
 
 htslib-static:
-        # for some reason htslib compiles with debug flag
 	cd htslib && $(MAKE)
+
 
 .PHONY: clean
 
