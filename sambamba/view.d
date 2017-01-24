@@ -33,6 +33,7 @@ import sambamba.utils.common.progressbar;
 import sambamba.utils.view.alignmentrangeprocessor;
 import sambamba.utils.view.headerserializer;
 import sambamba.utils.common.bed;
+// import core.sys.posix.stdlib; // for exit
 
 import bio.core.utils.format;
 import utils.version_ : addPG;
@@ -89,8 +90,6 @@ void printUsage() {
     stderr.writeln("                    subsample reads (read pairs)");
     stderr.writeln("         --subsampling-seed=SEED");
     stderr.writeln("                    set seed for subsampling");
-    char *p = null;
-    *p = 'X'; // force an exception
 }
 
 void outputReferenceInfoJson(T)(T bam) {
@@ -145,6 +144,14 @@ version(standalone) {
 }
 
 int view_main(string[] args) {
+    foreach(arg; args) {
+      if (arg == "--throw-error") {
+        // undocumented: can throw a null pointer exception for testing debugger(s)
+        char *p = null;
+        *p = 'X'; // force an exception
+      }
+    }
+
     n_threads = totalCPUs;
 
     subsampling_seed = unpredictableSeed;
