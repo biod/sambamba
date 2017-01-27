@@ -13,13 +13,10 @@ D_COMPILER=ldc2
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
 DFLAGS = -wi -I. -IBioD
-LIBS   = -Lhtslib -L$(LDC_LIB_PATH) $(LDC_LIB_PATH)/liblz4.a $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -lz -Wl,-rpath=$(HOME)/.guix-profile/lib
-SRC    = $(wildcard *.d) $(wildcard sambamba/*.d sambamba/*/*.d)
+LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) $(LDC_LIB_PATH)/liblz4.a $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -L-lrt -L-lpthread -L-lm -L-lz
+SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ    = $(SRC:.d=.o)
 OUT    = build/sambamba
-
-
-LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -llz4 $(OBJ) @test.txt
 
 debug:   DFLAGS += -O0 -g -d-debug
 release: DFLAGS += -O -release -inline -noboundscheck
@@ -46,11 +43,13 @@ build-setup: htslib-static ldc-version-info # sambamba-files
 
 debug release profile: $(OUT)
 
+# ---- Compile step
 %.o: %.d
 	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
+# ---- Link step
 $(OUT): build-setup $(OBJ)
-	$(LINK_CMD)
+	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
 
 install:
 	install -m 0755 build/sambamba $(prefix)/bin
