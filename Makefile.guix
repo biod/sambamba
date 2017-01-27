@@ -35,12 +35,6 @@ ldc-version-info:
 build-setup: htslib-static ldc-version-info # sambamba-files
 	mkdir -p build/
 
-# sambamba-ldmd2: sambamba-ldmd2-with-symbols
-# 	objcopy --only-keep-debug build/sambamba sambamba.debug
-#	objcopy --strip-debug build/sambamba
-#	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
-#	mv sambamba.debug build/
-
 debug release profile: $(OUT)
 
 # ---- Compile step
@@ -50,6 +44,13 @@ debug release profile: $(OUT)
 # ---- Link step
 $(OUT): build-setup $(OBJ)
 	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
+
+debug-strip: debug
+	objcopy --only-keep-debug build/sambamba sambamba.debug
+	objcopy --strip-debug build/sambamba
+	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
+	mv sambamba.debug build/
+
 
 install:
 	install -m 0755 build/sambamba $(prefix)/bin
