@@ -14,14 +14,16 @@ LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
 DFLAGS = -wi -I. -IBioD
 LIBS   = -Lhtslib -L$(LDC_LIB_PATH) $(LDC_LIB_PATH)/liblz4.a $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -lz -Wl,-rpath=$(HOME)/.guix-profile/lib
-SRC    = $(wildcard *.d)
+SRC    = $(wildcard *.d) $(wildcard sambamba/*.d sambamba/*/*.d)
 OBJ    = $(SRC:.d=.o)
 OUT    = build/sambamba
+
+
+LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -lrt -lpthread -lm -llz4 $(OBJ) @test.txt
 
 debug:   DFLAGS += -O0 -g -d-debug
 release: DFLAGS += -O -release -inline -noboundscheck
 profile: DFLAGS += -g -O -profile
-
 
 .PHONY: all debug release profile clean
 
@@ -33,16 +35,14 @@ htslib-static:
 ldc-version-info:
 	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 
-sambamba-files: main.o sambamba/depth.o BioD/bio/bam/baifile.o BioD/bio/core/utils/switchendianness.o sambamba/utils/common/readstorage.o BioD/bio/core/utils/tmpfile.o sambamba/utils/common/bed.o BioD/bio/bam/utils/samheadermerger.o thirdparty/mergesort.o BioD/bio/bam/readrange.o cram/exception.o sambamba/utils/view/headerserializer.o BioD/bio/bam/splitter.o cram/htslib.o BioD/bio/core/utils/roundbuf.o BioD/bio/bam/md/operation.o BioD/bio/sam/utils/fastrecordparser.o sambamba/utils/common/ldc_gc_workaround.o BioD/bio/bam/read.o sambamba/utils/common/filtering.o BioD/bio/bam/bai/indexing.o BioD/bio/bam/utils/value.o BioD/bio/bam/randomaccessmanager.o sambamba/utils/common/queryparser.o BioD/bio/bam/md/reconstruct.o BioD/bio/core/base.o BioD/bio/core/utils/zlib.o BioD/bio/sam/header.o BioD/bio/bam/writer.o BioD/bio/core/bgzf/block.o BioD/bio/bam/md/core.o cram/reader.o sambamba/utils/common/overwrite.o BioD/bio/core/utils/format.o BioD/bio/bam/reader.o BioD/bio/core/bgzf/inputstream.o BioD/bio/core/sequence.o BioD/bio/core/utils/bylinefast.o sambamba/index.o sambamba/markdup.o BioD/bio/bam/referenceinfo.o BioD/bio/core/tinymap.o cram/reference.o BioD/bio/bam/constants.o BioD/bio/core/bgzf/outputstream.o sambamba/utils/common/intervaltree.o BioD/bio/bam/utils/graph.o BioD/bio/core/utils/algo.o BioD/bio/bam/tagvalue.o BioD/bio/sam/reader.o BioD/bio/core/utils/outbuffer.o sambamba/sort.o BioD/bio/bam/validation/samheader.o sambamba/flagstat.o BioD/bio/bam/pileup.o sambamba/pileup.o BioD/bio/bam/thirdparty/msgpack.o BioD/bio/bam/reference.o BioD/bio/core/utils/range.o BioD/bio/bam/bai/bin.o sambamba/utils/view/alignmentrangeprocessor.o sambamba/utils/common/tmpdir.o sambamba/slice.o BioD/bio/core/bgzf/chunk.o BioD/bio/core/bgzf/compress.o BioD/bio/bam/region.o BioD/bio/core/bgzf/virtualoffset.o BioD/bio/core/region.o BioD/bio/bam/md/parse.o BioD/bio/core/utils/stream.o sambamba/utils/common/progressbar.o thirdparty/unstablesort.o BioD/bio/bam/abstractreader.o BioD/bio/core/utils/memoize.o sambamba/utils/common/pratt_parser.o BioD/bio/core/bgzf/constants.o sambamba/merge.o sambamba/view.o BioD/bio/bam/utils/array.o BioD/bio/bam/validation/alignment.o cram/writer.o cram/slicereader.o cram/wrappers.o BioD/bio/bam/multireader.o utils/lz4.o utils/strip_bcf_header.o sambamba/fixbins.o sambamba/utils/common/file.o utils/ldc_version_info_.o utils/version_.o
-
-build-setup: htslib-static ldc-version-info sambamba-files
+build-setup: htslib-static ldc-version-info # sambamba-files
 	mkdir -p build/
 
-sambamba-ldmd2: sambamba-ldmd2-with-symbols
-	objcopy --only-keep-debug build/sambamba sambamba.debug
-	objcopy --strip-debug build/sambamba
-	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
-	mv sambamba.debug build/
+# sambamba-ldmd2: sambamba-ldmd2-with-symbols
+# 	objcopy --only-keep-debug build/sambamba sambamba.debug
+#	objcopy --strip-debug build/sambamba
+#	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
+#	mv sambamba.debug build/
 
 debug release profile: $(OUT)
 
@@ -50,7 +50,6 @@ debug release profile: $(OUT)
 	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
 $(OUT): build-setup $(OBJ)
-	# $(D_COMPILER) $(DFLAGS) -of$@ $(LIBS) @test.txt
 	$(LINK_CMD)
 
 install:
