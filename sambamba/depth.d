@@ -1236,6 +1236,4 @@ int depth_main(string[] args) {
         }
         return 1;
     }
-
-    return 0;
 }

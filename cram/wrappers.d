@@ -281,7 +281,7 @@ auto undecodedSlices(CramFd fd, CramContainerFilter cf,
 
 void decodeSlice(cram_fd* fd, cram_container* c, cram_slice* s) {
     auto err_msg = "Failure in cram_decode_slice";
-    debug writeln("DECODING slice #", s.id + 1);
+    // debug writeln("DECODING slice #", s.id + 1);
     int ret = cram_decode_slice(fd, c, s, fd.header);
     if (ret != 0)
         throw new CramException(err_msg);
@@ -315,7 +315,7 @@ struct CramSliceDecoder(R)
             cram_fd* fd = slice.fd;
             cram_container* c = slice.container;
             cram_slice* s = slice;
-            debug writeln("PUT slice #", s.id + 1, " into queue");
+            // debug writeln("PUT slice #", s.id + 1, " into queue");
             version (serial) {
                 decodeSlice(fd, c, s);
             } else {
@@ -356,7 +356,7 @@ struct CramSliceDecoder(R)
 
         front = _input_queue.front;
         _input_queue.popFront();
-        debug writeln("GET slice #", front.id + 1, " from queue");
+        // debug writeln("GET slice #", front.id + 1, " from queue");
         if (!_slices.empty)
             putNextSliceIntoQueue();
     }
