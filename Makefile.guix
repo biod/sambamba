@@ -13,18 +13,21 @@ D_COMPILER=ldc2
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
 DFLAGS = -wi -I. -IBioD
-LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) $(LDC_LIB_PATH)/liblz4.a $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -L-lrt -L-lpthread -L-lm -L-lz
+RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
+LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
 SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ    = $(SRC:.d=.o)
 OUT    = build/sambamba
 
-debug:   DFLAGS += -O0 -g -d-debug
-release: DFLAGS += -O -release -inline -noboundscheck
-profile: DFLAGS += -g -O -profile
+# default sets the RPATH to the Guix location
+default:     DFLAGS += -O0 -g -d-debug $(RPATH)
+debug:       DFLAGS += -O0 -g -d-debug
+release:     DFLAGS += -O -release -inline -noboundscheck
+profile:     DFLAGS += -g -O -profile
 
-.PHONY: all debug release profile clean
+.PHONY: all default debug release profile clean
 
-all: debug
+all: default
 
 htslib-static:
 	cd htslib && $(MAKE)
@@ -35,7 +38,7 @@ ldc-version-info:
 build-setup: htslib-static ldc-version-info # sambamba-files
 	mkdir -p build/
 
-debug release profile: $(OUT)
+default debug release profile: $(OUT)
 
 # ---- Compile step
 %.o: %.d
@@ -51,10 +54,9 @@ debug-strip: debug
 	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
 	mv sambamba.debug build/
 
-
 install:
 	install -m 0755 build/sambamba $(prefix)/bin
 
 clean:
 	rm -rf build/ ; cd htslib ; make clean
-	rm -f *~ $(OBJ) $(OUT) trace.{def,log}
+	rm -f $(OBJ) $(OUT) trace.{def,log}
