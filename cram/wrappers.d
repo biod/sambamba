@@ -19,7 +19,7 @@ struct RcPtr(T, alias Free) {
         }
 
         T* ptr;
-        this(T* ptr) { 
+        this(T* ptr) {
             this.ptr = ptr;
             debug {
                 payload_id = ++payload_counter;
@@ -27,7 +27,7 @@ struct RcPtr(T, alias Free) {
             }
         }
 
-        ~this() { 
+        ~this() {
             debug {
                 stderr.writeln("Free ", T.stringof, "* #", payload_id);
             }
@@ -51,14 +51,14 @@ struct RcPtr(T, alias Free) {
     this(this)
     {
         static if (is(T == cram_slice)) {
-            debug writeln("COPIED #", data.ptr.id + 1);
+            debug writeln("COPIED #", data.payload_id + 1);
         }
     }
 
     this(T* ptr) { data = Data(ptr); }
 }
 
-auto nullChecked(alias func, T...)(string err_msg, cram_fd* fd, 
+auto nullChecked(alias func, T...)(string err_msg, cram_fd* fd,
                                    auto ref T other_params)
 {
     auto ptr = func(fd, other_params);
@@ -91,7 +91,7 @@ CramFd openCram(string filename) {
     cram_set_option(fd, cram_option.CRAM_OPT_DECODE_MD);
 
     // initialize locks, but we will use the pool from D standard library
-    // instead of the htslib implementation 
+    // instead of the htslib implementation
     import core.sys.posix.pthread;
     pthread_mutex_init(&fd.metrics_lock, null);
     pthread_mutex_init(&fd.ref_lock, null);
@@ -193,7 +193,7 @@ struct CramContainerRange {
             throw new CramException(err_msg);
 
         err_msg = "Failed to decode compression header";
-        front.comp_hdr = cram_decode_compression_header(_fd, 
+        front.comp_hdr = cram_decode_compression_header(_fd,
                                                         front.comp_hdr_block);
         if (front.comp_hdr is null)
             throw new CramException(err_msg);
@@ -256,7 +256,7 @@ class UndecodedSliceRange {
         return false;
     }
 
-    private void setupFront(cram_slice* ptr) { 
+    private void setupFront(cram_slice* ptr) {
         front = CramSlice(_fd, _container, RcCramSlice(ptr));
     }
 
@@ -273,7 +273,7 @@ class UndecodedSliceRange {
     }
 }
 
-auto undecodedSlices(CramFd fd, CramContainerFilter cf, 
+auto undecodedSlices(CramFd fd, CramContainerFilter cf,
                      UndecodedSliceFilter sf=null)
 {
     return new UndecodedSliceRange(fd, cf, sf);
@@ -293,7 +293,7 @@ void decodeSlice(CramSlice slice) {
 
 import bio.core.utils.roundbuf;
 
-struct CramSliceDecoder(R) 
+struct CramSliceDecoder(R)
     if (isInputRange!R && is(ElementType!R == CramSlice))
 {
     private {
@@ -302,7 +302,7 @@ struct CramSliceDecoder(R)
 
         // FIXME: D arrays don't call element destructors when GC-d :(
         RoundBuf!CramSlice _input_queue;
-        alias DecodeTask = Task!(decodeSlice, 
+        alias DecodeTask = Task!(decodeSlice,
                                  cram_fd*, cram_container*, cram_slice*)*;
         RoundBuf!DecodeTask _output_queue;
 
@@ -362,7 +362,7 @@ struct CramSliceDecoder(R)
     }
 }
 
-auto decode(R)(R slices, std.parallelism.TaskPool pool) 
+auto decode(R)(R slices, std.parallelism.TaskPool pool)
     if(isInputRange!R && is(ElementType!R == CramSlice))
 {
     return CramSliceDecoder!R(slices, pool);
