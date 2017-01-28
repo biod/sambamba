@@ -40,7 +40,7 @@ ldc-version-info:
 build-setup: htslib-static ldc-version-info # sambamba-files
 	mkdir -p build/
 
-default debug release profile: $(OUT)
+guix guix-debug default debug release profile: $(OUT)
 
 # ---- Compile step
 %.o: %.d
