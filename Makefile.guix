@@ -15,7 +15,7 @@ LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 DFLAGS = -wi -I. -IBioD
 RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
 LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
-SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
+SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d) utils/ldc_version_info_.d
 OBJ    = $(SRC:.d=.o)
 OUT    = build/sambamba
 
@@ -37,7 +37,7 @@ htslib-static:
 ldc-version-info:
 	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 
-build-setup: htslib-static ldc-version-info # sambamba-files
+build-setup: htslib-static ldc-version-info
 	mkdir -p build/
 
 guix guix-debug default debug release profile: $(OUT)
