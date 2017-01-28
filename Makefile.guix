@@ -19,15 +19,17 @@ SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/bi
 OBJ    = $(SRC:.d=.o)
 OUT    = build/sambamba
 
-# default sets the RPATH to the Guix location
-default:     DFLAGS += -O0 -g -d-debug $(RPATH)
-debug:       DFLAGS += -O0 -g -d-debug
-release:     DFLAGS += -O -release -inline -noboundscheck
-profile:     DFLAGS += -g -O -profile
+# The Guix targets resolve the RPATH automatically
+guix:        DFLAGS += -O -g -inline
+guix-debug:  DFLAGS += -O0 -g -d-debug
+# The development options are run from ~/.guix-profile and need to inject the RPATH
+debug:       DFLAGS += -O0 -g -d-debug $(RPATH)
+release:     DFLAGS += -O -release -inline -noboundscheck $(RPATH)
+profile:     DFLAGS += -g -O -profile $(RPATH)
 
-.PHONY: all default debug release profile clean
+.PHONY: all guix guix-debug debug release profile clean
 
-all: default
+all: debug
 
 htslib-static:
 	cd htslib && $(MAKE)
