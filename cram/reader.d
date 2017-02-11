@@ -75,7 +75,6 @@ class CramReader : IBamSamReader {
 
     BamRead[] unmappedReads() {
         throw new Exception("* region unimplemented for CRAM files");
-        return [];
     }
 
     SamHeader header() @property {
@@ -99,8 +98,8 @@ class CramReader : IBamSamReader {
 
     auto reads() {
         alias R = CramFilterResult;
-        auto s = fd().slices(c => c.length > 0 ? R.pass : R.skip, 
-                             null, 
+        auto s = fd().slices(c => c.length > 0 ? R.pass : R.skip,
+                             null,
                              _task_pool);
         // no trust for delegates implementation => use zip-repeat trick
         auto reads = s.zip(repeat(this), repeat(bamReadAlloc(_seq_op)))
