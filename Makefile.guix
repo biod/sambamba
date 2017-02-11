@@ -1,0 +1,67 @@
+# GNU Guix makefile
+#
+# To build sambamba on GNU Guix:
+#
+#   make -f Makefile.guix
+#
+# run with
+#
+#   ./build/sambamba
+
+# The following two are modified by the Guix package:
+D_COMPILER=ldc2
+LDC_LIB_PATH=$(HOME)/.guix-profile/lib
+
+DFLAGS = -wi -I. -IBioD
+RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
+LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
+SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
+OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
+OUT    = build/sambamba
+
+# The Guix targets resolve the RPATH automatically
+guix:        DFLAGS += -O -g -inline
+guix-debug:  DFLAGS += -O0 -g -d-debug
+# The development options are run from ~/.guix-profile and need to inject the RPATH
+debug:       DFLAGS += -O0 -g -d-debug $(RPATH)
+release:     DFLAGS += -O -release -inline -noboundscheck $(RPATH)
+profile:     DFLAGS += -g -O -profile $(RPATH)
+
+.PHONY: all guix guix-debug debug release profile clean
+
+all: debug
+
+htslib-static:
+	cd htslib && $(MAKE)
+
+ldc-version-info:
+	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+
+utils/ldc_version_info_.o: ldc-version-info
+	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
+
+build-setup: htslib-static ldc-version-info
+	mkdir -p build/
+
+guix guix-debug default debug release profile: $(OUT)
+
+# ---- Compile step
+%.o: %.d
+	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
+
+# ---- Link step
+$(OUT): build-setup $(OBJ)
+	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
+
+debug-strip: debug
+	objcopy --only-keep-debug build/sambamba sambamba.debug
+	objcopy --strip-debug build/sambamba
+	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
+	mv sambamba.debug build/
+
+install:
+	install -m 0755 build/sambamba $(prefix)/bin
+
+clean:
+	rm -rf build/ ; cd htslib ; make clean
+	rm -f $(OBJ) $(OUT) trace.{def,log}
