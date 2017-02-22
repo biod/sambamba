@@ -1202,6 +1202,7 @@ int depth_main(string[] args) {
                 printer.raw_bed_lines = [s];
                 printer.setBed(bed);
             }
+            // the following line breaks on an unsorted BAM file
             reads = inputRangeObject(bam.getReadsOverlapping(bed)
                     .map!(r => CustomBamRead(r, rg2id)));
         } else {
