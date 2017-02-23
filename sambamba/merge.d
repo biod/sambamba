@@ -85,7 +85,7 @@ import std.typecons;
 import std.traits;
 import std.numeric;
 import std.parallelism;
-import std.stream;
+import undead.stream;
 import std.getopt;
 
 import core.atomic;

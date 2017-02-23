@@ -25,7 +25,7 @@ void stripBcfHeader(File input_file, File output_file) {
   import bio.core.bgzf.constants;
   import bio.core.bgzf.block;
   import bio.core.bgzf.compress;
-  import std.cstream, std.exception;
+  import undead.cstream, std.exception;
 
   auto stream = new CFile(input_file.getFP(), FileMode.In);
   auto supplier = new StreamSupplier(stream);

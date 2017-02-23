@@ -60,7 +60,7 @@ which targets LLVM.
 ## Compiling for Linux
 
 The LDC compiler's github repository also provides binary images. The current
-preferred release for sambamba is LDC - the LLVM D compiler (>= 0.16.1). After
+preferred release for sambamba is LDC - the LLVM D compiler (>= 1.1.0). After
 installing LDC:
 
 ```sh
@@ -72,11 +72,21 @@ installing LDC:
 Installing LDC only means unpacking an archive and setting some environmental variables, e.g. unpacking into `$HOME`:
 ```sh
 cd
-wget https://github.com/ldc-developers/ldc/releases/download/v0.17.1/ldc2-0.17.1-linux-x86_64.tar.xz
-tar xJf ldc2-0.17.1-linux-x86_64.tar.xz
-export PATH=~/ldc2-0.17.1-linux-x86_64/bin/:$PATH
-export LIBRARY_PATH=~/ldc2-0.17.1-linux-x86_64/lib/
+wget https://github.com/ldc-developers/ldc/releases/download/$ver/ldc2-$ver-linux-x86_64.tar.xz
+tar xJf ldc2-$ver-linux-x86_64.tar.xz
+export PATH=~/ldc2-$ver-linux-x86_64/bin/:$PATH
+export LIBRARY_PATH=~/ldc2-$ver-linux-x86_64/lib/
 ```
+
+### GNU Guix
+
+A GNU Guix package for LDC is also available
+
+```sh
+guix package -i ldc
+```
+
+Binary relocatable install will be announced soon.
 
 ## Compiling for Mac OS X
 

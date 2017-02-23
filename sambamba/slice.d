@@ -28,7 +28,7 @@ import bio.core.utils.stream;
 import bio.core.region;
 
 import std.array;
-import std.stream;
+import undead.stream;
 import std.getopt;
 import std.parallelism;
 import std.conv;
@@ -47,15 +47,15 @@ import sambamba.utils.common.overwrite;
         s2_start_offset = virtual offset of the first read whose position >= beg
         s2_end_offset = virtual offset of the first read whose position >= end
 
-                /\/\/\/\/\/\/\/\/\/\/\/\/#########==============  ...  =============#####      
+                /\/\/\/\/\/\/\/\/\/\/\/\/#########==============  ...  =============#####
 BGZF blocks   ..........)[...........)[..........)[..........)[.  ...  ....)[.........)[.......
-                .                        .                                               .     
+                .                        .                                               .
                 s1_start_offset          s2_start_offset                          s2_end_offset
-                                                                                               
-                /\/\/\/\/\/\/\/\/\/\/\/\/######                   ...                          
+
+                /\/\/\/\/\/\/\/\/\/\/\/\/######                   ...
          ...)[..........)[...........)[..........)[..........)[.  ...  ....)[.........)[.......
-                .                        .     .                                               
-                s1_start_offset   s2_start_offset, s2_end_offset                               
+                .                        .     .
+                s1_start_offset   s2_start_offset, s2_end_offset
 
     These numbers are not correctly defined in some cases, so let's extend their
     definitions.
@@ -76,7 +76,7 @@ BGZF blocks   ..........)[...........)[..........)[..........)[.  ...  ....)[...
     Now we divide the algorithm into subcases.
 
     1) Both R1 and R2 are empty.
-        
+
         Output BAM file with no reads.
 
     2) R1 is not empty, R2 is empty.
@@ -91,7 +91,7 @@ BGZF blocks   ..........)[...........)[..........)[..........)[.  ...  ....)[...
         from the left, and output it. Set start_offset to the start file offset of the next BGZF block.
         Take last read from R2. Adjust its last BGZF block by chomping everything after the end of
         the alignment record. Set end_offset to the start file offset of this BGZF block.
-        
+
         Output first adjusted block, then copy of file since start_offset till end_offset, then
         second adjusted block.
 
@@ -147,7 +147,7 @@ void fetchRegion(BamReader bam, Region region, ref Stream stream)
     if (reads1.empty && reads2.empty) {
         // are there any reads with position >= beg?
         s2_end_offset = s2_start_offset;
-    } else if (!reads1.empty && reads2.empty) { 
+    } else if (!reads1.empty && reads2.empty) {
         // are there any reads with position >= end?
         s2_end_offset = bam[chr].endVirtualOffset();
     } else {
@@ -181,7 +181,7 @@ void fetchUnmapped(BamReader bam, Stream stream) {
 
     auto unmapped_reads = bam.unmappedReads();
     if (!unmapped_reads.empty) {
-        copyAsIs(bam, stream, 
+        copyAsIs(bam, stream,
                  unmapped_reads.front.start_virtual_offset,
                  bam.eofVirtualOffset());
     }
@@ -194,12 +194,12 @@ version (Linux) {
     extern(C) int posix_fadvise(int, off_t, off_t, int);
 }
 
-void copyAsIs(BamReader bam, Stream stream, 
+void copyAsIs(BamReader bam, Stream stream,
               VirtualOffset s2_start_offset, VirtualOffset s2_end_offset)
 {
     // R2 is non-empty
     if (s2_start_offset < s2_end_offset) {
-       
+
         // Either R2 is fully contained in one BGZF block...
         if (s2_start_offset.coffset == s2_end_offset.coffset) {
             // write chomped block
@@ -302,7 +302,7 @@ int slice_main(string[] args) {
         scope(exit) stream.close();
 
         if (output_filename != null) {
-            stream = new std.stream.BufferedFile(output_filename, FileMode.OutNew);
+            stream = new undead.stream.BufferedFile(output_filename, FileMode.OutNew);
         } else {
             immutable BUFSIZE = 1_048_576;
             version (Posix) {
@@ -312,7 +312,7 @@ int slice_main(string[] args) {
                 import core.sys.windows.windows;
                 auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
             }
-            stream = new std.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
+            stream = new undead.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
         }
 
         if (args[2] == "*") {

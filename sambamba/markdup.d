@@ -34,7 +34,7 @@ import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
        bio.bam.multireader;
 import std.traits, std.typecons, std.range, std.algorithm, std.parallelism,
        std.exception, std.file, std.typetuple, std.conv, std.array, std.bitmanip,
-       std.c.stdlib, std.datetime, std.stream : BufferedFile, FileMode;
+       std.c.stdlib, std.datetime, undead.stream : BufferedFile, FileMode;
 
 /// Read + its index (0-based)
 struct IndexedBamRead {

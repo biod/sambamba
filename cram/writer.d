@@ -1,6 +1,6 @@
 module cram.writer;
 
-import std.stream;
+import undead.stream;
 import std.string;
 
 import cram.htslib;
@@ -84,7 +84,7 @@ final class CramWriter {
     }
 
     void writeRecord(R)(auto ref R read) if(isBamRead!R) {
-        // somewhat messy code because of the decision 
+        // somewhat messy code because of the decision
         // to use ending zero byte of qname for flags
         auto offset = 32 + read.name.length;
         ubyte old_byte = read.raw_data[offset];

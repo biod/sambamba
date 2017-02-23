@@ -37,7 +37,7 @@ import std.parallelism;
 import std.getopt;
 import std.path;
 import std.file;
-import std.stream;
+import undead.stream;
 import std.stdio;
 import std.typecons;
 import core.atomic;
@@ -146,7 +146,7 @@ class Sorter {
                 auto len = read.raw_data.length;
                 if (len + _used > max_sz)
                     break;
-                
+
                 if (_n_reads == _reads_capa) {
                     auto realloc_reads = cast(BamRead*)std.c.stdlib.realloc(_reads, 2 * _reads_capa * BamRead.sizeof);
                     if (realloc_reads is null) {
@@ -356,7 +356,7 @@ class Sorter {
 
         string fn;
 
-        if (k <= 1) { 
+        if (k <= 1) {
             level = compression_level;
             fn = output_filename;
         } else {
@@ -405,7 +405,7 @@ class Sorter {
 
         auto input_buf_size = min(16_000_000, memory_limit / 4 / num_of_chunks);
         auto output_buf_size = min(64_000_000, memory_limit / 6);
-        auto stream = bufferedFile(output_filename, FileMode.OutNew, 
+        auto stream = bufferedFile(output_filename, FileMode.OutNew,
                                    output_buf_size);
         scope(failure) stream.close();
 
@@ -435,8 +435,8 @@ class Sorter {
                 alignmentranges[i] = bamfile.readsWithProgress(
                         // WTF is going on here? See this thread:
                         // http://forum.dlang.org/thread/mailman.112.1341467786.31962.digitalmars-d@puremagic.com
-                        (size_t j) { 
-                        return (lazy float progress) { 
+                        (size_t j) {
+                        return (lazy float progress) {
                         atomicStore(merging_progress[j], progress);
                         synchronized (bar) {
                         bar.update(dotProduct(merging_progress, weights));
@@ -582,7 +582,7 @@ size_t parseMemory(string str) {
 /// Params:
 ///     unsorted_fn - filename of unsorted BAM
 ///     chunk_num   - 0-based index of the chunk
-///                                               
+///
 string chunkBaseName(string unsorted_fn, size_t chunk_num) {
     return baseName(unsorted_fn) ~ "." ~ to!string(chunk_num);
 }
