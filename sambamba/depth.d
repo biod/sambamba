@@ -1202,6 +1202,8 @@ int depth_main(string[] args) {
                 printer.raw_bed_lines = [s];
                 printer.setBed(bed);
             }
+            // the following line breaks in debug mode on an BAM file not sorted by sambamba
+            // because of https://github.com/biod/BioD/blob/1248586b54af4bd4dfb28ebfebfc6bf012e7a587/bio/bam/read.d#L1761
             reads = inputRangeObject(bam.getReadsOverlapping(bed)
                     .map!(r => CustomBamRead(r, rg2id)));
         } else {

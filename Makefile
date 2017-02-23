@@ -1,5 +1,5 @@
 D_COMPILER=dmd
-D_FLAGS=--compiler=dmd -IBioD -g -d#-O -release -inline # -version=serial
+D_FLAGS=--compiler=dmd -IBioD -IundeaD/src -g -d#-O -release -inline # -version=serial
 LDMD=ldmd2
 
 STATIC_LIB_PATH=-Lhtslib -Llz4/lib

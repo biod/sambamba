@@ -34,14 +34,14 @@ import std.range;
 import std.array;
 import std.format;
 import std.traits;
-import std.stream : Stream, BufferedFile, FileMode;
+import undead.stream : Stream, BufferedFile, FileMode;
 import std.conv;
 import std.algorithm;
 import std.parallelism;
 
 class ReadCounter {
     size_t number_of_reads;
-    
+
     void process(R, SB)(R reads, SB bam) {
         number_of_reads = walkLength(reads);
     }
@@ -147,7 +147,7 @@ final class BamSerializer {
 
     enum is_serial = true;
 
-    void process(R, SB)(R reads, SB bam) 
+    void process(R, SB)(R reads, SB bam)
     {
         version (Posix) {
             auto handle = _f.fileno;
@@ -156,7 +156,7 @@ final class BamSerializer {
             import core.stdc.stdio : _fdToHandle;
             auto handle = _fdToHandle(_f.fileno);
         }
-        Stream output_stream = new BufferedFile(handle, FileMode.OutNew, 
+        Stream output_stream = new BufferedFile(handle, FileMode.OutNew,
                                                 BUFSIZE);
         auto writer = new BamWriter(output_stream, _level, _task_pool);
         writer.setFilename(output_filename);

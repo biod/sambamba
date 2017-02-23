@@ -47,7 +47,7 @@ import std.getopt;
 import std.string : strip, indexOf, toStringz;
 import std.c.stdlib;
 import std.typecons;
-import std.stream;
+import undead.stream;
 import std.range;
 import std.algorithm;
 import std.path;

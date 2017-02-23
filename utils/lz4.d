@@ -18,7 +18,7 @@
 
 */
 module utils.lz4;
-import std.stdio, std.stream, std.conv;
+import std.stdio, undead.stream, std.conv;
 
 extern(C) {
   alias size_t LZ4F_errorCode_t;
@@ -279,7 +279,7 @@ class LZ4Decompressor {
     out_buff.length = 256 << 10;
   }
 
-  void decompress(std.stream.InputStream input_file,
+  void decompress(undead.stream.InputStream input_file,
                   std.stdio.File output_file) {
     size_t bytes_read, bytes_written;
 

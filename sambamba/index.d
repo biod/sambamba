@@ -20,7 +20,7 @@
 module sambamba.index;
 
 import std.stdio;
-import std.stream;
+import undead.stream;
 import std.range;
 import std.parallelism;
 import std.getopt;
