@@ -72,6 +72,9 @@ debug-strip: debug
 install:
 	install -m 0755 build/sambamba $(prefix)/bin
 
-clean:
-	rm -rf build/ ; cd htslib ; make clean
+clean: clean-d
+	cd htslib ; make clean
+
+clean-d:
+	rm -rf build/*
 	rm -f $(OBJ) $(OUT) trace.{def,log}
