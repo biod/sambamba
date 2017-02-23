@@ -113,4 +113,9 @@ testIssue225() {
     assertEquals 0 $?
 }
 
-. shunit2-2.0.3/src/shell/shunit2
+shunit2=`which shunit2`
+if [ -x $shunit2 ]; then
+    . $shunit2
+else
+    . shunit2-2.0.3/src/shell/shunit2
+fi

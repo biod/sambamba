@@ -37,7 +37,7 @@ guix release:             LIBS += $(DLIBS)
 
 guix-debug debug profile: LIBS += $(DLIBS_DEBUG)
 
-.PHONY: all guix guix-debug debug release profile clean
+.PHONY: all guix guix-debug debug release profile clean test
 
 all: debug
 
@@ -62,6 +62,9 @@ guix guix-debug default debug release profile: $(OUT)
 # ---- Link step
 $(OUT): build-setup $(OBJ)
 	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
+
+test:
+	./.run_tests.sh
 
 debug-strip: debug
 	objcopy --only-keep-debug build/sambamba sambamba.debug
