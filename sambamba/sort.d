@@ -217,7 +217,7 @@ class Sorter {
         } else if (natural_sort) {
             mergeSort!(mixedCompareReadNames, false)(chunk, task_pool, tmp);
         } else {
-            mergeSort!(compareCoordinates, false)(chunk, task_pool, tmp);
+            mergeSort!(compareCoordinatesAndStrand, false)(chunk, task_pool, tmp);
         }
         version (development) {
         stderr.writeln("Finished sorting of chunk #", n, " in ", sw.peek().seconds, "s");
@@ -266,7 +266,7 @@ class Sorter {
         else if (natural_sort)
             mergeSortedChunks!mixedCompareReadNames();
         else
-            mergeSortedChunks!compareCoordinates();
+            mergeSortedChunks!compareCoordinatesAndStrand();
     }
 
     private void createHeader() {

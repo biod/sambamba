@@ -386,7 +386,7 @@ int merge_main(string[] args) {
                         writer.writeRecord(read);
                     break;
                 case SortingOrder.coordinate:
-                    foreach (read; nWayUnion!compareCoordinates(modifiedranges))
+                    foreach (read; nWayUnion!compareCoordinatesAndStrand(modifiedranges))
                         writer.writeRecord(read);
                     break;
                 default: assert(0);
