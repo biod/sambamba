@@ -86,7 +86,6 @@ A GNU Guix package for LDC is also available
 guix package -i ldc
 ```
 
-Binary relocatable install will be announced soon.
 
 ## Compiling for Mac OS X
 
@@ -99,14 +98,38 @@ Binary relocatable install will be announced soon.
 
 # Troubleshooting
 
-In case of crashes it's helpful to have GDB stacktraces (`bt` command).
+In case of crashes it's helpful to have GDB stacktraces (`bt` command). A full stacktrace
+for all threads:
+
+```
+thread apply all backtrace full
+```
 
 Note that GDB should be made aware of D garbage collector:
 ```
-handle SIGUSR1 nostop
-handle SIGUSR1 noprint
-handle SIGUSR2 nostop
-handle SIGUSR2 noprint
+handle SIGUSR1 SIGUSR2 nostop noprint
+```
+
+A binary relocatable install of sambamba with debug information can be fetched from
+
+```sh
+wget http://biogems.info/contrib/genenetwork/s7l4l5jnrwvvyr3pva242yakvmbfpm06-sambamba-0.6.6-pre3-6ae174b-debug-x86_64.tar.bz2
+md5sum ca64fd6f2fa2ba901937afc6b189e98d
+mkdir tmp
+tar xvjf ../*sambamba*.tar.bz2
+cd tmp
+```
+
+unpack the tarball and run the contained install.sh script with TARGET
+
+```
+./install.sh ~/sambamba-test
+```
+
+Run sambamba in gdb with
+
+```
+gdb --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
 ```
 
 # Development
