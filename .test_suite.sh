@@ -114,7 +114,7 @@ testIssue225() {
 }
 
 shunit2=`which shunit2`
-if [ -x $shunit2 ]; then
+if [ -x "$shunit2" ]; then
     . $shunit2
 else
     . shunit2-2.0.3/src/shell/shunit2
