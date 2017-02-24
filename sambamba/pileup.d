@@ -206,7 +206,7 @@ struct Args {
         samtools_args = unbundle(samtools_args_);
         bcftools_args = unbundle(bcftools_args_, "O"); // keep -Ov|-Ob|...
         auto samtools_output_fmt = fixSamtoolsArgs(use_bcftools, samtools_args);
-        auto bcftools_output_fmt = fixBcftoolsArgs(use_bcftools, bcftools_args);
+        auto bcftools_output_fmt = fixBcftoolsArgs(use_bcftools, bcftools_args, samtools_args);
 
         input_format = samtools_output_fmt;
         if (use_bcftools)
@@ -322,7 +322,7 @@ FileFormat fixSamtoolsArgs(bool use_bcftools, ref string[] args) {
 
 // input: unbundled bcftools arguments
 // output: detected output format
-FileFormat fixBcftoolsArgs(bool use_bcftools, ref string[] args) {
+FileFormat fixBcftoolsArgs(bool use_bcftools, ref string[] args, ref string[] samtools_args) {
     FileFormat fmt = FileFormat.VCF;
     bool[] keep;
     foreach (i; 0 .. args.length) {
@@ -350,9 +350,10 @@ FileFormat fixBcftoolsArgs(bool use_bcftools, ref string[] args) {
             fixed_args ~= args[i];
     }
     // When using bcftools and args is empty add these switches
-    if (use_bcftools && fixed_args.empty)
+    if (use_bcftools && fixed_args.empty) {
       fixed_args = ["view","-"];
-
+      samtools_args ~= [ "-g", "-u" ];
+    }
     args = fixed_args;
     return fmt;
 }
