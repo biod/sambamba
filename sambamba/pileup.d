@@ -202,14 +202,14 @@ struct Args {
     string[] bcftools_args;
     FileFormat input_format;
 
-    this(string[] samtools_args_, string[] bcftools_args_) {
+    this(string[] samtools_args_, bool use_bcftools, string[] bcftools_args_) {
         samtools_args = unbundle(samtools_args_);
         bcftools_args = unbundle(bcftools_args_, "O"); // keep -Ov|-Ob|...
-        auto samtools_output_fmt = fixSamtoolsArgs(samtools_args, !bcftools_args.empty);
-        auto bcftools_output_fmt = fixBcftoolsArgs(bcftools_args);
+        auto samtools_output_fmt = fixSamtoolsArgs(use_bcftools, samtools_args);
+        auto bcftools_output_fmt = fixBcftoolsArgs(use_bcftools, bcftools_args);
 
         input_format = samtools_output_fmt;
-        if (bcftools_args.length > 0)
+        if (use_bcftools)
             input_format = bcftools_output_fmt;
     }
 
@@ -262,7 +262,7 @@ string[] unbundle(string[] args, string exclude="") {
 
 // input: unbundled samtools arguments
 // output: detected output format
-FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
+FileFormat fixSamtoolsArgs(bool use_bcftools, ref string[] args) {
     bool vcf = false;
     bool bcf = false;
     bool uncompressed = false;
@@ -274,7 +274,7 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
         if (args[i] == "-g") {
             bcf = true; keep ~= true;
         } else if (args[i] == "-v") {
-            vcf = true; keep ~= !use_caller;
+            vcf = true; keep ~= !use_bcftools;
         } else if (args[i] == "-u") {
             bcf = true; uncompressed = true; keep ~= true;
         } else {
@@ -288,18 +288,19 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
             fixed_args ~= args[i];
     }
 
+    // When using bcftools add these switches
     bool fixes_applied;
-    if (vcf && use_caller) {
+    if (vcf && use_bcftools) {
         fixed_args ~= ["-g", "-u"];
         fixes_applied = true;
-    } else if (bcf && use_caller && !uncompressed) {
+    } else if (bcf && use_bcftools && !uncompressed) {
         fixed_args ~= "-u";
         fixes_applied = true;
     }
 
     args = fixed_args;
 
-    if (fixes_applied && use_caller) {
+    if (fixes_applied && use_bcftools) {
         stderr.writeln("NOTE: changed samtools output format to uncompressed BCF for better performance (-gu)");
     }
 
@@ -321,7 +322,7 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
 
 // input: unbundled bcftools arguments
 // output: detected output format
-FileFormat fixBcftoolsArgs(ref string[] args) {
+FileFormat fixBcftoolsArgs(bool use_bcftools, ref string[] args) {
     FileFormat fmt = FileFormat.VCF;
     bool[] keep;
     foreach (i; 0 .. args.length) {
@@ -348,6 +349,9 @@ FileFormat fixBcftoolsArgs(ref string[] args) {
         if (keep[i])
             fixed_args ~= args[i];
     }
+    // When using bcftools and args is empty add these switches
+    if (use_bcftools && fixed_args.empty)
+      fixed_args = ["view","-"];
 
     args = fixed_args;
     return fmt;
@@ -683,7 +687,7 @@ int pileup_main(string[] args) {
             bcftoolsInfo();  // initialize bcftools path before threading
 
         stderr.writeln("samtools mpileup options: ",samtools_args.join(" "));
-        if (bcftools_args.length>0)
+        if (use_bcftools)
             stderr.writeln("bcftools options: ", bcftools_args.join(" "));
 
         if (output_filename != null) {
@@ -698,7 +702,7 @@ int pileup_main(string[] args) {
         string tmp_dir = randomSubdir(tmp_dir_prefix);
         scope(exit) rmdirRecurse(tmp_dir);
 
-        auto bundled_args = Args(samtools_args, bcftools_args);
+        auto bundled_args = Args(samtools_args, use_bcftools, bcftools_args);
 
         InputRange!BamRead reads;
         if (bed_filename is null) {
