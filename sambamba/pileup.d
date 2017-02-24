@@ -40,9 +40,10 @@ import bio.core.utils.stream;
 import std.process;
 import std.stdio;
 import std.parallelism;
-import std.file : rmdirRecurse;
+import std.file : rmdirRecurse, exists;
 import std.algorithm;
 import std.array;
+import std.exception;
 import std.getopt;
 import std.string : strip, indexOf, toStringz;
 import std.c.stdlib;
@@ -51,6 +52,7 @@ import undead.stream;
 import std.range;
 import std.algorithm;
 import std.path;
+import std.regex;
 import std.traits;
 import std.typecons;
 import std.conv;
@@ -65,7 +67,8 @@ import core.stdc.errno;
 extern(C) char* mkdtemp(char* template_);
 extern(C) int mkfifo(immutable(char)* fn, int mode);
 
-string samtoolsBin     = null;  // cached path to samtools binary
+// Cached values
+string samtoolsBin     = null;
 string samtoolsVersion = null;
 string bcftoolsBin     = null;
 string bcftoolsVersion = null;
@@ -73,43 +76,45 @@ string bcftoolsVersion = null;
 // Return path to samtools after testing whether it exists and supports mpileup
 auto samtoolsInfo()
 {
-  if (samtoolsBin == null) {
+  if (samtoolsBin is null) {
     auto paths = environment["PATH"].split(":");
-    auto a = array(filter!(path => std.file.exists(path ~ "/samtools"))(paths));
-    if (a.length == 0)
-      throw new Exception("failed to locate samtools executable in PATH");
+    auto a = array(filter!(path => exists(path ~ "/samtools"))(paths));
+    enforce(a.length>0 , "failed to locate samtools executable in PATH");
     samtoolsBin = a[0] ~ "/samtools";
-    // we found the path, now test the binary
+  }
+  enforce(exists(samtoolsBin),samtoolsBin ~ " is invalid");
+  if (samtoolsVersion is null) {
     auto samtools = execute([samtoolsBin]);
-    if (samtools.status != 1)
-      throw new Exception("samtools failed: ", samtools.output);
+    enforce(samtools.status==1, "samtools failed: " ~ samtools.output);
     samtoolsVersion = samtools.output.split("\n")[2];
-    if (samtoolsVersion.startsWith("Version: 0."))
-      throw new Exception("versions 0.* of samtools/bcftools are unsupported");
+    enforce(samtoolsVersion.startsWith("Version: 1."),"version "~samtoolsVersion~" of samtools is unsupported");
   }
   return [samtoolsBin, samtoolsVersion];
 }
 
 auto samtoolsPath() { return samtoolsInfo()[0]; }
 
-auto bcftoolsPath()
+auto bcftoolsInfo()
 {
-  if (bcftoolsBin == null) {
+  if (bcftoolsBin is null) {
     auto paths = environment["PATH"].split(":");
     auto a = array(filter!(path => std.file.exists(path ~ "/bcftools"))(paths));
-    if (a.length == 0)
-      throw new Exception("failed to locate bcftools executable in PATH");
+    enforce(a.length>0,"failed to locate bcftools executable in PATH");
     bcftoolsBin = a[0] ~ "/bcftools";
-    // we found the path, now test the binary
+  }
+  enforce(exists(bcftoolsBin),bcftoolsBin ~ " is invalid");
+  if (bcftoolsVersion is null) {
     auto bcftools = execute([bcftoolsBin]);
-    if (bcftools.status != 1)
-      throw new Exception("bcftools failed: ", bcftools.output);
-    bcftoolsVersion = bcftools.output.split("\n")[2];
-    if (bcftoolsVersion.startsWith("Version: 0."))
-      throw new Exception("versions 0.* of samtools/bcftools are unsupported");
+    enforce(bcftools.status == 1, "bcftools failed: " ~ bcftools.output);
+    auto r = regex(r"Version: 1\.\d\.\d[^\n]+");
+    enforce(matchFirst(bcftools.output, r),"Can not find version in "~bcftools.output);
+    bcftoolsVersion = matchFirst(bcftools.output, r).hit;
+    enforce(bcftoolsVersion.startsWith("Version: 1."),"version "~bcftoolsVersion~" of bcftools is unsupported");
   }
   return [bcftoolsBin, bcftoolsVersion];
 }
+
+auto bcftoolsPath() { return bcftoolsInfo()[0]; }
 
 void makeFifo(string filename) {
     auto s = toStringz(filename);
@@ -214,7 +219,7 @@ struct Args {
         auto samtools_cmd = (basic_args ~ samtools_args).join(" ");
         string cmd = samtools_cmd;
         if (bcftools_args.length > 0) {
-            auto bcftools_cmd = bcftoolsPath()[0] ~ " " ~ bcftools_args.join(" ");
+            auto bcftools_cmd = bcftoolsPath() ~ " " ~ bcftools_args.join(" ");
             cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
         }
 
@@ -577,7 +582,9 @@ void printUsage() {
     stderr.writeln("                       [--samtools <samtools mpileup args>]");
     stderr.writeln("                       [--bcftools <bcftools call args>]");
     stderr.writeln();
-    stderr.writeln("This subcommand relies on external tools and acts as a multi-core implementation of samtools and bcftools.");
+    stderr.writeln("This subcommand relies on external tools and acts as a multi-core");
+    stderr.writeln("implementation of samtools and bcftools.");
+    stderr.writeln();
     stderr.writeln("Therefore, the following tools should be present in $PATH:");
     stderr.writeln("    * samtools");
     stderr.writeln("    * bcftools (when used)");
@@ -610,6 +617,12 @@ void printUsage() {
     stderr.writeln("                    chunk size (in bytes)");
     stderr.writeln("         -B, --output-buffer-size=512_000_000");
     stderr.writeln("                    output buffer size (in bytes)");
+    stderr.writeln();
+    stderr.writeln("Sambamba paths:\n");
+    samtoolsInfo();
+    stderr.writeln("         samtools: ",samtoolsBin," ",samtoolsVersion);
+    bcftoolsInfo();
+    stderr.writeln("         bcftools: ",bcftoolsBin," ",bcftoolsVersion);
 }
 
 version(standalone) {
@@ -665,6 +678,9 @@ int pileup_main(string[] args) {
             return 0;
         }
 
+        samtoolsInfo();  // initialize samtools path before threading
+        bcftoolsInfo();  // initialize bcftools path before threading
+
         stderr.writeln("samtools mpileup options: ",samtools_args.join(" "));
         if (bcftools_args.length>0)
             stderr.writeln("bcftools options: ", bcftools_args.join(" "));
@@ -715,8 +731,12 @@ int pileup_main(string[] args) {
     } catch (Exception e) {
         stderr.writeln("sambamba-pileup: ", e.msg);
 
+        debug {
+          throw e;
+        }
+
         version(development) {
-            throw e;
+          throw e;
         }
 
         return 1;
