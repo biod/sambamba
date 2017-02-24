@@ -66,6 +66,7 @@ installing LDC:
 ```sh
     git clone --recursive https://github.com/lomereiter/sambamba.git
     cd sambamba
+    git clone https://github.com/dlang/undeaD
     make sambamba-ldmd2-64
 ```
 
@@ -93,6 +94,7 @@ guix package -i ldc
     brew install ldc
     git clone --recursive https://github.com/lomereiter/sambamba.git
     cd sambamba
+    git clone https://github.com/dlang/undeaD
     make sambamba-ldmd2-64
 ```
 
