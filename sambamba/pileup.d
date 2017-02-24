@@ -46,7 +46,7 @@ import std.array;
 import std.exception;
 import std.getopt;
 import std.string : strip, indexOf, toStringz;
-import std.c.stdlib;
+import core.stdc.stdlib;
 import std.typecons;
 import undead.stream;
 import std.range;
@@ -79,7 +79,7 @@ auto samtoolsInfo()
   if (samtoolsBin is null) {
     auto paths = environment["PATH"].split(":");
     auto a = array(filter!(path => exists(path ~ "/samtools"))(paths));
-    enforce(a.length>0 , "failed to locate samtools executable in PATH");
+    enforce(!a.empty , "failed to locate samtools executable in PATH");
     samtoolsBin = a[0] ~ "/samtools";
   }
   enforce(exists(samtoolsBin),samtoolsBin ~ " is invalid");
@@ -98,8 +98,8 @@ auto bcftoolsInfo()
 {
   if (bcftoolsBin is null) {
     auto paths = environment["PATH"].split(":");
-    auto a = array(filter!(path => std.file.exists(path ~ "/bcftools"))(paths));
-    enforce(a.length>0,"failed to locate bcftools executable in PATH");
+    auto a = array(filter!(path => exists(path ~ "/bcftools"))(paths));
+    enforce(!a.empty,"failed to locate bcftools executable in PATH");
     bcftoolsBin = a[0] ~ "/bcftools";
   }
   enforce(exists(bcftoolsBin),bcftoolsBin ~ " is invalid");
@@ -333,7 +333,7 @@ FileFormat fixBcftoolsArgs(ref string[] args) {
         } else if (args[i] == "-Oz") {
             // TODO
             throw new Exception("compressed VCF is not supported, please use bgzip and uncompressed VCF");
-            fmt = FileFormat.gzippedVCF; keep ~= false;
+            // fmt = FileFormat.gzippedVCF; keep ~= false;
         } else if (args[i] == "-Ob") {
             fmt = FileFormat.BCF; keep ~= true;
         } else if (args[i] == "-Ou") {
@@ -494,7 +494,7 @@ class ChunkDispatcher(ChunkRange) {
             }
             decompressIntoFile(result.data, format_, output_file_);
             stderr.writeln("[chunk dumped] ", result.num);
-            std.c.stdlib.free(result.data.ptr);
+            core.stdc.stdlib.free(result.data.ptr);
         }
     }
 
@@ -547,7 +547,7 @@ void worker(Dispatcher)(Dispatcher d,
 
         size_t capa = 1_024_576;
         size_t used = 0;
-        char* output = cast(char*)std.c.stdlib.malloc(capa);
+        char* output = cast(char*)core.stdc.stdlib.malloc(capa);
 
         char[4096] buffer = void;
         while (true) {
@@ -556,7 +556,7 @@ void worker(Dispatcher)(Dispatcher d,
                 break;
             if (used + buf.length > capa) {
                 capa = max(capa * 2, used + buf.length);
-                output = cast(char*)std.c.stdlib.realloc(cast(void*)output, capa);
+                output = cast(char*)core.stdc.stdlib.realloc(cast(void*)output, capa);
                 if (output is null)
                     throw new Exception("failed to allocate " ~ capa.to!string ~ " bytes");
             }
@@ -640,21 +640,21 @@ int pileup_main(string[] args) {
     init();
 
     auto bcftools_args = find(args, "--bcftools");
-    auto args1 = (bcftools_args.length>0 ? args[0 .. $-bcftools_args.length] : args );
+    immutable use_bcftools = !bcftools_args.empty;
+    auto args1 = (use_bcftools ? args[0 .. $-bcftools_args.length] : args );
     auto samtools_args = find(args1, "--samtools");
     auto own_args = (samtools_args.length>0 ? args1[0 .. $-samtools_args.length] : args1 );
 
     if (!samtools_args.empty) {
-        samtools_args.popFront();
+        samtools_args.popFront(); // remove --samtools switch
     } else {
         samtools_args = [];
     }
 
-    if (!bcftools_args.empty) {
+    if (use_bcftools) {
         bcftools_args.popFront(); // remove the switch --bcftools
     }
 
-    //string query;
     uint n_threads = defaultPoolThreads;
     std.stdio.File output_file = stdout;
     size_t buffer_size = 64_000_000;
@@ -678,8 +678,9 @@ int pileup_main(string[] args) {
             return 0;
         }
 
-        samtoolsInfo();  // initialize samtools path before threading
-        bcftoolsInfo();  // initialize bcftools path before threading
+        samtoolsInfo();      // initialize samtools path before threading
+        if (use_bcftools)
+            bcftoolsInfo();  // initialize bcftools path before threading
 
         stderr.writeln("samtools mpileup options: ",samtools_args.join(" "));
         if (bcftools_args.length>0)
@@ -734,12 +735,12 @@ int pileup_main(string[] args) {
         debug {
           throw e;
         }
-
-        version(development) {
-          throw e;
+        else {
+          version(development) {
+            throw e;
+          }
+          return 1;
         }
-
-        return 1;
     }
 
     return 0;
