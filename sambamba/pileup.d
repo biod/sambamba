@@ -40,17 +40,19 @@ import bio.core.utils.stream;
 import std.process;
 import std.stdio;
 import std.parallelism;
-import std.file : rmdirRecurse;
+import std.file : rmdirRecurse, exists;
 import std.algorithm;
 import std.array;
+import std.exception;
 import std.getopt;
 import std.string : strip, indexOf, toStringz;
-import std.c.stdlib;
+import core.stdc.stdlib;
 import std.typecons;
 import undead.stream;
 import std.range;
 import std.algorithm;
 import std.path;
+import std.regex;
 import std.traits;
 import std.typecons;
 import std.conv;
@@ -65,7 +67,8 @@ import core.stdc.errno;
 extern(C) char* mkdtemp(char* template_);
 extern(C) int mkfifo(immutable(char)* fn, int mode);
 
-string samtoolsBin     = null;  // cached path to samtools binary
+// Cached values
+string samtoolsBin     = null;
 string samtoolsVersion = null;
 string bcftoolsBin     = null;
 string bcftoolsVersion = null;
@@ -73,43 +76,45 @@ string bcftoolsVersion = null;
 // Return path to samtools after testing whether it exists and supports mpileup
 auto samtoolsInfo()
 {
-  if (samtoolsBin == null) {
+  if (samtoolsBin is null) {
     auto paths = environment["PATH"].split(":");
-    auto a = array(filter!(path => std.file.exists(path ~ "/samtools"))(paths));
-    if (a.length == 0)
-      throw new Exception("failed to locate samtools executable in PATH");
+    auto a = array(filter!(path => exists(path ~ "/samtools"))(paths));
+    enforce(!a.empty , "failed to locate samtools executable in PATH");
     samtoolsBin = a[0] ~ "/samtools";
-    // we found the path, now test the binary
+  }
+  enforce(exists(samtoolsBin),samtoolsBin ~ " is invalid");
+  if (samtoolsVersion is null) {
     auto samtools = execute([samtoolsBin]);
-    if (samtools.status != 1)
-      throw new Exception("samtools failed: ", samtools.output);
+    enforce(samtools.status==1, "samtools failed: " ~ samtools.output);
     samtoolsVersion = samtools.output.split("\n")[2];
-    if (samtoolsVersion.startsWith("Version: 0."))
-      throw new Exception("versions 0.* of samtools/bcftools are unsupported");
+    enforce(samtoolsVersion.startsWith("Version: 1."),"version "~samtoolsVersion~" of samtools is unsupported");
   }
   return [samtoolsBin, samtoolsVersion];
 }
 
 auto samtoolsPath() { return samtoolsInfo()[0]; }
 
-auto bcftoolsPath()
+auto bcftoolsInfo()
 {
-  if (bcftoolsBin == null) {
+  if (bcftoolsBin is null) {
     auto paths = environment["PATH"].split(":");
-    auto a = array(filter!(path => std.file.exists(path ~ "/bcftools"))(paths));
-    if (a.length == 0)
-      throw new Exception("failed to locate bcftools executable in PATH");
+    auto a = array(filter!(path => exists(path ~ "/bcftools"))(paths));
+    enforce(!a.empty,"failed to locate bcftools executable in PATH");
     bcftoolsBin = a[0] ~ "/bcftools";
-    // we found the path, now test the binary
+  }
+  enforce(exists(bcftoolsBin),bcftoolsBin ~ " is invalid");
+  if (bcftoolsVersion is null) {
     auto bcftools = execute([bcftoolsBin]);
-    if (bcftools.status != 1)
-      throw new Exception("bcftools failed: ", bcftools.output);
-    bcftoolsVersion = bcftools.output.split("\n")[2];
-    if (bcftoolsVersion.startsWith("Version: 0."))
-      throw new Exception("versions 0.* of samtools/bcftools are unsupported");
+    enforce(bcftools.status == 1, "bcftools failed: " ~ bcftools.output);
+    auto r = regex(r"Version: 1\.\d\.\d[^\n]+");
+    enforce(matchFirst(bcftools.output, r),"Can not find version in "~bcftools.output);
+    bcftoolsVersion = matchFirst(bcftools.output, r).hit;
+    enforce(bcftoolsVersion.startsWith("Version: 1."),"version "~bcftoolsVersion~" of bcftools is unsupported");
   }
   return [bcftoolsBin, bcftoolsVersion];
 }
+
+auto bcftoolsPath() { return bcftoolsInfo()[0]; }
 
 void makeFifo(string filename) {
     auto s = toStringz(filename);
@@ -197,14 +202,14 @@ struct Args {
     string[] bcftools_args;
     FileFormat input_format;
 
-    this(string[] samtools_args_, string[] bcftools_args_) {
+    this(string[] samtools_args_, bool use_bcftools, string[] bcftools_args_) {
         samtools_args = unbundle(samtools_args_);
         bcftools_args = unbundle(bcftools_args_, "O"); // keep -Ov|-Ob|...
-        auto samtools_output_fmt = fixSamtoolsArgs(samtools_args, !bcftools_args.empty);
-        auto bcftools_output_fmt = fixBcftoolsArgs(bcftools_args);
+        auto samtools_output_fmt = fixSamtoolsArgs(use_bcftools, samtools_args);
+        auto bcftools_output_fmt = fixBcftoolsArgs(use_bcftools, bcftools_args, samtools_args);
 
         input_format = samtools_output_fmt;
-        if (bcftools_args.length > 0)
+        if (use_bcftools)
             input_format = bcftools_output_fmt;
     }
 
@@ -214,7 +219,7 @@ struct Args {
         auto samtools_cmd = (basic_args ~ samtools_args).join(" ");
         string cmd = samtools_cmd;
         if (bcftools_args.length > 0) {
-            auto bcftools_cmd = bcftoolsPath()[0] ~ " " ~ bcftools_args.join(" ");
+            auto bcftools_cmd = bcftoolsPath() ~ " " ~ bcftools_args.join(" ");
             cmd = samtools_cmd ~ " | " ~ bcftools_cmd;
         }
 
@@ -257,7 +262,7 @@ string[] unbundle(string[] args, string exclude="") {
 
 // input: unbundled samtools arguments
 // output: detected output format
-FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
+FileFormat fixSamtoolsArgs(bool use_bcftools, ref string[] args) {
     bool vcf = false;
     bool bcf = false;
     bool uncompressed = false;
@@ -269,7 +274,7 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
         if (args[i] == "-g") {
             bcf = true; keep ~= true;
         } else if (args[i] == "-v") {
-            vcf = true; keep ~= !use_caller;
+            vcf = true; keep ~= !use_bcftools;
         } else if (args[i] == "-u") {
             bcf = true; uncompressed = true; keep ~= true;
         } else {
@@ -283,18 +288,19 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
             fixed_args ~= args[i];
     }
 
+    // When using bcftools add these switches
     bool fixes_applied;
-    if (vcf && use_caller) {
+    if (vcf && use_bcftools) {
         fixed_args ~= ["-g", "-u"];
         fixes_applied = true;
-    } else if (bcf && use_caller && !uncompressed) {
+    } else if (bcf && use_bcftools && !uncompressed) {
         fixed_args ~= "-u";
         fixes_applied = true;
     }
 
     args = fixed_args;
 
-    if (fixes_applied && use_caller) {
+    if (fixes_applied && use_bcftools) {
         stderr.writeln("NOTE: changed samtools output format to uncompressed BCF for better performance (-gu)");
     }
 
@@ -316,7 +322,7 @@ FileFormat fixSamtoolsArgs(ref string[] args, bool use_caller) {
 
 // input: unbundled bcftools arguments
 // output: detected output format
-FileFormat fixBcftoolsArgs(ref string[] args) {
+FileFormat fixBcftoolsArgs(bool use_bcftools, ref string[] args, ref string[] samtools_args) {
     FileFormat fmt = FileFormat.VCF;
     bool[] keep;
     foreach (i; 0 .. args.length) {
@@ -328,7 +334,7 @@ FileFormat fixBcftoolsArgs(ref string[] args) {
         } else if (args[i] == "-Oz") {
             // TODO
             throw new Exception("compressed VCF is not supported, please use bgzip and uncompressed VCF");
-            fmt = FileFormat.gzippedVCF; keep ~= false;
+            // fmt = FileFormat.gzippedVCF; keep ~= false;
         } else if (args[i] == "-Ob") {
             fmt = FileFormat.BCF; keep ~= true;
         } else if (args[i] == "-Ou") {
@@ -343,7 +349,11 @@ FileFormat fixBcftoolsArgs(ref string[] args) {
         if (keep[i])
             fixed_args ~= args[i];
     }
-
+    // When using bcftools and args is empty add these switches
+    if (use_bcftools && fixed_args.empty) {
+      fixed_args = ["view","-"];
+      samtools_args ~= [ "-g", "-u" ];
+    }
     args = fixed_args;
     return fmt;
 }
@@ -489,7 +499,7 @@ class ChunkDispatcher(ChunkRange) {
             }
             decompressIntoFile(result.data, format_, output_file_);
             stderr.writeln("[chunk dumped] ", result.num);
-            std.c.stdlib.free(result.data.ptr);
+            core.stdc.stdlib.free(result.data.ptr);
         }
     }
 
@@ -542,7 +552,7 @@ void worker(Dispatcher)(Dispatcher d,
 
         size_t capa = 1_024_576;
         size_t used = 0;
-        char* output = cast(char*)std.c.stdlib.malloc(capa);
+        char* output = cast(char*)core.stdc.stdlib.malloc(capa);
 
         char[4096] buffer = void;
         while (true) {
@@ -551,7 +561,7 @@ void worker(Dispatcher)(Dispatcher d,
                 break;
             if (used + buf.length > capa) {
                 capa = max(capa * 2, used + buf.length);
-                output = cast(char*)std.c.stdlib.realloc(cast(void*)output, capa);
+                output = cast(char*)core.stdc.stdlib.realloc(cast(void*)output, capa);
                 if (output is null)
                     throw new Exception("failed to allocate " ~ capa.to!string ~ " bytes");
             }
@@ -577,7 +587,9 @@ void printUsage() {
     stderr.writeln("                       [--samtools <samtools mpileup args>]");
     stderr.writeln("                       [--bcftools <bcftools call args>]");
     stderr.writeln();
-    stderr.writeln("This subcommand relies on external tools and acts as a multi-core implementation of samtools and bcftools.");
+    stderr.writeln("This subcommand relies on external tools and acts as a multi-core");
+    stderr.writeln("implementation of samtools and bcftools.");
+    stderr.writeln();
     stderr.writeln("Therefore, the following tools should be present in $PATH:");
     stderr.writeln("    * samtools");
     stderr.writeln("    * bcftools (when used)");
@@ -610,6 +622,12 @@ void printUsage() {
     stderr.writeln("                    chunk size (in bytes)");
     stderr.writeln("         -B, --output-buffer-size=512_000_000");
     stderr.writeln("                    output buffer size (in bytes)");
+    stderr.writeln();
+    stderr.writeln("Sambamba paths:\n");
+    samtoolsInfo();
+    stderr.writeln("         samtools: ",samtoolsBin," ",samtoolsVersion);
+    bcftoolsInfo();
+    stderr.writeln("         bcftools: ",bcftoolsBin," ",bcftoolsVersion);
 }
 
 version(standalone) {
@@ -627,21 +645,21 @@ int pileup_main(string[] args) {
     init();
 
     auto bcftools_args = find(args, "--bcftools");
-    auto args1 = (bcftools_args.length>0 ? args[0 .. $-bcftools_args.length] : args );
+    immutable use_bcftools = !bcftools_args.empty;
+    auto args1 = (use_bcftools ? args[0 .. $-bcftools_args.length] : args );
     auto samtools_args = find(args1, "--samtools");
     auto own_args = (samtools_args.length>0 ? args1[0 .. $-samtools_args.length] : args1 );
 
     if (!samtools_args.empty) {
-        samtools_args.popFront();
+        samtools_args.popFront(); // remove --samtools switch
     } else {
         samtools_args = [];
     }
 
-    if (!bcftools_args.empty) {
+    if (use_bcftools) {
         bcftools_args.popFront(); // remove the switch --bcftools
     }
 
-    //string query;
     uint n_threads = defaultPoolThreads;
     std.stdio.File output_file = stdout;
     size_t buffer_size = 64_000_000;
@@ -665,8 +683,12 @@ int pileup_main(string[] args) {
             return 0;
         }
 
+        samtoolsInfo();      // initialize samtools path before threading
+        if (use_bcftools)
+            bcftoolsInfo();  // initialize bcftools path before threading
+
         stderr.writeln("samtools mpileup options: ",samtools_args.join(" "));
-        if (bcftools_args.length>0)
+        if (use_bcftools)
             stderr.writeln("bcftools options: ", bcftools_args.join(" "));
 
         if (output_filename != null) {
@@ -681,7 +703,7 @@ int pileup_main(string[] args) {
         string tmp_dir = randomSubdir(tmp_dir_prefix);
         scope(exit) rmdirRecurse(tmp_dir);
 
-        auto bundled_args = Args(samtools_args, bcftools_args);
+        auto bundled_args = Args(samtools_args, use_bcftools, bcftools_args);
 
         InputRange!BamRead reads;
         if (bed_filename is null) {
@@ -715,11 +737,15 @@ int pileup_main(string[] args) {
     } catch (Exception e) {
         stderr.writeln("sambamba-pileup: ", e.msg);
 
-        version(development) {
-            throw e;
+        debug {
+          throw e;
         }
-
-        return 1;
+        else {
+          version(development) {
+            throw e;
+          }
+          return 1;
+        }
     }
 
     return 0;

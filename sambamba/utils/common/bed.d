@@ -23,6 +23,7 @@ import std.stdio;
 import std.algorithm;
 import std.string;
 import std.conv;
+import std.file;
 import std.math;
 import std.array;
 import std.range;
@@ -58,7 +59,7 @@ alias Interval[][string] BedIndex;
 BedIndex readIntervals(string bed_filename, bool non_overlapping=true, string[]* lines=null, Tuple!(string, Interval)[]* intervals=null) {
     BedIndex index;
 
-    auto bed = cast(string)(std.file.readText(bed_filename));
+    auto bed = cast(string)(readText(bed_filename));
     foreach (str; bed.splitter('\n')) {
         auto fields = split(str);
         if (fields.length < 2)
@@ -126,7 +127,7 @@ public import bio.bam.region;
 
 BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlapping=true, string[]* bed_lines=null) {
     Tuple!(string, Interval)[] ivs;
-    auto index = sambamba.utils.common.bed.readIntervals(bed_filename, non_overlapping, bed_lines, &ivs);
+    auto index = readIntervals(bed_filename, non_overlapping, bed_lines, &ivs);
     BamRegion[] regions;
     if (non_overlapping) {
         foreach (reference, intervals; index) {
