@@ -79,15 +79,15 @@ auto samtoolsInfo()
   if (samtoolsBin is null) {
     auto paths = environment["PATH"].split(":");
     auto a = array(filter!(path => exists(path ~ "/samtools"))(paths));
-    enforce(!a.empty , "failed to locate samtools executable in PATH");
+    enforce(!a.empty, "failed to locate samtools executable in PATH");
     samtoolsBin = a[0] ~ "/samtools";
   }
-  enforce(exists(samtoolsBin),samtoolsBin ~ " is invalid");
+  enforce(exists(samtoolsBin), samtoolsBin ~ " is invalid");
   if (samtoolsVersion is null) {
     auto samtools = execute([samtoolsBin]);
     enforce(samtools.status==1, "samtools failed: " ~ samtools.output);
     samtoolsVersion = samtools.output.split("\n")[2];
-    enforce(samtoolsVersion.startsWith("Version: 1."),"version "~samtoolsVersion~" of samtools is unsupported");
+    enforce(samtoolsVersion.startsWith("Version: 1."), "version " ~ samtoolsVersion ~ " of samtools is unsupported");
   }
   return [samtoolsBin, samtoolsVersion];
 }
@@ -99,17 +99,17 @@ auto bcftoolsInfo()
   if (bcftoolsBin is null) {
     auto paths = environment["PATH"].split(":");
     auto a = array(filter!(path => exists(path ~ "/bcftools"))(paths));
-    enforce(!a.empty,"failed to locate bcftools executable in PATH");
+    enforce(!a.empty, "failed to locate bcftools executable in PATH");
     bcftoolsBin = a[0] ~ "/bcftools";
   }
-  enforce(exists(bcftoolsBin),bcftoolsBin ~ " is invalid");
+  enforce(exists(bcftoolsBin), bcftoolsBin ~ " is invalid");
   if (bcftoolsVersion is null) {
     auto bcftools = execute([bcftoolsBin]);
     enforce(bcftools.status == 1, "bcftools failed: " ~ bcftools.output);
     auto r = regex(r"Version: 1\.\d\.\d[^\n]+");
-    enforce(matchFirst(bcftools.output, r),"Can not find version in "~bcftools.output);
+    enforce(matchFirst(bcftools.output, r), "Can not find version in " ~ bcftools.output);
     bcftoolsVersion = matchFirst(bcftools.output, r).hit;
-    enforce(bcftoolsVersion.startsWith("Version: 1."),"version "~bcftoolsVersion~" of bcftools is unsupported");
+    enforce(bcftoolsVersion.startsWith("Version: 1."), "version " ~ bcftoolsVersion ~ " of bcftools is unsupported");
   }
   return [bcftoolsBin, bcftoolsVersion];
 }
@@ -168,17 +168,17 @@ private {
 void init() {
     lz4decompressor = new LZ4Decompressor();
 
-    recipes[FileFormat.pileup] =          Recipe(this_app~" strip_bcf_header --vcf",
-                                                 this_app~" lz4compress",
+    recipes[FileFormat.pileup] =          Recipe(this_app ~ " strip_bcf_header --vcf",
+                                                 this_app ~ " lz4compress",
                                                  &lz4decompress);
-    recipes[FileFormat.BCF] =             Recipe(this_app~" strip_bcf_header --bcf",
+    recipes[FileFormat.BCF] =             Recipe(this_app ~ " strip_bcf_header --bcf",
                                                  null,
                                                  &dump);
-    recipes[FileFormat.uncompressedBCF] = Recipe(this_app~" strip_bcf_header --ubcf",
-                                                 this_app~" lz4compress",
+    recipes[FileFormat.uncompressedBCF] = Recipe(this_app ~ " strip_bcf_header --ubcf",
+                                                 this_app ~ " lz4compress",
                                                  &lz4decompress);
-    recipes[FileFormat.VCF] =             Recipe(this_app~" strip_bcf_header --vcf",
-                                                 this_app~" lz4compress",
+    recipes[FileFormat.VCF] =             Recipe(this_app ~ " strip_bcf_header --vcf",
+                                                 this_app ~ " lz4compress",
                                                  &lz4decompress);
 }
 
@@ -351,7 +351,7 @@ FileFormat fixBcftoolsArgs(bool use_bcftools, ref string[] args, ref string[] sa
     }
     // When using bcftools and args is empty add these switches
     if (use_bcftools && fixed_args.empty) {
-      fixed_args = ["view","-"];
+      fixed_args = ["view", "-"];
       samtools_args ~= [ "-g", "-u" ];
     }
     args = fixed_args;
@@ -625,9 +625,9 @@ void printUsage() {
     stderr.writeln();
     stderr.writeln("Sambamba paths:\n");
     samtoolsInfo();
-    stderr.writeln("         samtools: ",samtoolsBin," ",samtoolsVersion);
+    stderr.writeln("         samtools: ", samtoolsBin, " ", samtoolsVersion);
     bcftoolsInfo();
-    stderr.writeln("         bcftools: ",bcftoolsBin," ",bcftoolsVersion);
+    stderr.writeln("         bcftools: ", bcftoolsBin, " ", bcftoolsVersion);
 }
 
 version(standalone) {
@@ -687,7 +687,7 @@ int pileup_main(string[] args) {
         if (use_bcftools)
             bcftoolsInfo();  // initialize bcftools path before threading
 
-        stderr.writeln("samtools mpileup options: ",samtools_args.join(" "));
+        stderr.writeln("samtools mpileup options: ", samtools_args.join(" "));
         if (use_bcftools)
             stderr.writeln("bcftools options: ", bcftools_args.join(" "));
 
