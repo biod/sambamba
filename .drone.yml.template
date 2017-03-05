@@ -1,0 +1,21 @@
+# this YAML file can be used with drone tool (https://github.com/drone/drone)
+# TODO remove dropbox dependency
+# Usage: copy to .drone.yml, edit dropbox access token, run 'drone exec'
+build:
+  image: lomereiter/centos-ldc:latest
+  commands:
+    - export LANG=C
+    - export PATH=/opt/llvm/bin:/usr/local/bin:$PATH
+    - /usr/bin/scl enable devtoolset-4 --
+    - yum install -y git
+    - llvm-config --version
+    - ldc2 --version
+    - gcc --version
+    - git submodule update --init
+    - git clone https://github.com/dlang/undeaD
+    - make sambamba-ldmd2-64
+    - curl -L "https://dl.dropboxusercontent.com/u/7916095/shunit2-2.0.3.tgz" | tar zx
+    - ./.run_tests.sh
+    - readelf -V build/sambamba | grep 'Name:' | grep GLIBC
+    - export ACCESS_TOKEN=# !!! PUT YOUR DROPBOX TOKEN HERE !!!
+    - ./.dropbox.sh build/sambamba
