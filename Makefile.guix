@@ -27,7 +27,7 @@ guix:        DFLAGS += -O -release -g # Guix strips debug flags
 
 guix-debug:  DFLAGS += -O0 -g -d-debug
 
-# The development followin options are run in development from ~/.guix-profile and need to inject the RPATH
+# The following options are run in development from ~/.guix-profile and need to inject the RPATH
 debug:       DFLAGS += -O0 -g -d-debug $(RPATH) -link-debuglib
 
 release:     DFLAGS += -O -release $(RPATH)
