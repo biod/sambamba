@@ -23,7 +23,7 @@ OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
 OUT    = build/sambamba
 
 # The Guix targets resolve the RPATH automatically
-guix:        DFLAGS += -O -g # guix strips debug symbols
+guix:        DFLAGS += -O -release -g # Guix strips debug flags
 
 guix-debug:  DFLAGS += -O0 -g -d-debug
 
