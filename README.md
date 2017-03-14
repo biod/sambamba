@@ -81,12 +81,17 @@ export LIBRARY_PATH=~/ldc2-$ver-linux-x86_64/lib/
 
 ### GNU Guix
 
-A GNU Guix package for LDC is also available
+A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available
+
+```sh
+guix package -i sambamba
+```
+
+To build sambamba the LDC compiler is also available
 
 ```sh
 guix package -i ldc
 ```
-
 
 ## Compiling for Mac OS X
 
