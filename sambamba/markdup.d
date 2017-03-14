@@ -34,7 +34,7 @@ import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
        bio.bam.multireader;
 import std.traits, std.typecons, std.range, std.algorithm, std.parallelism,
        std.exception, std.file, std.typetuple, std.conv, std.array, std.bitmanip,
-       std.c.stdlib, std.datetime, undead.stream : BufferedFile, FileMode;
+       core.stdc.stdlib, std.datetime, undead.stream : BufferedFile, FileMode;
 
 /// Read + its index (0-based)
 struct IndexedBamRead {
@@ -81,14 +81,14 @@ class MallocArray(T) {
 
     /// call manually!
     void free() {
-        std.c.stdlib.free(_p);
+        core.stdc.stdlib.free(_p);
         _p = null;
     }
 
     this(size_t initial_size=16, float grow_factor=1.5) {
         enforce(initial_size >= 16);
         enforce(grow_factor >= 1.2);
-        _p = cast(T*)std.c.stdlib.malloc(initial_size * T.sizeof);
+        _p = cast(T*)core.stdc.stdlib.malloc(initial_size * T.sizeof);
         _sz = initial_size;
         _gf = grow_factor;
     }
@@ -112,7 +112,7 @@ class MallocArray(T) {
         } else {
             assert(_cur == _sz);
             _sz = cast(size_t)(_sz * _gf);
-            _p = cast(T*)std.c.stdlib.realloc(_p, _sz * T.sizeof);
+            _p = cast(T*)core.stdc.stdlib.realloc(_p, _sz * T.sizeof);
             _p[_cur++] = element;
         }
     }
