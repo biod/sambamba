@@ -45,8 +45,11 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 # Binaries
 
-If you are already a Conda user, please use [`bioconda`](https://bioconda.github.io/) channel.
-If you are not, strongly consider becoming one.
+With Conda use the [`bioconda`](https://bioconda.github.io/) channel.
+
+A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available.
+
+Debian: coming soon.
 
 Users of Homebrew can also use the formula from `homebrew-science`.
 
@@ -81,13 +84,7 @@ export LIBRARY_PATH=~/ldc2-$ver-linux-x86_64/lib/
 
 ### GNU Guix
 
-A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available
-
-```sh
-guix package -i sambamba
-```
-
-To build sambamba the LDC compiler is also available
+To build sambamba the LDC compiler is also available in GNU Guix:
 
 ```sh
 guix package -i ldc
