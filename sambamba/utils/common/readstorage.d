@@ -19,8 +19,8 @@
 */
 module sambamba.utils.common.readstorage;
 
-import std.c.stdlib;
-import std.c.string;
+import core.stdc.stdlib;
+import core.stdc.string;
 import std.parallelism;
 import std.algorithm;
 import bio.core.utils.roundbuf;
@@ -33,10 +33,10 @@ struct ReadStorage {
 
     this(size_t max_total_size) {
         max_sz = max_total_size;
-        read_storage = cast(ubyte*)std.c.stdlib.malloc(max_sz);
+        read_storage = cast(ubyte*)core.stdc.stdlib.malloc(max_sz);
         _reads_capa = 1024;
         auto sz = BamRead.sizeof * _reads_capa;
-        _reads = cast(BamRead*)std.c.stdlib.malloc(sz);
+        _reads = cast(BamRead*)core.stdc.stdlib.malloc(sz);
     }
 
     void clear() {
@@ -51,10 +51,10 @@ struct ReadStorage {
             if (len + _used > max_sz)
                 break;
 
-            std.c.string.memcpy(read_storage + _used, read.raw_data.ptr, len);
+            core.stdc.string.memcpy(read_storage + _used, read.raw_data.ptr, len);
             if (_n_reads == _reads_capa) {
                 _reads_capa *= 2;
-                _reads = cast(BamRead*)std.c.stdlib.realloc(_reads, _reads_capa * BamRead.sizeof);
+                _reads = cast(BamRead*)core.stdc.stdlib.realloc(_reads, _reads_capa * BamRead.sizeof);
             }
             _reads[_n_reads].raw_data = read_storage[_used .. _used + len];
             _reads[_n_reads].associateWithReader(read.reader);
@@ -70,7 +70,7 @@ struct ReadStorage {
             auto len = read.raw_data.length;
             assert(len > max_sz);
             _n_reads = 1;
-            read_storage = cast(ubyte*)std.c.stdlib.realloc(read_storage, len);
+            read_storage = cast(ubyte*)core.stdc.stdlib.realloc(read_storage, len);
             _used = len;
             read_storage[0 .. len] = read.raw_data[];
             _reads[0].raw_data = read_storage[0 .. _used];
@@ -80,8 +80,8 @@ struct ReadStorage {
     }
 
     void free() {
-        std.c.stdlib.free(read_storage);
-        std.c.stdlib.free(_reads);
+        core.stdc.stdlib.free(read_storage);
+        core.stdc.stdlib.free(_reads);
     }
 
     BamRead[] reads() @property { return _reads[0 .. _n_reads]; }
