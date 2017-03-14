@@ -42,8 +42,8 @@ import std.stdio;
 import std.typecons;
 import core.atomic;
 
-import std.c.stdlib;
-import std.c.string;
+import core.stdc.stdlib;
+import core.stdc.string;
 
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
@@ -114,13 +114,13 @@ class Sorter {
         this(size_t max_total_size) {
             max_sz = max_total_size;
             while (read_storage is null && max_sz > 65536) {
-                read_storage = cast(ubyte*)std.c.stdlib.malloc(max_sz);
+                read_storage = cast(ubyte*)core.stdc.stdlib.malloc(max_sz);
                 if (read_storage is null)
                   max_sz /= 2;
             }
             _reads_capa = 1024;
             auto sz = BamRead.sizeof * _reads_capa;
-            _reads = cast(BamRead*)std.c.stdlib.malloc(sz);
+            _reads = cast(BamRead*)core.stdc.stdlib.malloc(sz);
             if (_reads is null) {
                 throw new Exception("alloc failed: no space for read pointers");
             }
@@ -130,7 +130,7 @@ class Sorter {
             _used = 0;
             _n_reads = 0;
             if (_low_memory) {
-                auto realloc_storage = cast(ubyte*)std.c.stdlib.realloc(read_storage, max_sz / 2);
+                auto realloc_storage = cast(ubyte*)core.stdc.stdlib.realloc(read_storage, max_sz / 2);
                 if (realloc_storage !is null) {
                     max_sz /= 2;
                     read_storage = realloc_storage;
@@ -148,7 +148,7 @@ class Sorter {
                     break;
 
                 if (_n_reads == _reads_capa) {
-                    auto realloc_reads = cast(BamRead*)std.c.stdlib.realloc(_reads, 2 * _reads_capa * BamRead.sizeof);
+                    auto realloc_reads = cast(BamRead*)core.stdc.stdlib.realloc(_reads, 2 * _reads_capa * BamRead.sizeof);
                     if (realloc_reads is null) {
                         _low_memory = true;
                         stderr.writeln("realloc failed: system low on memory, limited to ", _reads_capa, " reads in buffer");
@@ -158,7 +158,7 @@ class Sorter {
                         _reads = realloc_reads;
                     }
                 }
-                std.c.string.memcpy(read_storage + _used, read.raw_data.ptr, len);
+                core.stdc.string.memcpy(read_storage + _used, read.raw_data.ptr, len);
                 _reads[_n_reads].raw_data = read_storage[_used .. _used + len];
                 _reads[_n_reads].associateWithReader(read.reader);
 
@@ -173,7 +173,7 @@ class Sorter {
                 auto len = read.raw_data.length;
                 assert(len > max_sz);
                 _n_reads = 1;
-                auto realloc_storage = cast(ubyte*)std.c.stdlib.realloc(read_storage, len);
+                auto realloc_storage = cast(ubyte*)core.stdc.stdlib.realloc(read_storage, len);
                 if (realloc_storage is null) {
                     throw new Exception("realloc failed: not enough memory for read");
                 } else {
@@ -189,8 +189,8 @@ class Sorter {
         }
 
         void free() {
-            std.c.stdlib.free(read_storage);
-            std.c.stdlib.free(_reads);
+            core.stdc.stdlib.free(read_storage);
+            core.stdc.stdlib.free(_reads);
         }
 
         BamRead[] reads() @property { return _reads[0 .. _n_reads]; }
@@ -209,9 +209,9 @@ class Sorter {
         sw.start();
         stderr.writeln("Sorting chunk #", n, "...");
         }
-        auto buf = cast(BamRead*)std.c.stdlib.malloc(chunk.length * BamRead.sizeof);
+        auto buf = cast(BamRead*)core.stdc.stdlib.malloc(chunk.length * BamRead.sizeof);
         BamRead[] tmp = buf[0 .. chunk.length];
-        scope (exit) std.c.stdlib.free(buf);
+        scope (exit) core.stdc.stdlib.free(buf);
         if (sort_by_name) {
             mergeSort!(compareReadNames, false)(chunk, task_pool, tmp);
         } else if (natural_sort) {
@@ -234,9 +234,9 @@ class Sorter {
         bam.setBufferSize(buf_size);
         bam.assumeSequentialProcessing();
 
-        auto output_buffer_ptr = cast(ubyte*)std.c.stdlib.malloc(buf_size);
+        auto output_buffer_ptr = cast(ubyte*)core.stdc.stdlib.malloc(buf_size);
         output_buffer = output_buffer_ptr[0 .. buf_size];
-        scope(exit)std.c.stdlib.free(output_buffer_ptr);
+        scope(exit)core.stdc.stdlib.free(output_buffer_ptr);
 
         if (show_progress) {
             stderr.writeln("Writing sorted chunks to temporary directory...");

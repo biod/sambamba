@@ -17,27 +17,32 @@ DLIBS  = $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LDC_LIB_PATH)/libphobos2-ldc-debug.a $(LDC_LIB_PATH)/libdruntime-ldc-debug.a
 RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
 LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
+LIBS_STATIC = $(LDC_LIB_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LDC_LIB_PATH)/liblz4.a
 SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
 OUT    = build/sambamba
 
 # The Guix targets resolve the RPATH automatically
-guix:        DFLAGS += -O -g -inline
+guix:        DFLAGS += -O -release -g # Guix strips debug flags
 
 guix-debug:  DFLAGS += -O0 -g -d-debug
 
-# The development options are run from ~/.guix-profile and need to inject the RPATH
+# The following options are run in development from ~/.guix-profile and need to inject the RPATH
 debug:       DFLAGS += -O0 -g -d-debug $(RPATH) -link-debuglib
 
-release:     DFLAGS += -O -release -inline -noboundscheck $(RPATH)
+release:     DFLAGS += -O -release $(RPATH)
+
+static:      DFLAGS += -O -release -static -L-Bstatic
 
 profile:     DFLAGS += -g -O -profile $(RPATH)
 
-guix release:             LIBS += $(DLIBS)
+guix release:   LIBS += $(DLIBS)
+
+static:         LIBS = $(LIBS_STATIC)
 
 guix-debug debug profile: LIBS += $(DLIBS_DEBUG)
 
-.PHONY: all guix guix-debug debug release profile clean test
+.PHONY: all guix guix-debug debug release static profile clean test
 
 all: debug
 
@@ -53,7 +58,7 @@ utils/ldc_version_info_.o: ldc-version-info
 build-setup: htslib-static ldc-version-info
 	mkdir -p build/
 
-guix guix-debug default debug release profile: $(OUT)
+guix guix-debug default debug release static profile: $(OUT)
 
 # ---- Compile step
 %.o: %.d
