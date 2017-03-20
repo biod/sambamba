@@ -1,6 +1,6 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2017    Artem Tarasov <lomereiter@gmail.com>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1263,7 +1263,7 @@ int markdup_main(string[] args) {
 
         // marking or removing duplicates
         bam = new MultiBamReader(args[1 .. $-1]);
-        bam.setBufferSize(io_buffer_size);
+        bam.setBufferSize(io_buffer_size / (args.length - 2));
         auto out_stream = new BufferedFile(args[$-1], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level);
         writer.setFilename(args[$-1]);
