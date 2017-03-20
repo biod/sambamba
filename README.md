@@ -5,37 +5,22 @@
 
 Sambamba is a high performance modern robust and fast tool (and
 library), written in the D programming language, for working with SAM
-and BAM files.  Current parallelised functionality is an important
+and BAM files.  Current functionality is an important
 subset of samtools functionality, including view, index, sort,
-markdup, and depth.
+markdup, and depth. Most tools support piping: just specify `/dev/stdin` 
+or `/dev/stdout` as filenames.
 
-Because of efficient use of modern multicore CPUs, usually `sambamba` is much faster
-than `samtools`. For example, indexing a 2.5 Gb BAM file (fully cached into RAM)
-on a 8 core machine utilizes all cores at 64% CPU:
+For almost 5 years the main advantage over `samtools` was parallelized BAM reading.
+Finally in March 2017 `samtools` 1.4 was released, reaching parity on this.
+That said, we still have quite a few interesting features to offer:
 
-    time sambamba index merged_NIT20120138_F3_20130715.bam -t8
-
-      real    0m17.398s
-      user    1m25.841s
-      sys     0m3.752s
-
-meanwhile samtools is *4x* slower:
-
-    time samtools index merged_NIT20120138_F3_20130715.bam
-
-      real    1m8.083s
-      user    1m6.640s
-      sys     0m1.448s
-
-In practice, the speedup is usually smaller since I/O becomes a bottleneck.
-Even so, it makes a big difference, shifting the focus to I/O optimization, i.e.
-less temporary files, more UNIX pipes, faster disk storage, tweaking filesystem, etc.
-Most tools in `sambamba` support piping: just specify `/dev/stdin` or `/dev/stdout` as filenames.
-
-Notice that `samtools` implements parallel BAM compression in `sort` and `merge`,
-but `sambamba` should be faster for these tasks (given same amount of memory)
-due to more cache-friendly approach to parallelization.
-If it is not the case for you, please file a bug.
+- faster `sort` (no benchmarks yet, sorry)
+- automatic index creation when writing any coordinate-sorted file
+- `view -L <bed file>` utilizes BAM index to skip unrelated chunks
+- `depth` allows to measure base, sliding window, or region coverages
+  - [Chanjo](https://www.chanjo.co/) builds upon this and gets you to exon/gene levels of abstraction
+- `markdup`, a fast implementation of Picard algorithm
+- `slice` quickly extracts a region into a new file, tweaking only first/last chunks
 
 Sambamba is free and open source software, licensed under GPLv2+.
 See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-view.html)
