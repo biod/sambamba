@@ -51,8 +51,12 @@ testMarkdupEmptyFile() {
     assertEquals "0" `./build/sambamba view -c empty.dedup.bam`
 }
 
-testCramView() {
+testCramWriting() {
     ./build/sambamba view -S htslib/test/c1\#pad2.sam -T htslib/test/c1.fa -f cram -o c1_pad2.cram
+    assertEquals 0 $?
+}
+
+testCramReading() {
     ./build/sambamba view -C c1_pad2.cram >/dev/null
     assertEquals 0 $?
 }
@@ -60,11 +64,10 @@ testCramView() {
 testIndexUsage() {
     rm *.bai && rm c1_*
     ./build/sambamba view -S htslib/test/c1\#pad2.sam -T htslib/test/c1.fa -f cram -o c1_pad2.cram &&
-    ./build/sambamba index -C c1_pad2.cram && test -e c1_pad2.cram.crai
-    ./build/sambamba index -C c1_pad2.cram c1_cram_index && test -e c1_cram_index.crai
-    ./build/sambamba index ex1_header.sorted.bam && test -e ex1_header.sorted.bam.bai
-    ./build/sambamba index ex1_header.sorted.bam ex1_header.sorted.bai && test -e ex1_header.sorted.bai
-    assertEquals 0 $?
+    ./build/sambamba index -C c1_pad2.cram && test -e c1_pad2.cram.crai; assertEquals 0 $?
+    ./build/sambamba index -C c1_pad2.cram c1_cram_index && test -e c1_cram_index.crai; assertEquals 0 $?
+    ./build/sambamba index ex1_header.sorted.bam && test -e ex1_header.sorted.bam.bai; assertEquals 0 $?
+    ./build/sambamba index ex1_header.sorted.bam ex1_header.sorted.bai && test -e ex1_header.sorted.bai; assertEquals 0 $?
 }
 
 testIssue193() {
