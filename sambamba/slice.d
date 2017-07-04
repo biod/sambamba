@@ -28,6 +28,7 @@ import bio.core.utils.stream;
 import bio.core.region;
 
 import std.array;
+import std.algorithm;
 import undead.stream;
 import std.getopt;
 import std.parallelism;
@@ -103,72 +104,74 @@ BGZF blocks   ..........)[...........)[..........)[..........)[.  ...  ....)[...
 */
 
 
-void fetchRegion(BamReader bam, Region region, ref Stream stream)
+void fetchRegions(BamReader bam, Region[] regions, ref Stream stream)
 {
-    auto chr = region.reference;
-    auto beg = region.beg;
-    auto end = region.end;
-
     auto filename = bam.filename;
-
-    auto reads1 = bam[chr][beg .. end];
-
     auto eof_offset = bam.eofVirtualOffset();
-
-    VirtualOffset s1_start_offset;
-    VirtualOffset s2_start_offset;
-    VirtualOffset s2_end_offset = eof_offset;
-
-    if (reads1.empty) {
-        s1_start_offset = s2_start_offset = eof_offset;
-    } else {
-        s1_start_offset = s2_start_offset = reads1.front.start_virtual_offset;
-    }
-
-    // Set R1
-    auto r1 = appender!(typeof(reads1.front)[])();
-
-    while (!reads1.empty) {
-        auto front = reads1.front;
-        if (front.position < beg) {
-            r1.put(front);
-            s2_start_offset = front.end_virtual_offset;
-            reads1.popFront();
-        } else {
-            break;
-        }
-    }
-
-    auto reference = bam[chr];
-    if (end == uint.max)
-        end = reference.length;
-    auto reads2 = reference[end .. uint.max];
-
-    if (reads1.empty && reads2.empty) {
-        // are there any reads with position >= beg?
-        s2_end_offset = s2_start_offset;
-    } else if (!reads1.empty && reads2.empty) {
-        // are there any reads with position >= end?
-        s2_end_offset = bam[chr].endVirtualOffset();
-    } else {
-        foreach (read; reads2) {
-            s2_end_offset = read.start_virtual_offset;
-            if (read.position >= end) {
-                break;
-            }
-        }
-    }
 
     // write header and reference sequence information
     auto writer = new BamWriter(stream);
     writer.writeSamHeader(bam.header);
     writer.writeReferenceSequenceInfo(bam.reference_sequences);
-    // write R1
-    foreach (read; r1.data)
-        writer.writeRecord(read);
-    writer.flush();
 
-    copyAsIs(bam, stream, s2_start_offset, s2_end_offset);
+    foreach(Region region; regions) {
+        auto chr = region.reference;
+        auto beg = region.beg;
+        auto end = region.end;
+        auto reads1 = bam[chr][beg .. end];
+
+        VirtualOffset s1_start_offset;
+        VirtualOffset s2_start_offset;
+        VirtualOffset s2_end_offset = eof_offset;
+
+        if (reads1.empty) {
+            s1_start_offset = s2_start_offset = eof_offset;
+        } else {
+            s1_start_offset = s2_start_offset = reads1.front.start_virtual_offset;
+        }
+
+        // Set R1
+        auto r1 = appender!(typeof(reads1.front)[])();
+
+        while (!reads1.empty) {
+            auto front = reads1.front;
+            if (front.position < beg) {
+                r1.put(front);
+                s2_start_offset = front.end_virtual_offset;
+                reads1.popFront();
+            } else {
+                break;
+            }
+        }
+
+        auto reference = bam[chr];
+        if (end == uint.max)
+            end = reference.length;
+        auto reads2 = reference[end .. uint.max];
+
+        if (reads1.empty && reads2.empty) {
+            // are there any reads with position >= beg?
+            s2_end_offset = s2_start_offset;
+        } else if (!reads1.empty && reads2.empty) {
+            // are there any reads with position >= end?
+            s2_end_offset = bam[chr].endVirtualOffset();
+        } else {
+            foreach (read; reads2) {
+                s2_end_offset = read.start_virtual_offset;
+                if (read.position >= end) {
+                    break;
+                }
+            }
+        }
+
+        // write R1
+        foreach (read; r1.data)
+            writer.writeRecord(read);
+        writer.flush();
+
+        copyAsIs(bam, stream, s2_start_offset, s2_end_offset);
+    }
+
     // write EOF
     stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
 }
@@ -258,11 +261,11 @@ void copyAsIs(BamReader bam, Stream stream,
 
 void printUsage()
 {
-    stderr.writeln("Usage: sambamba-slice [options] <input.bam> <region>");
+    stderr.writeln("Usage: sambamba-slice [options] <input.bam> [region1 [...]]");
     stderr.writeln();
     stderr.writeln("       Fast copy of a region from indexed BAM file to a new file");
     stderr.writeln();
-    stderr.writeln("       Region is given in standard form ref:beg-end.");
+    stderr.writeln("       Regions are given in standard form ref:beg-end.");
     stderr.writeln("       In addition, region '*' denotes reads with no reference.");
     stderr.writeln("       Output is to STDOUT unless output filename is specified.");
     stderr.writeln();
@@ -318,8 +321,8 @@ int slice_main(string[] args) {
         if (args[2] == "*") {
             fetchUnmapped(bam, stream);
         } else {
-            auto region = parseRegion(args[2]);
-            fetchRegion(bam, region, stream);
+            auto regions = map!parseRegion(args[2 .. $]).array;
+            fetchRegions(bam, regions, stream);
         }
 
     } catch (Exception e) {
