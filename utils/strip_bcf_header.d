@@ -20,6 +20,7 @@
 module utils.strip_bcf_header;
 import undead.cstream : CFile, FileMode;
 import std.exception;
+import std.algorithm : min;
 
 // used in mpileup tool to strip the common header from partial files
 void stripBcfHeader(File input_file, File output_file) {
