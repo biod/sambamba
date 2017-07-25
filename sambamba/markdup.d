@@ -576,15 +576,13 @@ struct SingleEndBasicInfo {
 }
 static assert(SingleEndBasicInfo.sizeof == 8);
 
-// 24 bytes :-(
 struct SingleEndInfo {
     SingleEndBasicInfo basic_info;
     alias basic_info this;
     ulong idx;
-    ushort score;
+    uint score;
 }
 
-// 32 bytes
 struct PairedEndsInfo {
     mixin(bitfields!(short, "library_id", 16,
                      ushort, "ref_id1", 14,
@@ -594,7 +592,7 @@ struct PairedEndsInfo {
     int coord2;
     ushort ref_id2;
 
-    ushort score; // sum of base qualities that are >= 15
+    uint score; // sum of base qualities that are >= 15
     ulong idx1, idx2;
 
     SingleEndBasicInfo read1_basic_info() @property {
@@ -608,7 +606,7 @@ struct PairedEndsInfo {
     }
 }
 
-static assert(PairedEndsInfo.sizeof == 32);
+static assert(PairedEndsInfo.sizeof == 40);
 
 bool singleEndInfoComparator(S1, S2)(auto ref S1 s1, auto ref S2 s2) {
     if (s1.library_id < s2.library_id) return true;
@@ -705,8 +703,8 @@ int computeFivePrimeCoord(R)(auto ref R read) {
     }
 }
 
-ushort computeScore(R)(auto ref R read) {
-    return reduce!"a + b"(0, read.base_qualities.filter!"a >= 15").to!ushort;
+uint computeScore(R)(auto ref R read) {
+    return reduce!"a + b"(0, read.base_qualities.filter!"a >= 15").to!uint;
 }
 
 auto collectSingleEndInfo(IndexedBamRead read, ReadGroupIndex read_group_index) {
@@ -744,7 +742,7 @@ PairedEndsInfo combine(ref SingleEndInfo s1, ref SingleEndInfo s2) {
     result.reversed2 = s2.reversed;
     result.coord1 = s1.coord;
     result.coord2 = s2.coord;
-    result.score = cast(ushort)(s1.score + s2.score);
+    result.score = cast(uint)(s1.score + s2.score);
     result.idx1 = s1.idx;
     result.idx2 = s2.idx;
     return result;
