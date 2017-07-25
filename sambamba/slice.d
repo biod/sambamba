@@ -167,6 +167,7 @@ void fetchRegions(BamReader bam, Region[] regions, ref Stream stream)
         // write R1
         foreach (read; r1.data)
             writer.writeRecord(read);
+        // Flush the BamWriter before our copyAsIs call.
         writer.flush();
 
         copyAsIs(bam, stream, s2_start_offset, s2_end_offset);
