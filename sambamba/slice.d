@@ -35,6 +35,7 @@ import std.parallelism;
 import std.conv;
 import std.stdio;
 import std.exception;
+import sambamba.utils.common.bed;
 
 import sambamba.utils.common.overwrite;
 
@@ -330,11 +331,12 @@ int slice_main(string[] args) {
         if (args[2] == "*") {
             fetchUnmapped(bam, stream);
         } else {
+            Region[] regions;
             if (bed_filename !is null) {
                 auto bam_regions = parseBed(bed_filename, bam);
-                auto regions = bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end))
+                regions = cast(Region[])bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end)).array;
             } else {
-                auto regions = map!parseRegion(args[2 .. $]).array;
+                regions = cast(Region[])map!parseRegion(args[2 .. $]).array;
             }
             fetchRegions(bam, regions, stream);
         }
