@@ -272,6 +272,8 @@ void printUsage()
     stderr.writeln();
     stderr.writeln("OPTIONS: -o, --output-filename=OUTPUT_FILENAME");
     stderr.writeln("            output BAM filename");
+    stderr.writeln("         -L, --regions=FILENAME");
+    stderr.writeln("            output only reads overlapping one of regions from the BED file");
 }
 
 version(standalone) {
@@ -284,15 +286,21 @@ int slice_main(string[] args) {
 
     // at least two arguments must be presented
     string output_filename = null;
+    string bed_filename = null;
 
     try {
         getopt(args,
                std.getopt.config.caseSensitive,
-               "output-filename|o", &output_filename);
+               "output-filename|o", &output_filename,
+               "regions|L",         &bed_filename);
 
         if (args.length < 3) {
             printUsage();
             return 0;
+        }
+
+        if (bed_filename.length > 0 && args.length > 2) {
+            throw new Exception("specifying both region and BED filename is disallowed");
         }
 
         protectFromOverwrite(args[1], output_filename);
@@ -322,7 +330,12 @@ int slice_main(string[] args) {
         if (args[2] == "*") {
             fetchUnmapped(bam, stream);
         } else {
-            auto regions = map!parseRegion(args[2 .. $]).array;
+            if (bed_filename !is null) {
+                auto bam_regions = parseBed(bed_filename, bam);
+                auto regions = bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end))
+            } else {
+                auto regions = map!parseRegion(args[2 .. $]).array;
+            }
             fetchRegions(bam, regions, stream);
         }
 
