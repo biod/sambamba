@@ -295,7 +295,8 @@ int slice_main(string[] args) {
                "output-filename|o", &output_filename,
                "regions|L",         &bed_filename);
 
-        if (args.length < 3) {
+        if ( (bed_filename.length == 0 && args.length < 3) ||
+             (args.length < 2) )  {
             printUsage();
             return 0;
         }

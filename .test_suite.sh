@@ -26,6 +26,12 @@ testSliceMultipleRegions() {
     assertEquals 0 $?
 }
 
+testSliceMultipleRegionsBed() {
+    ./build/sambamba slice -L test/chr2_test_region.bed test/issue_204.bam |\
+      ./build/sambamba view -c /dev/stdin > /dev/null
+    assertEquals 0 $?
+}
+
 testView() {
     assertEquals "1806" `./build/sambamba view -c ex1_header.sorted.bam chr2`
     assertEquals "1464" `./build/sambamba view -c ex1_header.sorted.bam chr1`
