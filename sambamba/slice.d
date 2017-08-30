@@ -295,12 +295,18 @@ int slice_main(string[] args) {
                "output-filename|o", &output_filename,
                "regions|L",         &bed_filename);
 
-        if ( (bed_filename.length == 0 && args.length < 3) ||
-             (args.length < 2) )  {
+        // Check that an input file was specified.
+        if (args.length < 2) {
             printUsage();
             return 0;
         }
 
+        // Either a bed file or a set of regions needs to be specified.
+        if (bed_filename is null && args.length < 3) {
+            throw new Exception("Must provide either a bed file or list of regions.");
+        }
+        
+        // But you can't provide both a bed file AND a set of regions.
         if (bed_filename.length > 0 && args.length > 2) {
             throw new Exception("specifying both region and BED filename is disallowed");
         }
@@ -329,15 +335,15 @@ int slice_main(string[] args) {
             stream = new undead.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
         }
 
-        if (args[2] == "*") {
+        if (bed_filename is null && args[2] == "*") {
             fetchUnmapped(bam, stream);
         } else {
             Region[] regions;
             if (bed_filename !is null) {
                 auto bam_regions = parseBed(bed_filename, bam);
-                regions = cast(Region[])bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end)).array;
+                regions = bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end)).array;
             } else {
-                regions = cast(Region[])map!parseRegion(args[2 .. $]).array;
+                regions = map!parseRegion(args[2 .. $]).array;
             }
             fetchRegions(bam, regions, stream);
         }

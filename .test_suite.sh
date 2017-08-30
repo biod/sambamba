@@ -27,9 +27,8 @@ testSliceMultipleRegions() {
 }
 
 testSliceMultipleRegionsBed() {
-    ./build/sambamba slice -L test/chr2_test_region.bed test/issue_204.bam |\
-      ./build/sambamba view -c /dev/stdin > /dev/null
-    assertEquals 0 $?
+    assertEquals "156" `./build/sambamba slice -L test/chr2_chr3_test_region.bed test/issue_204.bam |\
+      ./build/sambamba view -c /dev/stdin`
 }
 
 testView() {
