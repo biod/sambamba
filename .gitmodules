@@ -7,3 +7,6 @@
 [submodule "lz4"]
 	path = lz4
 	url = https://github.com/Cyan4973/lz4
+[submodule "undeaD"]
+	path = undeaD
+	url = https://github.com/dlang/undeaD
