@@ -17,7 +17,6 @@ before_install:
   - export PATH=$(pwd)/${LDC_VERSION}/bin:${PATH}
   - export LIBRARY_PATH=$(pwd)/${LDC_VERSION}/lib:${LIBRARY_PATH}
   - git submodule update --init --recursive
-  - git clone https://github.com/dlang/undeaD.git
   - wget https://github.com/craigcitro/r-travis/raw/master/scripts/dropbox.sh
   - chmod +x dropbox.sh
   - curl -L https://www.dropbox.com/s/7mmiwmc1wm8cuos/shunit2-2.0.3.tgz?dl=1 | tar zx
