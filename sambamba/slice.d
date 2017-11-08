@@ -28,12 +28,14 @@ import bio.core.utils.stream;
 import bio.core.region;
 
 import std.array;
+import std.algorithm;
 import undead.stream;
 import std.getopt;
 import std.parallelism;
 import std.conv;
 import std.stdio;
 import std.exception;
+import sambamba.utils.common.bed;
 
 import sambamba.utils.common.overwrite;
 
@@ -103,72 +105,75 @@ BGZF blocks   ..........)[...........)[..........)[..........)[.  ...  ....)[...
 */
 
 
-void fetchRegion(BamReader bam, Region region, ref Stream stream)
+void fetchRegions(BamReader bam, Region[] regions, ref Stream stream)
 {
-    auto chr = region.reference;
-    auto beg = region.beg;
-    auto end = region.end;
-
     auto filename = bam.filename;
-
-    auto reads1 = bam[chr][beg .. end];
-
     auto eof_offset = bam.eofVirtualOffset();
-
-    VirtualOffset s1_start_offset;
-    VirtualOffset s2_start_offset;
-    VirtualOffset s2_end_offset = eof_offset;
-
-    if (reads1.empty) {
-        s1_start_offset = s2_start_offset = eof_offset;
-    } else {
-        s1_start_offset = s2_start_offset = reads1.front.start_virtual_offset;
-    }
-
-    // Set R1
-    auto r1 = appender!(typeof(reads1.front)[])();
-
-    while (!reads1.empty) {
-        auto front = reads1.front;
-        if (front.position < beg) {
-            r1.put(front);
-            s2_start_offset = front.end_virtual_offset;
-            reads1.popFront();
-        } else {
-            break;
-        }
-    }
-
-    auto reference = bam[chr];
-    if (end == uint.max)
-        end = reference.length;
-    auto reads2 = reference[end .. uint.max];
-
-    if (reads1.empty && reads2.empty) {
-        // are there any reads with position >= beg?
-        s2_end_offset = s2_start_offset;
-    } else if (!reads1.empty && reads2.empty) {
-        // are there any reads with position >= end?
-        s2_end_offset = bam[chr].endVirtualOffset();
-    } else {
-        foreach (read; reads2) {
-            s2_end_offset = read.start_virtual_offset;
-            if (read.position >= end) {
-                break;
-            }
-        }
-    }
 
     // write header and reference sequence information
     auto writer = new BamWriter(stream);
     writer.writeSamHeader(bam.header);
     writer.writeReferenceSequenceInfo(bam.reference_sequences);
-    // write R1
-    foreach (read; r1.data)
-        writer.writeRecord(read);
-    writer.flush();
 
-    copyAsIs(bam, stream, s2_start_offset, s2_end_offset);
+    foreach(Region region; regions) {
+        auto chr = region.reference;
+        auto beg = region.beg;
+        auto end = region.end;
+        auto reads1 = bam[chr][beg .. end];
+
+        VirtualOffset s1_start_offset;
+        VirtualOffset s2_start_offset;
+        VirtualOffset s2_end_offset = eof_offset;
+
+        if (reads1.empty) {
+            s1_start_offset = s2_start_offset = eof_offset;
+        } else {
+            s1_start_offset = s2_start_offset = reads1.front.start_virtual_offset;
+        }
+
+        // Set R1
+        auto r1 = appender!(typeof(reads1.front)[])();
+
+        while (!reads1.empty) {
+            auto front = reads1.front;
+            if (front.position < beg) {
+                r1.put(front);
+                s2_start_offset = front.end_virtual_offset;
+                reads1.popFront();
+            } else {
+                break;
+            }
+        }
+
+        auto reference = bam[chr];
+        if (end == uint.max)
+            end = reference.length;
+        auto reads2 = reference[end .. uint.max];
+
+        if (reads1.empty && reads2.empty) {
+            // are there any reads with position >= beg?
+            s2_end_offset = s2_start_offset;
+        } else if (!reads1.empty && reads2.empty) {
+            // are there any reads with position >= end?
+            s2_end_offset = bam[chr].endVirtualOffset();
+        } else {
+            foreach (read; reads2) {
+                s2_end_offset = read.start_virtual_offset;
+                if (read.position >= end) {
+                    break;
+                }
+            }
+        }
+
+        // write R1
+        foreach (read; r1.data)
+            writer.writeRecord(read);
+        // Flush the BamWriter before our copyAsIs call.
+        writer.flush();
+
+        copyAsIs(bam, stream, s2_start_offset, s2_end_offset);
+    }
+
     // write EOF
     stream.writeExact(BAM_EOF.ptr, BAM_EOF.length);
 }
@@ -258,16 +263,18 @@ void copyAsIs(BamReader bam, Stream stream,
 
 void printUsage()
 {
-    stderr.writeln("Usage: sambamba-slice [options] <input.bam> <region>");
+    stderr.writeln("Usage: sambamba-slice [options] <input.bam> [region1 [...]]");
     stderr.writeln();
     stderr.writeln("       Fast copy of a region from indexed BAM file to a new file");
     stderr.writeln();
-    stderr.writeln("       Region is given in standard form ref:beg-end.");
+    stderr.writeln("       Regions are given in standard form ref:beg-end.");
     stderr.writeln("       In addition, region '*' denotes reads with no reference.");
     stderr.writeln("       Output is to STDOUT unless output filename is specified.");
     stderr.writeln();
     stderr.writeln("OPTIONS: -o, --output-filename=OUTPUT_FILENAME");
     stderr.writeln("            output BAM filename");
+    stderr.writeln("         -L, --regions=FILENAME");
+    stderr.writeln("            output only reads overlapping one of regions from the BED file");
 }
 
 version(standalone) {
@@ -280,15 +287,28 @@ int slice_main(string[] args) {
 
     // at least two arguments must be presented
     string output_filename = null;
+    string bed_filename = null;
 
     try {
         getopt(args,
                std.getopt.config.caseSensitive,
-               "output-filename|o", &output_filename);
+               "output-filename|o", &output_filename,
+               "regions|L",         &bed_filename);
 
-        if (args.length < 3) {
+        // Check that an input file was specified.
+        if (args.length < 2) {
             printUsage();
             return 0;
+        }
+
+        // Either a bed file or a set of regions needs to be specified.
+        if (bed_filename is null && args.length < 3) {
+            throw new Exception("Must provide either a bed file or list of regions.");
+        }
+        
+        // But you can't provide both a bed file AND a set of regions.
+        if (bed_filename.length > 0 && args.length > 2) {
+            throw new Exception("specifying both region and BED filename is disallowed");
         }
 
         protectFromOverwrite(args[1], output_filename);
@@ -315,11 +335,17 @@ int slice_main(string[] args) {
             stream = new undead.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
         }
 
-        if (args[2] == "*") {
+        if (bed_filename is null && args[2] == "*") {
             fetchUnmapped(bam, stream);
         } else {
-            auto region = parseRegion(args[2]);
-            fetchRegion(bam, region, stream);
+            Region[] regions;
+            if (bed_filename !is null) {
+                auto bam_regions = parseBed(bed_filename, bam);
+                regions = bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end)).array;
+            } else {
+                regions = map!parseRegion(args[2 .. $]).array;
+            }
+            fetchRegions(bam, regions, stream);
         }
 
     } catch (Exception e) {

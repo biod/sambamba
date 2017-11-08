@@ -45,6 +45,15 @@ For those not in the mood to learn/install new package managers, there are of co
 The preferred method for compiling Sambamba is with the LDC compiler
 which targets LLVM.
 
+## Compilation dependencies
+
+- zlib
+- htslib (submodule)
+- lz4 (submodule)
+- BioD (submodule)
+- undeaD (submodule)
+- python2
+
 ## Compiling for Linux
 
 The LDC compiler's github repository also provides binary images. The current

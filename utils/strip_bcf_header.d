@@ -18,6 +18,9 @@
 
 */
 module utils.strip_bcf_header;
+import undead.cstream : CFile, FileMode;
+import std.exception;
+import std.algorithm : min;
 
 // used in mpileup tool to strip the common header from partial files
 void stripBcfHeader(File input_file, File output_file) {
@@ -25,7 +28,6 @@ void stripBcfHeader(File input_file, File output_file) {
   import bio.core.bgzf.constants;
   import bio.core.bgzf.block;
   import bio.core.bgzf.compress;
-  import undead.cstream, std.exception;
 
   auto stream = new CFile(input_file.getFP(), FileMode.In);
   auto supplier = new StreamSupplier(stream);

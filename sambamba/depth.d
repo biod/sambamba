@@ -1150,9 +1150,7 @@ int depth_main(string[] args) {
         if (query !is null) {
             read_filter = createFilterFromQuery(query);
         } else {
-            read_filter = createFilterFromQuery("mapping_quality > 0 and "
-                    "not duplicate and "
-                    "not failed_quality_control");
+            read_filter = createFilterFromQuery("mapping_quality > 0 and not duplicate and not failed_quality_control");
         }
 
         auto bam_filenames = args[1 .. $];
