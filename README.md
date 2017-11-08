@@ -1,6 +1,7 @@
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
 
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.13200.svg)](http://dx.doi.org/10.5281/zenodo.13200)
+
 # Sambamba
 
 Sambamba is a high performance modern robust and fast tool (and
@@ -28,17 +29,44 @@ to know more about what is available and how to use it.
 
 For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
-# Binaries
+# Binary installation
+
+For those not in the mood to learn/install new package managers, there
+are Github source and binary
+[releases](https://github.com/biod/sambamba/releases).
+
+A *latest* pre-release of sambamba 0.6.7 for Linux that includes all
+dependencies is available from this
+[link](http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J).
+
+Install the tarball by unpacking it and running the contained install
+script with a target directory e.g.
+
+```sh
+wget tarball.tar.bz2
+mkdir ~/tmp
+tar xvjf tarball.tar.bz2
+./install.sh ~/sambamba-test
+~/sambamba-test/bin/sambamba
+```
+
+Binaries are also available through the following packaging tools:
+
+## Bioconda
 
 With Conda use the [`bioconda`](https://bioconda.github.io/) channel.
 
-A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available.
+## GNU Guix
 
-Debian: coming soon.
+A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available. The development version is packaged [here](https://gitlab.com/genenetwork/guix-bioinformatics/blob/master/gn/packages/sambamba.scm).
+
+## Debian GNU/Linux
+
+Debian: see Debian packages.
+
+## Homebrew
 
 Users of Homebrew can also use the formula from `homebrew-science`.
-
-For those not in the mood to learn/install new package managers, there are of course Github [releases](https://github.com/biod/sambamba/releases).
 
 # Compiling Sambamba
 
