@@ -7,7 +7,7 @@ Sambamba is a high performance modern robust and fast tool (and
 library), written in the D programming language, for working with SAM
 and BAM files.  Current functionality is an important
 subset of samtools functionality, including view, index, sort,
-markdup, and depth. Most tools support piping: just specify `/dev/stdin` 
+markdup, and depth. Most tools support piping: just specify `/dev/stdin`
 or `/dev/stdout` as filenames.
 
 For almost 5 years the main advantage over `samtools` was parallelized BAM reading.
@@ -38,7 +38,7 @@ Debian: coming soon.
 
 Users of Homebrew can also use the formula from `homebrew-science`.
 
-For those not in the mood to learn/install new package managers, there are of course Github [releases](https://github.com/lomereiter/sambamba/releases).
+For those not in the mood to learn/install new package managers, there are of course Github [releases](https://github.com/biod/sambamba/releases).
 
 # Compiling Sambamba
 
@@ -52,7 +52,7 @@ preferred release for sambamba is LDC - the LLVM D compiler (>= 1.1.0). After
 installing LDC:
 
 ```sh
-    git clone --recursive https://github.com/lomereiter/sambamba.git
+    git clone --recursive https://github.com/biod/sambamba.git
     cd sambamba
     git clone https://github.com/dlang/undeaD
     make sambamba-ldmd2-64
@@ -79,7 +79,7 @@ guix package -i ldc
 
 ```sh
     brew install ldc
-    git clone --recursive https://github.com/lomereiter/sambamba.git
+    git clone --recursive https://github.com/biod/sambamba.git
     cd sambamba
     git clone https://github.com/dlang/undeaD
     make sambamba-ldmd2-64
@@ -121,19 +121,80 @@ Run sambamba in gdb with
 gdb --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
 ```
 
+# Getting help
+
+Sambamba has a
+[mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion)
+for installation help and general discussion.
+
+## Reporting a sambamba bug or issue
+
+Before posting an issue search the issue tracker and
+[mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion)
+first. It is likely someone may have encountered something
+similar. Also try running the latest version of sambamba to make sure
+it has not been fixed already. Support/installation questions should
+be aimed at the mailing list. The issue tracker is for development
+issues around the software itself. When reporting an issue include the
+output of the program and the contents of the .log.txt file in the
+output directory.
+
+## Check list:
+
+1. [X] I have found and issue with sambamba
+2. [ ] I have searched for it on the [issue tracker](https://github.com/biod/sambamba/issues) (also check closed issues)
+3. [ ] I have searched for it on the [mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion)
+4. [ ] I have tried the latest [release](https://github.com/biod/sambamba/releases) of sambamba
+5. [ ] I have read and agreed to below code of conduct
+6. [ ] If it is a support/install question I have posted it to the [mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion)
+7. [ ] If it is software development related I have posted a new issue on the [issue tracker](https://github.com/biod/sambamba/issues) or added to an existing one
+8. [ ] In the message I have included the output of my sambamba run
+9. [ ] In the message I have included the relevant .log.txt file in the output directory
+10. [ ] I have made available the data to reproduce the problem (optional)
+
+To find bugs the sambamba software developers may ask to install a
+development version of the software. They may also ask you for your
+data and will treat it confidentially.  Please always remember that
+sambamba is written and maintained by volunteers with good
+intentions. Our time is valuable too. By helping us as much as
+possible we can provide this tool for everyone to use.
+
+## Code of conduct
+
+By using sambamba and communicating with its communtity you implicitely
+agree to abide by the
+[code of conduct](https://software-carpentry.org/conduct/) as
+published by the Software Carpentry initiative.
+
 # Development
 
 Sambamba development and issue tracker is on
-[github](https://github.com/lomereiter/sambamba). Developer
+[github](https://github.com/biod/sambamba). Developer
 documentation can be found in the source code and the [development
-documentation](https://github.com/lomereiter/sambamba-dev-docs).
+documentation](https://github.com/biod/sambamba-dev-docs).
 
 # Copyright
 
 Sambamba is distributed under GNU Public License v2+.
 
-# Citation
+# Credit
 
-If you are using Sambamba in your research, please cite the following article:
+If you are using Sambamba in your research and want to support future
+work on Sambamba, please cite the following publication:
 
-A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. Sambamba: fast processing of NGS alignment formats. Bioinformatics, 2015.
+A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. [Sambamba: fast processing of NGS alignment formats](https://doi.org/10.1093/bioinformatics/btv098). Bioinformatics, 2015.
+
+```bibtex
+
+@article{doi:10.1093/bioinformatics/btv098,
+  author = {Tarasov, Artem and Vilella, Albert J. and Cuppen, Edwin and Nijman, Isaac J. and Prins, Pjotr},
+  title = {Sambamba: fast processing of NGS alignment formats},
+  journal = {Bioinformatics},
+  volume = {31},
+  number = {12},
+  pages = {2032-2034},
+  year = {2015},
+  doi = {10.1093/bioinformatics/btv098},
+  URL = { + http://dx.doi.org/10.1093/bioinformatics/btv098},
+  eprint = {/oup/backfile/content_public/journal/bioinformatics/31/12/10.1093/bioinformatics/btv098/2/btv098.pdf}
+```

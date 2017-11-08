@@ -23,7 +23,7 @@ test:
     - sambamba view
 
 about:
-  home: https://github.com/lomereiter/sambamba
+  home: https://github.com/biod/sambamba
   license: GPLv2
   summary: Tools for working with SAM/BAM data"""
 
@@ -31,7 +31,7 @@ import json
 from urllib2 import urlopen
 from hashlib import md5
 
-latest_release = json.loads(urlopen("https://api.github.com/repos/lomereiter/sambamba/releases").read())[0]
+latest_release = json.loads(urlopen("https://api.github.com/repos/biod/sambamba/releases").read())[0]
 sambamba_version = latest_release['tag_name'][1:]
 
 downloads = {}
