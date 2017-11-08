@@ -68,7 +68,6 @@ installing LDC:
 ```
 
 Installing LDC only means unpacking an archive and setting some environmental variables, e.g. unpacking into `$HOME`:
-
 ```sh
 cd
 wget https://github.com/ldc-developers/ldc/releases/download/v$ver/ldc2-$ver-linux-x86_64.tar.xz

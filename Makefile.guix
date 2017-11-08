@@ -71,8 +71,6 @@ $(OUT): build-setup $(OBJ)
 test:
 	./.run_tests.sh
 
-check: test
-
 debug-strip: debug
 	objcopy --only-keep-debug build/sambamba sambamba.debug
 	objcopy --strip-debug build/sambamba
