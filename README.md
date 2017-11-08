@@ -36,8 +36,11 @@ are Github source and binary
 [releases](https://github.com/biod/sambamba/releases).
 
 A *latest* pre-release of sambamba 0.6.7 for Linux that includes debug
-information and all dependencies is available from this
-[link](http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J).
+information and *all* dependencies is available from this
+[link](http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J). This
+24Mb download reflects the development edition and includes recent
+versions of libraries, samtools and bcftools. It should install on any
+Linux distribution, including old ones on HPC clusters.
 
 Install the tarball by unpacking it and running the contained install
 script with a target directory e.g.
@@ -50,7 +53,7 @@ tar xvjf tarball.tar.bz2
 ~/sambamba-test/bin/sambamba
 ```
 
-Binaries are also available through the following packaging tools:
+Older binaries are also available through the following packaging tools:
 
 ## Bioconda
 
