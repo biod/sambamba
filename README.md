@@ -35,8 +35,8 @@ For those not in the mood to learn/install new package managers, there
 are Github source and binary
 [releases](https://github.com/biod/sambamba/releases).
 
-A *latest* pre-release of sambamba 0.6.7 for Linux that includes all
-dependencies is available from this
+A *latest* pre-release of sambamba 0.6.7 for Linux that includes debug
+information and all dependencies is available from this
 [link](http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J).
 
 Install the tarball by unpacking it and running the contained install
@@ -136,17 +136,9 @@ Note that GDB should be made aware of D garbage collector:
 handle SIGUSR1 SIGUSR2 nostop noprint
 ```
 
-A binary relocatable install of sambamba with debug information can be fetched from
-
-```sh
-wget http://biogems.info/contrib/genenetwork/s7l4l5jnrwvvyr3pva242yakvmbfpm06-sambamba-0.6.6-pre3-6ae174b-debug-x86_64.tar.bz2
-md5sum ca64fd6f2fa2ba901937afc6b189e98d
-mkdir tmp
-tar xvjf ../*sambamba*.tar.bz2
-cd tmp
-```
-
-unpack the tarball and run the contained install.sh script with TARGET
+A binary relocatable install of sambamba with debug information and
+all dependencies can be fetched from the binary link above.  Unpack
+the tarball and run the contained install.sh script with TARGET
 
 ```
 ./install.sh ~/sambamba-test
