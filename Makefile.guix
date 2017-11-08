@@ -69,7 +69,9 @@ $(OUT): build-setup $(OBJ)
 	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
 
 test:
-	./.run_tests.sh
+	./run_tests.sh
+
+check: test
 
 debug-strip: debug
 	objcopy --only-keep-debug build/sambamba sambamba.debug
