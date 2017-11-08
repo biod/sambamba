@@ -20,7 +20,7 @@ endef
 
 else
 
-LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) -l:libphobos2-ldc.a -l:libdruntime-ldc.a  -lrt -lpthread -lm -ldl
+LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) -lphobos2-ldc -ldruntime-ldc  -lrt -lpthread -lm -ldl
 DMD_STATIC_LIBS=-L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -L-Llz4/lib -L-l:liblz4.a
 
 define split-debug
