@@ -227,7 +227,7 @@ Sambamba development and issue tracker is on
 documentation can be found in the source code and the [development
 documentation](https://github.com/biod/sambamba-dev-docs).
 
-# Copyright
+# License
 
 Sambamba is distributed under GNU Public License v2+.
 
@@ -249,6 +249,5 @@ A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. [Sambamba: fas
   pages = {2032-2034},
   year = {2015},
   doi = {10.1093/bioinformatics/btv098},
-  URL = { + http://dx.doi.org/10.1093/bioinformatics/btv098},
-  eprint = {/oup/backfile/content_public/journal/bioinformatics/31/12/10.1093/bioinformatics/btv098/2/btv098.pdf}
+  URL = { + http://dx.doi.org/10.1093/bioinformatics/btv098}
 ```
