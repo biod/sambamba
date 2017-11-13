@@ -33,7 +33,22 @@ For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
 For those not in the mood to learn/install new package managers, there
 are Github source and binary
-[releases](https://github.com/biod/sambamba/releases).
+[releases](https://github.com/biod/sambamba/releases). Simply download
+the tarball, unpack it and run it. For example
+
+```sh
+wget https://github.com/biod/sambamba/releases/download/v0.6.6/sambamba_v0.6.6_linux.tar.bz2
+tar xvjf sambamba_v0.6.6_linux.tar.bz2
+./sambamba_v0.6.6
+
+    sambamba 0.6.6
+
+        Usage: sambamba [command] [args...]
+
+        Available commands: 'view', 'index', 'merge', 'sort',
+                             'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
+        To get help on a particular command, just call it without args.
+```
 
 A *latest* pre-release of sambamba 0.6.7 for Linux that includes debug
 information and *all* dependencies is available from this
@@ -46,11 +61,18 @@ Install the tarball by unpacking it and running the contained install
 script with a target directory e.g.
 
 ```sh
-wget tarball.tar.bz2
-mkdir ~/tmp
-tar xvjf tarball.tar.bz2
+wget http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f822hv9zsz-sambamba-0.6.7-pre1-7cff065-x86_64.tar.bz2
+tar xvjf QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f822hv9zsz-sambamba-0.6.7-pre1-7cff065-x86_64.tar.bz2
 ./install.sh ~/sambamba-test
 ~/sambamba-test/bin/sambamba
+
+    sambamba 0.6.7-pre1
+
+    Usage: sambamba [command] [args...]
+
+        Available commands: 'view', 'index', 'merge', 'sort',
+                            'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
+
 ```
 
 Older binaries are also available through the following packaging tools:
