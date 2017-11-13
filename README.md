@@ -1,8 +1,18 @@
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
+# sambamba
+[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba)
 
-[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.13200.svg)](http://dx.doi.org/10.5281/zenodo.13200)
+## Table of Contents
 
-# Sambamba
+- [Introduction](#intro)
+- [Binary installation](#install)
+- [Getting help](#help)
+- [Compiling](#compile)
+- [Debugging and troubleshooting](#debug)
+- [License](#license)
+- [Credits](#credits)
+
+<a name="intro"></a>
+# Introduction
 
 Sambamba is a high performance modern robust and fast tool (and
 library), written in the D programming language, for working with SAM
@@ -29,7 +39,9 @@ to know more about what is available and how to use it.
 
 For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
 
+<a name="install"></a>
 # Binary installation
+## Install stable release
 
 For those not in the mood to learn/install new package managers, there
 are Github source and binary
@@ -49,6 +61,8 @@ tar xvjf sambamba_v0.6.6_linux.tar.bz2
                              'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
         To get help on a particular command, just call it without args.
 ```
+
+## Install latest pre-release
 
 A *latest* pre-release of sambamba 0.6.7 for Linux that includes debug
 information and *all* dependencies is available from this
@@ -77,104 +91,27 @@ tar xvjf QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f8
 
 Older binaries are also available through the following packaging tools:
 
-## Bioconda
+## Bioconda install
+
+
+[![Install with CONDA](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba)
 
 With Conda use the [`bioconda`](https://bioconda.github.io/) channel.
 
-## GNU Guix
+## GNU Guix install
 
 A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available. The development version is packaged [here](https://gitlab.com/genenetwork/guix-bioinformatics/blob/master/gn/packages/sambamba.scm).
 
-## Debian GNU/Linux
+## Debian GNU/Linux install
 
 Debian: see Debian packages.
 
-## Homebrew
+## Homebrew install
 
 Users of Homebrew can also use the formula from `homebrew-science`.
 
-# Compiling Sambamba
 
-The preferred method for compiling Sambamba is with the LDC compiler
-which targets LLVM.
-
-## Compilation dependencies
-
-- zlib
-- htslib (submodule)
-- lz4 (submodule)
-- BioD (submodule)
-- undeaD (submodule)
-- python2
-
-## Compiling for Linux
-
-The LDC compiler's github repository also provides binary images. The current
-preferred release for sambamba is LDC - the LLVM D compiler (>= 1.1.0). After
-installing LDC:
-
-```sh
-    git clone --recursive https://github.com/biod/sambamba.git
-    cd sambamba
-    git clone https://github.com/dlang/undeaD
-    make sambamba-ldmd2-64
-```
-
-Installing LDC only means unpacking an archive and setting some environmental variables, e.g. unpacking into `$HOME`:
-```sh
-cd
-wget https://github.com/ldc-developers/ldc/releases/download/v$ver/ldc2-$ver-linux-x86_64.tar.xz
-tar xJf ldc2-$ver-linux-x86_64.tar.xz
-export PATH=~/ldc2-$ver-linux-x86_64/bin/:$PATH
-export LIBRARY_PATH=~/ldc2-$ver-linux-x86_64/lib/
-```
-
-### GNU Guix
-
-To build sambamba the LDC compiler is also available in GNU Guix:
-
-```sh
-guix package -i ldc
-```
-
-## Compiling for Mac OS X
-
-```sh
-    brew install ldc
-    git clone --recursive https://github.com/biod/sambamba.git
-    cd sambamba
-    git clone https://github.com/dlang/undeaD
-    make sambamba-ldmd2-64
-```
-
-# Troubleshooting
-
-In case of crashes it's helpful to have GDB stacktraces (`bt` command). A full stacktrace
-for all threads:
-
-```
-thread apply all backtrace full
-```
-
-Note that GDB should be made aware of D garbage collector:
-```
-handle SIGUSR1 SIGUSR2 nostop noprint
-```
-
-A binary relocatable install of sambamba with debug information and
-all dependencies can be fetched from the binary link above.  Unpack
-the tarball and run the contained install.sh script with TARGET
-
-```
-./install.sh ~/sambamba-test
-```
-
-Run sambamba in gdb with
-
-```
-gdb --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
-```
-
+<a name="help"></a>
 # Getting help
 
 Sambamba has a
@@ -220,17 +157,109 @@ agree to abide by the
 [code of conduct](https://software-carpentry.org/conduct/) as
 published by the Software Carpentry initiative.
 
-# Development
+
+<a name="compile"></a>
+# Compiling Sambamba
+
+Note: in general there is no need to compile sambamba. You can use a
+recent binary install as listed above.
+
+The preferred method for compiling Sambamba is with the LDC compiler
+which targets LLVM.
+
+## Compilation dependencies
+
+- zlib
+- htslib (submodule)
+- lz4 (submodule)
+- BioD (submodule)
+- undeaD (submodule)
+- python2
+
+## Compiling for Linux
+
+The LDC compiler's github repository also provides binary images. The current
+preferred release for sambamba is LDC - the LLVM D compiler (>= 1.1.0). After
+installing LDC:
+
+```sh
+    git clone --recursive https://github.com/biod/sambamba.git
+    cd sambamba
+    git clone https://github.com/dlang/undeaD
+    make sambamba-ldmd2-64
+```
+
+Installing LDC only means unpacking an archive and setting some
+environmental variables, e.g. unpacking into `$HOME`:
+
+```sh
+cd
+wget https://github.com/ldc-developers/ldc/releases/download/v$ver/ldc2-$ver-linux-x86_64.tar.xz
+tar xJf ldc2-$ver-linux-x86_64.tar.xz
+export PATH=~/ldc2-$ver-linux-x86_64/bin/:$PATH
+export LIBRARY_PATH=~/ldc2-$ver-linux-x86_64/lib/
+```
+
+### GNU Guix
+
+To build sambamba the LDC compiler is also available in GNU Guix:
+
+```sh
+guix package -i ldc
+```
+
+## Compiling for Mac OS X
+
+```sh
+    brew install ldc
+    git clone --recursive https://github.com/biod/sambamba.git
+    cd sambamba
+    git clone https://github.com/dlang/undeaD
+    make sambamba-ldmd2-64
+```
+
+## Development
 
 Sambamba development and issue tracker is on
 [github](https://github.com/biod/sambamba). Developer
 documentation can be found in the source code and the [development
 documentation](https://github.com/biod/sambamba-dev-docs).
 
-# Copyright
+<a name="debug"></a>
+# Debugging and troubleshooting
+
+In case of crashes it's helpful to have GDB stacktraces (`bt`
+command). A full stacktrace for all threads:
+
+```
+thread apply all backtrace full
+```
+
+Note that GDB should be made aware of D garbage collector:
+```
+handle SIGUSR1 SIGUSR2 nostop noprint
+```
+
+A binary relocatable install of sambamba with debug information and
+all dependencies can be fetched from the binary link above.  Unpack
+the tarball and run the contained install.sh script with TARGET
+
+```
+./install.sh ~/sambamba-test
+```
+
+Run sambamba in gdb with
+
+```
+gdb --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
+```
+
+<a name="license"></a>
+# License
 
 Sambamba is distributed under GNU Public License v2+.
 
+<a name="credits"></a>
 # Credit
 
 If you are using Sambamba in your research and want to support future
@@ -249,6 +278,5 @@ A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. [Sambamba: fas
   pages = {2032-2034},
   year = {2015},
   doi = {10.1093/bioinformatics/btv098},
-  URL = { + http://dx.doi.org/10.1093/bioinformatics/btv098},
-  eprint = {/oup/backfile/content_public/journal/bioinformatics/31/12/10.1093/bioinformatics/btv098/2/btv098.pdf}
+  URL = { + http://dx.doi.org/10.1093/bioinformatics/btv098}
 ```
