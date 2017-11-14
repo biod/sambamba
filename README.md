@@ -89,10 +89,9 @@ tar xvjf QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f8
 
 ```
 
-Older binaries are also available through the following packaging tools:
+Binaries are also available through the following packaging tools (note the version numbers):
 
 ## Bioconda install
-
 
 [![Install with CONDA](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba)
 
