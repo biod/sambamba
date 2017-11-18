@@ -227,6 +227,29 @@ documentation](https://github.com/biod/sambamba-dev-docs).
 <a name="debug"></a>
 # Debugging and troubleshooting
 
+## Dump core
+
+In a crash sambamba can dump a core. To make this happen set
+
+```sh
+ulimit -c unlimited
+```
+
+and run your command. Send us the core file so we can reproduce the state at
+time of segfault.
+
+## Use catchsegv
+
+Another option is to use catchsegv
+
+```sh
+catchsegv ./build/sambamba command
+```
+
+this will show state on stdout which can be sent to us.
+
+## Using gdb
+
 In case of crashes it's helpful to have GDB stacktraces (`bt`
 command). A full stacktrace for all threads:
 
@@ -235,6 +258,7 @@ thread apply all backtrace full
 ```
 
 Note that GDB should be made aware of D garbage collector:
+
 ```
 handle SIGUSR1 SIGUSR2 nostop noprint
 ```
