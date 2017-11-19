@@ -1260,7 +1260,7 @@ int markdup_main(string[] args) {
                        elapsed.seconds % 60, " sec");
 
         // marking or removing duplicates
-        bam = new MultiBamReader(args[1 .. $-1]);
+        bam = new MultiBamReader(args[1 .. $-1]);  // FIXME: initialized twice
         bam.setBufferSize(io_buffer_size / (args.length - 2));
         auto out_stream = new BufferedFile(args[$-1], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level);
