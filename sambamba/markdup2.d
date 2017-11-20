@@ -24,10 +24,10 @@ module sambamba.markdup2;
    Markdup2 is a new version of sambamba markdup (under development).
 
    The new version is a prototype for new sambamba architecture using
-   the D language features, including immutable and improved laziness
-   and a more functional programming style. It should provide improved
-   performance and minimize RAM use. Also we are preparing it for CRAM
-   input.
+   canonical D language features, including immutable and improved
+   laziness and a more functional programming style. It should provide
+   improved performance and minimize RAM use, as well as better
+   composability. Also we are preparing it for CRAM input.
 
    The initial version is a large data markdup which was previously invoked as
 
@@ -77,7 +77,7 @@ int markdup_main(string[] args) {
   writeln(infns);
 
   // let's start simple with one Bam file
-  immutable Reader R = Reader(infns[0]);
+  auto R = Reader(infns[0]);
   foreach (int rd; R) {
     writeln(rd);
   }

@@ -104,4 +104,6 @@ sambamba-pileup:
 .PHONY: clean ldc-version-info
 
 clean:
+	rm -rf build/*
+	rm -f $(OBJ) $(OUT) trace.{def,log}
 	rm -rf build/ ; $(MAKE) -C htslib clean ; $(MAKE) -C lz4 clean
