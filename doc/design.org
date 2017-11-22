@@ -1,0 +1,73 @@
+* Sambamba new design
+
+** Introduction
+
+Because of its great multi-core performance Sambamba has served over
+five years in sequencing centers [[https://groups.google.com/d/msg/sambamba-discussion/fIgrrUa441o/XG7Rt3dFAQAJ][around the world]]. Here we start on a
+new design (sambamba2) that should improve performance and, perhaps
+more importantly, make the building blocks more composable. D has
+proven to be a great language for multi-core performance and code
+clarity, so we are happy to build on its latest language features. For
+example, see this [[http://forum.dlang.org/thread/gvtjhpxdqpboppoodmxm@forum.dlang.org][dicussion]] on streaming data, which, if you read it
+carefully, suggests we should use multiple implementations for file
+access.
+
+Here we document some of the choices we are making for the new
+design. Starting with markdup2, the new version is a prototype for new
+sambamba architecture using more canonical D language features,
+including immutable and improved laziness and a more functional
+programming style. It should provide improved performance and minimize
+RAM use, as well as better composability. Also we are preparing it for
+CRAM input.
+
+Another point to consider is chunking and built-in parallelism which
+may give different results on different hardware platforms. When an
+algorithm allows for it and there is enough RAM we should allow for
+chunking file and running chunks in parallel. Both current sambamba
+and samtools provide a taskpool, but have little options for tuning
+for hardware variations. Other hardware considerations are providing
+the latest LLVM support for just in time (JIT) compilation and GPUs.
+
+** Streaming input data
+
+Every input file should be on its own streaming thread. If there is
+only one input file, it should be possible to use a stdin pipe. When
+using a pipe we will pass reads in an uncompressed format (it makes no
+sense to compress and decompress in a pipe). This means we should be
+able to do something like this on a sorted BAM file:
+
+#+BEGIN_SRC bash
+sambamba unpack in.bam | sambamba markdup2 |sambamba pack -f bam > out.bam
+#+END_SRC
+
+Because of the pipes these tools can run in parallel.
+
+** Streaming output data
+
+The main thread is the output thread and writes data to stdout, or
+optionally a file. Compression may be handed out to other threads.
+
+** Composability
+
+Composability happens at two levels. First at the tool level. By
+providing support for Unix pipes we'll make sambamba easier to plug
+into other solutions. In particular we are interested in providing
+support for other programming languages, such as Python and Ruby.
+
+The second composability level is within the code base. It should be
+easy to plug in different file readers, for example. Using a more
+functional programming style and getting rid of (deprecated)
+std.stream should help there.
+
+** Tooling
+
+*** Metrics
+
+To get the best performance having metrics is extremely
+important. Luckily LLVM provides great tooling for metrics and we
+should use that.
+
+*** Logging
+
+Because of the pipes it is crucial sambamba gives clear error messages
+and should be capable of writing to a log file.
