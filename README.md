@@ -170,14 +170,16 @@ which targets LLVM.
 
 ## Compilation dependencies
 
-- zlib
+- zlib (library)
+- lz4 (library)
 - htslib (submodule)
-- lz4 (submodule)
-- BioD (submodule)
-- undeaD (submodule)
+- BioD (source)
+- undeaD (source)
 - python2
 
 ## Compiling for Linux
+
+(this section needs to be updated)
 
 The LDC compiler's github repository also provides binary images. The current
 preferred release for sambamba is LDC - the LLVM D compiler (>= 1.1.0). After
