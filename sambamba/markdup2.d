@@ -79,7 +79,7 @@ int markdup_main(string[] args) {
   writeln(infns);
 
   auto reader = BgzfReader(infns[0]);
-  foreach (auto block; reader.bgzf_blocks()) {
+  foreach (immutable(char) block; reader.blocks()) {
     writeln(block);
   }
 
