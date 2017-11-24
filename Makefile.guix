@@ -7,32 +7,40 @@
 # run with
 #
 #   ./build/sambamba
-
+#
+# certain paths may need to be set, e.g.
+#
+#   make UNDEAD_PATH=../undeaD/src -f Makefile.guix
+#
+# For more information see INSTALL.md
+#
 # The following two are modified by the Guix package:
 D_COMPILER=ldc2
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
-DFLAGS = -wi -I. -IBioD -IundeaD/src
+UNDEAD_PATH=$(HOME)/.dub/packages/undead-1.0.9/undead/src
+
+DFLAGS = -wi -I. -IBioD -IundeaD/src -I$(UNDEAD_PATH)
 DLIBS  = $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LDC_LIB_PATH)/libphobos2-ldc-debug.a $(LDC_LIB_PATH)/libdruntime-ldc-debug.a
 RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
 LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
-LIBS_STATIC = $(LDC_LIB_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LDC_LIB_PATH)/liblz4.a
-SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
+LIBS_STATIC = $(DLIBS) htslib/libhts.a $(LDC_LIB_PATH)/liblz4.a
+SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard $(UNDEAD_PATH)/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
-OUT    = build/sambamba
+OUT    = bin/sambamba
 
 # The Guix targets resolve the RPATH automatically
 guix:        DFLAGS += -O -release -g # Guix strips debug flags
 
-guix-debug:  DFLAGS += -O0 -g -d-debug
+guix-debug:  DFLAGS += -O0 -g -d-debug -unittest
 
 # The following options are run in development from ~/.guix-profile and need to inject the RPATH
 debug:       DFLAGS += -O0 -g -d-debug $(RPATH) -link-debuglib
 
 release:     DFLAGS += -O -release $(RPATH)
 
-static:      DFLAGS += -O -release -static -L-Bstatic
+static:      DFLAGS += -O -release -static -L-Bstatic -L-L/gnu/store/rmjlycdgiq8pfy5hfi42qhw3k7p6kdav-glibc-2.25/lib/
 
 profile:     DFLAGS += -g -O -profile $(RPATH)
 
@@ -55,8 +63,8 @@ ldc-version-info:
 utils/ldc_version_info_.o: ldc-version-info
 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
 
-build-setup: htslib-static ldc-version-info
-	mkdir -p build/
+bin-setup: htslib-static ldc-version-info
+	mkdir -p bin/
 
 guix guix-debug default debug release static profile: $(OUT)
 
@@ -65,26 +73,26 @@ guix guix-debug default debug release static profile: $(OUT)
 	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
 # ---- Link step
-$(OUT): build-setup $(OBJ)
-	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
+$(OUT): bin-setup $(OBJ)
+	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba $(OBJ) $(LIBS)
 
 test:
 	./run_tests.sh
 
-check: test
+check: all test
 
 debug-strip: debug
-	objcopy --only-keep-debug build/sambamba sambamba.debug
-	objcopy --strip-debug build/sambamba
-	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
-	mv sambamba.debug build/
+	objcopy --only-keep-debug bin/sambamba sambamba.debug
+	objcopy --strip-debug bin/sambamba
+	objcopy --add-gnu-debuglink=sambamba.debug bin/sambamba
+	mv sambamba.debug bin/
 
 install:
-	install -m 0755 build/sambamba $(prefix)/bin
+	install -m 0755 bin/sambamba $(prefix)/bin
 
 clean: clean-d
 	cd htslib ; make clean
 
 clean-d:
-	rm -rf build/*
+	rm -rf bin/*
 	rm -f $(OBJ) $(OUT) trace.{def,log}

@@ -1,7 +1,10 @@
+.dub/
+dub.selections.json
 BioD/
 ./BioD
 undeaD/
 core
+bin/
 build/
 shunit*
 /*.sam
