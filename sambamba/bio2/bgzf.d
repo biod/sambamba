@@ -24,9 +24,13 @@ struct BgzfReader {
   }
 
   size_t get_compressed_block(size_t fpos) {
-    void throwBgzfException(string msg) {
+    void throwBgzfException(string msg, string file = __FILE__, int line = __LINE__) {
         throw new BgzfException("Error reading BGZF block starting in "~filen~" @ " ~
-                                to!string(fpos) ~ ": " ~ msg);
+                                to!string(fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
+    }
+    void enforce1(bool check, string msg, string file = __FILE__, int line = __LINE__) {
+      if (!check)
+        throwBgzfException(msg,file,line);
     }
     ubyte read_ubyte() {
       ubyte[1] ubyte1; // read buffer
@@ -44,8 +48,8 @@ struct BgzfReader {
     f.seek(fpos);
 
     auto magic = f.rawRead(new ubyte[4]);
-    enforce(magic[0..4] == BGZF_MAGIC, "Invalid file format: expected bgzf magic number in "~filen~" @ " ~ to!string(fpos));
-    enforce(magic.length == 4,"Premature end of file in ~",filen);
+    enforce1(magic[0..4] == BGZF_MAGIC,"Invalid file format: expected bgzf magic number");
+    enforce1(magic.length == 4, "Premature end of file");
     try {
       f.rawRead(new ubyte[uint.sizeof + 2 * ubyte.sizeof]); // skip gzip info
       ushort gzip_extra_length = read_ushort();
@@ -60,9 +64,9 @@ struct BgzfReader {
         if (subfield_id1 == BAM_SI1 && subfield_id2 == BAM_SI2) {
           // BC identifier
           enforce(gzip_extra_length == 6);
-          // FIXME: check there is only one BC block
+          // FIXME: always picks first BC block
           bsize = read_ushort(); // BLOCK size minus 1
-          enforce(subfield_len == bsize.sizeof, "BC subfield len should be 2");
+          enforce1(subfield_len == bsize.sizeof, "BC subfield len should be 2");
           writeln("bsize=",bsize);
           break;
         }
@@ -70,10 +74,10 @@ struct BgzfReader {
           f.seek(subfield_len,SEEK_CUR);
         }
       }
-      if (bsize==0) throwBgzfException("block size not found");
+      enforce1(bsize!=0,"block size not found");
       auto cdata_size = bsize - gzip_extra_length - 19;
-      if (cdata_size > BGZF_MAX_BLOCK_SIZE) throwBgzfException("compressed size larger than allowed");
-      // @@ HERE
+      enforce1(cdata_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
+
     } catch (Exception e) { throwBgzfException("File error in "~filen~": " ~ e.msg); }
     return f.tell()-start_offset;
   }
