@@ -27,8 +27,8 @@ DLIBS_DEBUG = $(LDC_LIB_PATH)/libphobos2-ldc-debug.a $(LDC_LIB_PATH)/libdruntime
 RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
 LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
 LIBS_STATIC = $(DLIBS) htslib/libhts.a $(LDC_LIB_PATH)/liblz4.a
-SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard $(UNDEAD_PATH)/undead/*.d) $(wildcard $(BIOD_PATH)/bio/*/*.d $(BIOD_PATH)/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
-OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
+SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard $(UNDEAD_PATH)/undead/*.d) $(wildcard $(BIOD_PATH)/bio/*/*.d $(BIOD_PATH)/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d) utils/ldc_version_info_.d
+OBJ    = $(SRC:.d=.o)
 OUT    = bin/sambamba
 
 # The Guix targets resolve the RPATH automatically
@@ -58,14 +58,12 @@ all: debug
 htslib-static:
 	cd htslib && $(MAKE)
 
-ldc-version-info:
+utils/ldc_version_info_.d:
 	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 
-utils/ldc_version_info_.o: ldc-version-info
+utils/ldc_version_info_.o: utils/ldc_version_info_.d
 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
 
-bin-setup: htslib-static ldc-version-info
-	mkdir -p bin/
 
 guix guix-debug default debug release static profile: $(OUT)
 
@@ -74,7 +72,8 @@ guix guix-debug default debug release static profile: $(OUT)
 	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
 # ---- Link step
-$(OUT): bin-setup $(OBJ)
+$(OUT): $(OBJ)
+	mkdir -p bin/
 	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba $(OBJ) $(LIBS)
 
 test:

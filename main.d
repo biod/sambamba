@@ -39,8 +39,7 @@ import utils.ldc_version_info_ : LDC_VERSION_STRING, DMD_VERSION_STRING, LLVM_VE
 import std.stdio;
 
 void printUsage() {
-    stderr.writeln("sambamba " ~ VERSION);
-    stderr.writeln();
+    printVersion();
     stderr.writeln("Usage: sambamba [command] [args...]");
     stderr.writeln();
     stderr.writeln("    Available commands: 'view', 'index', 'merge', 'sort',");
