@@ -4,6 +4,7 @@ import std.conv;
 import std.exception;
 import std.file;
 import std.stdio;
+import std.typecons;
 import std.zlib;
 
 import bio.bam.constants;
@@ -27,7 +28,7 @@ struct BgzfReader {
   /**
    * Returns new file position. Zero when done
    */
-  size_t get_compressed_block(size_t fpos) {
+  Nullable!size_t get_compressed_block(Nullable!size_t fpos) {
     void throwBgzfException(string msg, string file = __FILE__, int line = __LINE__) {
         throw new BgzfException("Error reading BGZF block starting in "~filen~" @ " ~
                                 to!string(fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
@@ -83,6 +84,7 @@ struct BgzfReader {
         }
       }
       enforce1(bsize!=0,"block size not found");
+      f.seek(fpos1+gzip_extra_length); // skip any extra subfields - note we don't check for second BC
       immutable compressed_size = bsize - 1 - gzip_extra_length - 19;
       enforce1(compressed_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
 
@@ -92,7 +94,7 @@ struct BgzfReader {
 
       writeln("[compressed] size ", compressed_size, " bytes starting block @ ", start_offset);
       auto buffer = new ubyte[compressed_size];
-      auto b2 = f.rawRead(buffer);
+      auto compressed_buf = f.rawRead(buffer);
 
       immutable crc32 = read_uint();
       immutable uncompressed_size = read_uint();
@@ -105,34 +107,27 @@ struct BgzfReader {
         ubyte[28] buf;
         f.rawRead(buf);
         f.seek(lastpos);
-        if (buf == [31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0, 27, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]) return 0;
+        if (buf == [31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0, 27, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]) return Nullable!size_t();
       }
-      // auto uncompressed = uncompress(b2,compressed_size);
-      // block.input_size = uncompressed_size;
 
-      // assert(block.crc32 == crc32(0, uncompressed[]));
-
-
-      // ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf = void;
-      // auto uncompressed = uncompressed_buf[0 .. block.input_size]; // actual data
-
-      // block._buffer = buffer[0 .. max(block.input_size, cdata_size)];
-      // block.start_offset = start_offset;
-      // block.dirty = false;
-
+      auto uncompressed_buf = uncompress(compressed_buf,compressed_size,-15);
+      assert(crc32 == std.zlib.crc32(0, uncompressed_buf[]));
 
     } catch (Exception e) { throwBgzfException("File error in "~filen~": " ~ e.msg); }
-    return f.tell();
+    return Nullable!size_t(f.tell());
   }
 
   string blocks() {
     string ret = "yes";
-    size_t fpos = 0;
+    Nullable!size_t fpos = 0;
     while (!f.eof()) {
-      fpos = get_compressed_block(fpos);
-      if (fpos == 0) break;
+      auto new_fpos = get_compressed_block(fpos);
+      if (new_fpos.isNull) {
+        writeln(to!string(fpos) ~ "bytes");
+        break;
+      }
+      fpos = new_fpos;
     }
-    writeln(to!string(fpos) ~ "bytes");
     return ret;
   }
 }
