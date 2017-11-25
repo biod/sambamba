@@ -33,7 +33,7 @@ struct BgzfReader {
         throw new BgzfException("Error reading BGZF block starting in "~filen~" @ " ~
                                 to!string(fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
     }
-    void enforce1(bool check, string msg, string file = __FILE__, int line = __LINE__) {
+    void enforce1(bool check, lazy string msg, string file = __FILE__, int line = __LINE__) {
       if (!check)
         throwBgzfException(msg,file,line);
     }
@@ -57,13 +57,15 @@ struct BgzfReader {
     write(".");
     f.seek(fpos);
 
-    auto magic = f.rawRead(new ubyte[4]);
+    ubyte[4] ubyte4;
+    auto magic = f.rawRead(ubyte4);
     enforce1(magic.length == 4, "Premature end of file");
     enforce1(magic[0..4] == BGZF_MAGIC,"Invalid file format: expected bgzf magic number");
     try {
-      f.rawRead(new ubyte[uint.sizeof + 2 * ubyte.sizeof]); // skip gzip info
+      ubyte[uint.sizeof + 2 * ubyte.sizeof] skip;
+      f.rawRead(skip); // skip gzip info
       ushort gzip_extra_length = read_ushort();
-      writeln("gzip_extra_length=",gzip_extra_length);
+      // writeln("gzip_extra_length=",gzip_extra_length);
       immutable fpos1 = f.tell;
       size_t bsize = 0;
       while (f.tell < fpos1 + gzip_extra_length) {
@@ -76,7 +78,7 @@ struct BgzfReader {
           // FIXME: always picks first BC block
           bsize = 1+read_ushort(); // BLOCK size
           enforce1(subfield_len == 2, "BC subfield len should be 2");
-          writeln("bsize=",bsize);
+          // writeln("bsize=",bsize);
           break;
         }
         else {
@@ -88,17 +90,14 @@ struct BgzfReader {
       immutable compressed_size = bsize - 1 - gzip_extra_length - 19;
       enforce1(compressed_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
 
-      // auto block = BgzfBlock();
-      // block.bsize = bsize,
-      // block.cdata_size = cast(ushort)cdata_size;
-
-      writeln("[compressed] size ", compressed_size, " bytes starting block @ ", start_offset);
-      auto buffer = new ubyte[compressed_size];
+      stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", start_offset);
+      ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
+      auto buffer = stack_buffer[0..compressed_size];
       auto compressed_buf = f.rawRead(buffer);
 
       immutable crc32 = read_uint();
       immutable uncompressed_size = read_uint();
-      writeln("[uncompressed] size ",uncompressed_size);
+      stderr.writeln("[uncompressed] size ",uncompressed_size);
 
       if (uncompressed_size == 0) {
         // check for eof marker, rereading block header
