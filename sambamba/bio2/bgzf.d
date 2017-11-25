@@ -15,6 +15,15 @@ class BgzfException : Exception {
     this(string msg) { super(msg); }
 }
 
+alias Nullable!size_t FilePos;
+alias immutable(uint) CRC32;
+
+ubyte[] deflate(const ubyte[] compressed_buf, CRC32 crc32) {
+  auto uncompressed_buf = uncompress(compressed_buf,compressed_buf.length,-15);
+  assert(crc32 == std.zlib.crc32(0, uncompressed_buf[]));
+  return cast(ubyte[])uncompressed_buf; // Uses the heap
+}
+
 struct BgzfReader {
   string filen;
   File f;
@@ -28,8 +37,8 @@ struct BgzfReader {
   /**
    * Returns new file position. Zero when done
    */
-  Nullable!size_t get_compressed_block(Nullable!size_t fpos) {
-    void throwBgzfException(string msg, string file = __FILE__, int line = __LINE__) {
+  Tuple!(FilePos,ubyte[],CRC32) get_compressed_block(FilePos fpos, ubyte[] buffer) {
+    void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
         throw new BgzfException("Error reading BGZF block starting in "~filen~" @ " ~
                                 to!string(fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
     }
@@ -54,7 +63,6 @@ struct BgzfReader {
     }
 
     immutable start_offset = fpos;
-    write(".");
     f.seek(fpos);
 
     ubyte[4] ubyte4;
@@ -91,11 +99,9 @@ struct BgzfReader {
       enforce1(compressed_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
 
       stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", start_offset);
-      ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
-      auto buffer = stack_buffer[0..compressed_size];
-      auto compressed_buf = f.rawRead(buffer);
+      auto compressed_buf = f.rawRead(buffer[0..compressed_size]);
 
-      immutable crc32 = read_uint();
+      immutable CRC32 crc32 = read_uint();
       immutable uncompressed_size = read_uint();
       stderr.writeln("[uncompressed] size ",uncompressed_size);
 
@@ -106,25 +112,27 @@ struct BgzfReader {
         ubyte[28] buf;
         f.rawRead(buf);
         f.seek(lastpos);
-        if (buf == [31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0, 27, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]) return Nullable!size_t();
+        if (buf == [31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0, 27, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]) return tuple(FilePos(),compressed_buf,crc32);
       }
 
-      auto uncompressed_buf = uncompress(compressed_buf,compressed_size,-15);
-      assert(crc32 == std.zlib.crc32(0, uncompressed_buf[]));
-
-    } catch (Exception e) { throwBgzfException("File error in "~filen~": " ~ e.msg); }
-    return Nullable!size_t(f.tell());
+      return tuple(FilePos(f.tell()),compressed_buf,crc32);
+    } catch (Exception e) { throwBgzfException(e.msg,e.file,e.line); }
+    assert(0);
   }
 
   string blocks() {
     string ret = "yes";
-    Nullable!size_t fpos = 0;
+    FilePos fpos = 0;
     while (!f.eof()) {
-      auto new_fpos = get_compressed_block(fpos);
+      ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
+      auto res = get_compressed_block(fpos,stack_buffer);
+      auto new_fpos = res[0];
       if (new_fpos.isNull) {
-        writeln(to!string(fpos) ~ "bytes");
         break;
       }
+      auto compressed_buf = res[1];
+      auto crc32 = res[2];
+      stdout.rawWrite(deflate(compressed_buf,crc32));
       fpos = new_fpos;
     }
     return ret;

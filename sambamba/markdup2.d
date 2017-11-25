@@ -76,11 +76,11 @@ int markdup_main(string[] args) {
   info("Reading input files");
 
   auto infns = args[1..$];
-  writeln(infns);
+  stderr.writeln(infns);
 
   auto reader = BgzfReader(infns[0]);
   foreach (immutable(char) block; reader.blocks()) {
-    writeln(block);
+    stderr.writeln(block);
   }
 
   return 0;
