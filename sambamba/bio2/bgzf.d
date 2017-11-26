@@ -90,7 +90,7 @@ struct BgzfReader {
       contained compressed data size with the file pointer positioned
       at the compressed block.
   */
-  size_t get_block_header(FilePos fpos) {
+  size_t read_block_header(FilePos fpos) {
     last_block_fpos = fpos;
     f.seek(fpos);
 
@@ -129,18 +129,31 @@ struct BgzfReader {
   }
 
   /**
-   * Returns new tuple of the new file position, the compressed buffer and
-   * the CRC32 o the uncompressed data. file pos is NULL when done
-   */
-  Tuple!(FilePos,ubyte[],size_t,CRC32) get_compressed_block(FilePos fpos, ubyte[] buffer) {
-    immutable start_offset = fpos;
-    try {
-      immutable compressed_size = get_block_header(fpos);
-      auto compressed_buf = f.rawRead(buffer[0..compressed_size]);
+     Fetch the compressed data part of the block and return it with
+     the uncompressed size and CRC32. The file pointer is assumed to
+     be at the start of the data and will be at the end after.
+  */
+  Tuple!(ubyte[],immutable(uint),CRC32) read_compressed_data(ubyte[] buffer) {
+      auto compressed_buf = f.rawRead(buffer);
 
       immutable CRC32 crc32 = read_uint();
       immutable uncompressed_size = read_uint();
       stderr.writeln("[uncompressed] size ",uncompressed_size);
+      return tuple(compressed_buf,uncompressed_size,crc32);
+  }
+
+  /**
+   * Returns new tuple of the new file position, the compressed buffer and
+   * the CRC32 o the uncompressed data. file pos is NULL when done
+   */
+  Tuple!(FilePos,ubyte[],size_t,CRC32) read_compressed_block(FilePos fpos, ubyte[] buffer) {
+    immutable start_offset = fpos;
+    try {
+      immutable compressed_size = read_block_header(fpos);
+      auto ret = read_compressed_data(buffer[0..compressed_size]);
+      auto compressed_buf = ret[0];
+      immutable uncompressed_size = ret[1];
+      immutable crc32 = ret[2];
 
       if (uncompressed_size == 0) {
         // check for eof marker, rereading block header
@@ -162,7 +175,7 @@ struct BgzfReader {
     FilePos fpos = 0;
     while (!f.eof()) {
       ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
-      auto res = get_compressed_block(fpos,stack_buffer);
+      auto res = read_compressed_block(fpos,stack_buffer);
       auto new_fpos = res[0];
       if (new_fpos.isNull)
         break;
