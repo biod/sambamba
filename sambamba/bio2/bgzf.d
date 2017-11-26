@@ -189,3 +189,38 @@ struct BgzfReader {
     return ret;
   }
 }
+
+/**
+   Iterate uncompressed blocks
+*/
+struct BgzfBlocks {
+
+  FilePos fpos = 0, new_fpos;
+  BgzfReader bgzf;
+
+  this(string fn) {
+    bgzf = BgzfReader(fn);
+  }
+
+  @property bool empty() const {
+    return fpos.isNull;
+  }
+
+  @property ubyte[] front() {
+    ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
+    auto res = bgzf.read_compressed_block(fpos,stack_buffer);
+    new_fpos = res[0];
+    if (new_fpos.isNull)
+      return null;
+
+    auto compressed_buf = res[1];
+    auto uncompressed_size = res[2];
+    auto crc32 = res[3];
+    ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf;
+    return deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
+  }
+
+  void popFront() {
+    fpos = new_fpos;
+  }
+};
