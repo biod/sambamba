@@ -224,3 +224,29 @@ struct BgzfBlocks {
     fpos = new_fpos;
   }
 };
+
+struct BgzfBlocks2 {
+
+  BgzfReader bgzf;
+
+  this(string fn) {
+    bgzf = BgzfReader(fn);
+  }
+
+  int opApply(scope int delegate(ubyte[]) dg) {
+    FilePos fpos = 0;
+    while (!fpos.isNull) {
+      ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
+      auto res = bgzf.read_compressed_block(fpos,stack_buffer);
+      fpos = res[0];
+      if (fpos.isNull) break;
+
+      auto compressed_buf = res[1];
+      auto uncompressed_size = res[2];
+      auto crc32 = res[3];
+      ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf;
+      dg(deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32));
+    }
+    return 0;
+  }
+}
