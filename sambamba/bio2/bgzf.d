@@ -34,7 +34,7 @@ ubyte[] deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t u
   zs.next_out = cast(typeof(zs.next_out))uncompressed_buf.ptr;
   zs.avail_out = cast(int)uncompressed_buf.length;
 
-  scope(exit) { inflateEnd(&zs); };
+  scope(exit) { inflateEnd(&zs); }
   err = inflate(&zs, Z_FINISH);
   if (err != Z_STREAM_END) throw new ZlibException(err);
 
@@ -45,9 +45,15 @@ ubyte[] deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t u
   return cast(ubyte[])uncompressed_buf;
 }
 
+/**
+    BgzfReader is designed to run on a single thread. All it does is
+    fetch block headers and data, so the thread should easily keep up
+    with IO. All data processing is happening lazily in other threads.
+*/
 struct BgzfReader {
   string filen;
   File f;
+  FilePos last_block_fpos; // for error handler - assumes one thread!
 
   this(string fn) {
     enforce(fn.isFile);
@@ -55,72 +61,81 @@ struct BgzfReader {
     f = File(fn,"r");
   }
 
-  /**
-   * Returns new tuple of the new file position, compressed buffer and
-   * the CRC32 o the uncompressed data. file pos is NULL when done
-   */
-  Tuple!(FilePos,ubyte[],size_t,CRC32) get_compressed_block(FilePos fpos, ubyte[] buffer) {
-    void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
-        throw new BgzfException("Error reading BGZF block starting in "~filen~" @ " ~
-                                to!string(fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
-    }
-    void enforce1(bool check, lazy string msg, string file = __FILE__, int line = __LINE__) {
-      if (!check)
-        throwBgzfException(msg,file,line);
-    }
-    ubyte read_ubyte() {
-      ubyte[1] ubyte1; // read buffer
-      immutable ubyte[1] buf = f.rawRead(ubyte1);
-      return buf[0];
-    }
-    ushort read_ushort() {
-      ubyte[2] ubyte2; // read buffer
-      immutable ubyte[2] buf = f.rawRead(ubyte2);
-      return littleEndianToNative!ushort(buf);
-    }
-    auto read_uint() {
-      ubyte[4] ubyte4; // read buffer
-      immutable ubyte[4] buf = f.rawRead(ubyte4);
-      return littleEndianToNative!uint(buf);
-    }
+  void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
+    throw new BgzfException("Error reading BGZF block starting in "~filen~" @ " ~
+                            to!string(last_block_fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
+  }
+  void enforce1(bool check, lazy string msg, string file = __FILE__, int line = __LINE__) {
+    if (!check)
+      throwBgzfException(msg,file,line);
+  }
+  ubyte read_ubyte() {
+    ubyte[1] ubyte1; // read buffer
+    immutable ubyte[1] buf = f.rawRead(ubyte1);
+    return buf[0];
+  }
+  ushort read_ushort() {
+    ubyte[2] ubyte2; // read buffer
+    immutable ubyte[2] buf = f.rawRead(ubyte2);
+    return littleEndianToNative!ushort(buf);
+  }
+  auto read_uint() {
+    ubyte[4] ubyte4; // read buffer
+    immutable ubyte[4] buf = f.rawRead(ubyte4);
+    return littleEndianToNative!uint(buf);
+  }
 
-    immutable start_offset = fpos;
+  /**
+      Fetch the block header after seeking to fpos. Returns the
+      contained compressed data size with the file pointer positioned
+      at the compressed block.
+  */
+  size_t get_block_header(FilePos fpos) {
+    last_block_fpos = fpos;
     f.seek(fpos);
 
     ubyte[4] ubyte4;
     auto magic = f.rawRead(ubyte4);
     enforce1(magic.length == 4, "Premature end of file");
     enforce1(magic[0..4] == BGZF_MAGIC,"Invalid file format: expected bgzf magic number");
-    try {
-      ubyte[uint.sizeof + 2 * ubyte.sizeof] skip;
-      f.rawRead(skip); // skip gzip info
-      ushort gzip_extra_length = read_ushort();
-      // writeln("gzip_extra_length=",gzip_extra_length);
-      immutable fpos1 = f.tell;
-      size_t bsize = 0;
-      while (f.tell < fpos1 + gzip_extra_length) {
-        immutable subfield_id1 = read_ubyte();
-        immutable subfield_id2 = read_ubyte();
-        immutable subfield_len = read_ushort();
-        if (subfield_id1 == BAM_SI1 && subfield_id2 == BAM_SI2) {
-          // BC identifier
-          enforce(gzip_extra_length == 6);
-          // FIXME: always picks first BC block
-          bsize = 1+read_ushort(); // BLOCK size
-          enforce1(subfield_len == 2, "BC subfield len should be 2");
-          // writeln("bsize=",bsize);
-          break;
-        }
-        else {
-          f.seek(subfield_len,SEEK_CUR);
-        }
+    ubyte[uint.sizeof + 2 * ubyte.sizeof] skip;
+    f.rawRead(skip); // skip gzip info
+    ushort gzip_extra_length = read_ushort();
+    immutable fpos1 = f.tell;
+    size_t bsize = 0;
+    while (f.tell < fpos1 + gzip_extra_length) {
+      immutable subfield_id1 = read_ubyte();
+      immutable subfield_id2 = read_ubyte();
+      immutable subfield_len = read_ushort();
+      if (subfield_id1 == BAM_SI1 && subfield_id2 == BAM_SI2) {
+        // BC identifier
+        enforce(gzip_extra_length == 6);
+        // FIXME: always picks first BC block
+        bsize = 1+read_ushort(); // BLOCK size
+        enforce1(subfield_len == 2, "BC subfield len should be 2");
+        break;
+      }
+      else {
+        f.seek(subfield_len,SEEK_CUR);
       }
       enforce1(bsize!=0,"block size not found");
       f.seek(fpos1+gzip_extra_length); // skip any extra subfields - note we don't check for second BC
-      immutable compressed_size = bsize - 1 - gzip_extra_length - 19;
-      enforce1(compressed_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
+    }
+    immutable compressed_size = bsize - 1 - gzip_extra_length - 19;
+    enforce1(compressed_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
 
-      stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", start_offset);
+    stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", fpos);
+    return compressed_size;
+  }
+
+  /**
+   * Returns new tuple of the new file position, the compressed buffer and
+   * the CRC32 o the uncompressed data. file pos is NULL when done
+   */
+  Tuple!(FilePos,ubyte[],size_t,CRC32) get_compressed_block(FilePos fpos, ubyte[] buffer) {
+    immutable start_offset = fpos;
+    try {
+      immutable compressed_size = get_block_header(fpos);
       auto compressed_buf = f.rawRead(buffer[0..compressed_size]);
 
       immutable CRC32 crc32 = read_uint();
@@ -134,7 +149,7 @@ struct BgzfReader {
         ubyte[28] buf;
         f.rawRead(buf);
         f.seek(lastpos);
-        if (buf == [31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0, 27, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]) return tuple(FilePos(),compressed_buf,cast(ulong)0,crc32);
+        if (buf == BGZF_EOF) return tuple(FilePos(),compressed_buf,cast(ulong)0,crc32);
       }
 
       return tuple(FilePos(f.tell()),compressed_buf,cast(size_t)uncompressed_size,crc32);
