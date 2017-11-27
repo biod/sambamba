@@ -51,20 +51,19 @@ ubyte[] deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t u
     with IO. All data processing is happening lazily in other threads.
 */
 struct BgzfReader {
-  string filen;
   File f;
-  FilePos last_block_fpos; // for error handler - assumes one thread!
+  FilePos report_fpos; // for error handler - assumes one thread!
 
   this(string fn) {
     enforce(fn.isFile);
-    filen = fn;
     f = File(fn,"r");
   }
 
   void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
-    throw new BgzfException("Error reading BGZF block starting in "~filen~" @ " ~
-                            to!string(last_block_fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
+    throw new BgzfException("Error reading BGZF block starting in "~f.name ~" @ " ~
+                            to!string(report_fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
   }
+
   void enforce1(bool check, lazy string msg, string file = __FILE__, int line = __LINE__) {
     if (!check)
       throwBgzfException(msg,file,line);
@@ -91,7 +90,7 @@ struct BgzfReader {
       at the compressed block.
   */
   size_t read_block_header(FilePos fpos) {
-    last_block_fpos = fpos;
+    report_fpos = fpos;
     f.seek(fpos);
 
     ubyte[4] ubyte4;
@@ -168,6 +167,7 @@ struct BgzfReader {
       return tuple(FilePos(f.tell()),compressed_buf,cast(size_t)uncompressed_size,crc32);
     } catch (Exception e) { throwBgzfException(e.msg,e.file,e.line); }
     assert(0);
+
   }
 
   string blocks() {
@@ -235,18 +235,20 @@ struct BgzfBlocks2 {
 
   int opApply(scope int delegate(ubyte[]) dg) {
     FilePos fpos = 0;
-    while (!fpos.isNull) {
-      ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
-      auto res = bgzf.read_compressed_block(fpos,stack_buffer);
-      fpos = res[0];
-      if (fpos.isNull) break;
+    try {
+      while (!fpos.isNull) {
+        ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
+        auto res = bgzf.read_compressed_block(fpos,stack_buffer);
+        fpos = res[0];
+        if (fpos.isNull) break;
 
-      auto compressed_buf = res[1];
-      auto uncompressed_size = res[2];
-      auto crc32 = res[3];
-      ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf;
-      dg(deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32));
-    }
+        auto compressed_buf = res[1];
+        auto uncompressed_size = res[2];
+        auto crc32 = res[3];
+        ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf;
+        dg(deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32));
+      }
+    } catch (Exception e) { bgzf.throwBgzfException(e.msg,e.file,e.line); }
     return 0;
   }
 }
