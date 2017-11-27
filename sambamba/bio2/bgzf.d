@@ -19,6 +19,23 @@ class BgzfException : Exception {
 alias Nullable!size_t FilePos;
 alias immutable(uint) CRC32;
 
+@property  ubyte read_ubyte(File f) {
+    ubyte[1] ubyte1; // read buffer
+    immutable ubyte[1] buf = f.rawRead(ubyte1);
+    return buf[0];
+}
+
+@property ushort read_ushort(File f) {
+    ubyte[2] ubyte2; // read buffer
+    immutable ubyte[2] buf = f.rawRead(ubyte2);
+    return littleEndianToNative!ushort(buf);
+  }
+@property uint read_uint(File f) {
+    ubyte[4] ubyte4; // read buffer
+    immutable ubyte[4] buf = f.rawRead(ubyte4);
+    return littleEndianToNative!uint(buf);
+  }
+
 /**
    Uncompress a zlib buffer (without header)
 */
@@ -68,49 +85,31 @@ struct BgzfReader {
     if (!check)
       throwBgzfException(msg,file,line);
   }
-  ubyte read_ubyte() {
-    ubyte[1] ubyte1; // read buffer
-    immutable ubyte[1] buf = f.rawRead(ubyte1);
-    return buf[0];
-  }
-  ushort read_ushort() {
-    ubyte[2] ubyte2; // read buffer
-    immutable ubyte[2] buf = f.rawRead(ubyte2);
-    return littleEndianToNative!ushort(buf);
-  }
-  auto read_uint() {
-    ubyte[4] ubyte4; // read buffer
-    immutable ubyte[4] buf = f.rawRead(ubyte4);
-    return littleEndianToNative!uint(buf);
-  }
 
   /**
-      Fetch the block header after seeking to fpos. Returns the
-      contained compressed data size with the file pointer positioned
-      at the compressed block.
+      Reads the block header and returns the contained compressed data
+      size with the file pointer positioned at the associated
+      compressed data.
   */
-  size_t read_block_header(FilePos fpos) {
-    report_fpos = fpos;
-    f.seek(fpos);
-
+  size_t read_block_header() {
     ubyte[4] ubyte4;
     auto magic = f.rawRead(ubyte4);
     enforce1(magic.length == 4, "Premature end of file");
     enforce1(magic[0..4] == BGZF_MAGIC,"Invalid file format: expected bgzf magic number");
     ubyte[uint.sizeof + 2 * ubyte.sizeof] skip;
     f.rawRead(skip); // skip gzip info
-    ushort gzip_extra_length = read_ushort();
+    ushort gzip_extra_length = f.read_ushort();
     immutable fpos1 = f.tell;
     size_t bsize = 0;
     while (f.tell < fpos1 + gzip_extra_length) {
-      immutable subfield_id1 = read_ubyte();
-      immutable subfield_id2 = read_ubyte();
-      immutable subfield_len = read_ushort();
+      immutable subfield_id1 = f.read_ubyte();
+      immutable subfield_id2 = f.read_ubyte();
+      immutable subfield_len = f.read_ushort();
       if (subfield_id1 == BAM_SI1 && subfield_id2 == BAM_SI2) {
         // BC identifier
         enforce(gzip_extra_length == 6);
         // FIXME: always picks first BC block
-        bsize = 1+read_ushort(); // BLOCK size
+        bsize = 1+f.read_ushort(); // BLOCK size
         enforce1(subfield_len == 2, "BC subfield len should be 2");
         break;
       }
@@ -123,22 +122,23 @@ struct BgzfReader {
     immutable compressed_size = bsize - 1 - gzip_extra_length - 19;
     enforce1(compressed_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
 
-    stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", fpos);
+    stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", report_fpos);
     return compressed_size;
   }
 
   /**
      Fetch the compressed data part of the block and return it with
      the uncompressed size and CRC32. The file pointer is assumed to
-     be at the start of the data and will be at the end after.
+     be at the start of the compressed data and will be at the end of
+     that section after.
   */
   Tuple!(ubyte[],immutable(uint),CRC32) read_compressed_data(ubyte[] buffer) {
-      auto compressed_buf = f.rawRead(buffer);
+    auto compressed_buf = f.rawRead(buffer);
 
-      immutable CRC32 crc32 = read_uint();
-      immutable uncompressed_size = read_uint();
-      stderr.writeln("[uncompressed] size ",uncompressed_size);
-      return tuple(compressed_buf,uncompressed_size,crc32);
+    immutable CRC32 crc32 = f.read_uint();
+    immutable uncompressed_size = f.read_uint();
+    stderr.writeln("[uncompressed] size ",uncompressed_size);
+    return tuple(compressed_buf,uncompressed_size,crc32);
   }
 
   /**
@@ -148,7 +148,9 @@ struct BgzfReader {
   Tuple!(FilePos,ubyte[],size_t,CRC32) read_compressed_block(FilePos fpos, ubyte[] buffer) {
     immutable start_offset = fpos;
     try {
-      immutable compressed_size = read_block_header(fpos);
+      report_fpos = fpos;
+      f.seek(fpos);
+      immutable compressed_size = read_block_header();
       auto ret = read_compressed_data(buffer[0..compressed_size]);
       auto compressed_buf = ret[0];
       immutable uncompressed_size = ret[1];
@@ -158,35 +160,14 @@ struct BgzfReader {
         // check for eof marker, rereading block header
         auto lastpos = f.tell();
         f.seek(start_offset);
-        ubyte[28] buf;
+        ubyte[BGZF_EOF.length] buf;
         f.rawRead(buf);
         f.seek(lastpos);
         if (buf == BGZF_EOF) return tuple(FilePos(),compressed_buf,cast(ulong)0,crc32);
       }
-
       return tuple(FilePos(f.tell()),compressed_buf,cast(size_t)uncompressed_size,crc32);
     } catch (Exception e) { throwBgzfException(e.msg,e.file,e.line); }
-    assert(0);
-
-  }
-
-  string blocks() {
-    string ret = "yes";
-    FilePos fpos = 0;
-    while (!f.eof()) {
-      ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
-      auto res = read_compressed_block(fpos,stack_buffer);
-      auto new_fpos = res[0];
-      if (new_fpos.isNull)
-        break;
-      auto compressed_buf = res[1];
-      auto uncompressed_size = res[2];
-      auto crc32 = res[3];
-      ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf;
-      stdout.rawWrite(deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32));
-      fpos = new_fpos;
-    }
-    return ret;
+    assert(0); // never reached
   }
 }
 
@@ -204,13 +185,14 @@ struct BgzfBlocks {
       while (!fpos.isNull) {
         ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
         auto res = bgzf.read_compressed_block(fpos,stack_buffer);
-        fpos = res[0];
+        fpos = res[0]; // point fpos to next block
         if (fpos.isNull) break;
 
-        auto compressed_buf = res[1];
+        auto compressed_buf = res[1]; // same as stack_buffer
         auto uncompressed_size = res[2];
         auto crc32 = res[3];
         ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf;
+        // call delegated function with new block
         dg(deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32));
       }
     } catch (Exception e) { bgzf.throwBgzfException(e.msg,e.file,e.line); }
