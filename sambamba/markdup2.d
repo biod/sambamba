@@ -78,8 +78,7 @@ int markdup_main(string[] args) {
   auto infns = args[1..$];
   stderr.writeln(infns);
 
-  auto reader = BgzfBlocks2(infns[0]);
-  foreach (ubyte[] block; reader) {
+  foreach (ubyte[] block; BgzfBlocks(infns[0])) {
     stdout.rawWrite(block);
   }
 
