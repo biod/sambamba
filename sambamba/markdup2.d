@@ -43,7 +43,7 @@ import std.parallelism;
 import std.range;
 import std.stdio;
 
-import sambamba.bam.reader;
+import sambamba.bio2.bam.reader;
 import sambamba.bio2.bgzf;
 
 void printUsage() {
@@ -78,16 +78,15 @@ int markdup_main(string[] args) {
   info("Reading input files");
 
   auto infns = args[1..$];
-  stderr.writeln(infns);
 
-  auto taskpool = new TaskPool();
-  scope(exit) taskpool.stop();
+  // auto taskpool = new TaskPool();
+  // scope(exit) taskpool.stop();
 
   foreach (string fn; infns) {
+    stderr.writeln(fn);
     foreach (Read2 read; BamReader2(fn)) {
-      stdout.rawWrite(read);
+      stdout.write(read);
     }
   }
-
   return 0;
 }

@@ -39,7 +39,7 @@ alias immutable(uint) CRC32;
 /**
    Uncompress a zlib buffer (without header)
 */
-ubyte[] deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t uncompressed_size, CRC32 crc32) {
+immutable(ubyte[]) deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t uncompressed_size, CRC32 crc32) {
   assert(uncompressed_buf.length == BGZF_MAX_BLOCK_SIZE);
   bio.core.utils.zlib.z_stream zs;
   zs.next_in = cast(typeof(zs.next_in))compressed_buf;
@@ -59,7 +59,7 @@ ubyte[] deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t u
   uncompressed_buf.length = uncompressed_size;
   assert(crc32 == calc_crc32(0, uncompressed_buf[]));
 
-  return cast(ubyte[])uncompressed_buf;
+  return cast(immutable(ubyte[]))uncompressed_buf;
 }
 
 /**
@@ -179,7 +179,7 @@ struct BgzfBlocks {
     bgzf = BgzfReader(fn);
   }
 
-  int opApply(scope int delegate(ubyte[]) dg) {
+  int opApply(scope int delegate(immutable(ubyte[])) dg) {
     FilePos fpos = 0;
 
     try {
