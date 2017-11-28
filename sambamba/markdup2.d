@@ -60,6 +60,9 @@ void info(string msg) {
   stderr.writeln("INFO: ",msg);
 }
 
+import std.parallelism;
+import std.range;
+
 int markdup_main(string[] args) {
   bool remove_duplicates;
   string outfn;
@@ -78,8 +81,11 @@ int markdup_main(string[] args) {
   auto infns = args[1..$];
   stderr.writeln(infns);
 
-  foreach (ubyte[] block; BgzfBlocks(infns[0])) {
-    stdout.rawWrite(block);
+  auto taskpool = new TaskPool();
+  scope(exit) taskpool.stop();
+
+  foreach (ubyte[] read; BgzfBlocks(infns[0])) {
+      stdout.rawWrite(read);
   }
 
   return 0;

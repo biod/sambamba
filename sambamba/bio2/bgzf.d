@@ -181,6 +181,7 @@ struct BgzfBlocks {
 
   int opApply(scope int delegate(ubyte[]) dg) {
     FilePos fpos = 0;
+
     try {
       while (!fpos.isNull) {
         ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
@@ -198,4 +199,17 @@ struct BgzfBlocks {
     } catch (Exception e) { bgzf.throwBgzfException(e.msg,e.file,e.line); }
     return 0;
   }
+}
+
+struct BamReads {
+  BgzfReader bgzf;
+
+  this(string fn) {
+    bgzf = BgzfReader(fn);
+  }
+
+  int opApply(scope int delegate(ubyte[]) dg) {
+    return 0;
+  }
+
 }
