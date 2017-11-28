@@ -200,16 +200,3 @@ struct BgzfBlocks {
     return 0;
   }
 }
-
-struct BamReads {
-  BgzfReader bgzf;
-
-  this(string fn) {
-    bgzf = BgzfReader(fn);
-  }
-
-  int opApply(scope int delegate(ubyte[]) dg) {
-    return 0;
-  }
-
-}

@@ -38,8 +38,10 @@ module sambamba.markdup2;
 
  */
 
-import std.stdio;
 import std.getopt;
+import std.parallelism;
+import std.range;
+import std.stdio;
 
 import sambamba.bam.reader;
 import sambamba.bio2.bgzf;
@@ -59,9 +61,6 @@ Options: -r, --remove-duplicates   remove duplicates instead of just marking the
 void info(string msg) {
   stderr.writeln("INFO: ",msg);
 }
-
-import std.parallelism;
-import std.range;
 
 int markdup_main(string[] args) {
   bool remove_duplicates;
@@ -84,8 +83,10 @@ int markdup_main(string[] args) {
   auto taskpool = new TaskPool();
   scope(exit) taskpool.stop();
 
-  foreach (ubyte[] read; BgzfBlocks(infns[0])) {
+  foreach (string fn; infns) {
+    foreach (Read2 read; BamReader2(fn)) {
       stdout.rawWrite(read);
+    }
   }
 
   return 0;
