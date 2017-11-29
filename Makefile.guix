@@ -55,15 +55,11 @@ guix-debug debug profile: LIBS += $(DLIBS_DEBUG)
 
 all: debug
 
-htslib-static:
-	cd htslib && $(MAKE)
-
 utils/ldc_version_info_.d:
 	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 
 utils/ldc_version_info_.o: utils/ldc_version_info_.d
 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
-
 
 guix guix-debug default debug release static profile: $(OUT)
 
@@ -73,6 +69,7 @@ guix guix-debug default debug release static profile: $(OUT)
 
 # ---- Link step
 $(OUT): $(OBJ)
+	cd htslib && $(MAKE)
 	mkdir -p bin/
 	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba $(OBJ) $(LIBS)
 

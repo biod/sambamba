@@ -2,7 +2,7 @@
 
 testSortByName() {
     # use very tiny buffer of 200K so that multithreading is used
-    ./bin/sambamba sort -t2 -n BioD/test/data/ex1_header.bam -o ex1_header.nsorted.bam -m 200K
+    # ./bin/sambamba sort -t2 -n BioD/test/data/ex1_header.bam -o ex1_header.nsorted.bam -m 200K
     ./bin/sambamba view -t2 ex1_header.nsorted.bam > ex1_header.nsorted.sam
     assertEquals "3270" `wc -l < ex1_header.nsorted.sam`
     cat ex1_header.nsorted.sam | cut -f1 | LC_ALL=C sort -c
