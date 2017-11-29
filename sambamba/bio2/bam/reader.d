@@ -36,7 +36,7 @@ struct Read2 {
   }
 }
 
-struct BamReader2 {
+struct BamReader2a {
 
   BgzfBlocks bgzfblocks;
   Header header;
@@ -77,5 +77,45 @@ struct BamReader2 {
     }
     return 0;
   }
+}
 
+struct BamReader2 {
+  BgzfStream stream;
+  Header header;
+
+  this(string fn) {
+    stream = BgzfStream(fn);
+  }
+
+  int opApply(scope int delegate(Read2) dg) {
+    // parse the header
+    ubyte[4] ubyte4;
+    writeln(ubyte4.length);
+    stream.read(ubyte4);
+    stderr.writeln(ubyte4);
+    enforce(ubyte4 == BAM_MAGIC,"Invalid file format: expected BAM magic number");
+    immutable text_size = stream.read!int();
+    writeln(text_size);
+    immutable text = stream.read!string(text_size);
+    writeln(text);
+    immutable n_refs = stream.read!int();
+    writeln("nrefs",n_refs);
+    foreach(int n_ref; 0..n_refs) {
+      immutable l_name = stream.read!int();
+      writeln(stream.read!string(l_name));
+      immutable l_ref = stream.read!int();
+      writeln(l_ref);
+    }
+    while (!stream.eof()) {
+      immutable block_size = stream.read!int();
+      writeln(block_size);
+      immutable refid = stream.read!int();
+      immutable pos = stream.read!int();
+
+      ubyte[] data = new ubyte[block_size-2*int.sizeof];
+      writeln("Read data sized ",block_size," refID ",refid," pos ",pos);
+      stream.read(data);
+    }
+    return 0;
+  }
 }

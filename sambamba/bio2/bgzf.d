@@ -35,6 +35,8 @@ module sambamba.bio2.bgzf;
 
  */
 
+import core.stdc.string : memcpy;
+
 import std.bitmanip;
 import std.conv;
 import std.exception;
@@ -54,6 +56,8 @@ class BgzfException : Exception {
 
 alias Nullable!size_t FilePos;
 alias immutable(uint) CRC32;
+
+alias BGZF_MAX_BLOCK_SIZE BLOCK_SIZE;
 
 @property  ubyte read_ubyte(File f) {
     ubyte[1] ubyte1; // read buffer
@@ -76,7 +80,7 @@ alias immutable(uint) CRC32;
    Uncompress a zlib buffer (without header)
 */
 immutable(ubyte[]) deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t uncompressed_size, CRC32 crc32) {
-  assert(uncompressed_buf.length == BGZF_MAX_BLOCK_SIZE);
+  assert(uncompressed_buf.length == BLOCK_SIZE);
   bio.core.utils.zlib.z_stream zs;
   zs.next_in = cast(typeof(zs.next_in))compressed_buf;
   zs.avail_in = to!uint(compressed_buf.length);
@@ -156,7 +160,7 @@ struct BgzfReader {
       f.seek(fpos1+gzip_extra_length); // skip any extra subfields - note we don't check for second BC
     }
     immutable compressed_size = bsize - 1 - gzip_extra_length - 19;
-    enforce1(compressed_size <= BGZF_MAX_BLOCK_SIZE, "compressed size larger than allowed");
+    enforce1(compressed_size <= BLOCK_SIZE, "compressed size larger than allowed");
 
     stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", report_fpos);
     return compressed_size;
@@ -184,6 +188,7 @@ struct BgzfReader {
   Tuple!(FilePos,ubyte[],size_t,CRC32) read_compressed_block(FilePos fpos, ubyte[] buffer) {
     immutable start_offset = fpos;
     try {
+      if (fpos.isNull) throwBgzfException("Trying to read past eof");
       report_fpos = fpos;
       f.seek(fpos);
       immutable compressed_size = read_block_header();
@@ -199,7 +204,8 @@ struct BgzfReader {
         ubyte[BGZF_EOF.length] buf;
         f.rawRead(buf);
         f.seek(lastpos);
-        if (buf == BGZF_EOF) return tuple(FilePos(),compressed_buf,cast(ulong)0,crc32);
+        if (buf == BGZF_EOF)
+          return tuple(FilePos(),compressed_buf,cast(ulong)0,crc32); // sets fpos to null
       }
       return tuple(FilePos(f.tell()),compressed_buf,cast(size_t)uncompressed_size,crc32);
     } catch (Exception e) { throwBgzfException(e.msg,e.file,e.line); }
@@ -220,7 +226,7 @@ struct BgzfBlocks {
 
     try {
       while (!fpos.isNull) {
-        ubyte[BGZF_MAX_BLOCK_SIZE] stack_buffer;
+        ubyte[BLOCK_SIZE] stack_buffer;
         auto res = bgzf.read_compressed_block(fpos,stack_buffer);
         fpos = res[0]; // point fpos to next block
         if (fpos.isNull) break;
@@ -228,11 +234,98 @@ struct BgzfBlocks {
         auto compressed_buf = res[1]; // same as stack_buffer
         auto uncompressed_size = res[2];
         auto crc32 = res[3];
-        ubyte[BGZF_MAX_BLOCK_SIZE] uncompressed_buf;
+        ubyte[BLOCK_SIZE] uncompressed_buf;
         // call delegated function with new block
         dg(deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32));
       }
     } catch (Exception e) { bgzf.throwBgzfException(e.msg,e.file,e.line); }
     return 0;
   }
+}
+
+struct BgzfStream {
+  BgzfReader bgzf;
+  FilePos fpos;
+  Nullable!int block_pos;
+  ubyte[] compressed_buf;
+  ubyte[] uncompressed_buf;
+  size_t uncompressed_size;
+
+  this(string fn) {
+    bgzf = BgzfReader(fn);
+    compressed_buf = new ubyte[BLOCK_SIZE];
+    uncompressed_buf = new ubyte[BLOCK_SIZE];
+    fpos = 0;
+  }
+
+  bool eof() {
+    return fpos.isNull;
+  }
+
+  void read_block() {
+    writeln("read_block");
+    auto res = bgzf.read_compressed_block(fpos,compressed_buf);
+    fpos = res[0]; // point fpos to next block
+    if (fpos.isNull) return;
+
+    auto data = res[1];
+    assert(data.ptr == compressed_buf.ptr);
+    uncompressed_size = res[2];
+    writeln("uncompressed_size = ",uncompressed_size);
+    auto crc32 = res[3];
+    block_pos = 0; // rewind buffer
+    deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
+  }
+
+  /**
+     Fetch data into buffer. The size of the buffer can be larger than
+     one or more multiple blocks
+  */
+  ubyte[] fetch(ubyte[] buffer) {
+    if (block_pos.isNull)
+      read_block(); // read first block
+
+    immutable buffer_length = buffer.length;
+    size_t buffer_pos = 0;
+    size_t remaining = buffer_length;
+
+    writeln([block_pos,remaining]);
+    while (remaining > 0) {
+      if (block_pos + remaining < uncompressed_size) {
+        stderr.write("@@f");
+        // full copy
+        assert(buffer_pos + remaining == buffer_length);
+        memcpy(buffer[buffer_pos..buffer_pos+remaining].ptr,uncompressed_buf[block_pos..block_pos+remaining].ptr,remaining);
+        block_pos += remaining;
+        remaining = 0;
+      }
+      else {
+        // read tail of buffer
+        stderr.write("@@t");
+        immutable tail = uncompressed_size - block_pos;
+        memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos..uncompressed_size].ptr,tail);
+        buffer_pos += tail;
+        remaining -= tail;
+        read_block();
+      }
+      writeln([block_pos,remaining]);
+    }
+    return buffer;
+  }
+
+  int read(T)() { // for integers
+    ubyte[T.sizeof] buf;
+    auto b = fetch(buf);
+    return b.read!(T,Endian.littleEndian)();
+  }
+
+  string read(T)(size_t len) {
+    ubyte[] buf = new ubyte[len]; // heap allocation
+    fetch(buf);
+    return cast(T)buf;
+  }
+
+  T[] read(T)(T[] buffer) { return cast(T[])fetch(cast(ubyte[])buffer); };
+
+
 }
