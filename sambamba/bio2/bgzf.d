@@ -301,11 +301,11 @@ struct BgzfStream {
       }
       else {
         // read tail of buffer
-        stderr.write("@@t");
         immutable tail = uncompressed_size - block_pos;
         memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos..uncompressed_size].ptr,tail);
         buffer_pos += tail;
         remaining -= tail;
+        stderr.write("@@t",[tail,remaining]);
         read_block();
       }
       writeln([block_pos,remaining]);

@@ -1,6 +1,7 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2017    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2017    Pjotr Prins <pjotr.prins@thebird.nl>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +27,7 @@ import sambamba.slice;
 import sambamba.markdup;
 import sambamba.markdup2;
 import sambamba.depth;
+import sambamba.validate;
 import sambamba.pileup;
 import sambamba.fixbins;
 
@@ -39,30 +41,49 @@ import utils.ldc_version_info_ : LDC_VERSION_STRING, DMD_VERSION_STRING, LLVM_VE
 import std.stdio;
 
 void printUsage() {
-    printVersion();
-    stderr.writeln("Usage: sambamba [command] [args...]");
-    stderr.writeln();
-    stderr.writeln("    Available commands: 'view', 'index', 'merge', 'sort',");
-    stderr.writeln("                        'flagstat', 'slice', 'markdup', 'markdup2', 'depth', 'mpileup'");
-    stderr.writeln("    To get help on a particular command, just call it without args.");
-    stderr.writeln();
-    stderr.writeln("For bug reports and feature requests see");
-    stderr.writeln("https://github.com/biod/sambamba/blob/master/README.md");
-    stderr.writeln();
+    stderr.writeln("
+Usage: sambamba [command] [args...]
+
+  Available commands:
+
+    view        view contents and convert from one format
+                to another (SAM/BAM/CRAM/JSON/UNPACK)
+    index       build index (BAI)
+    merge       merge files (BAM)
+    sort        sort file (BAM)
+    slice       slice file (BAM using BED)
+    markdup     mark or remove duplicates (BAM)
+    flagstat    output statistics (BAM)
+    depth       output statistics (BAM)
+    validate    simple validator (BAM)
+
+  Work in progress (WIP):
+
+    markdup2    mark or remove duplicates v2 (BAM)
+
+  No longer recommended:
+
+    mpileup     parallel execution of samtools (BAM)
+
+To get help on a particular command, call it without args.
+
+For bug reports and feature requests see
+
+       https://github.com/biod/
+");
 }
 
 void printVersion() {
-    stderr.writeln("sambamba " ~ VERSION);
     stderr.writeln();
-    stderr.writeln("This version was built with:");
-    stderr.writeln("    LDC " ~ LDC_VERSION_STRING);
-    stderr.writeln("    using DMD " ~ DMD_VERSION_STRING);
-    stderr.writeln("    using LLVM " ~ LLVM_VERSION_STRING);
-    stderr.writeln("    bootstrapped with " ~ BOOTSTRAP_VERSION_STRING);
+    stderr.writeln("sambamba " ~ VERSION ~ " by Artem Tarasov and Pjotr Prins (C) 2012-2017");
+    stderr.writeln("    LDC " ~ LDC_VERSION_STRING ~ " / DMD " ~ DMD_VERSION_STRING ~
+     " / LLVM" ~ LLVM_VERSION_STRING ~ " / bootstrap " ~ BOOTSTRAP_VERSION_STRING);
     stderr.writeln();
 }
 
 int main(string[] args) {
+    printVersion();
+
     if (args.length == 1) {
         printUsage();
         return 1;
@@ -81,6 +102,7 @@ int main(string[] args) {
         case "markdup2": return sambamba.markdup2.markdup_main(_args);
         case "depth":    return depth_main(_args);
         case "mpileup":  return pileup_main(_args);
+        case "validate":  return validate_main(_args);
 
         // hidden commands
         case "fixbins":  return fixbins_main(_args);

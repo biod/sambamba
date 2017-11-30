@@ -17,65 +17,42 @@ import bio.bam.constants;
 
 import sambamba.bio2.bgzf;
 
-struct Header2 {
-  this(immutable(ubyte[]) buf) {
-  }
+struct RefSequence {
+  size_t length;
+  string name;
 }
 
-alias Nullable!Header2 Header;
+struct Header {
+  string id;
+  string text;
+  RefSequence[] refs;
+
+  /*
+  this(string _id, string _text, string[] _refs) {
+    id = _id;
+    text = _text;
+    refs = _refs;
+  }
+  */
+}
 
 struct Read2 {
-  immutable(ubyte[]) buffer;
+  uint refid;
+  size_t pos;
+  immutable(ubyte[]) data;
 
-  this(immutable(ubyte[]) buf) {
-    buffer = buf;
+  this(uint _refid, size_t _pos, ubyte[] _data) {
+    refid = _refid;
+    pos = _pos;
+    data = cast(immutable(ubyte[])) _data;
+    writeln("@@",refid,pos);
   }
 
+  // size_t pos() {
+  //   data[].read!(T,Endian.littleEndian)()
+  // }
   string toString() {
-    return to!string(buffer[32..34]);
-  }
-}
-
-struct BamReader2a {
-
-  BgzfBlocks bgzfblocks;
-  Header header;
-
-  this(string fn) {
-    bgzfblocks = BgzfBlocks(fn);
-  }
-
-  int opApply(scope int delegate(Read2) dg) {
-    foreach(immutable(ubyte[]) block; bgzfblocks) {
-      stderr.writeln("Reading new block with length ",block.length);
-      auto nblock = block[0..$];
-      if (header.isNull) {
-        // Start parsing the header
-        ubyte[4] ubyte4;
-        enforce(block[0..4] == BAM_MAGIC,"Invalid file format: expected BAM magic number");
-        nblock = block[4..$];
-        immutable text_size = nblock.read!(int,Endian.littleEndian)();
-        stderr.writeln(text_size);
-        nblock = nblock[text_size..$];
-        immutable n_refs = nblock.read!(int,Endian.littleEndian)();
-        foreach(int n_ref; 0..n_refs) {
-          immutable l_name =  nblock.read!(int,Endian.littleEndian)();
-          nblock = nblock[l_name..$];
-          immutable l_ref =  nblock.read!(int,Endian.littleEndian)();
-        }
-
-        auto header_size = nblock.ptr - block.ptr;
-        stderr.writeln("Header size ",header_size," nblock ",nblock.length);
-        header = Header2(block[0..header_size]);
-      }
-      else {
-        immutable block_size = nblock.read!(int,Endian.littleEndian)();
-        stderr.writeln("Read block size ",block_size);
-        auto read = Read2(nblock[0..block_size]);
-        dg(read);
-      }
-    }
-    return 0;
+    return "<**" ~ to!string(refid) ~ ":" ~ to!string(pos) ~ ">";
   }
 }
 
@@ -90,31 +67,26 @@ struct BamReader2 {
   int opApply(scope int delegate(Read2) dg) {
     // parse the header
     ubyte[4] ubyte4;
-    writeln(ubyte4.length);
     stream.read(ubyte4);
-    stderr.writeln(ubyte4);
     enforce(ubyte4 == BAM_MAGIC,"Invalid file format: expected BAM magic number");
     immutable text_size = stream.read!int();
-    writeln(text_size);
     immutable text = stream.read!string(text_size);
-    writeln(text);
+    header = Header(BAM_MAGIC,text);
     immutable n_refs = stream.read!int();
-    writeln("nrefs",n_refs);
     foreach(int n_ref; 0..n_refs) {
       immutable l_name = stream.read!int();
-      writeln(stream.read!string(l_name));
+      auto ref_name = stream.read!string(l_name);
       immutable l_ref = stream.read!int();
-      writeln(l_ref);
+      header.refs ~= RefSequence(l_ref,ref_name);
     }
+    // parse the reads
     while (!stream.eof()) {
       immutable block_size = stream.read!int();
-      writeln(block_size);
       immutable refid = stream.read!int();
       immutable pos = stream.read!int();
 
-      ubyte[] data = new ubyte[block_size-2*int.sizeof];
-      writeln("Read data sized ",block_size," refID ",refid," pos ",pos);
-      stream.read(data);
+      ubyte[] data = new ubyte[block_size-2*int.sizeof]; // Heap alloc
+      dg( Read2(refid,pos,stream.read(data)) );
     }
     return 0;
   }
