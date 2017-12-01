@@ -28,7 +28,7 @@ struct Header {
   RefSequence[] refs;
 
   this(this) {
-    throw new Exception("struct has copy semantics");
+    throw new Exception("Header has copy semantics");
   }
 
 }
@@ -39,7 +39,7 @@ struct Read2 {
   ubyte[] data;
 
   this(this) {
-    throw new Exception("struct has copy semantics");
+    throw new Exception("Read2 has copy semantics");
   }
 
   /*
@@ -49,7 +49,7 @@ struct Read2 {
   */
 
   string toString() {
-    return "<**" ~ to!string(refid) ~ ":" ~ to!string(pos) ~ ">";
+    return "<** " ~ Read2.stringof ~ " " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ ">";
   }
 
 }

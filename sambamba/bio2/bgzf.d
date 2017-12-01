@@ -117,7 +117,7 @@ struct BgzfReader {
   }
 
   this(this) {
-    throw new Exception("struct has copy semantics");
+    throw new Exception("BgzfReader has copy semantics");
   }
 
   void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
@@ -226,7 +226,7 @@ struct BgzfBlocks {
   }
 
   this(this) {
-    throw new Exception("struct has copy semantics");
+    throw new Exception("BgzfBlocks has copy semantics");
   }
 
   int opApply(scope int delegate(immutable(ubyte[])) dg) {
@@ -267,7 +267,7 @@ struct BgzfStream {
   }
 
   this(this) {
-    throw new Exception("struct has copy semantics");
+    throw new Exception("BgzfStream has copy semantics");
   }
 
   bool eof() {
