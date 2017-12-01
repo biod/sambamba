@@ -73,8 +73,9 @@ int validate_main(string[] args) {
 
   foreach (string fn; infns) {
     stderr.writeln(fn);
-    foreach (Read2 read; BamReader2(fn)) {
-      stdout.write(read);
+
+    foreach (ref Read2 read; BamReader2(fn)) {
+      stdout.write(read.toString);
     }
   }
   return 0;

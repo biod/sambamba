@@ -27,33 +27,31 @@ struct Header {
   string text;
   RefSequence[] refs;
 
-  /*
-  this(string _id, string _text, string[] _refs) {
-    id = _id;
-    text = _text;
-    refs = _refs;
+  this(this) {
+    throw new Exception("struct has copy semantics");
   }
-  */
+
 }
 
-struct Read2 {
+struct ReadStruct {
   uint refid;
   size_t pos;
-  immutable(ubyte[]) data;
+  ubyte[] data;
 
-  this(uint _refid, size_t _pos, ubyte[] _data) {
-    refid = _refid;
-    pos = _pos;
-    data = cast(immutable(ubyte[])) _data;
-    writeln("@@",refid,pos);
+  this(this) {
+    throw new Exception("struct has copy semantics");
   }
 
-  // size_t pos() {
-  //   data[].read!(T,Endian.littleEndian)()
-  // }
+  /*
+  size_t pos() {
+    data.read!(T,Endian.littleEndian)()
+  }
+  */
+
   string toString() {
     return "<**" ~ to!string(refid) ~ ":" ~ to!string(pos) ~ ">";
   }
+
 }
 
 struct BamReader2 {
@@ -64,7 +62,7 @@ struct BamReader2 {
     stream = BgzfStream(fn);
   }
 
-  int opApply(scope int delegate(Read2) dg) {
+  int opApply(scope int delegate(ref Read2) dg) {
     // parse the header
     ubyte[4] ubyte4;
     stream.read(ubyte4);
@@ -86,7 +84,8 @@ struct BamReader2 {
       immutable pos = stream.read!int();
 
       ubyte[] data = new ubyte[block_size-2*int.sizeof]; // Heap alloc
-      dg( Read2(refid,pos,stream.read(data)) );
+      auto read = Read2(refid,pos,stream.read(data));
+      dg(read);
     }
     return 0;
   }

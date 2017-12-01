@@ -116,6 +116,10 @@ struct BgzfReader {
     f = File(fn,"r");
   }
 
+  this(this) {
+    throw new Exception("struct has copy semantics");
+  }
+
   void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
     throw new BgzfException("Error reading BGZF block starting in "~f.name ~" @ " ~
                             to!string(report_fpos) ~ " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
@@ -221,6 +225,10 @@ struct BgzfBlocks {
     bgzf = BgzfReader(fn);
   }
 
+  this(this) {
+    throw new Exception("struct has copy semantics");
+  }
+
   int opApply(scope int delegate(immutable(ubyte[])) dg) {
     FilePos fpos = 0;
 
@@ -256,6 +264,10 @@ struct BgzfStream {
     compressed_buf = new ubyte[BLOCK_SIZE];
     uncompressed_buf = new ubyte[BLOCK_SIZE];
     fpos = 0;
+  }
+
+  this(this) {
+    throw new Exception("struct has copy semantics");
   }
 
   bool eof() {

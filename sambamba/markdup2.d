@@ -84,7 +84,7 @@ int markdup_main(string[] args) {
 
   foreach (string fn; infns) {
     stderr.writeln(fn);
-    foreach (Read2 read; BamReader2(fn)) {
+    foreach (ref Read2 read; BamReader2(fn)) {
       stdout.write(read);
     }
   }
