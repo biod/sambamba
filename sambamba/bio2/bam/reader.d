@@ -33,7 +33,7 @@ struct Header {
 
 }
 
-struct ReadStruct {
+struct Read2 {
   uint refid;
   size_t pos;
   ubyte[] data;
