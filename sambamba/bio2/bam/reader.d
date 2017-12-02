@@ -40,13 +40,25 @@ enum Offset { l_seq = 2*int.sizeof,
               next_refID = 3*int.sizeof
 };
 
+/**
+   Raw Read buffer containing unparsed data. It is read-only. When
+   using fields beyond refid,pos use ProcessRead2 instead because it
+   caches results.
+*/
+
 struct Read2 {
   uint refid;
   size_d pos;
   ubyte[] data;
+  int refcount = 0;
 
   this(this) {
     throw new Exception("Read2 has copy semantics");
+  }
+
+  ~this() {
+    if (refcount != 0)
+      throw new Exception("Refcount is non-zero for Read2: " ~ to!string(refcount));
   }
 
   nothrow @property @trusted const T fetch(T)(size_t offset) {
@@ -61,6 +73,36 @@ struct Read2 {
 
   string toString() {
     return "<** " ~ Read2.stringof ~ " (data size " ~ to!string(data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+  }
+
+}
+
+/**
+   ProcessRead2 provides a caching mechanism for Read2 fields. Use
+   this when you need to access field/elements multiple times. Note
+   that ProcessRead2 becomes invalid when Read2 goes out of scope.
+*/
+struct ProcessRead2 {
+  Read2 *read2;
+  Nullable!int sequence_length2;
+
+  this(ref Read2 _r) {
+    read2 = cast(Read2 *)&_r;
+    read2.refcount += 1;
+  }
+
+  ~this() {
+    read2.refcount -= 1;
+  }
+
+  nothrow @property @trusted int sequence_length() {
+    if (sequence_length2.isNull)
+      sequence_length2 = read2.sequence_length;
+    return sequence_length2;
+  }
+
+  string toString() {
+    return "<** " ~ ProcessRead2.stringof ~ ") " ~ to!string(read2.refid) ~ ":" ~ to!string(read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }
 
 }
