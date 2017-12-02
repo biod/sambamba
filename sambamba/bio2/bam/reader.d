@@ -16,9 +16,12 @@ import std.bitmanip;
 import bio.bam.constants;
 
 import sambamba.bio2.bgzf;
+import sambamba.bio2.constants;
+
+// alias ulong size_d;
 
 struct RefSequence {
-  size_t length;
+  size_d length;
   string name;
 }
 
@@ -33,23 +36,31 @@ struct Header {
 
 }
 
+enum Offset { l_seq = 2*int.sizeof,
+              next_refID = 3*int.sizeof
+};
+
 struct Read2 {
   uint refid;
-  size_t pos;
+  size_d pos;
   ubyte[] data;
 
   this(this) {
     throw new Exception("Read2 has copy semantics");
   }
 
-  /*
-  size_t pos() {
-    data.read!(T,Endian.littleEndian)()
+  nothrow @property @trusted const T fetch(T)(size_t offset) {
+    // this may be a bit slower than the original, but we'll cache anyway
+    ubyte[] buf = cast(ubyte[])data[offset..offset+T.sizeof];
+    return cast(const(T))buf.read!(T,Endian.littleEndian)();
   }
-  */
+
+  nothrow @property @trusted const int sequence_length() {
+    return fetch!int(Offset.l_seq);
+  }
 
   string toString() {
-    return "<** " ~ Read2.stringof ~ " " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ ">";
+    return "<** " ~ Read2.stringof ~ " (data size " ~ to!string(data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }
 
 }

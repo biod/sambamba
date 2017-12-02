@@ -50,11 +50,13 @@ import bio.core.bgzf.block;
 import bio.core.bgzf.constants;
 import bio.core.utils.zlib : inflateInit2, inflate, inflateEnd, Z_OK, Z_FINISH, Z_STREAM_END;
 
+import sambamba.bio2.constants;
+
 class BgzfException : Exception {
     this(string msg) { super(msg); }
 }
 
-alias Nullable!size_t FilePos;
+alias Nullable!ulong FilePos;
 alias immutable(uint) CRC32;
 
 alias BGZF_MAX_BLOCK_SIZE BLOCK_SIZE;
