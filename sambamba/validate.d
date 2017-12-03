@@ -76,7 +76,7 @@ int validate_main(string[] args) {
 
     foreach (ref Read2 read; BamReader2(fn)) {
       auto pread = ProcessRead2(read);
-      stdout.write(pread.toString);
+      stdout.writeln(pread.toString);
     }
   }
   return 0;

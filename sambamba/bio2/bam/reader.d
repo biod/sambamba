@@ -31,13 +31,13 @@ struct Header {
   RefSequence[] refs;
 
   this(this) {
-    throw new Exception("Header has copy semantics");
+    throw new Exception("Header does not have copy semantics");
   }
 
 }
 
-enum Offset { l_seq = 2*int.sizeof,
-              next_refID = 3*int.sizeof
+enum Offset {
+  bin_mq_nl, flag_nc, l_seq, next_refID, next_pos, tlen, read_name, cigar, seq, qual, tag
 };
 
 /**
@@ -49,25 +49,65 @@ enum Offset { l_seq = 2*int.sizeof,
 struct Read2 {
   uint refid;
   size_d pos;
-  ubyte[] data;
-  int refcount = 0;
+  private ubyte[] _data;
+  uint[11] offset_table; // computed offsets
 
-  this(this) {
-    throw new Exception("Read2 has copy semantics");
+  this(uint __refid, size_d __pos, ubyte[] data) {
+    refid = __refid; pos = __pos; _data = data;
+    offset_table = [Offset.bin_mq_nl*int.sizeof,Offset.flag_nc*int.sizeof,Offset.l_seq*int.sizeof,
+                    Offset.next_refID*int.sizeof,Offset.next_pos*int.sizeof,Offset.tlen*int.sizeof,
+                    Offset.read_name*int.sizeof,uint.max,uint.max,uint.max,uint.max];
+    offset_table[Offset.cigar] =
+      offset_table[Offset.read_name] + cast(uint)(_l_read_name * char.sizeof);
+    offset_table[Offset.seq] =
+      offset_table[Offset.cigar] + cast(uint)(_n_cigar_op * uint.sizeof);
+    offset_table[Offset.qual] =
+      offset_table[Offset.seq] + (_l_seq + 1)/2;
+    offset_table[Offset.tag] = _qual_offset + _l_seq;
   }
 
-  nothrow @property @trusted const T fetch(T)(size_t offset) {
-    // this may be a bit slower than the original, but we'll cache anyway
-    ubyte[] buf = cast(ubyte[])data[offset..offset+T.sizeof];
+  this(this) {
+    throw new Exception("Read2 does not have copy semantics");
+  }
+
+  // uses raw offset
+  nothrow @property @trusted const T fetch_raw(T)(uint raw_offset) {
+    ubyte[] buf = cast(ubyte[])_data[raw_offset..raw_offset+T.sizeof];
     return cast(const(T))buf.read!(T,Endian.littleEndian)();
   }
 
-  nothrow @property @trusted const int sequence_length() {
-    return fetch!int(Offset.l_seq);
+  // uses table offset
+  @property  T fetch(T)(uint offset) {
+    auto raw_offset = offset_table[offset];
+    ubyte[] buf = cast(ubyte[])_data[raw_offset..raw_offset+T.sizeof];
+    return cast(const(T))buf.read!(T,Endian.littleEndian)();
+  }
+
+  alias refid _refID;
+  alias pos _pos;
+
+  @property uint _bin_mq_nl()        { return fetch!uint(Offset.bin_mq_nl); }
+  @property uint _flag_nc()          { return fetch!uint(Offset.flag_nc); }
+  @property int sequence_length()    { return fetch!int(Offset.l_seq); }
+  alias sequence_length _l_seq;
+  @property int _next_refID()        { return fetch!int(Offset.next_refID); }
+  @property int _next_pos()          { return fetch!int(Offset.next_pos); }
+  @property int _tlen()              { return fetch!int(Offset.tlen); }
+  @property ushort _bin()            { return _bin_mq_nl >> 16; }
+  @property  ubyte _mapq()           { return (_bin_mq_nl >> 8) & 0xFF; }
+  @property  ubyte _l_read_name()    { return _bin_mq_nl & 0xFF; }
+  @property ushort _flag()           { return _flag_nc >> 16; }
+  @property ushort _n_cigar_op()     { return _flag_nc & 0xFFFF; }
+  @property uint _read_name_offset() { return offset_table[Offset.read_name]; }
+  @property uint _seq_offset()       { return offset_table[Offset.seq] ; }
+  @property uint _qual_offset()      { return offset_table[Offset.qual] ; }
+  @property uint _tags_offset()      { return offset_table[Offset.tag]; }
+  @property ubyte[] raw_sequence() {
+    return _data[offset_table[Offset.seq]..offset_table[Offset.qual]];
   }
 
   string toString() {
-    return "<** " ~ Read2.stringof ~ " (data size " ~ to!string(data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+    return "<** " ~ Read2.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }
 
 }
@@ -78,21 +118,25 @@ struct Read2 {
    that ProcessRead2 becomes invalid when Read2 goes out of scope.
 */
 struct ProcessRead2 {
-  Read2 *read2;
+  private Read2 *_read2;
   Nullable!int sequence_length2;
 
   this(ref Read2 _r) {
-    read2 = cast(Read2 *)&_r;
+    _read2 = cast(Read2 *)&_r;
   }
 
-  nothrow @property @trusted int sequence_length() {
+  @property @trusted int sequence_length() {
     if (sequence_length2.isNull)
-      sequence_length2 = read2.sequence_length;
+      sequence_length2 = _read2.sequence_length;
     return sequence_length2;
   }
 
+  @property ubyte[] raw_sequence() {
+    return _read2.raw_sequence();
+  }
+
   string toString() {
-    return "<** " ~ ProcessRead2.stringof ~ ") " ~ to!string(read2.refid) ~ ":" ~ to!string(read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+    return "<** " ~ ProcessRead2.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ " " ~ to!string(raw_sequence) ~ ">";
   }
 
 }
