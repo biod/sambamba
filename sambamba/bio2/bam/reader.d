@@ -56,11 +56,6 @@ struct Read2 {
     throw new Exception("Read2 has copy semantics");
   }
 
-  ~this() {
-    if (refcount != 0)
-      throw new Exception("Refcount is non-zero for Read2: " ~ to!string(refcount));
-  }
-
   nothrow @property @trusted const T fetch(T)(size_t offset) {
     // this may be a bit slower than the original, but we'll cache anyway
     ubyte[] buf = cast(ubyte[])data[offset..offset+T.sizeof];
@@ -88,11 +83,6 @@ struct ProcessRead2 {
 
   this(ref Read2 _r) {
     read2 = cast(Read2 *)&_r;
-    read2.refcount += 1;
-  }
-
-  ~this() {
-    read2.refcount -= 1;
   }
 
   nothrow @property @trusted int sequence_length() {

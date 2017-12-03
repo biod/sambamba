@@ -277,7 +277,7 @@ struct BgzfStream {
   }
 
   void read_block() {
-    writeln("read_block");
+    // writeln("read_block");
     auto res = bgzf.read_compressed_block(fpos,compressed_buf);
     fpos = res[0]; // point fpos to next block
     if (fpos.isNull) return;
@@ -285,7 +285,7 @@ struct BgzfStream {
     auto data = res[1];
     assert(data.ptr == compressed_buf.ptr);
     uncompressed_size = res[2];
-    writeln("uncompressed_size = ",uncompressed_size);
+    // writeln("uncompressed_size = ",uncompressed_size);
     auto crc32 = res[3];
     block_pos = 0; // rewind buffer
     deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
@@ -303,10 +303,10 @@ struct BgzfStream {
     size_t buffer_pos = 0;
     size_t remaining = buffer_length;
 
-    writeln([block_pos,remaining]);
+    // writeln([block_pos,remaining]);
     while (remaining > 0) {
       if (block_pos + remaining < uncompressed_size) {
-        stderr.write("@@f");
+        // stderr.write("@@f");
         // full copy
         assert(buffer_pos + remaining == buffer_length);
         memcpy(buffer[buffer_pos..buffer_pos+remaining].ptr,uncompressed_buf[block_pos..block_pos+remaining].ptr,remaining);
@@ -319,10 +319,10 @@ struct BgzfStream {
         memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos..uncompressed_size].ptr,tail);
         buffer_pos += tail;
         remaining -= tail;
-        stderr.write("@@t",[tail,remaining]);
+        // stderr.write("@@t",[tail,remaining]);
         read_block();
       }
-      writeln([block_pos,remaining]);
+      // writeln([block_pos,remaining]);
     }
     return buffer;
   }
