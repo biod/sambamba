@@ -18,8 +18,6 @@ import bio.bam.constants;
 import sambamba.bio2.bgzf;
 import sambamba.bio2.constants;
 
-// alias ulong size_d;
-
 struct RefSequence {
   size_d length;
   string name;
@@ -50,7 +48,7 @@ struct Read2 {
   uint refid;
   size_d pos;
   private ubyte[] _data;
-  uint[11] offset_table; // computed offsets
+  private uint[11] offset_table; // pre-computed offsets
 
   this(uint __refid, size_d __pos, ubyte[] data) {
     refid = __refid; pos = __pos; _data = data;
@@ -71,40 +69,51 @@ struct Read2 {
   }
 
   // uses raw offset
-  nothrow @property @trusted const T fetch_raw(T)(uint raw_offset) {
+  @property @trusted nothrow private const T fetch_raw(T)(uint raw_offset) {
     ubyte[] buf = cast(ubyte[])_data[raw_offset..raw_offset+T.sizeof];
     return cast(const(T))buf.read!(T,Endian.littleEndian)();
   }
 
   // uses table offset
-  @property  T fetch(T)(uint offset) {
+  @property @trusted nothrow private const T fetch(T)(uint offset) {
     auto raw_offset = offset_table[offset];
-    ubyte[] buf = cast(ubyte[])_data[raw_offset..raw_offset+T.sizeof];
-    return cast(const(T))buf.read!(T,Endian.littleEndian)();
+    return fetch_raw!T(raw_offset);
   }
 
-  alias refid _refID;
-  alias pos _pos;
+  @property @trusted nothrow private const
+  uint _bin_mq_nl()        { return fetch!uint(Offset.bin_mq_nl); }
+  @property @trusted nothrow private const
+  uint _flag_nc()          { return fetch!uint(Offset.flag_nc); }
+  @property @trusted nothrow private const
+  int sequence_length()    { return fetch!int(Offset.l_seq); }
+  @property @trusted nothrow private const
+  int _next_refID()        { return fetch!int(Offset.next_refID); }
+  @property @trusted nothrow private const
+  int _next_pos()          { return fetch!int(Offset.next_pos); }
+  @property @trusted nothrow private const
+  int _tlen()              { return fetch!int(Offset.tlen); }
+  @property @trusted nothrow private const
+  ushort _bin()            { return _bin_mq_nl >> 16; }
+  @property @trusted nothrow private const
+  ubyte _mapq()            { return (_bin_mq_nl >> 8) & 0xFF; }
+  @property @trusted nothrow private const
+  ubyte _l_read_name()     { return _bin_mq_nl & 0xFF; }
+  @property @trusted nothrow private const
+  ushort _flag()           { return _flag_nc >> 16; }
+  @property @trusted nothrow private const
+  ushort _n_cigar_op()     { return _flag_nc & 0xFFFF; }
+  @property @trusted nothrow private const
+  uint _read_name_offset() { return offset_table[Offset.read_name]; }
+  @property @trusted nothrow private const
+  uint _seq_offset()       { return offset_table[Offset.seq] ; }
+  @property @trusted nothrow private const
+  uint _qual_offset()      { return offset_table[Offset.qual] ; }
+  @property @trusted nothrow private const
+  uint _tags_offset()      { return offset_table[Offset.tag]; }
+  @property @trusted nothrow private
+  ubyte[] raw_sequence()   { return _data[offset_table[Offset.seq]..offset_table[Offset.qual]]; }
 
-  @property uint _bin_mq_nl()        { return fetch!uint(Offset.bin_mq_nl); }
-  @property uint _flag_nc()          { return fetch!uint(Offset.flag_nc); }
-  @property int sequence_length()    { return fetch!int(Offset.l_seq); }
   alias sequence_length _l_seq;
-  @property int _next_refID()        { return fetch!int(Offset.next_refID); }
-  @property int _next_pos()          { return fetch!int(Offset.next_pos); }
-  @property int _tlen()              { return fetch!int(Offset.tlen); }
-  @property ushort _bin()            { return _bin_mq_nl >> 16; }
-  @property  ubyte _mapq()           { return (_bin_mq_nl >> 8) & 0xFF; }
-  @property  ubyte _l_read_name()    { return _bin_mq_nl & 0xFF; }
-  @property ushort _flag()           { return _flag_nc >> 16; }
-  @property ushort _n_cigar_op()     { return _flag_nc & 0xFFFF; }
-  @property uint _read_name_offset() { return offset_table[Offset.read_name]; }
-  @property uint _seq_offset()       { return offset_table[Offset.seq] ; }
-  @property uint _qual_offset()      { return offset_table[Offset.qual] ; }
-  @property uint _tags_offset()      { return offset_table[Offset.tag]; }
-  @property ubyte[] raw_sequence() {
-    return _data[offset_table[Offset.seq]..offset_table[Offset.qual]];
-  }
 
   string toString() {
     return "<** " ~ Read2.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
@@ -136,7 +145,7 @@ struct ProcessRead2 {
   }
 
   string toString() {
-    return "<** " ~ ProcessRead2.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ " " ~ to!string(raw_sequence) ~ ">";
+    return "<** " ~ ProcessRead2.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }
 
 }
