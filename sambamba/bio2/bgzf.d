@@ -257,11 +257,11 @@ struct BgzfBlocks {
   }
 }
 
-size_t read_blockx(BgzfReader bgzf, FilePos fpos, BlockBuffer uncompressed_buf) {
+Tuple!(size_t,FilePos) read_blockx(ref BgzfReader bgzf, FilePos fpos, ref ubyte[] uncompressed_buf) {
   BlockBuffer compressed_buf;
   auto res = bgzf.read_compressed_block(fpos,compressed_buf);
   fpos = res[0]; // point fpos to next block
-  if (fpos.isNull) return 0;
+  if (fpos.isNull) return tuple(cast(size_t)0,fpos);
   auto data = res[1];
 
   assert(data.ptr == compressed_buf.ptr);
@@ -269,7 +269,7 @@ size_t read_blockx(BgzfReader bgzf, FilePos fpos, BlockBuffer uncompressed_buf) 
   // writeln("uncompressed_size = ",uncompressed_size);
   auto crc32 = res[3];
   deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
-  return uncompressed_size;
+  return tuple(uncompressed_size,fpos);
 }
 
 /**
@@ -322,7 +322,9 @@ struct BgzfStream {
   */
   ubyte[] fetch(ubyte[] buffer) {
     if (block_pos.isNull) {
-      uncompressed_size = read_block(); // read first block
+      auto res = read_blockx(bgzf,fpos,uncompressed_buf); // read first block
+      uncompressed_size = res[0];
+      fpos = res[1];
       block_pos = 0;
     }
 
@@ -330,10 +332,8 @@ struct BgzfStream {
     size_t buffer_pos = 0;
     size_t remaining = buffer_length;
 
-    // writeln([block_pos,remaining]);
     while (remaining > 0) {
       if (block_pos + remaining < uncompressed_size) {
-        // stderr.write("@@f");
         // full copy
         assert(buffer_pos + remaining == buffer_length);
         memcpy(buffer[buffer_pos..buffer_pos+remaining].ptr,uncompressed_buf[block_pos..block_pos+remaining].ptr,remaining);
@@ -346,11 +346,9 @@ struct BgzfStream {
         memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos..uncompressed_size].ptr,tail);
         buffer_pos += tail;
         remaining -= tail;
-        // stderr.write("@@t",[tail,remaining]);
         uncompressed_size = read_block();
         block_pos = 0;
       }
-      // writeln([block_pos,remaining]);
     }
     return buffer;
   }
