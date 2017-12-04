@@ -61,6 +61,8 @@ alias immutable(uint) CRC32;
 
 alias BGZF_MAX_BLOCK_SIZE BLOCK_SIZE;
 
+alias ubyte[BLOCK_SIZE] BlockBuffer;
+
 @property  ubyte read_ubyte(File f) {
     ubyte[1] ubyte1; // read buffer
     immutable ubyte[1] buf = f.rawRead(ubyte1);
@@ -219,8 +221,10 @@ struct BgzfReader {
   }
 }
 
+/**
+   Simple block iterator
+*/
 struct BgzfBlocks {
-
   BgzfReader bgzf;
 
   this(string fn) {
@@ -236,7 +240,7 @@ struct BgzfBlocks {
 
     try {
       while (!fpos.isNull) {
-        ubyte[BLOCK_SIZE] stack_buffer;
+        BlockBuffer stack_buffer;
         auto res = bgzf.read_compressed_block(fpos,stack_buffer);
         fpos = res[0]; // point fpos to next block
         if (fpos.isNull) break;
@@ -244,7 +248,7 @@ struct BgzfBlocks {
         auto compressed_buf = res[1]; // same as stack_buffer
         auto uncompressed_size = res[2];
         auto crc32 = res[3];
-        ubyte[BLOCK_SIZE] uncompressed_buf;
+        BlockBuffer uncompressed_buf;
         // call delegated function with new block
         dg(deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32));
       }
@@ -252,6 +256,26 @@ struct BgzfBlocks {
     return 0;
   }
 }
+
+size_t read_blockx(BgzfReader bgzf, FilePos fpos, BlockBuffer uncompressed_buf) {
+  BlockBuffer compressed_buf;
+  auto res = bgzf.read_compressed_block(fpos,compressed_buf);
+  fpos = res[0]; // point fpos to next block
+  if (fpos.isNull) return 0;
+  auto data = res[1];
+
+  assert(data.ptr == compressed_buf.ptr);
+  size_t uncompressed_size = res[2];
+  // writeln("uncompressed_size = ",uncompressed_size);
+  auto crc32 = res[3];
+  deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
+  return uncompressed_size;
+}
+
+/**
+   Streams bgzf data and fetch items by unit or buffer. These can go beyond
+   the size of individual blocks(!)
+*/
 
 struct BgzfStream {
   BgzfReader bgzf;
@@ -281,13 +305,12 @@ struct BgzfStream {
     auto res = bgzf.read_compressed_block(fpos,compressed_buf);
     fpos = res[0]; // point fpos to next block
     if (fpos.isNull) return;
-
     auto data = res[1];
+
     assert(data.ptr == compressed_buf.ptr);
     uncompressed_size = res[2];
     // writeln("uncompressed_size = ",uncompressed_size);
     auto crc32 = res[3];
-    block_pos = 0; // rewind buffer
     deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
   }
 
@@ -296,8 +319,10 @@ struct BgzfStream {
      one or more multiple blocks
   */
   ubyte[] fetch(ubyte[] buffer) {
-    if (block_pos.isNull)
+    if (block_pos.isNull) {
       read_block(); // read first block
+      block_pos = 0;
+    }
 
     immutable buffer_length = buffer.length;
     size_t buffer_pos = 0;
@@ -321,6 +346,7 @@ struct BgzfStream {
         remaining -= tail;
         // stderr.write("@@t",[tail,remaining]);
         read_block();
+        block_pos = 0;
       }
       // writeln([block_pos,remaining]);
     }
