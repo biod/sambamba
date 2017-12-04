@@ -40,26 +40,16 @@ enum Offset {
 
 /**
    Raw Read buffer containing unparsed data. It should be considered
-   read-only. When using fields beyond refid,pos use ProcessRead2
-   instead because it caches values.
+   read-only. All offsets are indexed on init (except for tags).  When
+   using fields beyond refid,pos use ProcessRead2 instead because it
+   caches values.
 */
 
 struct Read2 {
   uint refid;
   size_d pos;
   private ubyte[] _data;
-  private uint offset_cigar, offset_seq, offset_qual, offset_tag;
-
-  this(uint __refid, size_d __pos, ubyte[] data) {
-    refid = __refid; pos = __pos; _data = data;
-    offset_cigar =
-      Offset.read_name + cast(uint)(_l_read_name * char.sizeof);
-    offset_seq =
-      offset_cigar + cast(uint)(_n_cigar_op * uint.sizeof);
-    offset_qual =
-      offset_seq + (sequence_length + 1)/2;
-    offset_tag = _qual_offset + sequence_length;
-  }
+  uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
 
   this(this) {
     throw new Exception("Read2 does not have copy semantics");
@@ -94,12 +84,26 @@ struct Read2 {
   ushort _n_cigar_op()     { return _flag_nc & 0xFFFF; }
   @property @trusted nothrow private const
   uint _read_name_offset() { return Offset.read_name; }
-  @property @trusted nothrow private const
-  uint _seq_offset()       { return offset_seq ; }
-  @property @trusted nothrow private const
-  uint _qual_offset()      { return offset_qual; }
-  @property @trusted nothrow private const
-  uint _tags_offset()      { return offset_tag; }
+  @property @trusted nothrow private
+  uint _cigar_offset()       {
+    if (offset_cigar == int.max)
+      offset_cigar = Offset.read_name + cast(uint)(_l_read_name * char.sizeof);
+    return offset_cigar;
+  }
+  @property @trusted nothrow private
+  uint _seq_offset()       {
+    if (offset_seq == int.max)
+      offset_seq = _cigar_offset + cast(uint)(_n_cigar_op * uint.sizeof);
+    return offset_seq;
+  }
+  @property @trusted nothrow private
+  uint _qual_offset()      {
+    if (offset_qual == int.max)
+      offset_qual = _seq_offset + (sequence_length + 1)/2;
+    return offset_qual;
+  }
+  @property @trusted nothrow private
+  uint _tags_offset()      { return _qual_offset + sequence_length; }
   @property @trusted nothrow private
   ubyte[] raw_sequence()   { return _data[offset_seq..offset_qual]; }
 
