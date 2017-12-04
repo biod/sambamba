@@ -300,22 +300,6 @@ struct BgzfStream {
     return fpos.isNull;
   }
 
-  size_t read_block() {
-    // writeln("read_block");
-    auto res = bgzf.read_compressed_block(fpos,compressed_buf);
-    fpos = res[0]; // point fpos to next block
-    if (fpos.isNull) return 0;
-    auto data = res[1];
-
-    assert(data.ptr == compressed_buf.ptr);
-    auto usize = res[2];
-    // uncompressed_size = res[2];
-    // writeln("uncompressed_size = ",uncompressed_size);
-    auto crc32 = res[3];
-    deflate(uncompressed_buf,compressed_buf,usize,crc32);
-    return usize;
-  }
-
   /**
      Fetch data into buffer. The size of the buffer can be larger than
      one or more multiple blocks
