@@ -346,7 +346,10 @@ struct BgzfStream {
         memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos..uncompressed_size].ptr,tail);
         buffer_pos += tail;
         remaining -= tail;
-        uncompressed_size = read_block();
+        // uncompressed_size = read_block();
+        auto res = read_blockx(bgzf,fpos,uncompressed_buf);
+        uncompressed_size = res[0];
+        fpos = res[1];
         block_pos = 0;
       }
     }
