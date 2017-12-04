@@ -266,7 +266,6 @@ Tuple!(size_t,FilePos) read_blockx(ref BgzfReader bgzf, FilePos fpos, ref ubyte[
 
   assert(data.ptr == compressed_buf.ptr);
   size_t uncompressed_size = res[2];
-  // writeln("uncompressed_size = ",uncompressed_size);
   auto crc32 = res[3];
   deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
   return tuple(uncompressed_size,fpos);
@@ -281,13 +280,11 @@ struct BgzfStream {
   BgzfReader bgzf;
   FilePos fpos;
   Nullable!int block_pos;
-  ubyte[] compressed_buf;
   ubyte[] uncompressed_buf;
   size_t uncompressed_size;
 
   this(string fn) {
     bgzf = BgzfReader(fn);
-    compressed_buf = new ubyte[BLOCK_SIZE];
     uncompressed_buf = new ubyte[BLOCK_SIZE];
     fpos = 0;
   }
