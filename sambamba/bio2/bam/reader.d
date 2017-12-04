@@ -35,49 +35,39 @@ struct Header {
 }
 
 enum Offset {
-  bin_mq_nl, flag_nc, l_seq, next_refID, next_pos, tlen, read_name, cigar, seq, qual, tag
+  bin_mq_nl=0, flag_nc=4, l_seq=8, next_refID=12, next_pos=16, tlen=20, read_name=24
 };
 
 /**
-   Raw Read buffer containing unparsed data. It is read-only. When
-   using fields beyond refid,pos use ProcessRead2 instead because it
-   caches results.
+   Raw Read buffer containing unparsed data. It should be considered
+   read-only. When using fields beyond refid,pos use ProcessRead2
+   instead because it caches values.
 */
 
 struct Read2 {
   uint refid;
   size_d pos;
   private ubyte[] _data;
-  private uint[11] offset_table; // pre-computed offsets
+  private uint offset_cigar, offset_seq, offset_qual, offset_tag;
 
   this(uint __refid, size_d __pos, ubyte[] data) {
     refid = __refid; pos = __pos; _data = data;
-    offset_table = [Offset.bin_mq_nl*int.sizeof,Offset.flag_nc*int.sizeof,Offset.l_seq*int.sizeof,
-                    Offset.next_refID*int.sizeof,Offset.next_pos*int.sizeof,Offset.tlen*int.sizeof,
-                    Offset.read_name*int.sizeof,uint.max,uint.max,uint.max,uint.max];
-    offset_table[Offset.cigar] =
-      offset_table[Offset.read_name] + cast(uint)(_l_read_name * char.sizeof);
-    offset_table[Offset.seq] =
-      offset_table[Offset.cigar] + cast(uint)(_n_cigar_op * uint.sizeof);
-    offset_table[Offset.qual] =
-      offset_table[Offset.seq] + (_l_seq + 1)/2;
-    offset_table[Offset.tag] = _qual_offset + _l_seq;
+    offset_cigar =
+      Offset.read_name + cast(uint)(_l_read_name * char.sizeof);
+    offset_seq =
+      offset_cigar + cast(uint)(_n_cigar_op * uint.sizeof);
+    offset_qual =
+      offset_seq + (sequence_length + 1)/2;
+    offset_tag = _qual_offset + sequence_length;
   }
 
   this(this) {
     throw new Exception("Read2 does not have copy semantics");
   }
 
-  // uses raw offset
-  @property @trusted nothrow private const T fetch_raw(T)(uint raw_offset) {
+  @property @trusted nothrow private const T fetch(T)(uint raw_offset) {
     ubyte[] buf = cast(ubyte[])_data[raw_offset..raw_offset+T.sizeof];
     return cast(const(T))buf.read!(T,Endian.littleEndian)();
-  }
-
-  // uses table offset
-  @property @trusted nothrow private const T fetch(T)(uint offset) {
-    auto raw_offset = offset_table[offset];
-    return fetch_raw!T(raw_offset);
   }
 
   @property @trusted nothrow private const
@@ -103,15 +93,15 @@ struct Read2 {
   @property @trusted nothrow private const
   ushort _n_cigar_op()     { return _flag_nc & 0xFFFF; }
   @property @trusted nothrow private const
-  uint _read_name_offset() { return offset_table[Offset.read_name]; }
+  uint _read_name_offset() { return Offset.read_name; }
   @property @trusted nothrow private const
-  uint _seq_offset()       { return offset_table[Offset.seq] ; }
+  uint _seq_offset()       { return offset_seq ; }
   @property @trusted nothrow private const
-  uint _qual_offset()      { return offset_table[Offset.qual] ; }
+  uint _qual_offset()      { return offset_qual; }
   @property @trusted nothrow private const
-  uint _tags_offset()      { return offset_table[Offset.tag]; }
+  uint _tags_offset()      { return offset_tag; }
   @property @trusted nothrow private
-  ubyte[] raw_sequence()   { return _data[offset_table[Offset.seq]..offset_table[Offset.qual]]; }
+  ubyte[] raw_sequence()   { return _data[offset_seq..offset_qual]; }
 
   alias sequence_length _l_seq;
 
