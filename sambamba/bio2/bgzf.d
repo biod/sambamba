@@ -257,6 +257,7 @@ struct BgzfBlocks {
   }
 }
 
+
 Tuple!(size_t,FilePos) read_blockx(ref BgzfReader bgzf, FilePos fpos, ref ubyte[] uncompressed_buf) {
   BlockBuffer compressed_buf;
   auto res = bgzf.read_compressed_block(fpos,compressed_buf);
@@ -271,6 +272,101 @@ Tuple!(size_t,FilePos) read_blockx(ref BgzfReader bgzf, FilePos fpos, ref ubyte[
   return tuple(uncompressed_size,fpos);
 }
 
+import std.parallelism;
+
+int kick_off_reading_block_ahead(ubyte[] uncompressed_buf, ubyte[] compressed_buf, size_t uncompressed_size, CRC32 crc32) {
+  writeln("HEY " ~ to!string(uncompressed_size));
+  deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
+  return -1;
+}
+
+/**
+*/
+struct BlockReadAhead {
+  bool task_running = false, we_have_a_task = false;
+  Task!(kick_off_reading_block_ahead, ubyte[], ubyte[], size_t, CRC32)* t;
+  FilePos fpos2;
+  size_t uncompressed_size2 = 0;
+  BlockBuffer compressed_buf2;
+  BlockBuffer uncompressed_buf2;
+
+  private void read_next_block() {
+  }
+
+  private void add_deflate_task() {
+  }
+
+  private void copy_deflated_buffer() {
+  }
+
+  void setup_block_reader() {
+    read_next_block();
+    add_deflate_task();
+  }
+
+  Tuple!(size_t,FilePos) read_block(ref BgzfReader bgzf, FilePos fpos, ref ubyte[] uncompressed_buf) {
+    assert(we_have_a_task);
+    copy_deflated_buffer();
+    read_next_block();
+    add_deflate_task();
+    // return
+
+    if (task_running) {
+      int res = t.yieldForce;
+      writeln(res);
+      task_running = false;
+      memcpy(uncompressed_buf.ptr,compressed_buf2.ptr,uncompressed_size2);
+      return tuple(uncompressed_size2, fpos2);
+    }
+    else {
+      BlockBuffer compressed_buf;
+      auto res = bgzf.read_compressed_block(fpos,compressed_buf);
+      fpos = res[0]; // point fpos to next block
+      if (fpos.isNull) return tuple(cast(size_t)0,fpos);
+      auto data = res[1];
+      assert(data.ptr == compressed_buf.ptr);
+      size_t uncompressed_size = res[2];
+      auto crc32 = res[3];
+
+      deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
+
+      // now set up a new buffer
+      auto res2 = bgzf.read_compressed_block(fpos,compressed_buf2);
+      fpos2 = res[0]; // point fpos to next block
+      if (!fpos2.isNull) {
+        auto data2 = res2[1];
+        uncompressed_size2 = res2[2];
+        t = task!kick_off_reading_block_ahead(cast(ubyte[])uncompressed_buf2,cast(ubyte[])compressed_buf2,uncompressed_size2,res2[3]);
+        t.executeInNewThread();
+        task_running = true;
+      }
+      return tuple(uncompressed_size,fpos);
+    }
+  }
+}
+
+/**
+*/
+struct BlockReadUnbuffered {
+
+  void setup_block_reader() {
+  }
+
+  Tuple!(size_t,FilePos) read_block(ref BgzfReader bgzf, FilePos fpos, ref ubyte[] uncompressed_buf) {
+    BlockBuffer compressed_buf;
+    auto res = bgzf.read_compressed_block(fpos,compressed_buf);
+    auto fpos2 = res[0]; // point fpos to next block
+    if (fpos.isNull) return tuple(cast(size_t)0,fpos2);
+    auto data = res[1];
+    assert(data.ptr == compressed_buf.ptr);
+    size_t uncompressed_size = res[2];
+    auto crc32 = res[3];
+
+    deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
+    return tuple(uncompressed_size,fpos2);
+  }
+}
+
 /**
    Streams bgzf data and fetch items by unit or buffer. These can go beyond
    the size of individual blocks(!)
@@ -278,10 +374,11 @@ Tuple!(size_t,FilePos) read_blockx(ref BgzfReader bgzf, FilePos fpos, ref ubyte[
 
 struct BgzfStream {
   BgzfReader bgzf;
-  FilePos fpos;
-  Nullable!int block_pos;
-  ubyte[] uncompressed_buf;
-  size_t uncompressed_size;
+  FilePos fpos;             // track file position
+  ubyte[] uncompressed_buf; // current data buffer
+  size_t uncompressed_size; // current data buffer size
+  Nullable!int block_pos;   // position in block
+  BlockReadUnbuffered blockread;
 
   this(string fn) {
     bgzf = BgzfReader(fn);
@@ -303,7 +400,8 @@ struct BgzfStream {
   */
   ubyte[] fetch(ubyte[] buffer) {
     if (block_pos.isNull) {
-      auto res = read_blockx(bgzf,fpos,uncompressed_buf); // read first block
+      blockread.setup_block_reader();
+      auto res = blockread.read_block(bgzf,fpos,uncompressed_buf); // read first block
       uncompressed_size = res[0];
       fpos = res[1];
       block_pos = 0;
@@ -327,8 +425,7 @@ struct BgzfStream {
         memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos..uncompressed_size].ptr,tail);
         buffer_pos += tail;
         remaining -= tail;
-        // uncompressed_size = read_block();
-        auto res = read_blockx(bgzf,fpos,uncompressed_buf);
+        auto res = blockread.read_block(bgzf,fpos,uncompressed_buf);
         uncompressed_size = res[0];
         fpos = res[1];
         block_pos = 0;
