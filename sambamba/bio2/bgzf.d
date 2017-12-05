@@ -83,7 +83,7 @@ alias ubyte[BLOCK_SIZE] BlockBuffer;
 /**
    Uncompress a zlib buffer (without header)
 */
-immutable(ubyte[]) deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t uncompressed_size, CRC32 crc32) {
+ubyte[] deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_buf, size_t uncompressed_size, CRC32 crc32) {
   assert(uncompressed_buf.length == BLOCK_SIZE);
   bio.core.utils.zlib.z_stream zs;
   zs.next_in = cast(typeof(zs.next_in))compressed_buf;
@@ -103,7 +103,7 @@ immutable(ubyte[]) deflate(ubyte[] uncompressed_buf, const ubyte[] compressed_bu
   uncompressed_buf.length = uncompressed_size;
   assert(crc32 == calc_crc32(0, uncompressed_buf[]));
 
-  return cast(immutable(ubyte[]))uncompressed_buf;
+  return uncompressed_buf;
 }
 
 /**
@@ -235,7 +235,7 @@ struct BgzfBlocks {
     throw new Exception("BgzfBlocks does not have copy semantics");
   }
 
-  int opApply(scope int delegate(immutable(ubyte[])) dg) {
+  int opApply(scope int delegate(ubyte[]) dg) {
     FilePos fpos = 0;
 
     try {
@@ -302,6 +302,7 @@ struct BlockReadAhead {
   void setup_block_reader() {
     read_next_block();
     add_deflate_task();
+    throw new Exception("NYI");
   }
 
   Tuple!(size_t,FilePos) read_block(ref BgzfReader bgzf, FilePos fpos, ref ubyte[] uncompressed_buf) {
@@ -352,18 +353,19 @@ struct BlockReadUnbuffered {
   void setup_block_reader() {
   }
 
-  Tuple!(size_t,FilePos) read_block(ref BgzfReader bgzf, FilePos fpos, ref ubyte[] uncompressed_buf) {
+  Tuple!(ubyte[], size_t, FilePos) read_block(ref BgzfReader bgzf, in FilePos fpos, ubyte[] uncompressed_buf) {
     BlockBuffer compressed_buf;
     auto res = bgzf.read_compressed_block(fpos,compressed_buf);
     auto fpos2 = res[0]; // point fpos to next block
-    if (fpos.isNull) return tuple(cast(size_t)0,fpos2);
+    if (fpos.isNull) return tuple(uncompressed_buf,cast(size_t)0,fpos2);
     auto data = res[1];
     assert(data.ptr == compressed_buf.ptr);
     size_t uncompressed_size = res[2];
     auto crc32 = res[3];
 
-    deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
-    return tuple(uncompressed_size,fpos2);
+    auto buf = deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
+    assert(buf.ptr == uncompressed_buf.ptr);
+    return tuple(uncompressed_buf,uncompressed_size,fpos2);
   }
 }
 
@@ -402,8 +404,9 @@ struct BgzfStream {
     if (block_pos.isNull) {
       blockread.setup_block_reader();
       auto res = blockread.read_block(bgzf,fpos,uncompressed_buf); // read first block
-      uncompressed_size = res[0];
-      fpos = res[1];
+      assert(res[0].ptr == uncompressed_buf.ptr);
+      uncompressed_size = res[1];
+      fpos = res[2];
       block_pos = 0;
     }
 
@@ -426,8 +429,9 @@ struct BgzfStream {
         buffer_pos += tail;
         remaining -= tail;
         auto res = blockread.read_block(bgzf,fpos,uncompressed_buf);
-        uncompressed_size = res[0];
-        fpos = res[1];
+        assert(res[0].ptr == uncompressed_buf.ptr);
+        uncompressed_size = res[1];
+        fpos = res[2];
         block_pos = 0;
       }
     }

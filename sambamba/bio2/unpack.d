@@ -33,7 +33,7 @@ int unpack_bams(string[] infns, File outfile) {
   foreach (string fn; infns) {
     stderr.writeln(fn);
 
-    foreach (immutable(ubyte[]) read; BgzfBlocks(fn)) {
+    foreach (ubyte[] read; BgzfBlocks(fn)) {
       stdout.rawWrite(read);
     }
   }
