@@ -46,6 +46,7 @@ import std.getopt;
 import std.parallelism;
 import std.range;
 import std.stdio;
+import std.typecons;
 
 import sambamba.bio2.bam.reader;
 import sambamba.bio2.bgzf;
@@ -62,10 +63,6 @@ Options:
 
          --type [hash1]  Algorithm for subsampling (hash1, default is none)
 ");
-}
-
-void info(string msg) {
-  stderr.writeln("INFO: ",msg);
 }
 
 /**
@@ -93,19 +90,25 @@ int subsample_main(string[] args) {
 
   auto infns = args[1..$];
 
-  // auto taskpool = new TaskPool();
-  // scope(exit) taskpool.stop();
-
   auto pileup = new PileUp!ReadInfo();
+  Nullable!ReadInfo prev; // keep track of previous reads
 
   foreach (string fn; infns) {
     stderr.writeln(fn);
 
     foreach (ref Read2 read; BamReader2(fn)) {
-      auto pread = ProcessRead2(read);
+      auto pread = ProcessRead2(read); // FIXME we don't need ProcessRead here
+      // Read ahead until the window is full (FIXME)
       auto r = ReadInfo(pread);
       pileup.push(r);
       writeln(pread.toString, ",", pread.start_pos, ",", pread.end_pos);
+      if (!prev.isNull) {
+        // Remove reads that have gone out of the window (FIXME)
+        pileup.delete_if( stacked_read =>
+                          stacked_read.ref_id != r.ref_id || stacked_read.end_pos < r.begin_pos
+                          );
+      }
+      prev = r;
     }
   }
   return 0;
