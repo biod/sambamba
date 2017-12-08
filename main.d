@@ -18,18 +18,19 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
-import sambamba.view;
+import sambamba.depth;
 import sambamba.index;
-import sambamba.merge;
-import sambamba.sort;
+import sambamba.fixbins;
 import sambamba.flagstat;
-import sambamba.slice;
 import sambamba.markdup;
 import sambamba.markdup2;
-import sambamba.depth;
-import sambamba.validate;
+import sambamba.merge;
 import sambamba.pileup;
-import sambamba.fixbins;
+import sambamba.sort;
+import sambamba.slice;
+import sambamba.subsample;
+import sambamba.validate;
+import sambamba.view;
 
 import sambamba.utils.common.ldc_gc_workaround;
 
@@ -53,6 +54,7 @@ Usage: sambamba [command] [args...]
     sort        sort file (BAM)
     slice       slice file (BAM using BED)
     markdup     mark or remove duplicates (BAM)
+    subsample   subsamble (BAM)
     flagstat    output statistics (BAM)
     depth       output statistics (BAM)
     validate    simple validator (BAM)
@@ -92,20 +94,21 @@ int main(string[] args) {
     auto _args = args[0] ~ args[2 .. $];
 
     switch (args[1]) {
-        case "view":     return view_main(_args);
-        case "index":    return index_main(_args);
-        case "merge":    return merge_main(_args);
-        case "sort":     return sort_main(_args);
-        case "flagstat": return flagstat_main(_args);
-        case "slice":    return slice_main(_args);
-        case "markdup":  return sambamba.markdup.markdup_main(_args);
-        case "markdup2": return sambamba.markdup2.markdup_main(_args);
-        case "depth":    return depth_main(_args);
-        case "mpileup":  return pileup_main(_args);
+        case "view":      return view_main(_args);
+        case "index":     return index_main(_args);
+        case "merge":     return merge_main(_args);
+        case "sort":      return sort_main(_args);
+        case "flagstat":  return flagstat_main(_args);
+        case "slice":     return slice_main(_args);
+        case "markdup":   return sambamba.markdup.markdup_main(_args);
+        case "markdup2":  return sambamba.markdup2.markdup_main(_args);
+        case "subsample": return subsample_main(_args);
+        case "depth":     return depth_main(_args);
+        case "mpileup":   return pileup_main(_args);
         case "validate":  return validate_main(_args);
 
         // hidden commands
-        case "fixbins":  return fixbins_main(_args);
+        case "fixbins":   return fixbins_main(_args);
         case "strip_bcf_header": return strip_bcf_header_main(_args);
         case "lz4compress": return lz4compress_main();
         case "--version": printVersion(); return 0;

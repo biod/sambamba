@@ -5,6 +5,7 @@ BioD/
 undeaD/
 core
 bin/
+test*
 build/
 shunit*
 /*.sam

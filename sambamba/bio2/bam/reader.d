@@ -128,6 +128,20 @@ struct ProcessRead2 {
     _read2 = cast(Read2 *)&_r;
   }
 
+  @property RefId ref_id() {
+    return _read2.refid;
+  }
+
+  @property GenomePos start_pos() {
+    enforce(_read2.pos < GenomePos.max);
+    return cast(GenomePos)_read2.pos;
+  }
+
+  @property GenomePos end_pos() {
+    enforce(start_pos + sequence_length < GenomePos.max);
+    return start_pos + sequence_length;
+  }
+
   @property @trusted int sequence_length() {
     if (sequence_length2.isNull)
       sequence_length2 = _read2.sequence_length;
