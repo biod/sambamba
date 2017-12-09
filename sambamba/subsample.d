@@ -86,8 +86,6 @@ int subsample_main(string[] args) {
     return 1;
   }
 
-  info("Reading input files");
-
   auto infns = args[1..$];
 
   auto pileup = new PileUp!ReadInfo();
@@ -101,12 +99,15 @@ int subsample_main(string[] args) {
       // Read ahead until the window is full (FIXME)
       auto r = ReadInfo(pread);
       pileup.push(r);
+
       writeln(pread.toString, ",", pread.start_pos, ",", pread.end_pos);
       if (!prev.isNull) {
         // Remove reads that have gone out of the window (FIXME)
+        /*
         pileup.delete_if( stacked_read =>
                           stacked_read.ref_id != r.ref_id || stacked_read.end_pos < r.begin_pos
                           );
+        */
       }
       prev = r;
     }
