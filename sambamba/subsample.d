@@ -42,6 +42,7 @@ module sambamba.subsample;
 
  */
 
+import std.experimental.logger;
 import std.getopt;
 import std.parallelism;
 import std.range;
@@ -80,6 +81,7 @@ struct ReadInfo {
 }
 
 int subsample_main(string[] args) {
+  globalLogLevel(LogLevel.trace);
 
   if (args.length < 2) {
     printUsage();
@@ -94,13 +96,16 @@ int subsample_main(string[] args) {
   foreach (string fn; infns) {
     stderr.writeln(fn);
 
-    foreach (ref Read2 read; BamReader2(fn)) {
+    foreach (ref Read2 read; BamReadStream2(fn)) {
+      writeln("HELLO");
       auto pread = ProcessRead2(read); // FIXME we don't need ProcessRead here
       // Read ahead until the window is full (FIXME)
       auto r = ReadInfo(pread);
       pileup.push(r);
+      /*
 
       writeln(pread.toString, ",", pread.start_pos, ",", pread.end_pos);
+      */
       if (!prev.isNull) {
         // Remove reads that have gone out of the window (FIXME)
         /*
@@ -109,7 +114,7 @@ int subsample_main(string[] args) {
                           );
         */
       }
-      prev = r;
+      // prev = r;
     }
   }
   return 0;

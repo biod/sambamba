@@ -18,6 +18,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
+
+import std.experimental.logger;
+
 import sambamba.depth;
 import sambamba.index;
 import sambamba.fixbins;
@@ -40,6 +43,7 @@ import utils.version_ : VERSION;
 import utils.ldc_version_info_ : LDC_VERSION_STRING, DMD_VERSION_STRING, LLVM_VERSION_STRING, BOOTSTRAP_VERSION_STRING;
 
 import std.stdio;
+
 
 void printUsage() {
     stderr.writeln("
@@ -84,6 +88,7 @@ void printVersion() {
 }
 
 int main(string[] args) {
+    globalLogLevel(LogLevel.info);
     printVersion();
 
     if (args.length == 1) {

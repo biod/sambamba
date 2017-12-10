@@ -120,9 +120,7 @@ struct BgzfReader {
     f = File(fn,"r");
   }
 
-  this(this) {
-    throw new Exception("BgzfReader does not have copy semantics");
-  }
+  @disable this(this); // BgzfReader does not have copy semantics;
 
   void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
     throw new BgzfException("Error reading BGZF block starting in "~f.name ~" @ " ~
@@ -231,9 +229,7 @@ struct BgzfBlocks {
     bgzf = BgzfReader(fn);
   }
 
-  this(this) {
-    throw new Exception("BgzfBlocks does not have copy semantics");
-  }
+  @disable this(this); // disable copy semantics;
 
   int opApply(scope int delegate(ubyte[]) dg) {
     FilePos fpos = 0;
@@ -388,9 +384,7 @@ struct BgzfStream {
     fpos = 0;
   }
 
-  this(this) {
-    throw new Exception("BgzfStream does not have copy semantics");
-  }
+  @disable this(this); // disable copy semantics;
 
   bool eof() {
     return fpos.isNull;

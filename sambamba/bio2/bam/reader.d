@@ -28,10 +28,24 @@ struct Header {
   string text;
   RefSequence[] refs;
 
-  this(this) {
-    throw new Exception("Header does not have copy semantics");
-  }
+  @disable this(this); // disable copy semantics;
 
+}
+
+void fetch_bam_header(ref Header header, ref BgzfStream stream) {
+  ubyte[4] ubyte4;
+  stream.read(ubyte4);
+  enforce(ubyte4 == BAM_MAGIC,"Invalid file format: expected BAM magic number");
+  immutable text_size = stream.read!int();
+  immutable text = stream.read!string(text_size);
+  header = Header(BAM_MAGIC,text);
+  immutable n_refs = stream.read!int();
+  foreach(int n_ref; 0..n_refs) {
+    immutable l_name = stream.read!int();
+    auto ref_name = stream.read!string(l_name);
+    immutable l_ref = stream.read!int();
+    header.refs ~= RefSequence(l_ref,ref_name);
+  }
 }
 
 enum Offset {
@@ -51,9 +65,7 @@ struct Read2 {
   private ubyte[] _data;
   uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
 
-  this(this) {
-    throw new Exception("Read2 does not have copy semantics");
-  }
+  @disable this(this); // disable copy semantics;
 
   @property @trusted nothrow private const T fetch(T)(uint raw_offset) {
     ubyte[] buf = cast(ubyte[])_data[raw_offset..raw_offset+T.sizeof];
@@ -158,6 +170,10 @@ struct ProcessRead2 {
 
 }
 
+/**
+   BamReader2 is used for foreach loops
+*/
+
 struct BamReader2 {
   BgzfStream stream;
   Header header;
@@ -167,20 +183,7 @@ struct BamReader2 {
   }
 
   int opApply(scope int delegate(ref Read2) dg) {
-    // parse the header
-    ubyte[4] ubyte4;
-    stream.read(ubyte4);
-    enforce(ubyte4 == BAM_MAGIC,"Invalid file format: expected BAM magic number");
-    immutable text_size = stream.read!int();
-    immutable text = stream.read!string(text_size);
-    header = Header(BAM_MAGIC,text);
-    immutable n_refs = stream.read!int();
-    foreach(int n_ref; 0..n_refs) {
-      immutable l_name = stream.read!int();
-      auto ref_name = stream.read!string(l_name);
-      immutable l_ref = stream.read!int();
-      header.refs ~= RefSequence(l_ref,ref_name);
-    }
+    fetch_bam_header(header, stream);
     // parse the reads
     while (!stream.eof()) {
       immutable block_size = stream.read!int();
@@ -192,5 +195,39 @@ struct BamReader2 {
       dg(read);
     }
     return 0;
+  }
+}
+
+/**
+   Read streamer
+*/
+
+struct BamReadStream2 {
+  BgzfStream stream;
+  Header header;
+  Read2 current;
+  ubyte[] data; // in sync with current
+
+  this(string fn) {
+    stream = BgzfStream(fn);
+    fetch_bam_header(header, stream);
+    popFront();
+  }
+
+  bool empty() @property {
+    return stream.eof();
+  }
+
+  ref Read2 front() {
+    return current;
+  }
+
+  void popFront() {
+    immutable block_size = stream.read!int();
+    immutable refid = stream.read!int();
+    immutable pos = stream.read!int();
+
+    data = new ubyte[block_size-2*int.sizeof]; // Heap alloc
+    current = Read2(refid,pos,stream.read(data));
   }
 }

@@ -23,6 +23,9 @@ module bio2.pileup;
 import std.exception;
 import std.stdio;
 
+import std.experimental.logger;
+
+
 immutable ulong DEFAULT_BUFFER_SIZE = 1000_000;
 
 
@@ -30,9 +33,10 @@ immutable ulong DEFAULT_BUFFER_SIZE = 1000_000;
    Cyclic buffer or ringbuffer based on Artem's original. Uses copy
    semantics to copy a read in a pre-allocated buffer. New items get
    added to the tail, and used items get popped from the head
-   (FIFO). Basically it is empty when pointers align and full when it
-   is one before last. Not that the pointers are of size_t which puts
-   a theoretical limit on the number of items that can be pushed.
+   (FIFO). Basically it is empty when pointers align and full when
+   head - tail equals length. Not that the pointers are of size_t
+   which puts a theoretical limit on the number of items that can be
+   pushed.
 */
 
 import core.stdc.string : memcpy;
@@ -50,9 +54,12 @@ struct RingBuffer(T) {
     _items = new T[n];
   }
 
+  /*
+  Does not work because data is no longer available!
   ~this() {
-    assert(is_empty); // make sure all items have been popped
+    // assert(is_empty); // make sure all items have been popped
   }
+  */
 
   // Input range primitives
   bool is_empty() @property const {
@@ -65,6 +72,7 @@ struct RingBuffer(T) {
   }
 
   void popFront() {
+    log("popFront");
     enforce(!is_empty, "ringbuffer is empty");
     ++_taken;
   }
@@ -75,11 +83,17 @@ struct RingBuffer(T) {
   }
 
   void put(T item) {
+    log("put");
     enforce(!is_full, "ringbuffer is full");
     enforce(_put < _put.max, "ringbuffer overflow");
-    // _items[_put % $] = item; // uses copy semantics
-    auto b_item = _items[_put % $];
-    memcpy(b_item.ptr,item.ptr,item.sizeof);
+    static if (is(T == class) || is(T == interface)) {
+      auto b_item = _items[_put % $];
+      memcpy(b_item.ptr,item.ptr,item.sizeof);
+      throw Exception("Not sure about this");
+    }
+    else
+      _items[_put % $] = item; // uses copy semantics
+
     ++_put;
   }
 
@@ -134,6 +148,8 @@ class PileUp(R) {
   }
 
   void push(R r) {
+    globalLogLevel = LogLevel.trace;
+    info("push");
     ring.put(r);
     writeln("ring.length ",ring.length);
   }
