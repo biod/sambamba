@@ -72,7 +72,6 @@ struct RingBuffer(T) {
   }
 
   void popFront() {
-    log("popFront");
     enforce(!is_empty, "ringbuffer is empty");
     ++_taken;
   }
@@ -83,7 +82,6 @@ struct RingBuffer(T) {
   }
 
   void put(T item) {
-    log("put");
     enforce(!is_full, "ringbuffer is full");
     enforce(_put < _put.max, "ringbuffer overflow");
     static if (is(T == class) || is(T == interface)) {
@@ -148,10 +146,10 @@ class PileUp(R) {
   }
 
   void push(R r) {
-    globalLogLevel = LogLevel.trace;
-    info("push");
     ring.put(r);
-    writeln("ring.length ",ring.length);
   }
 
+  ulong ldepth(R r) {
+    return cast(ulong)r.start_pos;
+  }
 }

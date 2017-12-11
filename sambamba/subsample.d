@@ -63,6 +63,7 @@ Usage: sambamba subsample [options] <input.bam> [<input2.bam> [...]]
 Options:
 
          --type [hash1]  Algorithm for subsampling (hash1, default is none)
+         --logging type  Set logging to debug|info|warning|critical
 ");
 }
 
@@ -71,17 +72,17 @@ Options:
 */
 struct ReadInfo {
   RefId ref_id;
-  GenomePos start, stop;
+  GenomePos start_pos, end_pos;
 
   this(ref ProcessRead2 read) {
     ref_id = read.ref_id;
-    start = read.start_pos;
-    stop = read.end_pos;
+    start_pos = read.start_pos;
+    end_pos = read.end_pos;
   }
 }
 
-int subsample_main(string[] args) {
-  globalLogLevel(LogLevel.trace);
+int subsample_main2(string[] args) {
+  globalLogLevel(LogLevel.trace); // debug level
 
   if (args.length < 2) {
     printUsage();
@@ -97,15 +98,11 @@ int subsample_main(string[] args) {
     stderr.writeln(fn);
 
     foreach (ref Read2 read; BamReadStream2(fn)) {
-      writeln("HELLO");
       auto pread = ProcessRead2(read); // FIXME we don't need ProcessRead here
       // Read ahead until the window is full (FIXME)
       auto r = ReadInfo(pread);
       pileup.push(r);
-      /*
-
       writeln(pread.toString, ",", pread.start_pos, ",", pread.end_pos);
-      */
       if (!prev.isNull) {
         // Remove reads that have gone out of the window (FIXME)
         /*
@@ -114,6 +111,53 @@ int subsample_main(string[] args) {
                           );
         */
       }
+      // prev = r;
+    }
+  }
+  return 0;
+}
+
+
+int subsample_main(string[] args) {
+  globalLogLevel(LogLevel.trace); // debug level
+
+  if (args.length < 2) {
+    printUsage();
+    return 1;
+  }
+
+  auto infns = args[1..$];
+
+  auto pileup = new PileUp!ProcessRead2();
+
+  foreach (string fn; infns) {
+    stderr.writeln(fn);
+
+    auto stream = BamReadStream2(fn);
+
+    while (!stream.empty) {
+      // get the first read
+      auto lread = ProcessRead2(stream.read);
+      pileup.push(lread);
+      auto rread = ProcessRead2(stream.read);
+      pileup.push(rread);
+      // Read ahead until the window is full
+      while (!stream.empty && lread.ref_id == rread.ref_id && lread.end_pos < rread.start_pos) {
+        rread = ProcessRead2(stream.read);
+        pileup.push(rread);
+      }
+      writeln(lread.toString, ",", lread.start_pos, ",", lread.end_pos);
+      ulong depth = pileup.ldepth(lread);
+      writeln("Read depth ",depth);
+
+      // if (!prev.isNull) {
+        // Remove reads that have gone out of the window (FIXME)
+        /*
+        pileup.delete_if( stacked_read =>
+                          stacked_read.ref_id != r.ref_id || stacked_read.end_pos < r.begin_pos
+                          );
+        */
+      // }
       // prev = r;
     }
   }

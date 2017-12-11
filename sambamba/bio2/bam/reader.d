@@ -190,7 +190,7 @@ struct BamReader2 {
       immutable refid = stream.read!int();
       immutable pos = stream.read!int();
 
-      ubyte[] data = new ubyte[block_size-2*int.sizeof]; // Heap alloc
+      ubyte[] data = new ubyte[block_size-2*int.sizeof]; // Heap alloc FIXME
       auto read = Read2(refid,pos,stream.read(data));
       dg(read);
     }
@@ -219,15 +219,23 @@ struct BamReadStream2 {
   }
 
   ref Read2 front() {
+    assert(!empty());
     return current;
   }
 
   void popFront() {
+    assert(!empty());
     immutable block_size = stream.read!int();
     immutable refid = stream.read!int();
     immutable pos = stream.read!int();
 
-    data = new ubyte[block_size-2*int.sizeof]; // Heap alloc
+    data = new ubyte[block_size-2*int.sizeof]; // Heap alloc FIXME
     current = Read2(refid,pos,stream.read(data));
+  }
+
+  ref Read2 read() {
+    auto x = &current;
+    if (!empty()) popFront();
+    return *x;
   }
 }
