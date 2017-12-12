@@ -65,7 +65,8 @@ struct ReadBlob {
   private ubyte[] _data;
   uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
 
-  @disable this(this); // disable copy semantics;
+  // Turn ReadBlob into class-struct hybrid or a cluct ;)
+  // @disable this(this); // disable copy semantics;
 
   @property @trusted nothrow private const T fetch(T)(uint raw_offset) {
     ubyte[] buf = cast(ubyte[])_data[raw_offset..raw_offset+T.sizeof];
@@ -133,11 +134,11 @@ struct ReadBlob {
    that ProcessReadBlob becomes invalid when ReadBlob goes out of scope.
 */
 struct ProcessReadBlob {
-  private ReadBlob *_read2;
+  private ReadBlob _read2;
   Nullable!int sequence_length2;
 
-  this(ref ReadBlob _r) {
-    _read2 = cast(ReadBlob *)&_r;
+  this(ReadBlob _r) {
+    _read2 = _r;
   }
 
   @property RefId ref_id() {
@@ -218,7 +219,7 @@ struct BamReadBlobStream {
     return stream.eof();
   }
 
-  ref ReadBlob front() {
+  ReadBlob front() {
     assert(!empty());
     return current;
   }
@@ -234,7 +235,7 @@ struct BamReadBlobStream {
     assert(current._data.ptr == data.ptr);
   }
 
-  ref ReadBlob read() {
+  ReadBlob read() {
     auto x = &current;
     if (!empty()) popFront();
     return *x;

@@ -141,7 +141,6 @@ int subsample_main(string[] args) {
       auto xread = ProcessReadBlob(stream.read);
       pileup.push(xread);
       auto lread = pileup.front();
-      assert(lread.start_pos == xread.start_pos);
       auto rread = ProcessReadBlob(stream.read);
       pileup.push(rread);
       // Read ahead until the window is full
