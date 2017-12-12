@@ -146,31 +146,19 @@ int subsample_main(string[] args) {
       // Fill ring buffer ahead until the window is full
       while (!stream.empty && lread.ref_id == rread.ref_id && rread.start_pos < lread.end_pos+1) {
         rread = ProcessReadBlob(stream.read);
-        rread_idx = pileup.push(rread);
+        pileup.push(rread);
       }
       // Now we have a pileup and we can check this read
       writeln("---> stopped pileup at ",lread.ref_id," ",lread.start_pos,":",lread.end_pos," ",rread.start_pos,":",rread.end_pos);
 
-      ulong depth = pileup.ldepth(lread.start_pos,lread_idx);
-      writeln("*** ",lread.start_pos," ",lread_idx," Read depth is ",depth);
+      writeln("Ring buffer size is read depth ",pileup.ring.length);
       // Remove the current read
       pileup.popFront();
       popped++;
-      writeln("Ring buffer size ",pileup.ring.length);
       writeln("popped ",popped);
       writeln("pushed ",pileup.ring.pushed," popped ",pileup.ring.popped);
 
       lread_idx += 1;
-
-      // if (!prev.isNull) {
-        // Remove reads that have gone out of the window (FIXME)
-        /*
-        pileup.delete_if( stacked_read =>
-                          stacked_read.ref_id != r.ref_id || stacked_read.end_pos < r.begin_pos
-                          );
-        */
-      // }
-      // prev = r;
     }
   }
   return 0;
