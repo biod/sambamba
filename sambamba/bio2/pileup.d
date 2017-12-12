@@ -25,8 +25,9 @@ import std.stdio;
 
 import std.experimental.logger;
 
+import sambamba.bio2.constants;
 
-immutable ulong DEFAULT_BUFFER_SIZE = 1000_000;
+immutable ulong DEFAULT_BUFFER_SIZE = 100_000;
 
 
 /**
@@ -41,16 +42,16 @@ immutable ulong DEFAULT_BUFFER_SIZE = 1000_000;
 
 import core.stdc.string : memcpy;
 
+alias ulong RingBufferIndex;
+
 struct RingBuffer(T) {
 
-  private {
-    T[] _items;
-    size_t _head = 0;
-    size_t _tail = 0;
-  }
+  T[] _items;
+  RingBufferIndex _head = 0;
+  RingBufferIndex _tail = 0;
 
   /** initializes round buffer of size $(D n) */
-  this(size_t n) {
+  this(RingBufferIndex n) {
     _items = new T[n];
   }
 
@@ -70,6 +71,13 @@ struct RingBuffer(T) {
     return _items[_head % $];
   }
 
+  auto ref read_at(RingBufferIndex idx) {
+    enforce(!is_empty, "ringbuffer is empty");
+    enforce(idx >= _head, "ringbuffer range error");
+    enforce(idx < _tail, "ringbuffer range error");
+    return _items[idx % $];
+  }
+
   void popFront() {
     enforce(!is_empty, "ringbuffer is empty");
     ++_head;
@@ -80,21 +88,16 @@ struct RingBuffer(T) {
     return _items[(_tail - 1) % $];
   }
 
-  void put(T item) {
-    enforce(!is_full, "ringbuffer is full");
+  /// Puts item on the stack and returns the index
+  RingBufferIndex put(T item) {
+    enforce(!is_full, "ringbuffer is full - you need to expand buffer");
     enforce(_tail < _tail.max, "ringbuffer overflow");
-    static if (is(T == class) || is(T == interface)) {
-      auto b_item = _items[_tail % $];
-      memcpy(b_item.ptr,item.ptr,item.sizeof);
-      throw Exception("Not sure about this");
-    }
-    else
-      _items[_tail % $] = item; // uses copy semantics
-
+    _items[_tail % $] = item; // uses copy semantics
     ++_tail;
+    return _tail-1;
   }
 
-  size_t length() @property const {
+  ulong length() @property const {
     writeln(_tail,":",_head,"= len ",_tail-_head);
     return _tail - _head;
   }
@@ -103,10 +106,10 @@ struct RingBuffer(T) {
     return _items.length == length();
   }
 
-  size_t pushed() @property const {
+  RingBufferIndex pushed() @property const {
     return _tail;
   }
-  size_t popped() @property const {
+  RingBufferIndex popped() @property const {
     return _head;
   }
 
@@ -152,19 +155,31 @@ class PileUp(R) {
     ring = RingBuffer!R(bufsize);
   }
 
-  void push(R r) {
-    ring.put(r);
+  RingBufferIndex push(R r) {
+    return ring.put(r);
   }
 
   ref R front() {
     return ring.front();
   }
 
+  ref R read_at(RingBufferIndex idx) {
+    return ring.read_at(idx);
+  }
+
   void popFront() {
     ring.popFront();
   }
 
-  ulong ldepth(R r) {
-    return cast(ulong)r.start_pos;
+  ulong depth(GenomePos pos, RingBufferIndex start_idx, RingBufferIndex stop_idx=RingBufferIndex.max) {
+    size_t depth = 0;
+    auto idx = start_idx;
+    while (idx < ring._tail && idx < stop_idx) {
+      auto read = ring._items[idx];
+      writeln([idx,pos,read.start_pos,read.end_pos]);
+      if (pos >= read.start_pos && pos <= read.end_pos) depth += 1;
+      idx++;
+    }
+    return depth;
   }
 }

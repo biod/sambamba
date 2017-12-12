@@ -128,7 +128,7 @@ int subsample_main(string[] args) {
 
   auto infns = args[1..$];
 
-  auto pileup = new PileUp!ProcessReadBlob();
+  auto pileup = new PileUp!ProcessReadBlob(1000);
 
   foreach (string fn; infns) {
     stderr.writeln(fn);
@@ -136,28 +136,33 @@ int subsample_main(string[] args) {
     auto stream = BamReadBlobStream(fn);
 
     int popped = 0;
+    // get the first two reads
+    auto lread = ProcessReadBlob(stream.read);
+    auto lread_idx = pileup.push(lread);
+    auto rread = ProcessReadBlob(stream.read);
+    auto rread_idx = pileup.push(rread);
+
     while (!stream.empty) {
-      // get the first read
-      auto xread = ProcessReadBlob(stream.read);
-      pileup.push(xread);
-      auto lread = pileup.front();
-      auto rread = ProcessReadBlob(stream.read);
-      pileup.push(rread);
-      // Read ahead until the window is full
-      while (!stream.empty && lread.ref_id == rread.ref_id && rread.start_pos < lread.end_pos) {
-        writeln("---> pushing ",lread.ref_id," ",lread.end_pos," ",rread.start_pos);
+      lread = pileup.read_at(lread_idx);
+      rread = pileup.read_at(lread_idx+1);
+      // Fill ring buffer ahead until the window is full
+      while (!stream.empty && lread.ref_id == rread.ref_id && rread.start_pos < lread.end_pos+1) {
         rread = ProcessReadBlob(stream.read);
-        pileup.push(rread);
+        rread_idx = pileup.push(rread);
       }
-      writeln("---> skipped ",lread.ref_id," ",lread.end_pos," ",rread.start_pos);
-      writeln(lread.toString, ",", lread.start_pos, ",", lread.end_pos);
-      ulong depth = pileup.ldepth(lread);
-      writeln("Read depth ",depth);
+      // Now we have a pileup and we can check this read
+      writeln("---> stopped pileup at ",lread.ref_id," ",lread.start_pos,":",lread.end_pos," ",rread.start_pos,":",rread.end_pos);
+
+      ulong depth = pileup.ldepth(lread.start_pos,lread_idx);
+      writeln("*** ",lread.start_pos," ",lread_idx," Read depth is ",depth);
+      // Remove the current read
       pileup.popFront();
       popped++;
       writeln("Ring buffer size ",pileup.ring.length);
       writeln("popped ",popped);
       writeln("pushed ",pileup.ring.pushed," popped ",pileup.ring.popped);
+
+      lread_idx += 1;
 
       // if (!prev.isNull) {
         // Remove reads that have gone out of the window (FIXME)

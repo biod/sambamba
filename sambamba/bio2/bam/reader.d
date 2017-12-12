@@ -54,8 +54,15 @@ enum Offset {
 
 /**
    Raw Read buffer containing unparsed data. It should be considered
-   read-only. All offsets are indexed on init (except for tags).  When
-   using fields beyond refid,pos use ProcessReadBlob instead because it
+   read-only.
+
+   Current implementation is a cluct (class-struct hybrid). The _data
+   pointer is shared when ReadBlob is assigned to another variable
+   (i.e., there is a remote dependency). The advantage is that for
+   each Read data gets allocated on the heap only once.
+
+   All offsets are indexed on init (except for tags).  When using
+   fields beyond refid,pos use ProcessReadBlob instead because it
    caches values.
 */
 
@@ -206,7 +213,7 @@ struct BamReadBlobs {
 struct BamReadBlobStream {
   BgzfStream stream;
   Header header;
-  ReadBlob current;
+  Nullable!ReadBlob current;
   ubyte[] data; // in sync with current
 
   this(string fn) {
@@ -235,9 +242,10 @@ struct BamReadBlobStream {
     assert(current._data.ptr == data.ptr);
   }
 
+  /// Returns a read if available. Otherwise null
   ReadBlob read() {
-    auto x = &current;
-    if (!empty()) popFront();
-    return *x;
+    if (empty()) return Nullable!ReadBlob();
+    popFront();
+    return current;
   }
 }
