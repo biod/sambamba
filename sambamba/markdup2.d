@@ -84,8 +84,8 @@ int markdup_main(string[] args) {
 
   foreach (string fn; infns) {
     stderr.writeln(fn);
-    foreach (ref Read2 read; BamReader2(fn)) {
-      auto pread = ProcessRead2(read); // FIXME we don't need ProcessRead here
+    foreach (ref ReadBlob read; BamReadBlobs(fn)) {
+      auto pread = ProcessReadBlob(read); // FIXME we don't need ProcessRead here
       writeln(pread.toString, ",", pread.start_pos, ",", pread.end_pos);
       // stdout.write(read);
     }

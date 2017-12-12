@@ -45,8 +45,8 @@ struct RingBuffer(T) {
 
   private {
     T[] _items;
-    size_t _put;
-    size_t _taken;
+    size_t _head = 0;
+    size_t _tail = 0;
   }
 
   /** initializes round buffer of size $(D n) */
@@ -61,48 +61,55 @@ struct RingBuffer(T) {
   }
   */
 
-  // Input range primitives
   bool is_empty() @property const {
-    return _put == _taken;
+    return _tail == _head;
   }
 
   auto ref front() @property {
     enforce(!is_empty, "ringbuffer is empty");
-    return _items[_taken % $];
+    return _items[_head % $];
   }
 
   void popFront() {
     enforce(!is_empty, "ringbuffer is empty");
-    ++_taken;
+    ++_head;
   }
 
   auto ref back() @property {
     enforce(!is_empty, "ringbuffer is empty");
-    return _items[(_put - 1) % $];
+    return _items[(_tail - 1) % $];
   }
 
   void put(T item) {
     enforce(!is_full, "ringbuffer is full");
-    enforce(_put < _put.max, "ringbuffer overflow");
+    enforce(_tail < _tail.max, "ringbuffer overflow");
     static if (is(T == class) || is(T == interface)) {
-      auto b_item = _items[_put % $];
+      auto b_item = _items[_tail % $];
       memcpy(b_item.ptr,item.ptr,item.sizeof);
       throw Exception("Not sure about this");
     }
     else
-      _items[_put % $] = item; // uses copy semantics
+      _items[_tail % $] = item; // uses copy semantics
 
-    ++_put;
+    ++_tail;
+  }
+
+  size_t length() @property const {
+    writeln(_tail,":",_head,"= len ",_tail-_head);
+    return _tail - _head;
   }
 
   bool is_full() @property const {
-    return _put == _taken + _items.length;
+    return _items.length == length();
   }
 
-  /// Current number of elements
-  size_t length() @property const {
-    return _put - _taken;
+  size_t pushed() @property const {
+    return _tail;
   }
+  size_t popped() @property const {
+    return _head;
+  }
+
 }
 
 unittest {
@@ -147,6 +154,14 @@ class PileUp(R) {
 
   void push(R r) {
     ring.put(r);
+  }
+
+  ref R front() {
+    return ring.front();
+  }
+
+  void popFront() {
+    ring.popFront();
   }
 
   ulong ldepth(R r) {

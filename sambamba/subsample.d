@@ -74,7 +74,7 @@ struct ReadInfo {
   RefId ref_id;
   GenomePos start_pos, end_pos;
 
-  this(ref ProcessRead2 read) {
+  this(ref ProcessReadBlob read) {
     ref_id = read.ref_id;
     start_pos = read.start_pos;
     end_pos = read.end_pos;
@@ -97,8 +97,8 @@ int subsample_main2(string[] args) {
   foreach (string fn; infns) {
     stderr.writeln(fn);
 
-    foreach (ref Read2 read; BamReadStream2(fn)) {
-      auto pread = ProcessRead2(read); // FIXME we don't need ProcessRead here
+    foreach (ref ReadBlob read; BamReadBlobStream(fn)) {
+      auto pread = ProcessReadBlob(read); // FIXME we don't need ProcessRead here
       // Read ahead until the window is full (FIXME)
       auto r = ReadInfo(pread);
       pileup.push(r);
@@ -128,27 +128,37 @@ int subsample_main(string[] args) {
 
   auto infns = args[1..$];
 
-  auto pileup = new PileUp!ProcessRead2();
+  auto pileup = new PileUp!ProcessReadBlob();
 
   foreach (string fn; infns) {
     stderr.writeln(fn);
 
-    auto stream = BamReadStream2(fn);
+    auto stream = BamReadBlobStream(fn);
 
+    int popped = 0;
     while (!stream.empty) {
       // get the first read
-      auto lread = ProcessRead2(stream.read);
-      pileup.push(lread);
-      auto rread = ProcessRead2(stream.read);
+      auto xread = ProcessReadBlob(stream.read);
+      pileup.push(xread);
+      auto lread = pileup.front();
+      assert(lread.start_pos == xread.start_pos);
+      auto rread = ProcessReadBlob(stream.read);
       pileup.push(rread);
       // Read ahead until the window is full
-      while (!stream.empty && lread.ref_id == rread.ref_id && lread.end_pos < rread.start_pos) {
-        rread = ProcessRead2(stream.read);
+      while (!stream.empty && lread.ref_id == rread.ref_id && rread.start_pos < lread.end_pos) {
+        writeln("---> pushing ",lread.ref_id," ",lread.end_pos," ",rread.start_pos);
+        rread = ProcessReadBlob(stream.read);
         pileup.push(rread);
       }
+      writeln("---> skipped ",lread.ref_id," ",lread.end_pos," ",rread.start_pos);
       writeln(lread.toString, ",", lread.start_pos, ",", lread.end_pos);
       ulong depth = pileup.ldepth(lread);
       writeln("Read depth ",depth);
+      pileup.popFront();
+      popped++;
+      writeln("Ring buffer size ",pileup.ring.length);
+      writeln("popped ",popped);
+      writeln("pushed ",pileup.ring.pushed," popped ",pileup.ring.popped);
 
       // if (!prev.isNull) {
         // Remove reads that have gone out of the window (FIXME)

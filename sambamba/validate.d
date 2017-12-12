@@ -74,8 +74,8 @@ int validate_main(string[] args) {
   foreach (string fn; infns) {
     stderr.writeln(fn);
 
-    foreach (ref Read2 read; BamReader2(fn)) {
-      auto pread = ProcessRead2(read);
+    foreach (ref ReadBlob read; BamReadBlobs(fn)) {
+      auto pread = ProcessReadBlob(read);
       stdout.writeln(pread.toString);
     }
   }

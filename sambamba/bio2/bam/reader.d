@@ -55,11 +55,11 @@ enum Offset {
 /**
    Raw Read buffer containing unparsed data. It should be considered
    read-only. All offsets are indexed on init (except for tags).  When
-   using fields beyond refid,pos use ProcessRead2 instead because it
+   using fields beyond refid,pos use ProcessReadBlob instead because it
    caches values.
 */
 
-struct Read2 {
+struct ReadBlob {
   uint refid;
   size_d pos;
   private ubyte[] _data;
@@ -122,22 +122,22 @@ struct Read2 {
   alias sequence_length _l_seq;
 
   string toString() {
-    return "<** " ~ Read2.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+    return "<** " ~ ReadBlob.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }
 
 }
 
 /**
-   ProcessRead2 provides a caching mechanism for Read2 fields. Use
+   ProcessReadBlob provides a caching mechanism for ReadBlob fields. Use
    this when you need to access field/elements multiple times. Note
-   that ProcessRead2 becomes invalid when Read2 goes out of scope.
+   that ProcessReadBlob becomes invalid when ReadBlob goes out of scope.
 */
-struct ProcessRead2 {
-  private Read2 *_read2;
+struct ProcessReadBlob {
+  private ReadBlob *_read2;
   Nullable!int sequence_length2;
 
-  this(ref Read2 _r) {
-    _read2 = cast(Read2 *)&_r;
+  this(ref ReadBlob _r) {
+    _read2 = cast(ReadBlob *)&_r;
   }
 
   @property RefId ref_id() {
@@ -165,7 +165,7 @@ struct ProcessRead2 {
   }
 
   string toString() {
-    return "<** " ~ ProcessRead2.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+    return "<** " ~ ProcessReadBlob.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }
 
 }
@@ -174,7 +174,7 @@ struct ProcessRead2 {
    BamReader2 is used for foreach loops
 */
 
-struct BamReader2 {
+struct BamReadBlobs {
   BgzfStream stream;
   Header header;
 
@@ -182,7 +182,7 @@ struct BamReader2 {
     stream = BgzfStream(fn);
   }
 
-  int opApply(scope int delegate(ref Read2) dg) {
+  int opApply(scope int delegate(ref ReadBlob) dg) {
     fetch_bam_header(header, stream);
     // parse the reads
     while (!stream.eof()) {
@@ -191,7 +191,7 @@ struct BamReader2 {
       immutable pos = stream.read!int();
 
       ubyte[] data = new ubyte[block_size-2*int.sizeof]; // Heap alloc FIXME
-      auto read = Read2(refid,pos,stream.read(data));
+      auto read = ReadBlob(refid,pos,stream.read(data));
       dg(read);
     }
     return 0;
@@ -202,10 +202,10 @@ struct BamReader2 {
    Read streamer
 */
 
-struct BamReadStream2 {
+struct BamReadBlobStream {
   BgzfStream stream;
   Header header;
-  Read2 current;
+  ReadBlob current;
   ubyte[] data; // in sync with current
 
   this(string fn) {
@@ -218,7 +218,7 @@ struct BamReadStream2 {
     return stream.eof();
   }
 
-  ref Read2 front() {
+  ref ReadBlob front() {
     assert(!empty());
     return current;
   }
@@ -230,10 +230,11 @@ struct BamReadStream2 {
     immutable pos = stream.read!int();
 
     data = new ubyte[block_size-2*int.sizeof]; // Heap alloc FIXME
-    current = Read2(refid,pos,stream.read(data));
+    current = ReadBlob(refid,pos,stream.read(data));
+    assert(current._data.ptr == data.ptr);
   }
 
-  ref Read2 read() {
+  ref ReadBlob read() {
     auto x = &current;
     if (!empty()) popFront();
     return *x;
