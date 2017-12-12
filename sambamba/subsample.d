@@ -139,12 +139,10 @@ int subsample_main(string[] args) {
     // get the first two reads
     auto lread = ProcessReadBlob(stream.read);
     auto lread_idx = pileup.push(lread);
-    auto rread = ProcessReadBlob(stream.read);
-    auto rread_idx = pileup.push(rread);
 
     while (!stream.empty) {
       lread = pileup.read_at(lread_idx);
-      rread = pileup.read_at(lread_idx+1);
+      auto rread = lread;
       // Fill ring buffer ahead until the window is full
       while (!stream.empty && lread.ref_id == rread.ref_id && rread.start_pos < lread.end_pos+1) {
         rread = ProcessReadBlob(stream.read);
