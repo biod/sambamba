@@ -138,6 +138,7 @@ int subsample_main(string[] args) {
         break;
 
       current_idx = pileup.get_next_idx(current_idx);
+      writeln("size ",[current_idx.sizeof,ProcessReadBlob.sizeof,(Nullable!ProcessReadBlob).sizeof]);
       current = pileup.read_at_idx(current_idx);
     }
   }
