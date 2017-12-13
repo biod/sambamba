@@ -117,28 +117,24 @@ int subsample_main(string[] args) {
     auto current = ProcessReadBlob(stream.read);
     auto current_idx = pileup.push(current);
     assert(current_idx == 0);
-    auto leftmost = current_idx;
-    auto rightmost = current_idx;
 
     while (!current.isNull) {
       // Fill ring buffer ahead until the window is full
-      auto lread = current;
-      auto rread = lread;
-      while (!stream.empty && lread.ref_id == rread.ref_id && rread.start_pos < lread.end_pos+1) {
-        rread = ProcessReadBlob(stream.read);
-        pileup.push(rread);
+      auto rightmost = current;
+      while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
+        rightmost = ProcessReadBlob(stream.read);
+        pileup.push(rightmost);
       }
       // Now we have a pileup and we can check this read
-      writeln("---> stopped pileup at ",lread.ref_id," ",lread.start_pos,":",lread.end_pos," ",rread.start_pos,":",rread.end_pos);
+      writeln("---> stopped pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos," ",rightmost.start_pos,":",rightmost.end_pos);
 
-      writeln("Ring buffer size is read depth ",pileup.ring.length);
       // Remove the current read
       pileup.popFront();
 
       current_idx += 1;
       if (stream.empty() || pileup.is_past_end(current_idx) || pileup.empty)
         break;
-      lread = pileup.read_at_idx(current_idx);
+      current = pileup.read_at_idx(current_idx);
     }
   }
   return 0;
