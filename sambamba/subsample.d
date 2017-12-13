@@ -81,43 +81,23 @@ struct ReadInfo {
   }
 }
 
-int subsample_main2(string[] args) {
-  globalLogLevel(LogLevel.trace); // debug level
+/**
+   Implementation of Hash1. While reads stream in they get piled up in
+   a ringbuffer. The ringbuffer gets filled ahead until the read that is
+   no longer overlapping, creating a window:
 
-  if (args.length < 2) {
-    printUsage();
-    return 1;
-  }
+                                                          r-------------
+                                               ----y---------------
+                                        -----------y--------
+                                 x=================y
+                            -----x-------------
+                   --------------x----
+              l------------------x-----
+          leftmost             start_pos       end_pos  rightmost
 
-  auto infns = args[1..$];
-
-  auto pileup = new PileUp!ReadInfo();
-  Nullable!ReadInfo prev; // keep track of previous reads
-
-  foreach (string fn; infns) {
-    stderr.writeln(fn);
-
-    foreach (ref ReadBlob read; BamReadBlobStream(fn)) {
-      auto pread = ProcessReadBlob(read); // FIXME we don't need ProcessRead here
-      // Read ahead until the window is full (FIXME)
-      auto r = ReadInfo(pread);
-      pileup.push(r);
-      writeln(pread.toString, ",", pread.start_pos, ",", pread.end_pos);
-      if (!prev.isNull) {
-        // Remove reads that have gone out of the window (FIXME)
-        /*
-        pileup.delete_if( stacked_read =>
-                          stacked_read.ref_id != r.ref_id || stacked_read.end_pos < r.begin_pos
-                          );
-        */
-      }
-      // prev = r;
-    }
-  }
-  return 0;
-}
-
-
+   once the reads have been counted it moves to the next read, reads ahead
+   and destroys the leftmost reads that have gone out of the window.
+*/
 int subsample_main(string[] args) {
   globalLogLevel(LogLevel.trace); // debug level
 
@@ -131,19 +111,19 @@ int subsample_main(string[] args) {
   auto pileup = new PileUp!ProcessReadBlob(1000);
 
   foreach (string fn; infns) {
-    stderr.writeln(fn);
-
     auto stream = BamReadBlobStream(fn);
 
-    int popped = 0;
     // get the first two reads
-    auto lread = ProcessReadBlob(stream.read);
-    auto lread_idx = pileup.push(lread);
+    auto current = ProcessReadBlob(stream.read);
+    auto current_idx = pileup.push(current);
+    assert(current_idx == 0);
+    auto leftmost = current_idx;
+    auto rightmost = current_idx;
 
-    while (!stream.empty) {
-      lread = pileup.read_at(lread_idx);
-      auto rread = lread;
+    while (!current.isNull) {
       // Fill ring buffer ahead until the window is full
+      auto lread = current;
+      auto rread = lread;
       while (!stream.empty && lread.ref_id == rread.ref_id && rread.start_pos < lread.end_pos+1) {
         rread = ProcessReadBlob(stream.read);
         pileup.push(rread);
@@ -154,11 +134,11 @@ int subsample_main(string[] args) {
       writeln("Ring buffer size is read depth ",pileup.ring.length);
       // Remove the current read
       pileup.popFront();
-      popped++;
-      writeln("popped ",popped);
-      writeln("pushed ",pileup.ring.pushed," popped ",pileup.ring.popped);
 
-      lread_idx += 1;
+      current_idx += 1;
+      if (stream.empty() || pileup.is_past_end(current_idx) || pileup.empty)
+        break;
+      lread = pileup.read_at_idx(current_idx);
     }
   }
   return 0;

@@ -67,10 +67,18 @@ enum Offset {
 */
 
 struct ReadBlob {
-  uint refid;
-  size_d pos;
+  RefId refid;
+  GenomePos pos;
   private ubyte[] _data;
   uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
+
+  /*
+  this(RefId ref_id, GenomePos read_pos, ubyte[] buf) {
+    refid = ref_id;
+    pos = read_pos;
+    _data = buf;
+  }
+  */
 
   // Turn ReadBlob into class-struct hybrid or a cluct ;)
   // @disable this(this); // disable copy semantics;
@@ -141,11 +149,15 @@ struct ReadBlob {
    that ProcessReadBlob becomes invalid when ReadBlob goes out of scope.
 */
 struct ProcessReadBlob {
-  private ReadBlob _read2;
+  private Nullable!ReadBlob _read2;
   Nullable!int sequence_length2;
 
   this(ReadBlob _r) {
     _read2 = _r;
+  }
+
+  @property bool isNull() {
+    return _read2.isNull;
   }
 
   @property RefId ref_id() {
@@ -210,6 +222,8 @@ struct BamReadBlobs {
    Read streamer
 */
 
+// import core.memory : pureMalloc;
+
 struct BamReadBlobStream {
   BgzfStream stream;
   Header header;
@@ -237,7 +251,8 @@ struct BamReadBlobStream {
     immutable refid = stream.read!int();
     immutable pos = stream.read!int();
 
-    data = new ubyte[block_size-2*int.sizeof]; // Heap alloc FIXME
+    // void *p = pureMalloc(block_size-2*int.sizeof); // test for GC effectiveness
+    data = new ubyte[block_size-2*int.sizeof];
     current = ReadBlob(refid,pos,stream.read(data));
     assert(current._data.ptr == data.ptr);
   }

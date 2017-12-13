@@ -62,9 +62,11 @@ struct RingBuffer(T) {
   }
   */
 
-  bool is_empty() @property const {
+  bool empty() @property const {
     return _tail == _head;
   }
+
+  alias empty is_empty;
 
   auto ref front() @property {
     enforce(!is_empty, "ringbuffer is empty");
@@ -159,16 +161,24 @@ class PileUp(R) {
     return ring.put(r);
   }
 
+  bool empty() @property const {
+    return ring.is_empty();
+  }
+
   ref R front() {
     return ring.front();
   }
 
-  ref R read_at(RingBufferIndex idx) {
+  ref R read_at_idx(RingBufferIndex idx) {
     return ring.read_at(idx);
   }
 
   void popFront() {
     ring.popFront();
+  }
+
+  bool is_past_end(RingBufferIndex idx) {
+    return (idx > ring._tail);
   }
 
   ulong depth(GenomePos pos, RingBufferIndex start_idx, RingBufferIndex stop_idx=RingBufferIndex.max) {
