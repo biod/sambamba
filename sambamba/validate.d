@@ -38,6 +38,7 @@ import std.getopt;
 import std.parallelism;
 import std.range;
 import std.stdio;
+import std.typecons;
 
 import sambamba.bio2.bam.reader;
 import sambamba.bio2.bgzf;
@@ -71,13 +72,15 @@ int validate_main(string[] args) {
   // auto taskpool = new TaskPool();
   // scope(exit) taskpool.stop();
 
+  /*
   foreach (string fn; infns) {
     stderr.writeln(fn);
 
-    foreach (ref ReadBlob read; BamReadBlobs(fn)) {
+    foreach (ref Nullable!ReadBlob read; BamReadBlobs(fn)) {
       auto pread = ProcessReadBlob(read);
       stdout.writeln(pread.toString);
     }
   }
+  */
   return 0;
 }

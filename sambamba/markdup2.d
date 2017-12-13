@@ -82,6 +82,7 @@ int markdup_main(string[] args) {
   // auto taskpool = new TaskPool();
   // scope(exit) taskpool.stop();
 
+  /*
   foreach (string fn; infns) {
     stderr.writeln(fn);
     foreach (ref ReadBlob read; BamReadBlobs(fn)) {
@@ -90,5 +91,6 @@ int markdup_main(string[] args) {
       // stdout.write(read);
     }
   }
+  */
   return 0;
 }

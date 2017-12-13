@@ -122,18 +122,26 @@ int subsample_main(string[] args) {
       // Fill ring buffer ahead until the window is full
       auto rightmost = current;
       while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
+        writeln("HEY2b");
         rightmost = ProcessReadBlob(stream.read);
+        writeln("HEY3");
+        writeln(rightmost.isNull);
         pileup.push(rightmost);
       }
+        writeln("HEY4");
       // Now we have a pileup and we can check this read
-      writeln("---> stopped pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos," ",rightmost.start_pos,":",rightmost.end_pos);
+        writeln("---> pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos);
+        if (!rightmost.isNull)
+          writeln(" ",rightmost.start_pos,":",rightmost.end_pos);
+        writeln("HEY5");
 
       // Remove the current read
       pileup.popFront();
 
-      current_idx.value += 1;
-      if (stream.empty() || pileup.is_past_end(current_idx) || pileup.empty)
+      if (pileup.empty)
         break;
+
+      current_idx = pileup.get_next_idx(current_idx);
       current = pileup.read_at_idx(current_idx);
     }
   }

@@ -204,6 +204,11 @@ class PileUp(R) {
     return ring.read_at(idx);
   }
 
+  RingBufferIndex get_next_idx(RingBufferIndex idx) {
+    idx.value += 1;
+    return idx;
+  }
+
   void popFront() {
     ring.popFront();
   }

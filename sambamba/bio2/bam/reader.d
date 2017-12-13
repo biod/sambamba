@@ -152,7 +152,7 @@ struct ProcessReadBlob {
   private Nullable!ReadBlob _read2;
   Nullable!int sequence_length2;
 
-  this(ReadBlob _r) {
+  this(Nullable!ReadBlob _r) {
     _read2 = _r;
   }
 
@@ -258,7 +258,7 @@ struct BamReadBlobStream {
   }
 
   /// Returns a read if available. Otherwise null
-  ReadBlob read() {
+  Nullable!ReadBlob read() {
     if (empty()) return Nullable!ReadBlob();
     popFront();
     return current;
