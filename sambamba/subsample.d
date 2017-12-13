@@ -131,7 +131,7 @@ int subsample_main(string[] args) {
       // Remove the current read
       pileup.popFront();
 
-      current_idx += 1;
+      current_idx.value += 1;
       if (stream.empty() || pileup.is_past_end(current_idx) || pileup.empty)
         break;
       current = pileup.read_at_idx(current_idx);

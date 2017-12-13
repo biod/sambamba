@@ -42,16 +42,46 @@ immutable ulong DEFAULT_BUFFER_SIZE = 100_000;
 
 import core.stdc.string : memcpy;
 
-alias ulong RingBufferIndex;
+// alias ulong RingBufferIndex;
+
+struct RingBufferIndex {
+  alias Representation = ulong;
+  ulong value = 0;
+
+  this(ulong v) {
+    value = v;
+  }
+
+  auto get() inout {
+    return value;
+  }
+
+  auto max() @property {
+    return value.max;
+  }
+
+  void opAssign(U)(U rhs) if (is(typeof(Checked!(T, Hook)(rhs)))) {
+    value = rhs;
+  }
+
+  bool opEquals(U, this _)(U rhs) {
+    return value == rhs;
+  }
+
+  auto opCmp(U, this _)(const U rhs) {
+    return value < rhs ? -1 : value > rhs;
+  }
+}
+
 
 struct RingBuffer(T) {
 
   T[] _items;
-  RingBufferIndex _head = 0;
-  RingBufferIndex _tail = 0;
+  RingBufferIndex _head;
+  RingBufferIndex _tail;
 
   /** initializes round buffer of size $(D n) */
-  this(RingBufferIndex n) {
+  this(size_t n) {
     _items = new T[n];
   }
 
@@ -70,38 +100,39 @@ struct RingBuffer(T) {
 
   auto ref front() @property {
     enforce(!is_empty, "ringbuffer is empty");
-    return _items[_head % $];
+    return _items[_head.get() % $];
   }
 
   auto ref read_at(RingBufferIndex idx) {
     enforce(!is_empty, "ringbuffer is empty");
     enforce(idx >= _head, "ringbuffer range error");
     enforce(idx < _tail, "ringbuffer range error");
-    return _items[idx % $];
+    return _items[idx.get() % $];
   }
 
   void popFront() {
     enforce(!is_empty, "ringbuffer is empty");
-    ++_head;
+    ++_head.value;
   }
 
   auto ref back() @property {
     enforce(!is_empty, "ringbuffer is empty");
-    return _items[(_tail - 1) % $];
+    return _items[(_tail.get() - 1) % $];
   }
 
   /// Puts item on the stack and returns the index
   RingBufferIndex put(T item) {
     enforce(!is_full, "ringbuffer is full - you need to expand buffer");
     enforce(_tail < _tail.max, "ringbuffer overflow");
-    _items[_tail % $] = item; // uses copy semantics
-    ++_tail;
-    return _tail-1;
+    _items[_tail.get() % $] = item; // uses copy semantics
+    auto prev = _tail;
+    ++_tail.value;
+    return prev;
   }
 
   ulong length() @property const {
-    writeln(_tail,":",_head,"= len ",_tail-_head);
-    return _tail - _head;
+    writeln(_tail.get(),":",_head.get(),"= len ",_tail.get()-_head.get());
+    return _tail.get() - _head.get();
   }
 
   bool is_full() @property const {
@@ -181,7 +212,8 @@ class PileUp(R) {
     return (idx > ring._tail);
   }
 
-  ulong depth(GenomePos pos, RingBufferIndex start_idx, RingBufferIndex stop_idx=RingBufferIndex.max) {
+  /*
+  ulong depth(GenomePos pos, RingBufferIndex start_idx, RingBufferIndex stop_idx=ulong.max) {
     size_t depth = 0;
     auto idx = start_idx;
     while (idx < ring._tail && idx < stop_idx) {
@@ -192,4 +224,5 @@ class PileUp(R) {
     }
     return depth;
   }
+  */
 }
