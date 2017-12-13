@@ -46,7 +46,7 @@ import core.stdc.string : memcpy;
 
 struct RingBufferIndex {
   alias Representation = ulong;
-  ulong value = 0;
+  private ulong value = 0;
 
   this(ulong v) {
     value = v;
