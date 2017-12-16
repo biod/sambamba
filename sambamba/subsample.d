@@ -108,7 +108,7 @@ int subsample_main(string[] args) {
 
   auto infns = args[1..$];
 
-  auto pileup = new PileUp!ProcessReadBlob(1000);
+  auto pileup = new PileUp!ProcessReadBlob();
 
   foreach (string fn; infns) {
     auto stream = BamReadBlobStream(fn);
@@ -118,28 +118,47 @@ int subsample_main(string[] args) {
     auto current_idx = pileup.push(current);
     assert(current_idx == 0);
     auto rightmost = current;
+    auto prev_rightmost = current;
+    auto leftmost = current;
+    auto leftmost_idx = current_idx;
 
-    while (!current.isNull) {
-      // Fill ring buffer ahead until the window is full
+    while (true) { // loop through pileup
+      assert(!current.isNull);
+      // Fill ring buffer ahead until the window is full (current and rightmost)
+      // rightmost is null at the end
       while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
         rightmost = ProcessReadBlob(stream.read);
-        writeln(rightmost.isNull);
+        if (rightmost.isNull)
+          break;
+        prev_rightmost = rightmost;
         pileup.push(rightmost);
       }
-      // Now we have a pileup and we can check this read
-      writeln("---> pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos);
+
+      // Now we have a pileup and we can check this read (output)
+      writeln("     start  at ",leftmost.ref_id," ",leftmost.start_pos,":",leftmost.end_pos);
+      //writeln("---> pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos);
       if (!rightmost.isNull)
-        writeln(" ",rightmost.start_pos,":",rightmost.end_pos);
+        writeln("     ending at ",rightmost.ref_id," ",rightmost.start_pos,":",rightmost.end_pos);
+      else
+        writeln("     reached end ",pileup.ring.length());
+      // Compute depth
 
-      // Remove the current read
-      pileup.popFront();
-
-      if (pileup.empty)
+      // Are we actually on the last read? (current and prev_rightmost)
+      if (rightmost.isNull && current == prev_rightmost)
         break;
 
+      // Move to next (current)
       current_idx = pileup.get_next_idx(current_idx);
-      writeln("size ",[current_idx.sizeof,ProcessReadBlob.sizeof,(Nullable!ProcessReadBlob).sizeof]);
       current = pileup.read_at_idx(current_idx);
+      if (current.isNull)
+        break;
+
+      // Remove leading reads (leftmost and current)
+      while (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos) {
+        leftmost_idx = pileup.popFront();
+        leftmost = pileup.front;
+      }
+      assert(!pileup.empty);
     }
   }
   return 0;

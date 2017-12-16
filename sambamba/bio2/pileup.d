@@ -103,6 +103,11 @@ struct RingBuffer(T) {
     return _items[_head.get() % $];
   }
 
+  auto ref back() @property {
+    enforce(!is_empty, "ringbuffer is empty");
+    return _items[(_tail.get() - 1) % $];
+  }
+
   auto ref read_at(RingBufferIndex idx) {
     enforce(!is_empty, "ringbuffer is empty");
     enforce(idx >= _head, "ringbuffer range error");
@@ -110,14 +115,10 @@ struct RingBuffer(T) {
     return _items[idx.get() % $];
   }
 
-  void popFront() {
+  RingBufferIndex popFront() {
     enforce(!is_empty, "ringbuffer is empty");
     ++_head.value;
-  }
-
-  auto ref back() @property {
-    enforce(!is_empty, "ringbuffer is empty");
-    return _items[(_tail.get() - 1) % $];
+    return _head;
   }
 
   /// Puts item on the stack and returns the index
@@ -209,8 +210,8 @@ class PileUp(R) {
     return idx;
   }
 
-  void popFront() {
-    ring.popFront();
+  RingBufferIndex popFront() {
+    return ring.popFront();
   }
 
   bool is_past_end(RingBufferIndex idx) {
