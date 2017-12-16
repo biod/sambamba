@@ -108,10 +108,15 @@ struct RingBuffer(T) {
     return _items[(_tail.get() - 1) % $];
   }
 
+  bool is_tail(RingBufferIndex idx) {
+    return idx == _tail.get()-1;
+  }
+
   auto ref read_at(RingBufferIndex idx) {
     enforce(!is_empty, "ringbuffer is empty");
-    enforce(idx >= _head, "ringbuffer range error");
-    enforce(idx < _tail, "ringbuffer range error");
+    enforce(idx >= _head, "ringbuffer range error (idx before front)");
+    enforce(idx != _tail, "ringbuffer range error (idx at end)");
+    enforce(idx < _tail, "ringbuffer range error (idx after end)");
     return _items[idx.get() % $];
   }
 
@@ -201,6 +206,10 @@ class PileUp(R) {
     return ring.front();
   }
 
+  bool idx_at_end(RingBufferIndex idx) {
+    return ring.is_tail(idx);
+  }
+
   ref R read_at_idx(RingBufferIndex idx) {
     return ring.read_at(idx);
   }
@@ -218,17 +227,4 @@ class PileUp(R) {
     return (idx > ring._tail);
   }
 
-  /*
-  ulong depth(GenomePos pos, RingBufferIndex start_idx, RingBufferIndex stop_idx=ulong.max) {
-    size_t depth = 0;
-    auto idx = start_idx;
-    while (idx < ring._tail && idx < stop_idx) {
-      auto read = ring._items[idx];
-      writeln([idx,pos,read.start_pos,read.end_pos]);
-      if (pos >= read.start_pos && pos <= read.end_pos) depth += 1;
-      idx++;
-    }
-    return depth;
-  }
-  */
 }

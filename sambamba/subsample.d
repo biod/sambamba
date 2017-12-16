@@ -136,7 +136,7 @@ int subsample_main(string[] args) {
 
       // Now we have a pileup and we can check this read (output)
       writeln("     start  at ",leftmost.ref_id," ",leftmost.start_pos,":",leftmost.end_pos);
-      //writeln("---> pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos);
+      writeln("---> pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos);
       if (!rightmost.isNull)
         writeln("     ending at ",rightmost.ref_id," ",rightmost.start_pos,":",rightmost.end_pos);
       else
@@ -148,10 +148,11 @@ int subsample_main(string[] args) {
         break;
 
       // Move to next (current)
+      if (pileup.idx_at_end(current_idx))
+        break;
       current_idx = pileup.get_next_idx(current_idx);
       current = pileup.read_at_idx(current_idx);
-      if (current.isNull)
-        break;
+      assert(!current.isNull);
 
       // Remove leading reads (leftmost and current)
       while (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos) {
