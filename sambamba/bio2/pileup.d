@@ -71,6 +71,11 @@ struct RingBufferIndex {
   auto opCmp(U, this _)(const U rhs) {
     return value < rhs ? -1 : value > rhs;
   }
+
+  ulong opUnary(string s)() if (s == "++") {
+    return ++value;
+  }
+
 }
 
 

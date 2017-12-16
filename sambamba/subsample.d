@@ -118,7 +118,7 @@ int subsample_main(string[] args) {
     auto current_idx = pileup.push(current);
     assert(current_idx == 0);
     auto rightmost = current;
-    auto prev_rightmost = current;
+    auto rightmost_idx = current_idx;
     auto leftmost = current;
     auto leftmost_idx = current_idx;
 
@@ -130,8 +130,7 @@ int subsample_main(string[] args) {
         rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
           break;
-        prev_rightmost = rightmost;
-        pileup.push(rightmost);
+        rightmost_idx = pileup.push(rightmost);
       }
 
       // Now we have a pileup and we can check this read (output)
@@ -141,15 +140,25 @@ int subsample_main(string[] args) {
         writeln("     ending at ",rightmost.ref_id," ",rightmost.start_pos,":",rightmost.end_pos);
       else
         writeln("     reached end ",pileup.ring.length());
-      // Compute depth
 
-      // Are we actually on the last read? (current and prev_rightmost)
-      if (rightmost.isNull && current == prev_rightmost)
+      // Compute depth (leftmost, current, rightmost)
+      for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
+        auto check = pileup.read_at_idx(idx);
+        //                 ---------???????????
+        //                       rrrrrrrrrrr
+        if (check.ref_id == current.ref_id && check.start_pos < current.start_pos && check.end_pos >= current.start_pos)
+          write("b");
+        //                           ----?????
+        //                       rrrrrrrrrrr
+        if (check.ref_id == current.ref_id && check.start_pos >= current.start_pos && check.start_pos <= current.end_pos)
+          write("a");
+      }
+
+      // Stop at end of data
+      if (rightmost.isNull && pileup.idx_at_end(current_idx))
         break;
 
       // Move to next (current)
-      if (pileup.idx_at_end(current_idx))
-        break;
       current_idx = pileup.get_next_idx(current_idx);
       current = pileup.read_at_idx(current_idx);
       assert(!current.isNull);
