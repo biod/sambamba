@@ -142,17 +142,23 @@ int subsample_main(string[] args) {
         writeln("     reached end ",pileup.ring.length());
 
       // Compute depth (leftmost, current, rightmost)
+      auto depth = 0;
       for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
         auto check = pileup.read_at_idx(idx);
         //                 ---------???????????
         //                       rrrrrrrrrrr
-        if (check.ref_id == current.ref_id && check.start_pos < current.start_pos && check.end_pos >= current.start_pos)
+        if (check.ref_id == current.ref_id && check.start_pos < current.start_pos && check.end_pos >= current.start_pos) {
+          depth++;
           write("b");
+        }
         //                           ----?????
         //                       rrrrrrrrrrr
-        if (check.ref_id == current.ref_id && check.start_pos >= current.start_pos && check.start_pos <= current.end_pos)
+        if (check.ref_id == current.ref_id && check.start_pos >= current.start_pos && check.start_pos <= current.end_pos) {
+          depth++;
           write("a");
+        }
       }
+      writeln("**** Depth ",depth);
 
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
