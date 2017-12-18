@@ -110,12 +110,10 @@ int subsample_main(string[] args) {
 
   auto infns = args[1..$];
 
-  auto pileup = new PileUp!ProcessReadBlob();
-
   foreach (string fn; infns) {
+    auto pileup = new PileUp!ProcessReadBlob();
     auto stream = BamReadBlobStream(fn);
 
-    // get the first two reads
     auto current = ProcessReadBlob(stream.read);
     enforce(!current.isNull);
     auto current_idx = pileup.push(current);
@@ -127,9 +125,26 @@ int subsample_main(string[] args) {
 
     while (true) { // loop through pileup
       assert(!current.isNull);
+      if (current.is_unmapped2) {
+        // we hit an unmapped set, need to purge (this won't work on threads)
+        while (!pileup.empty) {
+          writeln("Write read");
+          pileup.popFront();
+        }
+        while (current.is_unmapped2) {
+          // write read
+          writeln("Skip unmapped read");
+          current = ProcessReadBlob(stream.read);
+        }
+        current_idx = pileup.push(current);
+        rightmost = current;
+        rightmost_idx = current_idx;
+        leftmost = current;
+        leftmost_idx = current_idx;
+      }
       writeln("Current is ",current.start_pos);
       // Fill ring buffer ahead until the window is full (current and rightmost)
-      // rightmost is null at the end
+      // rightmost is null at the end of the genome
       while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
         rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
@@ -150,7 +165,7 @@ int subsample_main(string[] args) {
       auto ldepth = 0;
       for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
         auto check = pileup.read_at_idx(idx);
-        if (check.is_mapped && check.ref_id == current.ref_id) {
+        if (check.is_mapped2 && check.ref_id == current.ref_id) {
           //                 ---------???????????
           //                       rrrrrrrrrrr
           if (check.start_pos < current.start_pos && check.end_pos >= current.start_pos) {
@@ -173,11 +188,15 @@ int subsample_main(string[] args) {
 
       // Move to next (current)
       current_idx = pileup.get_next_idx(current_idx);
+      auto prev = current;
       current = pileup.read_at_idx(current_idx);
+      if (current.is_mapped2 && prev.is_mapped2 && current.ref_id == prev.ref_id)
+        enforce(current.start_pos >= prev.start_pos, "BAM file is not sorted");
       assert(!current.isNull);
 
       // Remove leading reads (leftmost and current)
-      while (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos) {
+      while (leftmost.is_unmapped2 || leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos) {
+        // write read
         leftmost_idx = pileup.popFront();
         leftmost = pileup.front;
       }

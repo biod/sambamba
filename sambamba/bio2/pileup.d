@@ -199,25 +199,11 @@ class PileUp(R) {
     ring = RingBuffer!R(bufsize);
   }
 
-  RingBufferIndex push(R r) {
-    return ring.put(r);
-  }
-
-  bool empty() @property const {
-    return ring.is_empty();
-  }
-
-  ref R front() {
-    return ring.front();
-  }
-
-  bool idx_at_end(RingBufferIndex idx) {
-    return ring.is_tail(idx);
-  }
-
-  ref R read_at_idx(RingBufferIndex idx) {
-    return ring.read_at(idx);
-  }
+  RingBufferIndex push(R r) { return ring.put(r); }
+  bool empty() @property const { return ring.is_empty();}
+  ref R front() { return ring.front(); }
+  bool idx_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
+  ref R read_at_idx(RingBufferIndex idx) { return ring.read_at(idx); }
 
   RingBufferIndex get_next_idx(RingBufferIndex idx) {
     idx.value += 1;

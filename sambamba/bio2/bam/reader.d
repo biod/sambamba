@@ -66,6 +66,11 @@ template ReadFlags(alias flag) {
     @property bool is_supplementary()         nothrow { return cast(bool)(flag & 0x800); }
 }
 
+template CheckMapped() {
+  @property bool is_unmapped2() {  return refid == -1 || is_unmapped; }
+  @property bool is_mapped2() { return !is_unmapped2; }
+}
+
 enum Offset {
   bin_mq_nl=0, flag_nc=4, l_seq=8, next_refID=12, next_pos=16, tlen=20, read_name=24
 };
@@ -91,6 +96,7 @@ struct ReadBlob {
   uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
 
   mixin ReadFlags!(_flag_nc);
+  mixin CheckMapped;
 
   /*
   this(RefId ref_id, GenomePos read_pos, ubyte[] buf) {
@@ -172,6 +178,9 @@ struct ProcessReadBlob {
   private Nullable!ReadBlob _read2;
   Nullable!int sequence_length2;
 
+  mixin ReadFlags!(_flag);
+  mixin CheckMapped;
+
   this(Nullable!ReadBlob _r) {
     _read2 = _r;
   }
@@ -183,6 +192,12 @@ struct ProcessReadBlob {
   @property RefId ref_id() {
     return _read2.refid;
   }
+
+  private @property nothrow RefId _flag() {
+    return _read2._flag_nc;
+  }
+
+  alias ref_id refid;
 
   @property GenomePos start_pos() {
     enforce(_read2.pos < GenomePos.max);
@@ -202,10 +217,6 @@ struct ProcessReadBlob {
 
   @property ubyte[] raw_sequence() {
     return _read2.raw_sequence();
-  }
-
-  @property bool is_mapped() {
-    return ref_id != -1 && !_read2.is_unmapped;
   }
 
   string toString() {
@@ -284,6 +295,7 @@ struct BamReadBlobStream {
   /// Returns a read if available. Otherwise null
   Nullable!ReadBlob read() {
     if (empty()) return Nullable!ReadBlob();
+    auto prev = current;
     popFront();
     return current;
   }
