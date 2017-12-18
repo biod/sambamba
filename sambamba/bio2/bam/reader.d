@@ -48,6 +48,24 @@ void fetch_bam_header(ref Header header, ref BgzfStream stream) {
   }
 }
 
+template ReadFlags(alias flag) {
+    @property bool is_paired()                nothrow { return cast(bool)(flag & 0x1); }
+    /// Each segment properly aligned according to the aligner
+    @property bool proper_pair()              nothrow { return cast(bool)(flag & 0x2); }
+    @property bool is_unmapped()              nothrow { return cast(bool)(flag & 0x4); }
+    @property bool mate_is_unmapped()         nothrow { return cast(bool)(flag & 0x8); }
+    @property bool is_reverse_strand()        nothrow { return cast(bool)(flag & 0x10); }
+    @property bool mate_is_reverse_strand()   nothrow { return cast(bool)(flag & 0x20); }
+    @property bool is_first_of_pair()         nothrow { return cast(bool)(flag & 0x40); }
+    @property bool is_second_of_pair()        nothrow { return cast(bool)(flag & 0x80); }
+    @property bool is_secondary_alignment()   nothrow { return cast(bool)(flag & 0x100); }
+    @property bool failed_quality_control()   nothrow { return cast(bool)(flag & 0x200); }
+    /// PCR or optical duplicate
+    @property bool is_duplicate()             nothrow { return cast(bool)(flag & 0x400); }
+    /// Supplementary alignment
+    @property bool is_supplementary()         nothrow { return cast(bool)(flag & 0x800); }
+}
+
 enum Offset {
   bin_mq_nl=0, flag_nc=4, l_seq=8, next_refID=12, next_pos=16, tlen=20, read_name=24
 };
@@ -71,6 +89,8 @@ struct ReadBlob {
   GenomePos pos;
   private ubyte[] _data;
   uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
+
+  mixin ReadFlags!(_flag_nc);
 
   /*
   this(RefId ref_id, GenomePos read_pos, ubyte[] buf) {
@@ -184,6 +204,10 @@ struct ProcessReadBlob {
     return _read2.raw_sequence();
   }
 
+  @property bool is_mapped() {
+    return ref_id != -1 && !_read2.is_unmapped;
+  }
+
   string toString() {
     return "<** " ~ ProcessReadBlob.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }
@@ -219,7 +243,7 @@ struct BamReadBlobs {
 }
 
 /**
-   Read streamer
+   Read streamer - use on single thread only
 */
 
 // import core.memory : pureMalloc;
@@ -265,6 +289,10 @@ struct BamReadBlobStream {
   }
 
   /// Returns the next matching read. Otherwise null
+  ///
+  /// Example:
+  ///
+  ///    auto current = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
   Nullable!ReadBlob read_if(R)(bool delegate(R r) is_match) {
     while(!empty()) {
       read();

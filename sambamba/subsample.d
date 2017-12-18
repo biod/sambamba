@@ -100,6 +100,7 @@ struct ReadInfo {
    and destroys the leftmost reads that have gone out of the window.
 */
 int subsample_main(string[] args) {
+  bool remove = false;
   globalLogLevel(LogLevel.trace); // debug level
 
   if (args.length < 2) {
@@ -115,7 +116,7 @@ int subsample_main(string[] args) {
     auto stream = BamReadBlobStream(fn);
 
     // get the first two reads
-    auto current = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => r.ref_id != -1));
+    auto current = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
     enforce(!current.isNull);
     auto current_idx = pileup.push(current);
     assert(current_idx == 0);
@@ -130,7 +131,7 @@ int subsample_main(string[] args) {
       // Fill ring buffer ahead until the window is full (current and rightmost)
       // rightmost is null at the end
       while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
-        rightmost = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => r.ref_id != -1));
+        rightmost = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
         if (rightmost.isNull)
           break;
         rightmost_idx = pileup.push(rightmost);
@@ -185,7 +186,7 @@ int subsample_main(string[] args) {
 
 // TODO:
 //
-//   1. find alignment length (end_pos)
+//   1. find template alignment length (end_pos)
 //   2. check depth at start and end (should match pileup)
 //   3. quality filter
 //   4. markdup filter
