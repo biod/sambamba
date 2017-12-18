@@ -116,7 +116,7 @@ int subsample_main(string[] args) {
     auto stream = BamReadBlobStream(fn);
 
     // get the first two reads
-    auto current = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
+    auto current = ProcessReadBlob(stream.read);
     enforce(!current.isNull);
     auto current_idx = pileup.push(current);
     assert(current_idx == 0);
@@ -131,7 +131,7 @@ int subsample_main(string[] args) {
       // Fill ring buffer ahead until the window is full (current and rightmost)
       // rightmost is null at the end
       while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
-        rightmost = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
+        rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
           break;
         rightmost_idx = pileup.push(rightmost);
@@ -147,19 +147,22 @@ int subsample_main(string[] args) {
 
       // Compute depth (leftmost, current, rightmost)
       auto depth = 0;
+      auto ldepth = 0;
       for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
         auto check = pileup.read_at_idx(idx);
-        //                 ---------???????????
-        //                       rrrrrrrrrrr
-        if (check.ref_id == current.ref_id && check.start_pos < current.start_pos && check.end_pos >= current.start_pos) {
-          depth++;
-          write(",b",check.start_pos,"-",check.end_pos);
-        }
-        //                           ----?????
-        //                       rrrrrrrrrrr
-        if (check.ref_id == current.ref_id && check.start_pos >= current.start_pos && check.start_pos <= current.end_pos) {
-          depth++;
-          write(",a",check.start_pos,"-",check.end_pos);
+        if (check.is_mapped && check.ref_id == current.ref_id) {
+          //                 ---------???????????
+          //                       rrrrrrrrrrr
+          if (check.start_pos < current.start_pos && check.end_pos >= current.start_pos) {
+            depth++;
+            write(",b",check.start_pos,"-",check.end_pos);
+          }
+          //                           ----?????
+          //                       rrrrrrrrrrr
+          if (check.start_pos >= current.start_pos && check.start_pos <= current.end_pos) {
+            depth++;
+            write(",a",check.start_pos,"-",check.end_pos);
+          }
         }
       }
       writeln("**** Depth ",depth);
