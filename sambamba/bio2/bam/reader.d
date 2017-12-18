@@ -263,4 +263,15 @@ struct BamReadBlobStream {
     popFront();
     return current;
   }
+
+  /// Returns the next matching read. Otherwise null
+  Nullable!ReadBlob read_if(R)(bool delegate(R r) is_match) {
+    while(!empty()) {
+      read();
+      if (is_match(R(current)))
+        return current;
+    }
+    return Nullable!ReadBlob();
+  }
+
 }

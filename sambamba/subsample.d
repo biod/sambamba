@@ -43,6 +43,7 @@ module sambamba.subsample;
  */
 
 import std.experimental.logger;
+import std.exception;
 import std.getopt;
 import std.parallelism;
 import std.range;
@@ -114,7 +115,8 @@ int subsample_main(string[] args) {
     auto stream = BamReadBlobStream(fn);
 
     // get the first two reads
-    auto current = ProcessReadBlob(stream.read);
+    auto current = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => r.ref_id != -1));
+    enforce(!current.isNull);
     auto current_idx = pileup.push(current);
     assert(current_idx == 0);
     auto rightmost = current;
@@ -124,10 +126,11 @@ int subsample_main(string[] args) {
 
     while (true) { // loop through pileup
       assert(!current.isNull);
+      writeln("Current is ",current.start_pos);
       // Fill ring buffer ahead until the window is full (current and rightmost)
       // rightmost is null at the end
       while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
-        rightmost = ProcessReadBlob(stream.read);
+        rightmost = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => r.ref_id != -1));
         if (rightmost.isNull)
           break;
         rightmost_idx = pileup.push(rightmost);
@@ -149,13 +152,13 @@ int subsample_main(string[] args) {
         //                       rrrrrrrrrrr
         if (check.ref_id == current.ref_id && check.start_pos < current.start_pos && check.end_pos >= current.start_pos) {
           depth++;
-          write("b");
+          write(",b",check.start_pos,"-",check.end_pos);
         }
         //                           ----?????
         //                       rrrrrrrrrrr
         if (check.ref_id == current.ref_id && check.start_pos >= current.start_pos && check.start_pos <= current.end_pos) {
           depth++;
-          write("a");
+          write(",a",check.start_pos,"-",check.end_pos);
         }
       }
       writeln("**** Depth ",depth);
@@ -179,3 +182,14 @@ int subsample_main(string[] args) {
   }
   return 0;
 }
+
+// TODO:
+//
+//   1. find alignment length (end_pos)
+//   2. check depth at start and end (should match pileup)
+//   3. quality filter
+//   4. markdup filter
+//   5. improve for pairs
+//
+// Test Read Chr1:147-181 len 35bp location Chr1:169 igv depth 15-13/17 (11-14 in pileup) - mine 37
+// chr1    1332   59 depth - mine 103
