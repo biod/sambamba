@@ -49,21 +49,25 @@ void fetch_bam_header(ref Header header, ref BgzfStream stream) {
 }
 
 template ReadFlags(alias flag) {
-    @property bool is_paired()                nothrow { return cast(bool)(flag & 0x1); }
-    /// Each segment properly aligned according to the aligner
-    @property bool proper_pair()              nothrow { return cast(bool)(flag & 0x2); }
-    @property bool is_unmapped()              nothrow { return cast(bool)(flag & 0x4); }
-    @property bool mate_is_unmapped()         nothrow { return cast(bool)(flag & 0x8); }
-    @property bool is_reverse_strand()        nothrow { return cast(bool)(flag & 0x10); }
-    @property bool mate_is_reverse_strand()   nothrow { return cast(bool)(flag & 0x20); }
-    @property bool is_first_of_pair()         nothrow { return cast(bool)(flag & 0x40); }
-    @property bool is_second_of_pair()        nothrow { return cast(bool)(flag & 0x80); }
-    @property bool is_secondary_alignment()   nothrow { return cast(bool)(flag & 0x100); }
-    @property bool failed_quality_control()   nothrow { return cast(bool)(flag & 0x200); }
-    /// PCR or optical duplicate
-    @property bool is_duplicate()             nothrow { return cast(bool)(flag & 0x400); }
-    /// Supplementary alignment
-    @property bool is_supplementary()         nothrow { return cast(bool)(flag & 0x800); }
+  @property bool is_paired()                nothrow { return cast(bool)(flag & 0x1); }
+  /// Each segment properly aligned according to the aligner
+  @property bool is_proper_pair()           nothrow { return cast(bool)(flag & 0x2); }
+  @property bool is_unmapped()              nothrow { return cast(bool)(flag & 0x4); }
+  @property bool is_mapped()                nothrow { return cast(bool)(!(flag & 0x4)); }
+  @property bool mate_is_unmapped()         nothrow { return cast(bool)(flag & 0x8); }
+  @property bool is_reverse_strand()        nothrow { return cast(bool)(flag & 0x10); }
+  @property bool mate_is_reverse_strand()   nothrow { return cast(bool)(flag & 0x20); }
+  @property bool is_first_of_pair()         nothrow { return cast(bool)(flag & 0x40); }
+  @property bool is_second_of_pair()        nothrow { return cast(bool)(flag & 0x80); }
+  @property bool is_secondary_alignment()   nothrow { return cast(bool)(flag & 0x100); }
+  @property bool is_qc_fail() nothrow {
+    assert(is_mapped());
+    return cast(bool)(flag & 0x200); }
+  alias is_qc_fail failed_quality_control;
+  /// PCR or optical duplicate
+  @property bool is_duplicate()             nothrow { return cast(bool)(flag & 0x400); }
+  /// Supplementary alignment
+  @property bool is_supplementary()         nothrow { return cast(bool)(flag & 0x800); }
 }
 
 template CheckMapped() {
@@ -159,9 +163,10 @@ struct ReadBlob {
   @property @trusted nothrow private
   uint _tags_offset()      { return _qual_offset + sequence_length; }
   @property @trusted nothrow private
-  ubyte[] raw_sequence()   { return _data[offset_seq..offset_qual]; }
+  ubyte[] raw_sequence()   { return _data[_seq_offset.._qual_offset]; }
 
   alias sequence_length _l_seq;
+  alias _mapq mapping_quality;
 
   string toString() {
     return "<** " ~ ReadBlob.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
@@ -190,6 +195,7 @@ struct ProcessReadBlob {
   }
 
   @property RefId ref_id() {
+    assert(_read2.is_mapped);
     return _read2.refid;
   }
 
@@ -200,13 +206,28 @@ struct ProcessReadBlob {
   alias ref_id refid;
 
   @property GenomePos start_pos() {
+    assert(_read2.is_mapped);
     enforce(_read2.pos < GenomePos.max);
     return cast(GenomePos)_read2.pos;
   }
 
   @property GenomePos end_pos() {
+    assert(_read2.is_mapped);
     enforce(start_pos + sequence_length < GenomePos.max);
     return start_pos + sequence_length;
+  }
+
+  @property GenomeLocation start_loc() {
+    return GenomeLocation(ref_id,start_pos);
+  }
+
+  @property GenomeLocation end_loc() {
+    return GenomeLocation(ref_id,end_pos);
+  }
+
+  @property @trusted MappingQuality mapping_quality() {
+    assert(_read2.is_mapped);
+    return MappingQuality(_read2.mapping_quality);
   }
 
   @property @trusted int sequence_length() {

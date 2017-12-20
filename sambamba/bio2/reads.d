@@ -21,7 +21,15 @@
 
 module bio2.reads;
 
+import sambamba.bio2.constants;
+
 import std.stdio;
+
+bool read_overlaps(R)(GenomeLocation loc, R r) {
+  if (!r.is_mapped2)
+    return false;
+  return r.ref_id == loc.ref_id && loc.pos >= r.start_pos && loc.pos <= r.end_pos;
+}
 
 bool reads_overlap(R)(R r1, R r2) {
   if (r2.is_mapped2 && r2.ref_id == r1.ref_id) {

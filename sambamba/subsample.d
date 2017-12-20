@@ -161,17 +161,25 @@ int subsample_main(string[] args) {
       else
         writeln("     reached end ",pileup.ring.length());
 
-      // Compute depth (leftmost, current, rightmost)
-      auto depth = 0;
-      auto ldepth = 0;
-      for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
-        auto check = pileup.read_at_idx(idx);
-        if (reads_overlap(current,check)) {
-          depth++;
+      if (!current.is_qc_fail) {
+        // Compute depth (leftmost, current, rightmost)
+        auto depth = 0;
+        auto ldepth = 0;
+        auto rdepth = 0;
+        for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
+          auto check = pileup.read_at_idx(idx);
+          if (!check.is_qc_fail) {
+            if (reads_overlap(current,check)) {
+              if (read_overlaps(current.start_loc,check))
+                ldepth++;
+              if (read_overlaps(current.end_loc,check))
+                rdepth++;
+              depth++;
+            }
+          }
         }
+        writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality());
       }
-      writeln("**** Depth ",depth);
-
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
         break;
@@ -199,10 +207,10 @@ int subsample_main(string[] args) {
 // TODO:
 //
 //   1. find template alignment length (end_pos)
-//   2. check depth at start and end (should match pileup)
+//   2. check depth at &start and &end (should match pileup)
 //   3. quality filter
 //   4. markdup filter
 //   5. improve for pairs
 //
-// Test Read Chr1:147-181 len 35bp location Chr1:169 igv depth 15-13/17 (11-14 in pileup) - mine 37
-// chr1    1332   59 depth - mine 103
+// Test Read Chr1:147-181 len 35bp location Chr1:169 igv depth 15-13/17 (11-14 in pileup) - mine 16
+// chr1    1332   59 depth - mine 62
