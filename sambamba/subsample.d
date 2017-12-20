@@ -54,6 +54,7 @@ import sambamba.bio2.bam.reader;
 import sambamba.bio2.bgzf;
 import sambamba.bio2.constants;
 import sambamba.bio2.pileup;
+import sambamba.bio2.reads;
 
 void printUsage() {
   writeln("
@@ -165,19 +166,8 @@ int subsample_main(string[] args) {
       auto ldepth = 0;
       for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
         auto check = pileup.read_at_idx(idx);
-        if (check.is_mapped2 && check.ref_id == current.ref_id) {
-          //                 ---------???????????
-          //                       rrrrrrrrrrr
-          if (check.start_pos < current.start_pos && check.end_pos >= current.start_pos) {
-            depth++;
-            write(",b",check.start_pos,"-",check.end_pos);
-          }
-          //                           ----?????
-          //                       rrrrrrrrrrr
-          if (check.start_pos >= current.start_pos && check.start_pos <= current.end_pos) {
-            depth++;
-            write(",a",check.start_pos,"-",check.end_pos);
-          }
+        if (reads_overlap(current,check)) {
+          depth++;
         }
       }
       writeln("**** Depth ",depth);
