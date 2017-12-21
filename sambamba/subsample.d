@@ -178,7 +178,7 @@ int subsample_main(string[] args) {
             }
           }
         }
-        writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality());
+        writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence);
       }
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
@@ -207,8 +207,8 @@ int subsample_main(string[] args) {
 // TODO:
 //
 //   1. find template alignment length (end_pos)
-//   2. check depth at &start and &end (should match pileup)
-//   3. quality filter
+//   2. &check depth at &start and &end (should match pileup)
+//   3. &quality filter
 //   4. markdup filter
 //   5. improve for pairs
 //

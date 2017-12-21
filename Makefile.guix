@@ -33,8 +33,7 @@ SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard $(UNDEA
 OBJ    = $(SRC:.d=.o)
 OUT    = bin/sambamba
 
-biod:
-	cd $(BIOD_PATH)/src_ragel && make
+.PHONY: all guix guix-debug debug release static profile clean test
 
 # The Guix targets resolve the RPATH automatically
 guix:        DFLAGS += -O -release -g # Guix strips debug flags
@@ -55,8 +54,6 @@ guix release:   LIBS += $(DLIBS)
 static:         LIBS = $(LIBS_STATIC)
 
 guix-debug debug profile: LIBS += $(DLIBS_DEBUG)
-
-.PHONY: all guix guix-debug debug release static profile clean test
 
 all: debug
 
@@ -84,6 +81,9 @@ $(OUT): $(OBJ)
 
 test:
 	./run_tests.sh
+
+biod:
+	cd $(BIOD_PATH)/src_ragel && make
 
 check: all test
 

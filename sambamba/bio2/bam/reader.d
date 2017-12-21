@@ -70,9 +70,18 @@ template ReadFlags(alias flag) {
   @property bool is_supplementary()         nothrow { return cast(bool)(flag & 0x800); }
 }
 
-template CheckMapped() {
-  @property bool is_unmapped2() {  return refid == -1 || is_unmapped; }
-  @property bool is_mapped2() { return !is_unmapped2; }
+template CheckMapped(alias refid) {
+  @property bool is_unmapped2() {
+    return is_unmapped;
+  }
+  @property bool is_mapped2() {
+    debug {
+      if (is_mapped) {
+        assert(refid != -1, "ref_id can not be -1 for mapped read");  // BAM spec
+      }
+    }
+    return !is_unmapped;
+  }
 }
 
 enum Offset {
@@ -94,13 +103,13 @@ enum Offset {
 */
 
 struct ReadBlob {
-  RefId refid;
-  GenomePos pos;
+  RefId refid;   // -1 is invalid (BAM Spec)
+  GenomePos pos; // 0 coordinate based (BAM spec)
   private ubyte[] _data;
   uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
 
   mixin ReadFlags!(_flag_nc);
-  mixin CheckMapped;
+  mixin CheckMapped!(refid);
 
   /*
   this(RefId ref_id, GenomePos read_pos, ubyte[] buf) {
@@ -129,7 +138,7 @@ struct ReadBlob {
   @property @trusted nothrow private const
   int _next_pos()          { return fetch!int(Offset.next_pos); }
   @property @trusted nothrow private const
-  int _tlen()              { return fetch!int(Offset.tlen); }
+  int _tlen()              { return fetch!int(Offset.tlen); } // avoid using TLEN
   @property @trusted nothrow private const
   ushort _bin()            { return _bin_mq_nl >> 16; }
   @property @trusted nothrow private const
@@ -166,7 +175,7 @@ struct ReadBlob {
   ubyte[] raw_sequence()   { return _data[_seq_offset.._qual_offset]; }
 
   alias sequence_length _l_seq;
-  alias _mapq mapping_quality;
+  alias _mapq mapping_quality; // MAPQ
 
   string toString() {
     return "<** " ~ ReadBlob.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
@@ -182,9 +191,10 @@ struct ReadBlob {
 struct ProcessReadBlob {
   private Nullable!ReadBlob _read2;
   Nullable!int sequence_length2;
+  private Nullable!string sequence2;
 
   mixin ReadFlags!(_flag);
-  mixin CheckMapped;
+  mixin CheckMapped!(ref_id);
 
   this(Nullable!ReadBlob _r) {
     _read2 = _r;
@@ -195,7 +205,7 @@ struct ProcessReadBlob {
   }
 
   @property RefId ref_id() {
-    assert(_read2.is_mapped);
+    assert(_read2.is_mapped2);
     return _read2.refid;
   }
 
@@ -206,13 +216,13 @@ struct ProcessReadBlob {
   alias ref_id refid;
 
   @property GenomePos start_pos() {
-    assert(_read2.is_mapped);
+    assert(_read2.is_mapped2);
     enforce(_read2.pos < GenomePos.max);
     return cast(GenomePos)_read2.pos;
   }
 
   @property GenomePos end_pos() {
-    assert(_read2.is_mapped);
+    assert(_read2.is_mapped2);
     enforce(start_pos + sequence_length < GenomePos.max);
     return start_pos + sequence_length;
   }
@@ -225,9 +235,13 @@ struct ProcessReadBlob {
     return GenomeLocation(ref_id,end_pos);
   }
 
-  @property @trusted MappingQuality mapping_quality() {
-    assert(_read2.is_mapped);
+  @property @trusted MappingQuality mapping_quality() { // MAPQ
+    assert(_read2.is_mapped2);
     return MappingQuality(_read2.mapping_quality);
+  }
+
+  @property @trusted int tlen() {
+    return _read2._tlen;
   }
 
   @property @trusted int sequence_length() {
@@ -238,6 +252,31 @@ struct ProcessReadBlob {
 
   @property ubyte[] raw_sequence() {
     return _read2.raw_sequence();
+  }
+
+  /// Return human readable sequence fragment - null if undefined
+  @property Nullable!string sequence() {
+    if (sequence2.isNull) { // is it cached in sequence2?
+      auto raw = _read2.raw_sequence();
+      if (raw[0] == '*')
+        return Nullable!string();
+      auto raw_length = (sequence_length + 1) / 2;
+      char[16] convert = "=ACMGRSVTWYHKDBN";
+      char[] s;
+      s.reserve(sequence_length);
+      for (size_t i = 0; i < sequence_length; i++) {
+        auto is_odd = i % 2;
+        auto nuc = (is_odd ? raw[i/2] & 0b00001111 : (raw[i/2] & 0b11110000) >> 4);
+        s ~= convert[nuc];
+      }
+      sequence2 = cast(string)s;
+    }
+    return sequence2;
+  }
+
+  @property ubyte[] cigar() {
+    assert(_read2.is_mapped2); // BAM spec
+    return [];
   }
 
   string toString() {
