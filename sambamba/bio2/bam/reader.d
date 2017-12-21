@@ -263,13 +263,13 @@ struct ProcessReadBlob {
       auto raw_length = (sequence_length + 1) / 2;
       char[16] convert = "=ACMGRSVTWYHKDBN";
       char[] s;
-      s.reserve(sequence_length);
+      s.reserve(sequence_length); // Heap alloc
       for (size_t i = 0; i < sequence_length; i++) {
         auto is_odd = i % 2;
         auto nuc = (is_odd ? raw[i/2] & 0b00001111 : (raw[i/2] & 0b11110000) >> 4);
         s ~= convert[nuc];
       }
-      sequence2 = cast(string)s;
+      sequence2 = cast(string)s; // Another Heap alloc
     }
     return sequence2;
   }
