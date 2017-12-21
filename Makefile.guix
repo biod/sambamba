@@ -33,6 +33,9 @@ SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard $(UNDEA
 OBJ    = $(SRC:.d=.o)
 OUT    = bin/sambamba
 
+biod:
+	cd $(BIOD_PATH)/src_ragel && make
+
 # The Guix targets resolve the RPATH automatically
 guix:        DFLAGS += -O -release -g # Guix strips debug flags
 
