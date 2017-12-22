@@ -166,7 +166,7 @@ int subsample_main(string[] args) {
             }
           }
         }
-        // writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence);
+        writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence, "cigar", current.cigar);
       }
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
@@ -197,8 +197,9 @@ int subsample_main(string[] args) {
 //   1. find template alignment length (end_pos)
 //   2. &check depth at &start and &end (should match pileup)
 //   3. &quality filter
-//   4. markdup filter
-//   5. improve for pairs
+//   4. check for valid RNAME in case of CIGAR
+//   5. markdup filter
+//   6. improve for pairs
 //
 // Test Read Chr1:147-181 len 35bp location Chr1:169 igv depth 15-13/17 (11-14 in pileup) - mine 16
 // chr1    1332   59 depth - mine 62

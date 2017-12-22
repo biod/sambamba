@@ -13,6 +13,7 @@ import std.string;
 import std.typecons;
 import std.bitmanip;
 
+import bio.bam.cigar;
 import bio.bam.constants;
 
 import sambamba.bio2.bgzf;
@@ -172,6 +173,8 @@ struct ReadBlob {
   @property @trusted nothrow private
   uint _tags_offset()      { return _qual_offset + sequence_length; }
   @property @trusted nothrow private
+  ubyte[] raw_cigar()      { return _data[_cigar_offset.._seq_offset]; }
+  @property @trusted nothrow private
   ubyte[] raw_sequence()   { return _data[_seq_offset.._qual_offset]; }
 
   alias sequence_length _l_seq;
@@ -192,6 +195,7 @@ struct ProcessReadBlob {
   private Nullable!ReadBlob _read2;
   Nullable!int sequence_length2;
   private Nullable!string sequence2;
+  private Nullable!CigarOperations cigar2;
 
   mixin ReadFlags!(_flag);
   mixin CheckMapped!(ref_id);
@@ -250,8 +254,22 @@ struct ProcessReadBlob {
     return sequence_length2;
   }
 
-  @property ubyte[] raw_sequence() {
-    return _read2.raw_sequence();
+  @property Nullable!CigarOperations cigar() {
+    if (cigar2.isNull) {
+      assert(_read2.is_mapped2,"Trying to get CIGAR on an unmapped read"); // BAM spec
+      auto raw = cast(uint[]) _read2.raw_cigar();
+      auto s = new CigarOperation[raw.length]; // Heap alloc
+      s.length = 0;
+      if (raw.length==0 || (raw.length==1 && raw[0] == '*'))
+        s ~= CigarOperation('*');
+      else {
+        for (size_t i = 0; i < raw.length; i++) {
+          s ~= CigarOperation(raw[i]);
+        }
+      }
+      cigar2 = s;
+    }
+    return cigar2;
   }
 
   /// Return human readable sequence fragment - null if undefined
@@ -259,7 +277,7 @@ struct ProcessReadBlob {
     if (sequence2.isNull) { // is it cached in sequence2?
       auto raw = _read2.raw_sequence();
       if (raw[0] == '*')
-        return Nullable!string();
+        return Nullable!string("*");
       auto raw_length = (sequence_length + 1) / 2;
       char[16] convert = "=ACMGRSVTWYHKDBN";
       string s;
@@ -272,11 +290,6 @@ struct ProcessReadBlob {
       sequence2 = s;
     }
     return sequence2;
-  }
-
-  @property ubyte[] cigar() {
-    assert(_read2.is_mapped2,"Trying to get CIGAR on an unmapped read"); // BAM spec
-    return [];
   }
 
   string toString() {

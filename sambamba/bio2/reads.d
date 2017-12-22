@@ -32,17 +32,17 @@ bool read_overlaps(R)(GenomeLocation loc, R r) {
 }
 
 bool reads_overlap(R)(R r1, R r2) {
-  if (r2.is_mapped2 && r2.ref_id == r1.ref_id) {
-    //                 ---------???????????
-    //                       rrrrrrrrrrr
+  if (r1.is_mapped2 && r2.is_mapped2 && r2.ref_id == r1.ref_id) {
+    // r1                      rrrrrrrrrrr
+    // r2                ---------???????????
     if (r2.start_pos < r1.start_pos && r2.end_pos >= r1.start_pos) {
-      write(",b",r2.start_pos,"-",r2.end_pos);
+      // write(",b",r2.start_pos,"-",r2.end_pos);
       return true;
     }
-    //                           ----?????
-    //                       rrrrrrrrrrr
+    // r1                      rrrrrrrrrrr
+    // r2                          ----?????
     if (r2.start_pos >= r1.start_pos && r2.start_pos <= r1.end_pos) {
-      write(",a",r2.start_pos,"-",r2.end_pos);
+      // write(",a",r2.start_pos,"-",r2.end_pos);
       return true;
     }
   }
