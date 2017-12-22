@@ -70,20 +70,6 @@ Options:
 }
 
 /**
-   For every read track position
-*/
-struct ReadInfo {
-  RefId ref_id;
-  GenomePos start_pos, end_pos;
-
-  this(ref ProcessReadBlob read) {
-    ref_id = read.ref_id;
-    start_pos = read.start_pos;
-    end_pos = read.end_pos;
-  }
-}
-
-/**
    Implementation of Hash1. While reads stream in they get piled up in
    a ringbuffer. The ringbuffer gets filled ahead until the read that is
    no longer overlapping, creating a window:
@@ -143,10 +129,11 @@ int subsample_main(string[] args) {
         leftmost = current;
         leftmost_idx = current_idx;
       }
+      assert(current.is_mapped2);
       writeln("Current is ",current.start_pos);
       // Fill ring buffer ahead until the window is full (current and rightmost)
       // rightmost is null at the end of the genome
-      while (!rightmost.isNull && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
+      while (!rightmost.isNull && rightmost.is_mapped2 && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
         rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
           break;
@@ -154,9 +141,10 @@ int subsample_main(string[] args) {
       }
 
       // Now we have a pileup and we can check this read (output)
+      assert(leftmost.is_mapped2);
       writeln("     start  at ",leftmost.ref_id," ",leftmost.start_pos,":",leftmost.end_pos);
       writeln("---> pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos);
-      if (!rightmost.isNull)
+      if (!rightmost.isNull && rightmost.is_mapped2)
         writeln("     ending at ",rightmost.ref_id," ",rightmost.start_pos,":",rightmost.end_pos);
       else
         writeln("     reached end ",pileup.ring.length());
@@ -178,7 +166,7 @@ int subsample_main(string[] args) {
             }
           }
         }
-        writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence);
+        // writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence);
       }
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
@@ -193,7 +181,7 @@ int subsample_main(string[] args) {
       assert(!current.isNull);
 
       // Remove leading reads (leftmost and current)
-      while (leftmost.is_unmapped2 || leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos) {
+      while (leftmost.is_unmapped2 || (leftmost.is_mapped2 && current.is_mapped2 && (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos))) {
         // write read
         leftmost_idx = pileup.popFront();
         leftmost = pileup.front;

@@ -71,10 +71,10 @@ template ReadFlags(alias flag) {
 }
 
 template CheckMapped(alias refid) {
-  @property bool is_unmapped2() {
+  @property nothrow bool is_unmapped2() {
     return is_unmapped;
   }
-  @property bool is_mapped2() {
+  @property nothrow bool is_mapped2() {
     debug {
       if (is_mapped) {
         assert(refid != -1, "ref_id can not be -1 for mapped read");  // BAM spec
@@ -200,12 +200,12 @@ struct ProcessReadBlob {
     _read2 = _r;
   }
 
-  @property bool isNull() {
+  @property nothrow bool isNull() {
     return _read2.isNull;
   }
 
-  @property RefId ref_id() {
-    assert(_read2.is_mapped2);
+  @property nothrow RefId ref_id() {
+    assert(_read2.is_mapped2,"Trying to get ref_id an unmapped read");
     return _read2.refid;
   }
 
@@ -216,13 +216,13 @@ struct ProcessReadBlob {
   alias ref_id refid;
 
   @property GenomePos start_pos() {
-    assert(_read2.is_mapped2);
+    assert(_read2.is_mapped2,"Trying to get pos on an unmapped read"); // BAM spec
     enforce(_read2.pos < GenomePos.max);
     return cast(GenomePos)_read2.pos;
   }
 
   @property GenomePos end_pos() {
-    assert(_read2.is_mapped2);
+    assert(_read2.is_mapped2,"Trying to get pos on an unmapped read");
     enforce(start_pos + sequence_length < GenomePos.max);
     return start_pos + sequence_length;
   }
@@ -236,7 +236,7 @@ struct ProcessReadBlob {
   }
 
   @property @trusted MappingQuality mapping_quality() { // MAPQ
-    assert(_read2.is_mapped2);
+    assert(_read2.is_mapped2,"Trying to get MAPQ on an unmapped read"); // BAM spec
     return MappingQuality(_read2.mapping_quality);
   }
 
@@ -262,20 +262,20 @@ struct ProcessReadBlob {
         return Nullable!string();
       auto raw_length = (sequence_length + 1) / 2;
       char[16] convert = "=ACMGRSVTWYHKDBN";
-      char[] s;
+      string s;
       s.reserve(sequence_length); // Heap alloc
       for (size_t i = 0; i < sequence_length; i++) {
         auto is_odd = i % 2;
         auto nuc = (is_odd ? raw[i/2] & 0b00001111 : (raw[i/2] & 0b11110000) >> 4);
         s ~= convert[nuc];
       }
-      sequence2 = cast(string)s; // Another Heap alloc
+      sequence2 = s;
     }
     return sequence2;
   }
 
   @property ubyte[] cigar() {
-    assert(_read2.is_mapped2); // BAM spec
+    assert(_read2.is_mapped2,"Trying to get CIGAR on an unmapped read"); // BAM spec
     return [];
   }
 
