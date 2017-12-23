@@ -166,7 +166,7 @@ int subsample_main(string[] args) {
             }
           }
         }
-        writeln("**** Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence, "cigar", current.cigar);
+        writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence, "cigar", current.cigar);
       }
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
