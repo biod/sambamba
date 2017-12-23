@@ -196,7 +196,7 @@ struct ReadBlob {
 struct ProcessReadBlob {
   private Nullable!ReadBlob _read2;
   Nullable!int sequence_length2;
-  private Nullable!string sequence2;
+  private Nullable!string sequence2, read_name2;
   private Nullable!CigarOperations cigar2;
 
   mixin ReadFlags!(_flag);
@@ -256,42 +256,47 @@ struct ProcessReadBlob {
     return sequence_length2;
   }
 
-  /// Return read name as a string. If unavailable returns null.
+  /// Return read name as a string. If unavailable returns
+  /// null. Caches name.
   @property Nullable!string read_name() {
-    auto name = cast(string)_read2.read_name;
-    assert(name.length < 255); // BAM spec
-    if (name == "" || name == "*")
-      return Nullable!string();
-    return Nullable!string(name);
+    if (read_name2.isNull) {
+      auto raw = _read2.read_name;
+      if (raw.length == 0 || (raw.length ==1 && raw[0] == '*'))
+        return read_name2; // null
+      assert(raw.length < 255); // BAM spec
+      read_name2 = Nullable!string(cast(string)raw);
+    }
+    return read_name2;
   }
 
   /// Returns Cigar as an array of operations. Returns null if no
-  /// operations.
+  /// operations. Caches Cigar when there are operations.
   @property Nullable!CigarOperations cigar() {
     if (cigar2.isNull) {
       assert(_read2.is_mapped2,"Trying to get CIGAR on an unmapped read"); // BAM spec
       auto raw = cast(uint[]) _read2.raw_cigar();
-      auto s = new CigarOperation[raw.length]; // Heap alloc
-      s.length = 0;
       if (raw.length==0 || (raw.length==1 && raw[0] == '*'))
-        s ~= CigarOperation();
+        return cigar2; // null
       else {
+        auto s = new CigarOperation[raw.length]; // Heap alloc
+        s.length = 0;
         for (size_t i = 0; i < raw.length; i++) {
           s ~= CigarOperation(raw[i]);
         }
+        cigar2 = s;
       }
-      cigar2 = s;
     }
     return cigar2;
   }
 
-  /// Return human readable sequence fragment - null if undefined
+  /// Return human readable sequence fragment - null if
+  /// undefined. Caches sequence.
   @property Nullable!string sequence() {
     if (sequence2.isNull) { // is it cached in sequence2?
       auto raw = _read2.raw_sequence();
       if (raw[0] == '*') {
         assert(raw.length == 1);
-        return Nullable!string();
+        return sequence2; // null
       }
       auto raw_length = (sequence_length + 1) / 2;
       char[16] convert = "=ACMGRSVTWYHKDBN";
