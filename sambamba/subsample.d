@@ -157,6 +157,8 @@ int subsample_main(string[] args) {
         for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
           auto check = pileup.read_at_idx(idx);
           if (!check.is_qc_fail) {
+            assert(current.is_mapped2);
+            assert(check.is_mapped2);
             if (reads_overlap(current,check)) {
               if (read_overlaps(current.start_loc,check))
                 ldepth++;
@@ -166,7 +168,7 @@ int subsample_main(string[] args) {
             }
           }
         }
-        writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " ", current.sequence, "cigar", current.cigar);
+        writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
       }
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
@@ -197,9 +199,10 @@ int subsample_main(string[] args) {
 //   1. find template alignment length (end_pos)
 //   2. &check depth at &start and &end (should match pileup)
 //   3. &quality filter
-//   4. check for valid RNAME in case of CIGAR
-//   5. markdup filter
-//   6. improve for pairs
+//   4. &check for valid RNAME in case of CIGAR
+//   5. Introduce option for validation (less checking by default)
+//   6. markdup filter
+//   7. improve for pairs
 //
 // Test Read Chr1:147-181 len 35bp location Chr1:169 igv depth 15-13/17 (11-14 in pileup) - mine 16
 // chr1    1332   59 depth - mine 62

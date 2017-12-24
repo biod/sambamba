@@ -198,6 +198,7 @@ struct ProcessReadBlob {
   Nullable!int sequence_length2;
   private Nullable!string sequence2, read_name2;
   private Nullable!CigarOperations cigar2;
+  private Nullable!GenomePos consumed_reference_bases2;
 
   mixin ReadFlags!(_flag);
   mixin CheckMapped!(ref_id);
@@ -221,16 +222,18 @@ struct ProcessReadBlob {
 
   alias ref_id refid;
 
+  /// Get the start position on the reference sequence (better use start_loc)
   @property GenomePos start_pos() {
     assert(_read2.is_mapped2,"Trying to get pos on an unmapped read"); // BAM spec
     enforce(_read2.pos < GenomePos.max);
     return cast(GenomePos)_read2.pos;
   }
 
+  /// Get the end position on the reference sequence (better use end_loc)
   @property GenomePos end_pos() {
-    assert(_read2.is_mapped2,"Trying to get pos on an unmapped read");
-    enforce(start_pos + sequence_length < GenomePos.max);
-    return start_pos + sequence_length;
+    assert(sequence_length > 0, "Trying to get end_pos on an empty read sequence");
+    assert(!consumed_reference_bases.isNull);
+    return start_pos + consumed_reference_bases;
   }
 
   @property GenomeLocation start_loc() {
@@ -246,24 +249,47 @@ struct ProcessReadBlob {
     return MappingQuality(_read2.mapping_quality);
   }
 
-  @property @trusted int tlen() {
+  @property @trusted int tlen() { // do not use
     return _read2._tlen;
   }
 
-  @property @trusted int sequence_length() {
+  @property @trusted GenomePos sequence_length() {
     if (sequence_length2.isNull)
       sequence_length2 = _read2.sequence_length;
     return sequence_length2;
+  }
+
+  @property @trusted Nullable!GenomePos consumed_reference_bases() {
+    if (consumed_reference_bases2.isNull) {
+      assert(_read2.is_mapped2,"Trying to get consumed bases on an unmapped read"); // BAM spec
+      assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
+      auto raw = cast(uint[]) _read2.raw_cigar();
+      if (raw.length==1 && raw[0] == '*')
+        return consumed_reference_bases2; // null
+      else {
+        GenomePos bases = 0;
+        for (size_t i = 0; i < raw.length; i++) {
+          auto cigarop = CigarOperation(raw[i]);
+          if (cigarop.is_query_consuming)
+            bases += cigarop.length;
+        }
+        consumed_reference_bases2 = bases;
+      }
+    }
+    return consumed_reference_bases2;
   }
 
   /// Return read name as a string. If unavailable returns
   /// null. Caches name.
   @property Nullable!string read_name() {
     if (read_name2.isNull) {
+      assert(_read2.is_mapped2,"Trying to get RNAME on an unmapped read"); // BAM spec
       auto raw = _read2.read_name;
       if (raw.length == 0 || (raw.length ==1 && raw[0] == '*'))
         return read_name2; // null
       assert(raw.length < 255); // BAM spec
+      if (raw[raw.length-1] == 0) // strip trailing C zero
+        raw.length -= 1;
       read_name2 = Nullable!string(cast(string)raw);
     }
     return read_name2;
@@ -274,6 +300,7 @@ struct ProcessReadBlob {
   @property Nullable!CigarOperations cigar() {
     if (cigar2.isNull) {
       assert(_read2.is_mapped2,"Trying to get CIGAR on an unmapped read"); // BAM spec
+      assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
       auto raw = cast(uint[]) _read2.raw_cigar();
       if (raw.length==0 || (raw.length==1 && raw[0] == '*'))
         return cigar2; // null
