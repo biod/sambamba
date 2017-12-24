@@ -222,7 +222,9 @@ struct ProcessReadBlob {
 
   alias ref_id refid;
 
-  /// Get the start position on the reference sequence (better use start_loc)
+  /// Get the start position on the reference sequence (better use
+  /// start_loc), i.e., the first base that gets consumed in the
+  /// CIGAR.
   @property GenomePos start_pos() {
     assert(_read2.is_mapped2,"Trying to get pos on an unmapped read"); // BAM spec
     enforce(_read2.pos < GenomePos.max);
@@ -259,6 +261,8 @@ struct ProcessReadBlob {
     return sequence_length2;
   }
 
+  /// Count and caches consumed reference bases. Uses raw_cigar to
+  /// avoid a heap allocation.
   @property @trusted Nullable!GenomePos consumed_reference_bases() {
     if (consumed_reference_bases2.isNull) {
       assert(_read2.is_mapped2,"Trying to get consumed bases on an unmapped read"); // BAM spec
@@ -270,13 +274,32 @@ struct ProcessReadBlob {
         GenomePos bases = 0;
         for (size_t i = 0; i < raw.length; i++) {
           auto cigarop = CigarOperation(raw[i]);
-          if (cigarop.is_query_consuming)
+          if (cigarop.is_reference_consuming)
             bases += cigarop.length;
         }
         consumed_reference_bases2 = bases;
       }
     }
     return consumed_reference_bases2;
+  }
+
+  /// Count query consumed bases. Uses raw_cigar to avoid a heap
+  /// allocation.
+  @property @trusted GenomePos consumed_query_bases() {
+    assert(_read2.is_mapped2,"Trying to get consumed bases on an unmapped read"); // BAM spec
+    assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
+    auto raw = cast(uint[]) _read2.raw_cigar();
+    if (raw.length==1 && raw[0] == '*')
+      return consumed_reference_bases2; // null
+    else {
+      GenomePos bases = 0;
+      for (size_t i = 0; i < raw.length; i++) {
+        auto cigarop = CigarOperation(raw[i]);
+        if (cigarop.is_query_consuming)
+          bases += cigarop.length;
+      }
+      return bases;
+    }
   }
 
   /// Return read name as a string. If unavailable returns

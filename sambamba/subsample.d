@@ -196,13 +196,16 @@ int subsample_main(string[] args) {
 
 // TODO:
 //
-//   1. find template alignment length (end_pos)
+//   1. &find template alignment length (end_pos)
 //   2. &check depth at &start and &end (should match pileup)
 //   3. &quality filter
 //   4. &check for valid RNAME in case of CIGAR
-//   5. Introduce option for validation (less checking by default)
-//   6. markdup filter
-//   7. improve for pairs
+//   5. Write file
+//   6. Go multi-core
+//   7. Introduce option for (development) validation (less checking by default) and
+//      introduce assert_throws
+//   8. markdup filter
+//   9. improve for pairs
 //
 // Test Read Chr1:147-181 len 35bp location Chr1:169 igv depth 15-13/17 (11-14 in pileup) - mine 16
 // chr1    1332   59 depth - mine 62
