@@ -140,6 +140,7 @@ int subsample_main(string[] args) {
         rightmost_idx = pileup.push(rightmost);
       }
 
+      if (false) {
       // Now we have a pileup and we can check this read (output)
       assert(leftmost.is_mapped2);
       writeln("     start  at ",leftmost.ref_id," ",leftmost.start_pos,":",leftmost.end_pos);
@@ -148,6 +149,7 @@ int subsample_main(string[] args) {
         writeln("     ending at ",rightmost.ref_id," ",rightmost.start_pos,":",rightmost.end_pos);
       else
         writeln("     reached end ",pileup.ring.length());
+      }
 
       if (!current.is_qc_fail) {
         // Compute depth (leftmost, current, rightmost)
@@ -159,17 +161,21 @@ int subsample_main(string[] args) {
           if (!check.is_qc_fail) {
             assert(current.is_mapped2);
             assert(check.is_mapped2);
-            if (reads_overlap(current,check)) {
-              if (read_overlaps(current.start_loc,check))
+            assert(current.ref_id == check.ref_id);
+            // all time is consumed in this section
+            if (reads_overlap(current,check)) { // 8s
+              if (read_overlaps(current.start_loc,check)) // 5s
                 ldepth++;
-              if (read_overlaps(current.end_loc,check))
+              if (read_overlaps(current.end_loc,check)) // 5s
                 rdepth++;
               depth++;
             }
           }
         }
+        if (false)
         writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
       }
+
       // Stop at end of data
       if (rightmost.isNull && pileup.idx_at_end(current_idx))
         break;

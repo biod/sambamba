@@ -26,25 +26,20 @@ import sambamba.bio2.constants;
 import std.stdio;
 
 bool read_overlaps(R)(GenomeLocation loc, R r) {
-  if (!r.is_mapped2)
-    return false;
+  assert(r.is_mapped2);
   return r.ref_id == loc.ref_id && loc.pos >= r.start_pos && loc.pos <= r.end_pos;
 }
 
 bool reads_overlap(R)(R r1, R r2) {
-  if (r1.is_mapped2 && r2.is_mapped2 && r2.ref_id == r1.ref_id) {
-    // r1                      rrrrrrrrrrr
-    // r2                ---------???????????
-    if (r2.start_pos < r1.start_pos && r2.end_pos >= r1.start_pos) {
-      // write(",b",r2.start_pos,"-",r2.end_pos);
-      return true;
-    }
-    // r1                      rrrrrrrrrrr
-    // r2                          ----?????
-    if (r2.start_pos >= r1.start_pos && r2.start_pos <= r1.end_pos) {
-      // write(",a",r2.start_pos,"-",r2.end_pos);
-      return true;
-    }
+  assert(r1.is_mapped2);
+  assert(r2.is_mapped2);
+  assert(r2.ref_id == r1.ref_id);
+  // r1                      rrrrrrrrrrr
+  // r2                ---------???????????
+  if (r2.start_pos < r1.start_pos && r2.end_pos >= r1.start_pos) {
+    return true;
   }
-  return false;
+  // r1                      rrrrrrrrrrr
+  // r2                          ----?????
+  return r2.start_pos >= r1.start_pos && r2.start_pos <= r1.end_pos;
 }
