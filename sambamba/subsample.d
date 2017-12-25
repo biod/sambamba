@@ -42,6 +42,7 @@ module sambamba.subsample;
 
  */
 
+import std.algorithm.comparison : max;
 import std.experimental.logger;
 import std.exception;
 import std.getopt;
@@ -52,6 +53,7 @@ import std.typecons;
 
 import sambamba.bio2.bam.reader;
 import sambamba.bio2.bgzf;
+import sambamba.bio2.hashing;
 import sambamba.bio2.constants;
 import sambamba.bio2.pileup;
 import sambamba.bio2.reads;
@@ -89,6 +91,7 @@ Options:
 int subsample_main(string[] args) {
   bool remove = false;
   globalLogLevel(LogLevel.trace); // debug level
+  auto max_cov = 20;
 
   if (args.length < 2) {
     printUsage();
@@ -97,6 +100,7 @@ int subsample_main(string[] args) {
 
   auto infns = args[1..$];
 
+  assert(max_cov > 0);
   foreach (string fn; infns) {
     auto pileup = new PileUp!ProcessReadBlob();
     auto stream = BamReadBlobStream(fn);
@@ -163,17 +167,31 @@ int subsample_main(string[] args) {
             assert(check.is_mapped2);
             assert(current.ref_id == check.ref_id);
             // all time is consumed in this section
-            if (reads_overlap(current,check)) { // 8s
-              if (read_overlaps(current.start_loc,check)) // 5s
-                ldepth++;
-              if (read_overlaps(current.end_loc,check)) // 5s
-                rdepth++;
-              depth++;
-            }
+            // if (reads_overlap(current,check)) { // 8s
+            if (read_overlaps(current.start_loc,check)) // 5s
+              ldepth++;
+            if (read_overlaps(current.end_loc,check)) // 5s
+              rdepth++;
+            //  depth++;
+            // }
           }
         }
+        auto this_cov = max(ldepth,rdepth);
+        if (this_cov > max_cov) {
+          auto hash = SuperFastHash(current.read_name);
+          writeln("#",hash);
+          /*
+            double sample_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
+            uint k = __ac_Wang_hash(__ac_X31_hash_string(r.Qname().c_str()) ^ m_seed);
+            if (cast(double)(k & 0xffffff)/0x1000000 <= sample_rate) { // passed the random filter
+            // do nothing
+            } else if (m_mark_qc_fail) {
+            write("QCF");
+            }
+          */
+        }
         if (false)
-        writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
+          writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
       }
 
       // Stop at end of data
