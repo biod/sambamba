@@ -27,22 +27,22 @@ ushort get16bits(char *p)
   return cast(ushort)*p;
 }
 
-/// Paul Hsieh's fast hash (LGPL license)  http://www.azillionmonkeys.com/qed/hash.html
-uint SuperFastHash(string str) {
+/// Paul Hsieh's fast hash (LGPL license), see http://www.azillionmonkeys.com/qed/hash.html
+uint SuperFastHash(string str, uint hashinc = 0) {
   auto data = cast(char*)str.ptr;
   auto len  = cast(int)str.length;
-  int hash = len, tmp;
-  int rem;
+
+  unint hash = (hash2 > 0 ? hashinc : len);
 
   if (len == 0) return 0;
 
-  rem = len & 3;
+  int rem = len & 3;
   len >>= 2;
 
   /* Main loop */
   for (;len > 0; len--) {
-    hash  += get16bits (data);
-    tmp    = (get16bits (data+2) << 11) ^ hash;
+    hash  += get16bits(data);
+    uint tmp    = (get16bits(data+2) << 11) ^ hash;
     hash   = (hash << 16) ^ tmp;
     data  += 2*ushort.sizeof;
     hash  += hash >> 11;
@@ -50,12 +50,12 @@ uint SuperFastHash(string str) {
 
   /* Handle end cases */
   switch (rem) {
-  case 3: hash += get16bits (data);
+  case 3: hash += get16bits(data);
     hash ^= hash << 16;
     hash ^= (cast(char)data[ushort.sizeof]) << 18;
     hash += hash >> 11;
     break;
-  case 2: hash += get16bits (data);
+  case 2: hash += get16bits(data);
     hash ^= hash << 11;
     hash += hash >> 17;
     break;
