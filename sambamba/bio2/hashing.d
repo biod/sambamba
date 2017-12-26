@@ -21,18 +21,24 @@
 
 module bio2.hashing;
 
+import std.conv;
+import std.stdio;
+
 pragma(inline):
 ushort get16bits(char *p)
 {
-  return cast(ushort)*p;
+  ushort p0 = p[0];
+  ushort p1 = p[1];
+  // return p[1]*256+p[0];
+  return cast(ushort)(p1*256+p0);
 }
 
 /// Paul Hsieh's fast hash (LGPL license), see http://www.azillionmonkeys.com/qed/hash.html
 uint SuperFastHash(string str, uint hashinc = 0) {
   auto data = cast(char*)str.ptr;
-  auto len  = cast(int)str.length;
+  auto len  = cast(uint)str.length;
 
-  unint hash = (hash2 > 0 ? hashinc : len);
+  uint hash = (hashinc > 0 ? hashinc : 0);
 
   if (len == 0) return 0;
 
@@ -52,14 +58,14 @@ uint SuperFastHash(string str, uint hashinc = 0) {
   switch (rem) {
   case 3: hash += get16bits(data);
     hash ^= hash << 16;
-    hash ^= (cast(char)data[ushort.sizeof]) << 18;
+    hash ^= (cast(ushort)data[ushort.sizeof]) << 18;
     hash += hash >> 11;
     break;
   case 2: hash += get16bits(data);
     hash ^= hash << 11;
     hash += hash >> 17;
     break;
-  case 1: hash += cast(char)*data;
+  case 1: hash += cast(ushort)*data;
     hash ^= hash << 10;
     hash += hash >> 1;
     break;
@@ -76,4 +82,18 @@ uint SuperFastHash(string str, uint hashinc = 0) {
   hash += hash >> 6;
 
   return hash;
+}
+
+
+unittest {
+  // Make sure it behaves the same as the original
+  auto test = get16bits(cast(char *)("xy".ptr));
+  assert(test == 31096, to!string(test));
+  auto test2 = get16bits(cast(char *)("xyz".ptr));
+  assert(test2 == 31096, to!string(test2));
+  assert(get16bits(cast(char *)"xyz".ptr) == 31096);
+  assert(SuperFastHash("*")==1029965590,to!string(SuperFastHash("*")));
+  assert(SuperFastHash("hst")==1867544282,to!string(SuperFastHash("hst")));
+  assert(SuperFastHash("hstiaashccaht")==2173265029,to!string(SuperFastHash("hstiaashccaht")));
+  assert(SuperFastHash("Pjotr")==2808102289,to!string(SuperFastHash("Pjotr")));
 }
