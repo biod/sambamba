@@ -25,7 +25,7 @@ import std.conv;
 import std.stdio;
 
 pragma(inline):
-ushort get16bits(char *p)
+pure nothrow @nogc ushort get16bits(char *p)
 {
   ushort p0 = p[0];
   ushort p1 = p[1];
@@ -34,7 +34,7 @@ ushort get16bits(char *p)
 }
 
 /// Paul Hsieh's fast hash (LGPL license), see http://www.azillionmonkeys.com/qed/hash.html
-uint SuperFastHash(string str, uint hashinc = 0) {
+pure nothrow @nogc uint SuperFastHash(string str, uint hashinc = 0) {
   auto data = cast(char*)str.ptr;
   auto len  = cast(uint)str.length;
 
