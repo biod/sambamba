@@ -1,6 +1,25 @@
-/**
-   New style BAM writer
+/*
+    New style BAM writer. This file is part of Sambamba.
+    Copyright (C) 2017 Pjotr Prins <pjotr.prins@thebird.nl>
+
+    Sambamba is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published
+    by the Free Software Foundation; either version 2 of the License,
+    or (at your option) any later version.
+
+    Sambamba is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307 USA
+
 */
+
+// Based on the original by Artem Tarasov.
 
 module sambamba.bio2.bam.reader;
 
@@ -17,7 +36,7 @@ import std.typecons;
 import bio.core.bgzf.compress;
 import bio.core.utils.roundbuf;
 
-import undead.stream;
+// import undead.stream;
 
 import bio.bam.constants: BGZF_MAX_BLOCK_SIZE, BGZF_BLOCK_SIZE, BGZF_EOF;
 import sambamba.bio2.bgzf;
@@ -34,10 +53,10 @@ bgzfCompressFunc(ubyte[] input, int level, ubyte[] output_buffer,
 }
 
 /// Class for BGZF compression
-class BgzfOutputStream : Stream {
+class BgzfOutputStream {
 
   private {
-    Stream _stream = void;
+    // Stream _stream = void;
     TaskPool _task_pool = void;
 
     ubyte[] _buffer; // a slice into _compression_buffer (uncompressed data)
@@ -54,7 +73,7 @@ class BgzfOutputStream : Stream {
 
   /// Create new BGZF output stream which will use
   /// provided $(D task_pool) to do multithreaded compression.
-  this(Stream output_stream,
+  this(string fn,
        int compression_level=-1,
        TaskPool task_pool=taskPool,
        size_t buffer_size=0,
@@ -63,7 +82,6 @@ class BgzfOutputStream : Stream {
   {
     enforce(-1 <= compression_level && compression_level <= 9,
             "Compression level must be a number in interval [-1, 9]");
-    _stream = output_stream;
     _task_pool = task_pool;
     _compression_level = compression_level;
 
