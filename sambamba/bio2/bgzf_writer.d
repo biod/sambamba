@@ -1,5 +1,5 @@
 /*
-    New style BAM writer. This file is part of Sambamba.
+    New style BGZF writer. This file is part of Sambamba.
     Copyright (C) 2017 Pjotr Prins <pjotr.prins@thebird.nl>
 
     Sambamba is free software; you can redistribute it and/or modify
@@ -21,9 +21,9 @@
 
 // Based on the original by Artem Tarasov.
 
-module sambamba.bio2.bam.reader;
+module sambamba.bio2.bgzf_writer;
 
-// import core.stdc.stdlib;
+import core.stdc.stdlib : malloc, free;
 import core.stdc.stdio: fopen, fread, fclose;
 import std.conv;
 import std.exception;
@@ -31,6 +31,7 @@ import std.typecons;
 import std.parallelism;
 import std.array;
 import std.algorithm : max;
+import std.stdio;
 import std.typecons;
 
 import bio.core.bgzf.compress;
@@ -52,10 +53,12 @@ bgzfCompressFunc(ubyte[] input, int level, ubyte[] output_buffer,
   return tuple(input, output, handler);
 }
 
-/// Class for BGZF compression
-class BgzfOutputStream {
+/// Class for BGZF compression - this is a port of the original that
+/// used the undead.stream library.
+struct BgzfOutputStream {
 
   private {
+    File f;
     // Stream _stream = void;
     TaskPool _task_pool = void;
 
@@ -80,6 +83,7 @@ class BgzfOutputStream {
        size_t max_block_size=BGZF_MAX_BLOCK_SIZE,
        size_t block_size=BGZF_BLOCK_SIZE)
   {
+    f = File(fn,"r");
     enforce(-1 <= compression_level && compression_level <= 9,
             "Compression level must be a number in interval [-1, 9]");
     _task_pool = task_pool;
@@ -93,24 +97,25 @@ class BgzfOutputStream {
 
     // 1 extra block to which we can write while n_tasks are executed
     auto comp_buf_size = (2 * n_tasks + 2) * max_block_size;
-    auto p = cast(ubyte*)core.stdc.stdlib.malloc(comp_buf_size);
+    auto p = cast(ubyte*)malloc(comp_buf_size);
     _compression_buffer = p[0 .. comp_buf_size];
     _buffer = _compression_buffer[0 .. block_size];
     _tmp = _compression_buffer[max_block_size .. max_block_size * 2];
-
-    readable = false;
-    writeable = true;
-    seekable = false;
   }
 
-  override size_t readBlock(void* buffer, size_t size) {
-    throw new ReadException("Stream is not readable");
+  @disable this(this); // BgzfReader does not have copy semantics;
+
+  void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
+    throw new BgzfException("Error writing BGZF block starting in "~f.name ~
+                            " (" ~ file ~ ":" ~ to!string(line) ~ "): " ~ msg);
   }
 
-  override ulong seek(long offset, SeekPos whence) {
-    throw new SeekException("Stream is not seekable");
+  void enforce1(bool check, lazy string msg, string file = __FILE__, int line = __LINE__) {
+    if (!check)
+      throwBgzfException(msg,file,line);
   }
-  override size_t writeBlock(const void* buf, size_t size) {
+
+  size_t writeBlock(const void* buf, size_t size) {
     if (size + _current_size >= _buffer.length) {
       size_t room;
       ubyte[] data = (cast(ubyte*)buf)[0 .. size];
@@ -136,7 +141,8 @@ class BgzfOutputStream {
   }
 
   /// Force flushing current block, even if it is not yet filled.
-  /// Should be used when it's not desired to have records crossing block borders.
+  /// Should also be used when it's not desired to have records
+  /// crossing block borders.
   void flushCurrentBlock() {
 
     if (_current_size == 0)
@@ -188,11 +194,12 @@ class BgzfOutputStream {
     if (handler) {// write handler enabled
       handler(uncompressed, compressed);
     }
-    _stream.writeExact(compressed.ptr, compressed.length);
+    // _stream.writeExact(compressed.ptr, compressed.length);
+    f.rawWrite(compressed);
   }
 
   /// Flush all remaining BGZF blocks and underlying stream.
-  override void flush() {
+  void flush() {
     flushCurrentBlock();
 
     while (!_compression_tasks.empty) {
@@ -202,26 +209,24 @@ class BgzfOutputStream {
       _compression_tasks.popFront();
     }
 
-    _stream.flush();
+    f.flush();
     _current_size = 0;
   }
 
   /// Flush all remaining BGZF blocks and close source stream.
-  /// Automatically adds empty block at the end, serving as
-  /// indicator of end of stream.
-  override void close() {
+  /// Automatically adds empty block at the end, serving as indicator
+  /// of end of stream. Make sure this function is called on
+  /// completion.
+  void close() {
     flush();
-
     addEofBlock();
-
-    _stream.close();
-
-    writeable = false;
-    core.stdc.stdlib.free(_compression_buffer.ptr);
+    f.close();
+    free(_compression_buffer.ptr);
   }
 
   /// Adds EOF block. This function is called in close() method.
   void addEofBlock() {
-    _stream.writeExact(BGZF_EOF.ptr, BGZF_EOF.length);
+    // _stream.writeExact(BGZF_EOF.ptr, BGZF_EOF.length);
+    f.rawWrite(BGZF_EOF);
   }
 }
