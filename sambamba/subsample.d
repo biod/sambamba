@@ -179,16 +179,13 @@ int subsample_main(string[] args) {
         auto this_cov = max(ldepth,rdepth);
         if (this_cov > max_cov) {
           auto hash = SuperFastHash(current.read_name);
-          writeln("#",hash);
-          /*
-            double sample_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
-            uint k = __ac_Wang_hash(__ac_X31_hash_string(r.Qname().c_str()) ^ m_seed);
-            if (cast(double)(k & 0xffffff)/0x1000000 <= sample_rate) { // passed the random filter
-            // do nothing
-            } else if (m_mark_qc_fail) {
-            write("QCF");
-            }
-          */
+          double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
+          double rand = cast(double)(hash & 0xffffff)/0x1000000;
+          writeln("#",hash," depth ",this_cov, " sample drop rate ",sample_drop_rate," rand ",rand);
+          if (rand < -sample_drop_rate)
+            writeln("drop");
+          else
+            writeln("keep");
         }
         if (false)
           writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
@@ -211,6 +208,7 @@ int subsample_main(string[] args) {
         // write read
         leftmost_idx = pileup.popFront();
         leftmost = pileup.front;
+        write(leftmost);
       }
       assert(!pileup.empty);
     }
@@ -230,6 +228,3 @@ int subsample_main(string[] args) {
 //      introduce assert_throws
 //   8. markdup filter
 //   9. improve for pairs
-//
-// Test Read Chr1:147-181 len 35bp location Chr1:169 igv depth 15-13/17 (11-14 in pileup) - mine 16
-// chr1    1332   59 depth - mine 62
