@@ -53,49 +53,42 @@ bgzfCompressFunc(ubyte[] input, int level, ubyte[] output_buffer,
   return tuple(input, output, handler);
 }
 
-/// Class for BGZF compression - this is a port of the original that
-/// used the undead.stream library.
-struct BgzfOutputStream {
+/// BGZF compression - this is a port of the original that used the
+/// undead.stream library.
+struct BgzfWriter {
 
-  private {
-    File f;
-    // Stream _stream = void;
-    TaskPool _task_pool = void;
+private:
+  File f;
+  TaskPool task_pool;
 
-    ubyte[] _buffer; // a slice into _compression_buffer (uncompressed data)
-    ubyte[] _tmp;    // a slice into _compression_buffer (compressed data)
-    size_t _current_size;
+  ubyte[] _buffer; // a slice into _compression_buffer (uncompressed data)
+  ubyte[] _tmp;    // a slice into _compression_buffer (compressed data)
+  size_t _current_size;
+  int _compression_level;
 
-    int _compression_level;
+  alias Task!(bgzfCompressFunc,
+              ubyte[], int, ubyte[], BlockWriteHandler) CompressionTask;
+  RoundBuf!(CompressionTask*) _compression_tasks;
+  ubyte[] _compression_buffer;
 
-    alias Task!(bgzfCompressFunc,
-                ubyte[], int, ubyte[], BlockWriteHandler) CompressionTask;
-    RoundBuf!(CompressionTask*) _compression_tasks;
-    ubyte[] _compression_buffer;
-  }
+public:
 
-  /// Create new BGZF output stream which will use
-  /// provided $(D task_pool) to do multithreaded compression.
-  this(string fn,
-       int compression_level=-1,
-       TaskPool task_pool=taskPool,
-       size_t buffer_size=0,
-       size_t max_block_size=BGZF_MAX_BLOCK_SIZE,
-       size_t block_size=BGZF_BLOCK_SIZE)
-  {
+  /// Create new BGZF output stream with a multi-threaded writer
+  this(string fn, int compression_level=-1) {
     f = File(fn,"r");
-    enforce(-1 <= compression_level && compression_level <= 9,
-            "Compression level must be a number in interval [-1, 9]");
-    _task_pool = task_pool;
+    enforce1(-1 <= compression_level && compression_level <= 9,
+            "BGZF compression level must be a number in interval [-1, 9]");
+    size_t max_block_size= BGZF_MAX_BLOCK_SIZE;
+    size_t block_size    = BGZF_BLOCK_SIZE;
+    task_pool   = taskPool(),
     _compression_level = compression_level;
 
+    // create a ring buffer that is large enough
     size_t n_tasks = max(task_pool.size, 1) * 16;
-    if (buffer_size > 0) {
-      n_tasks = max(n_tasks, buffer_size / max_block_size);
-    }
     _compression_tasks = RoundBuf!(CompressionTask*)(n_tasks);
 
-    // 1 extra block to which we can write while n_tasks are executed
+    // create extra block to which we can write while n_tasks are
+    // executed
     auto comp_buf_size = (2 * n_tasks + 2) * max_block_size;
     auto p = cast(ubyte*)malloc(comp_buf_size);
     _compression_buffer = p[0 .. comp_buf_size];
@@ -103,7 +96,7 @@ struct BgzfOutputStream {
     _tmp = _compression_buffer[max_block_size .. max_block_size * 2];
   }
 
-  @disable this(this); // BgzfReader does not have copy semantics;
+  @disable this(this); // BgzfWriter does not have copy semantics;
 
   void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
     throw new BgzfException("Error writing BGZF block starting in "~f.name ~
@@ -115,19 +108,19 @@ struct BgzfOutputStream {
       throwBgzfException(msg,file,line);
   }
 
-  size_t writeBlock(const void* buf, size_t size) {
+  size_t write(const void* buf, size_t size) {
     if (size + _current_size >= _buffer.length) {
       size_t room;
       ubyte[] data = (cast(ubyte*)buf)[0 .. size];
 
       while (data.length + _current_size >= _buffer.length) {
-                room = _buffer.length - _current_size;
-                _buffer[$ - room .. $] = data[0 .. room];
-                data = data[room .. $];
+        room = _buffer.length - _current_size;
+        _buffer[$ - room .. $] = data[0 .. room];
+        data = data[room .. $];
 
-                _current_size = _buffer.length;
+        _current_size = _buffer.length;
 
-                flushCurrentBlock();
+        flush_block();
       }
 
       _buffer[0 .. data.length] = data[];
@@ -143,8 +136,7 @@ struct BgzfOutputStream {
   /// Force flushing current block, even if it is not yet filled.
   /// Should also be used when it's not desired to have records
   /// crossing block borders.
-  void flushCurrentBlock() {
-
+  void flush_block() {
     if (_current_size == 0)
       return;
 
@@ -158,7 +150,7 @@ struct BgzfOutputStream {
                                                   _compression_level, _tmp,
                                                   _before_write);
     _compression_tasks.put(compression_task);
-    _task_pool.put(compression_task);
+    task_pool.put(compression_task);
 
     size_t offset = _buffer.ptr - _compression_buffer.ptr;
     immutable N = _tmp.length;
@@ -200,7 +192,7 @@ struct BgzfOutputStream {
 
   /// Flush all remaining BGZF blocks and underlying stream.
   void flush() {
-    flushCurrentBlock();
+    flush_block();
 
     while (!_compression_tasks.empty) {
       auto task = _compression_tasks.front;
@@ -219,14 +211,8 @@ struct BgzfOutputStream {
   /// completion.
   void close() {
     flush();
-    addEofBlock();
+    f.rawWrite(BGZF_EOF);
     f.close();
     free(_compression_buffer.ptr);
-  }
-
-  /// Adds EOF block. This function is called in close() method.
-  void addEofBlock() {
-    // _stream.writeExact(BGZF_EOF.ptr, BGZF_EOF.length);
-    f.rawWrite(BGZF_EOF);
   }
 }
