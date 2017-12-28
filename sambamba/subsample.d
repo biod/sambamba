@@ -222,7 +222,7 @@ int subsample_main(string[] args) {
 //   2. &check depth at &start and &end (should match pileup)
 //   3. &quality filter
 //   4. &check for valid RNAME in case of CIGAR
-//   5. Write file
+//   5. Write header, bgzf blocks and check ringbuffer implementation
 //   6. Go multi-core
 //   7. Introduce option for (development) validation (less checking by default) and
 //      introduce assert_throws

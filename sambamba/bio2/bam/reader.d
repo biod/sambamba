@@ -38,35 +38,7 @@ import bio.bam.constants;
 import sambamba.bio2.bgzf;
 import sambamba.bio2.constants;
 
-struct RefSequence {
-  size_d length;
-  string name;
-}
-
-struct Header {
-  string id;
-  string text;
-  RefSequence[] refs;
-
-  @disable this(this); // disable copy semantics;
-
-}
-
-void fetch_bam_header(ref Header header, ref BgzfStream stream) {
-  ubyte[4] ubyte4;
-  stream.read(ubyte4);
-  enforce(ubyte4 == BAM_MAGIC,"Invalid file format: expected BAM magic number");
-  immutable text_size = stream.read!int();
-  immutable text = stream.read!string(text_size);
-  header = Header(BAM_MAGIC,text);
-  immutable n_refs = stream.read!int();
-  foreach(int n_ref; 0..n_refs) {
-    immutable l_name = stream.read!int();
-    auto ref_name = stream.read!string(l_name);
-    immutable l_ref = stream.read!int();
-    header.refs ~= RefSequence(l_ref,ref_name);
-  }
-}
+import sambamba.bio2.bam.header;
 
 template ReadFlags(alias flag) {
   @property bool is_paired()                nothrow { return cast(bool)(flag & 0x1); }
