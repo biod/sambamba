@@ -115,7 +115,7 @@ public:
       throwBgzfException(msg,file,line);
   }
 
-  size_t write(const void* buf, size_t size) {
+  void write(const void* buf, size_t size) {
     if (size + current_size >= buffer.length) {
       size_t room;
       ubyte[] data = (cast(ubyte*)buf)[0 .. size];
@@ -136,22 +136,22 @@ public:
       buffer[current_size .. current_size + size] = (cast(ubyte*)buf)[0 .. size];
       current_size += size;
     }
-    return size;
+    // return size;
   }
 
-  size_t write(ubyte[] buf) {
-    return write(buf.ptr, buf.length);
+  void write(ubyte[] buf) {
+    write(buf.ptr, buf.length);
   }
 
-  int read(T)() { // for integers
-    ubyte[T.sizeof] buf;
-    auto b = fetch(buf);
-    return b.read!(T,Endian.littleEndian)();
+  void write(string s) {
+    write(cast(ubyte[])s);
   }
 
-  void write(T)(T value) {
-    ubyte[T.sizeof] buf;
-    buf.write!T(value,0);
+  void write(T)(T value) { // int values
+    // ubyte[T.sizeof] buf;
+    ubyte[] buf = [0,0,0,0,0,0,0,0,0,0];
+    assert(T.sizeof < buf.length);
+    buf.write!(T,Endian.littleEndian)(value,0);
     write(buf);
   }
 

@@ -75,6 +75,14 @@ void fetch_bam_header(ref BamHeader header, ref BgzfStream stream) {
 void write_bam_header(ref BgzfWriter bw, ref BamHeader header) {
   ubyte[4] magic = cast(ubyte[])BAM_MAGIC;
   bw.write(magic);
-  bw.write!int(cast(int)header.text.length);
+  bw.write(cast(int)header.text.length);
   bw.write(header.text);
+  auto n_refs = cast(int)header.refs.length;
+  bw.write(header.refs.length);
+  foreach(int n_ref; 0..n_refs) {
+    immutable refseq = header.refs[n_ref];
+    bw.write(cast(int)refseq.name.length);
+    bw.write(refseq.name);
+    bw.write(cast(int)refseq.length);
+  }
 }
