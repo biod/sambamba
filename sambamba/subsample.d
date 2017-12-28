@@ -52,6 +52,7 @@ import std.stdio;
 import std.typecons;
 
 import sambamba.bio2.bam.reader;
+import sambamba.bio2.bam.writer;
 import sambamba.bio2.bgzf;
 import sambamba.bio2.hashing;
 import sambamba.bio2.constants;
@@ -105,6 +106,7 @@ int subsample_main(string[] args) {
     auto pileup = new PileUp!ProcessReadBlob();
     auto stream = BamReadBlobStream(fn);
 
+    auto output = BamWriter("test.bam",stream.header);
     auto current = ProcessReadBlob(stream.read);
     enforce(!current.isNull);
     auto current_idx = pileup.push(current);

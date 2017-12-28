@@ -25,6 +25,7 @@ module sambamba.bio2.bgzf_writer;
 
 import core.stdc.stdlib : malloc, free;
 import core.stdc.stdio: fopen, fread, fclose;
+import std.bitmanip;
 import std.conv;
 import std.exception;
 import std.typecons;
@@ -98,6 +99,10 @@ public:
     tmp             = compression_buf[max_block_size .. max_block_size * 2];
   }
 
+  ~this() {
+    close();
+  }
+
   @disable this(this); // BgzfWriter does not have copy semantics;
 
   void throwBgzfException(string msg, string file = __FILE__, size_t line = __LINE__) {
@@ -136,6 +141,18 @@ public:
 
   size_t write(ubyte[] buf) {
     return write(buf.ptr, buf.length);
+  }
+
+  int read(T)() { // for integers
+    ubyte[T.sizeof] buf;
+    auto b = fetch(buf);
+    return b.read!(T,Endian.littleEndian)();
+  }
+
+  void write(T)(T value) {
+    ubyte[T.sizeof] buf;
+    buf.write!T(value,0);
+    write(buf);
   }
 
   /// Force flushing current block, even if it is not yet filled.

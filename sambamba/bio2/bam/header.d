@@ -26,9 +26,6 @@ module sambamba.bio2.bam.header;
 /*
 import std.conv;
 import core.stdc.stdio: fopen, fread, fclose;
-import std.file;
-import std.stdio;
-import std.string;
 import std.typecons;
 import std.bitmanip;
 
@@ -36,10 +33,14 @@ import bio.bam.cigar;
 */
 
 import std.exception;
+import std.file;
+import std.stdio;
+import std.string;
 
 import bio.bam.constants;
 
 import sambamba.bio2.bgzf;
+import sambamba.bio2.bgzf_writer;
 import sambamba.bio2.constants;
 
 struct RefSequence {
@@ -47,7 +48,7 @@ struct RefSequence {
   string name;
 }
 
-struct Header {
+struct BamHeader {
   string id;
   string text;
   RefSequence[] refs;
@@ -55,13 +56,13 @@ struct Header {
   @disable this(this); // disable copy semantics;
 }
 
-void fetch_bam_header(ref Header header, ref BgzfStream stream) {
+void fetch_bam_header(ref BamHeader header, ref BgzfStream stream) {
   ubyte[4] ubyte4;
   stream.read(ubyte4);
   enforce(ubyte4 == BAM_MAGIC,"Invalid file format: expected BAM magic number");
   immutable text_size = stream.read!int();
   immutable text = stream.read!string(text_size);
-  header = Header(BAM_MAGIC,text);
+  header = BamHeader(BAM_MAGIC,text);
   immutable n_refs = stream.read!int();
   foreach(int n_ref; 0..n_refs) {
     immutable l_name = stream.read!int();
@@ -69,4 +70,11 @@ void fetch_bam_header(ref Header header, ref BgzfStream stream) {
     immutable l_ref = stream.read!int();
     header.refs ~= RefSequence(l_ref,ref_name);
   }
+}
+
+void write_bam_header(ref BgzfWriter bw, ref BamHeader header) {
+  ubyte[4] magic = cast(ubyte[])BAM_MAGIC;
+  bw.write(magic);
+  bw.write!int(cast(int)header.text.length);
+  bw.write(header.text);
 }

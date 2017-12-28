@@ -365,7 +365,7 @@ struct ProcessReadBlob {
 
 struct BamReadBlobs {
   BgzfStream stream;
-  Header header;
+  BamHeader header;
 
   this(string fn) {
     stream = BgzfStream(fn);
@@ -395,7 +395,7 @@ struct BamReadBlobs {
 
 struct BamReadBlobStream {
   BgzfStream stream;
-  Header header;
+  BamHeader header;
   Nullable!ReadBlob current;
   ubyte[] data; // in sync with current
 
