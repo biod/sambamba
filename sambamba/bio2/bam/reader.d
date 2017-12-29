@@ -353,6 +353,10 @@ struct ProcessReadBlob {
     return sequence2;
   }
 
+  @property ubyte[] toBlob() {
+    return _read2._data;
+  }
+
   string toString() {
     return "<** " ~ ProcessReadBlob.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
   }

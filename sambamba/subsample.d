@@ -43,6 +43,7 @@ module sambamba.subsample;
  */
 
 import std.algorithm.comparison : max;
+import std.conv;
 import std.experimental.logger;
 import std.exception;
 import std.getopt;
@@ -106,7 +107,7 @@ int subsample_main(string[] args) {
     auto pileup = new PileUp!ProcessReadBlob();
     auto stream = BamReadBlobStream(fn);
 
-    auto output = BamWriter("test.bam",stream.header);
+    auto output = BamWriter("test.bam",stream.header,9);
     auto current = ProcessReadBlob(stream.read);
     enforce(!current.isNull);
     auto current_idx = pileup.push(current);
@@ -205,12 +206,18 @@ int subsample_main(string[] args) {
         enforce(current.start_pos >= prev.start_pos, "BAM file is not sorted");
       assert(!current.isNull);
 
-      // Remove leading reads (leftmost and current)
+      // Reaper: write and remove leading reads (leftmost and current)
       while (leftmost.is_unmapped2 || (leftmost.is_mapped2 && current.is_mapped2 && (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos))) {
         // write read
         leftmost_idx = pileup.popFront();
         leftmost = pileup.front;
-        write(leftmost);
+        auto mod = ModifyProcessReadBlob(leftmost);
+        // write(leftmost);
+        auto blob = mod.toBlob;
+        output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
+        output.bgzf_writer.write!int(cast(int)leftmost.refid);
+        output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
+        output.bgzf_writer.write(blob);
       }
       assert(!pileup.empty);
     }
@@ -224,7 +231,7 @@ int subsample_main(string[] args) {
 //   2. &check depth at &start and &end (should match pileup)
 //   3. &quality filter
 //   4. &check for valid RNAME in case of CIGAR
-//   5. Write header, bgzf blocks and check ringbuffer implementation
+//   5. Write header (bgzf magic), bgzf blocks and check ringbuffer implementation
 //   6. Go multi-core
 //   7. Introduce option for (development) validation (less checking by default) and
 //      introduce assert_throws

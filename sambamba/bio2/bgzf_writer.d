@@ -229,8 +229,8 @@ public:
 
   /// Flush all remaining BGZF blocks and close source stream.
   /// Automatically adds empty block at the end, serving as indicator
-  /// of end of stream. Make sure this function is called on
-  /// completion.
+  /// of end of stream. This function is automatically called on
+  /// destruction.
   void close() {
     flush();
     f.rawWrite(BGZF_EOF);

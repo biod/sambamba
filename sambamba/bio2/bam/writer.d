@@ -38,12 +38,21 @@ import sambamba.bio2.bgzf_writer;
 import sambamba.bio2.constants;
 
 import sambamba.bio2.bam.header;
+import sambamba.bio2.bam.reader : ProcessReadBlob;
+
+struct ModifyProcessReadBlob { // make this generic later
+  ProcessReadBlob _read2;
+
+  @property ubyte[] toBlob() {
+    return _read2.toBlob();
+  }
+}
 
 struct BamWriter {
   BgzfWriter bgzf_writer;
 
-  this(string fn, ref BamHeader header) {
-    bgzf_writer = BgzfWriter(fn,9);
+  this(string fn, ref BamHeader header, int compression_level = -1) {
+    bgzf_writer = BgzfWriter(fn,compression_level);
     write_bam_header(bgzf_writer,header);
   }
 

@@ -14,4 +14,7 @@ shunit*
 /*.cram
 /*.crai
 /*.txt
+*.hex
+*.zcat
+*.out
 /utils/ldc_version_info_.d
