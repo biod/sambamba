@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 testSubSample() {
+    # bam file is part of BioD
     ./bin/sambamba subsample ex1_header.sorted.bam -otest3.bam &> test.out
     assertEquals "5c2823e29b24a425bee5dba62107a2ce" $(md5sum test3.bam |cut -c 1-32)
 }

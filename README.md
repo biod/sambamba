@@ -128,8 +128,7 @@ similar. Also try running the latest version of sambamba to make sure
 it has not been fixed already. Support/installation questions should
 be aimed at the mailing list. The issue tracker is for development
 issues around the software itself. When reporting an issue include the
-output of the program and the contents of the .log.txt file in the
-output directory.
+output of the program and the contents of the output directory.
 
 ## Check list:
 
@@ -141,7 +140,7 @@ output directory.
 6. [ ] If it is a support/install question I have posted it to the [mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion)
 7. [ ] If it is software development related I have posted a new issue on the [issue tracker](https://github.com/biod/sambamba/issues) or added to an existing one
 8. [ ] In the message I have included the output of my sambamba run
-9. [ ] In the message I have included the relevant .log.txt file in the output directory
+9. [ ] In the message I have included the relevant files in the output directory
 10. [ ] I have made available the data to reproduce the problem (optional)
 
 To find bugs the sambamba software developers may ask to install a
@@ -233,7 +232,7 @@ documentation](https://github.com/biod/sambamba-dev-docs).
 
 ## Dump core
 
-In a crash sambamba can dump a core. To make this happen set
+In a crash sambamba can dump a core file. To make this happen set
 
 ```sh
 ulimit -c unlimited

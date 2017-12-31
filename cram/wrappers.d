@@ -51,7 +51,7 @@ struct RcPtr(T, alias Free) {
     this(this)
     {
         static if (is(T == cram_slice)) {
-            debug writeln("COPIED #", data.payload_id + 1);
+            debug stderr.writeln("COPIED #", data.payload_id + 1);
         }
     }
 
@@ -159,7 +159,7 @@ struct CramContainerRange {
         auto err_msg = "Failed to read container header";
         while (true) {
             // read container header
-            debug writeln("cram_read_container");
+            debug stderr.writeln("cram_read_container");
             auto ptr = nullChecked!cram_read_container(err_msg, _fd);
             if (ptr is null) {
                 empty = true;
