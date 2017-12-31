@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+testSubSample() {
+    ./bin/sambamba subsample ex1_header.sorted.bam -otest3.bam &> test.out
+    assertEquals "5c2823e29b24a425bee5dba62107a2ce" $(md5sum test3.bam |cut -c 1-32)
+}
+
 testSortByName() {
     # use very tiny buffer of 200K so that multithreading is used
     # ./bin/sambamba sort -t2 -n BioD/test/data/ex1_header.bam -o ex1_header.nsorted.bam -m 200K

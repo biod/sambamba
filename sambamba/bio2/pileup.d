@@ -142,7 +142,7 @@ struct RingBuffer(T) {
   }
 
   ulong length() @property const {
-    writeln(_tail.get(),":",_head.get(),"= len ",_tail.get()-_head.get());
+    // writeln(_tail.get(),":",_head.get(),"= len ",_tail.get()-_head.get());
     return _tail.get() - _head.get();
   }
 
