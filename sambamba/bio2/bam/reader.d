@@ -406,7 +406,6 @@ struct BamReadBlobStream {
   this(string fn) {
     stream = BgzfStream(fn);
     fetch_bam_header(header, stream);
-    popFront();
   }
 
   bool empty() @property {

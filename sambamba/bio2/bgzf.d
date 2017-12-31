@@ -271,7 +271,7 @@ Tuple!(size_t,FilePos) read_blockx(ref BgzfReader bgzf, FilePos fpos, ref ubyte[
 import std.parallelism;
 
 int kick_off_reading_block_ahead(ubyte[] uncompressed_buf, ubyte[] compressed_buf, size_t uncompressed_size, CRC32 crc32) {
-  writeln("HEY " ~ to!string(uncompressed_size));
+  // writeln("HEY " ~ to!string(uncompressed_size));
   deflate(uncompressed_buf,compressed_buf,uncompressed_size,crc32);
   return -1;
 }

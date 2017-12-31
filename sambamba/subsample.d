@@ -122,29 +122,38 @@ int subsample_main(string[] args) {
     enforce(!current.isNull);
     auto current_idx = pileup.push(current);
     assert(current_idx == 0);
+    writeln("First pos is ",current.ref_id,":",current.start_pos);
     auto rightmost = current;
     auto rightmost_idx = current_idx;
     auto leftmost = current;
     auto leftmost_idx = current_idx;
 
+    auto reap = () {
+      assert(!leftmost.isNull);
+      auto mod = ModifyProcessReadBlob(leftmost);
+      auto blob = mod.toBlob;
+      writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos);
+      output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
+      output.bgzf_writer.write!int(cast(int)leftmost.refid);
+      output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
+      output.bgzf_writer.write(blob);
+      leftmost_idx = pileup.popFront();
+      if (!pileup.empty)
+        leftmost = pileup.front;
+    };
+
     while (true) { // loop through pileup
       assert(!current.isNull);
-      if (current.is_unmapped2) {
+      while (current.is_unmapped2) {
         // we hit an unmapped set, need to purge (this won't work on threads)
-        while (!pileup.empty) {
-          writeln("Write read");
-          pileup.popFront();
-        }
-        while (current.is_unmapped2) {
-          // write read
-          writeln("Skip unmapped read");
-          current = ProcessReadBlob(stream.read);
-        }
+        writeln("Skip unmapped read");
+        reap();
+        current = ProcessReadBlob(stream.read);
+        if (current.isNull)
+          break;
         current_idx = pileup.push(current);
         rightmost = current;
         rightmost_idx = current_idx;
-        leftmost = current;
-        leftmost_idx = current_idx;
       }
       assert(current.is_mapped2);
       writeln("Current pos is ",current.ref_id,":",current.start_pos);
@@ -217,20 +226,13 @@ int subsample_main(string[] args) {
       assert(!current.isNull);
 
       // Reaper: write and remove leading reads (leftmost and current)
-      while (leftmost.is_unmapped2 || (leftmost.is_mapped2 && current.is_mapped2 && (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos))) {
+      while (!pileup.empty && (leftmost.is_unmapped2 || (leftmost.is_mapped2 && current.is_mapped2 && (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos)))) {
         // write read
-        leftmost_idx = pileup.popFront();
-        leftmost = pileup.front;
-        auto mod = ModifyProcessReadBlob(leftmost);
-        // write(leftmost);
-        auto blob = mod.toBlob;
-        output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
-        output.bgzf_writer.write!int(cast(int)leftmost.refid);
-        output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
-        output.bgzf_writer.write(blob);
+        reap();
       }
-      assert(!pileup.empty);
     }
+    while (!pileup.empty)
+      reap();
   }
   return 0;
 }
@@ -241,7 +243,11 @@ int subsample_main(string[] args) {
 //   2. &check depth at &start and &end (should match pileup)
 //   3. &quality filter
 //   4. &check for valid RNAME in case of CIGAR
-//   5. Write header (bgzf magic), bgzf blocks and check ringbuffer implementation
+//   5. &Write header (bgzf magic), bgzf blocks
+//     a. &check ringbuffer implementation
+//     b. create test comparing unpacked versions
+//     c. refactor a bit and check for unmapped reads
+//     d. run memory checker
 //   6. Go multi-core
 //   7. Introduce option for (development) validation (less checking by default) and
 //      introduce assert_throws
