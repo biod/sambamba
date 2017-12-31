@@ -116,6 +116,7 @@ public:
   }
 
   void write(const void* buf, size_t size) {
+    // stderr.writeln("HEY1 writing bytes ",size);
     if (size + current_size >= buffer.length) {
       size_t room;
       ubyte[] data = (cast(ubyte*)buf)[0 .. size];
@@ -152,7 +153,8 @@ public:
     ubyte[] buf = [0,0,0,0,0,0,0,0,0,0];
     assert(T.sizeof < buf.length);
     buf.write!(T,Endian.littleEndian)(value,0);
-    write(buf);
+    // writeln("HEY T.sizeof: ",T.sizeof," value ",value," ",buf[0..T.sizeof]);
+    write(buf[0..T.sizeof]);
   }
 
   /// Force flushing current block, even if it is not yet filled.

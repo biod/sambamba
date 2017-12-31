@@ -68,8 +68,9 @@ Usage: sambamba subsample [options] <input.bam> [<input2.bam> [...]]
 
 Options:
 
-         --type [hash1]  Algorithm for subsampling (hash1, default is none)
-         --logging type  Set logging to debug|info|warning|critical
+         --type [hash1]   Algorithm for subsampling (hash1, default is none) - nyi
+         -o, --output fn  Set output file (default stdout) - nyi
+         --logging type   Set logging to debug|info|warning|critical -nyi
 ");
 }
 
@@ -100,14 +101,23 @@ int subsample_main(string[] args) {
     return 1;
   }
 
+  string outputfn;
+
+  getopt(args,
+         std.getopt.config.caseSensitive,
+         "output|o", &outputfn,
+         );
+
+  enforce(outputfn != "", "Output not defined");
   auto infns = args[1..$];
 
   assert(max_cov > 0);
   foreach (string fn; infns) {
+    enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ProcessReadBlob();
     auto stream = BamReadBlobStream(fn);
 
-    auto output = BamWriter("test.bam",stream.header,9);
+    auto output = BamWriter(outputfn,stream.header,9);
     auto current = ProcessReadBlob(stream.read);
     enforce(!current.isNull);
     auto current_idx = pileup.push(current);
@@ -137,7 +147,7 @@ int subsample_main(string[] args) {
         leftmost_idx = current_idx;
       }
       assert(current.is_mapped2);
-      writeln("Current is ",current.start_pos);
+      writeln("Current pos is ",current.ref_id,":",current.start_pos);
       // Fill ring buffer ahead until the window is full (current and rightmost)
       // rightmost is null at the end of the genome
       while (!rightmost.isNull && rightmost.is_mapped2 && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
