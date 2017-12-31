@@ -31,10 +31,8 @@ import sambamba.bio2.bgzf;
 int unpack_bams(string[] infns, File outfile) {
 
   foreach (string fn; infns) {
-    stderr.writeln(fn);
-
     foreach (ubyte[] read; BgzfBlocks(fn)) {
-      stdout.rawWrite(read);
+      outfile.rawWrite(read); // raw unpacking
     }
   }
 
