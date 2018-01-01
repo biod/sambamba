@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
+outdir=output
+mkdir -p $outdir
+
 testSubSample() {
     # bam file is part of BioD
-    ./bin/sambamba subsample ex1_header.sorted.bam -otest3.bam &> test.out
+    ./bin/sambamba subsample ex1_header.sorted.bam -otest3.bam &> $outdir/test.out
     assertEquals "5c2823e29b24a425bee5dba62107a2ce" $(md5sum test3.bam |cut -c 1-32)
+    exit 1
 }
 
 testSortByName() {
