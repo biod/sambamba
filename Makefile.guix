@@ -79,7 +79,7 @@ $(OUT): $(OBJ)
 	mkdir -p bin/
 	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba $(OBJ) $(LIBS)
 
-test:
+test:	clean-tests
 	./run_tests.sh
 
 biod:
@@ -96,9 +96,12 @@ debug-strip: debug
 install:
 	install -m 0755 bin/sambamba $(prefix)/bin
 
-clean: clean-d
+clean: clean-d clean-tests
 	cd htslib ; make clean
 
 clean-d:
 	rm -rf bin/*
 	rm -f $(OBJ) $(OUT) trace.{def,log}
+
+clean-tests:
+	rm -rf output/*
