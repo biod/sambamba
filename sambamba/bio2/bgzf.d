@@ -168,7 +168,7 @@ struct BgzfReader {
     immutable compressed_size = bsize - 1 - gzip_extra_length - 19;
     enforce1(compressed_size <= BLOCK_SIZE, "compressed size larger than allowed");
 
-    stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", report_fpos);
+    // stderr.writeln("[compressed] size ", compressed_size, " bytes starting block @ ", report_fpos);
     return compressed_size;
   }
 
@@ -183,7 +183,7 @@ struct BgzfReader {
 
     immutable CRC32 crc32 = f.read_uint();
     immutable uncompressed_size = f.read_uint();
-    stderr.writeln("[uncompressed] size ",uncompressed_size);
+    // stderr.writeln("[uncompressed] size ",uncompressed_size);
     return tuple(compressed_buf,uncompressed_size,crc32);
   }
 
@@ -310,7 +310,7 @@ struct BlockReadAhead {
 
     if (task_running) {
       int res = t.yieldForce;
-      writeln(res);
+      // writeln(res);
       task_running = false;
       memcpy(uncompressed_buf.ptr,compressed_buf2.ptr,uncompressed_size2);
       return tuple(uncompressed_size2, fpos2);
