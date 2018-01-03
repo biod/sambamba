@@ -162,7 +162,9 @@ testIssue225() {
 }
 
 testIssue331() {
-    $sambamba  view -H -f json test/issue_204.bam
+    $sambamba  view -H -f json test/issue_204.bam > $outdir/issue_331_header.json
+    assertEquals 0 $?
+    diff -q $outdir/issue_331_header.json test/regression/issue_331_header.json
     assertEquals 0 $?
 }
 
