@@ -69,7 +69,8 @@ Usage: sambamba subsample [options] <input.bam> [<input2.bam> [...]]
 Options:
 
          --type [fasthash]   Algorithm for subsampling (fasthash, default is none)
-         -o, --output fn  Set output file (default stdout)
+         --max-cov [depth]   Maximum coverage (approx)
+         -o, --output fn     Set output file (default stdout)
 
          --logging type   Set logging to debug|info|warning|critical -nyi
 
@@ -79,14 +80,26 @@ Examples:
 ");
 }
 
+enum ReadState { unknown, keep, drop }
+
 struct ReadInfo {
   ProcessReadBlob read;
+  ReadState state;
+
   this(ProcessReadBlob _r) {
     read = _r;
+    state = ReadState.unknown;
   }
 
-  @property ProcessReadBlob get() {
+  @property ref ProcessReadBlob get() {
     return read;
+  }
+
+  @property void set_keep() {
+    state = ReadState.keep;
+  }
+  @property void set_drop() {
+    state = ReadState.drop;
   }
 }
 
@@ -111,7 +124,7 @@ struct ReadInfo {
 int subsample_main(string[] args) {
   bool remove = false;
   globalLogLevel(LogLevel.trace); // debug level
-  auto max_cov = 20;
+  int max_cov = 0;
 
   if (args.length < 2) {
     printUsage();
@@ -124,11 +137,13 @@ int subsample_main(string[] args) {
   getopt(args,
          std.getopt.config.caseSensitive,
          "type", &type,
+         "max-cov", &max_cov,
          "output|o", &outputfn,
          );
 
   enforce(outputfn != "", "Output not defined");
   enforce(type != "", "Algorithm not defined");
+  enforce(max_cov != 0, "Maximum coverage not set");
   auto infns = args[1..$];
 
   assert(max_cov > 0);
@@ -150,9 +165,10 @@ int subsample_main(string[] args) {
 
     auto reap = () {
       assert(!leftmost.isNull);
+      auto readinfo = pileup.read_at_idx(leftmost_idx);
       auto mod = ModifyProcessReadBlob(leftmost);
       auto blob = mod.toBlob;
-      // writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos);
+      writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
       output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
       output.bgzf_writer.write!int(cast(int)leftmost.refid);
       output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
@@ -223,11 +239,15 @@ int subsample_main(string[] args) {
           auto hash = SuperFastHash(current.read_name);
           double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
           double rand = cast(double)(hash & 0xffffff)/0x1000000;
-          // writeln("#",hash," depth ",this_cov, " sample drop rate ",sample_drop_rate," rand ",rand);
-          if (rand < -sample_drop_rate)
-            writeln("drop");
-          else
-            writeln("keep");
+          auto readinfo = pileup.read_at_idx(current_idx);
+          if (rand < -sample_drop_rate) {
+            readinfo.set_drop;
+          }
+          else {
+            readinfo.set_keep;
+          }
+          write("Pos ",current.refid,":",current.start_pos);
+          writeln(" #",hash," depth ",this_cov," max ",max_cov," sample drop rate ",sample_drop_rate," rand ",rand," ",readinfo.state);
         }
         if (false)
           writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
