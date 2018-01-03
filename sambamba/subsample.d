@@ -68,11 +68,28 @@ Usage: sambamba subsample [options] <input.bam> [<input2.bam> [...]]
 
 Options:
 
-         --type [hash1]   Algorithm for subsampling (hash1, default is none) - nyi
-         -o, --output fn  Set output file (default stdout) - nyi
+         --type [fasthash]   Algorithm for subsampling (fasthash, default is none)
+         -o, --output fn  Set output file (default stdout)
+
          --logging type   Set logging to debug|info|warning|critical -nyi
+
+Examples:
+
+       sambamba subsample --type=fasthash input.bam -ooutput.bam
 ");
 }
+
+struct ReadInfo {
+  ProcessReadBlob read;
+  this(ProcessReadBlob _r) {
+    read = _r;
+  }
+
+  @property ProcessReadBlob get() {
+    return read;
+  }
+}
+
 
 /**
    Implementation of Hash1. While reads stream in they get piled up in
@@ -102,27 +119,30 @@ int subsample_main(string[] args) {
   }
 
   string outputfn;
+  string type;
 
   getopt(args,
          std.getopt.config.caseSensitive,
+         "type", &type,
          "output|o", &outputfn,
          );
 
   enforce(outputfn != "", "Output not defined");
+  enforce(type != "", "Algorithm not defined");
   auto infns = args[1..$];
 
   assert(max_cov > 0);
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
-    auto pileup = new PileUp!ProcessReadBlob();
+    auto pileup = new PileUp!ReadInfo();
     auto stream = BamReadBlobStream(fn);
 
     auto output = BamWriter(outputfn,stream.header,9);
     auto current = ProcessReadBlob(stream.read);
     enforce(!current.isNull);
-    auto current_idx = pileup.push(current);
+    auto current_idx = pileup.push(ReadInfo(current));
     assert(current_idx == 0);
-    writeln("First pos is ",current.ref_id,":",current.start_pos);
+    // writeln("First pos is ",current.ref_id,":",current.start_pos);
     auto rightmost = current;
     auto rightmost_idx = current_idx;
     auto leftmost = current;
@@ -132,38 +152,38 @@ int subsample_main(string[] args) {
       assert(!leftmost.isNull);
       auto mod = ModifyProcessReadBlob(leftmost);
       auto blob = mod.toBlob;
-      writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos);
+      // writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos);
       output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
       output.bgzf_writer.write!int(cast(int)leftmost.refid);
       output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
       output.bgzf_writer.write(blob);
       leftmost_idx = pileup.popFront();
       if (!pileup.empty)
-        leftmost = pileup.front;
+        leftmost = pileup.front.get;
     };
 
     while (true) { // loop through pileup
       assert(!current.isNull);
       while (current.is_unmapped2) {
         // we hit an unmapped set, need to purge (this won't work on threads)
-        writeln("Skip unmapped read");
+        // writeln("Skip unmapped read");
         reap();
         current = ProcessReadBlob(stream.read);
         if (current.isNull)
           break;
-        current_idx = pileup.push(current);
+        current_idx = pileup.push(ReadInfo(current));
         rightmost = current;
         rightmost_idx = current_idx;
       }
       assert(current.is_mapped2);
-      writeln("Current pos is ",current.ref_id,":",current.start_pos);
+      // writeln("Current pos is ",current.ref_id,":",current.start_pos);
       // Fill ring buffer ahead until the window is full (current and rightmost)
       // rightmost is null at the end of the genome
       while (!rightmost.isNull && rightmost.is_mapped2 && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
         rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
           break;
-        rightmost_idx = pileup.push(rightmost);
+        rightmost_idx = pileup.push(ReadInfo(rightmost));
       }
 
       if (false) {
@@ -183,7 +203,7 @@ int subsample_main(string[] args) {
         auto ldepth = 0;
         auto rdepth = 0;
         for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
-          auto check = pileup.read_at_idx(idx);
+          auto check = pileup.read_at_idx(idx).get;
           if (!check.is_qc_fail) {
             assert(current.is_mapped2);
             assert(check.is_mapped2);
@@ -203,7 +223,7 @@ int subsample_main(string[] args) {
           auto hash = SuperFastHash(current.read_name);
           double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
           double rand = cast(double)(hash & 0xffffff)/0x1000000;
-          writeln("#",hash," depth ",this_cov, " sample drop rate ",sample_drop_rate," rand ",rand);
+          // writeln("#",hash," depth ",this_cov, " sample drop rate ",sample_drop_rate," rand ",rand);
           if (rand < -sample_drop_rate)
             writeln("drop");
           else
@@ -220,7 +240,7 @@ int subsample_main(string[] args) {
       // Move to next (current)
       current_idx = pileup.get_next_idx(current_idx);
       auto prev = current;
-      current = pileup.read_at_idx(current_idx);
+      current = pileup.read_at_idx(current_idx).get;
       if (current.is_mapped2 && prev.is_mapped2 && current.ref_id == prev.ref_id)
         enforce(current.start_pos >= prev.start_pos, "BAM file is not sorted");
       assert(!current.isNull);
@@ -245,7 +265,7 @@ int subsample_main(string[] args) {
 //   4. &check for valid RNAME in case of CIGAR
 //   5. &Write header (bgzf magic), bgzf blocks
 //     a. &check ringbuffer implementation
-//     b. create test comparing unpacked versions
+//     b. &create test comparing unpacked versions
 //     c. refactor a bit and check for unmapped reads
 //     d. run memory checker
 //   6. Go multi-core

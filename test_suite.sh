@@ -23,7 +23,8 @@ testSamtoBam() {
 testSubSample() {
     # bam file is part of BioD
     outfn=$outdir/subsample.bam
-    $sambamba subsample $outdir/ex1_header.sorted.bam -o$outfn > $outdir/subsample.out
+    $sambamba subsample --type fasthash $outdir/ex1_header.sorted.bam -o$outfn > $outdir/subsample.out
+    assertEquals 0 $?
     assertEquals "c3dc5e6d5dff1eaa3ff2d8e22cba5221" $(md5sum $outfn |cut -c 1-32)
     # should be same as sorted bam
     assertEquals "6a48f9edf04bf95d3ac65d7395224440" `./bin/sambamba view -f unpack output/subsample.bam |md5sum|cut -c 1-32`
