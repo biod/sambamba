@@ -80,26 +80,34 @@ Examples:
 ");
 }
 
-enum ReadState { unknown, keep, drop }
+enum RState { unknown, keep, drop }
 
-struct ReadInfo {
+// ReadState keeps track of the state of a processed Read. This state
+// is maintained on the ringbuffer. We may change this design later.
+
+struct ReadState {
   ProcessReadBlob read;
-  ReadState state;
+  RState state;
 
   this(ProcessReadBlob _r) {
     read = _r;
-    state = ReadState.unknown;
+    state = RState.unknown;
   }
+
+  // @disable this(this); // disable copy semantics;
 
   @property ref ProcessReadBlob get() {
     return read;
   }
 
   @property void set_keep() {
-    state = ReadState.keep;
+    state = RState.keep;
   }
   @property void set_drop() {
-    state = ReadState.drop;
+    state = RState.drop;
+  }
+  @property bool is_dropped() {
+    return state == RState.drop;
   }
 }
 
@@ -149,13 +157,13 @@ int subsample_main(string[] args) {
   assert(max_cov > 0);
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
-    auto pileup = new PileUp!ReadInfo();
+    auto pileup = new PileUp!ReadState();
     auto stream = BamReadBlobStream(fn);
 
     auto output = BamWriter(outputfn,stream.header,9);
     auto current = ProcessReadBlob(stream.read);
     enforce(!current.isNull);
-    auto current_idx = pileup.push(ReadInfo(current));
+    auto current_idx = pileup.push(ReadState(current));
     assert(current_idx == 0);
     // writeln("First pos is ",current.ref_id,":",current.start_pos);
     auto rightmost = current;
@@ -168,11 +176,15 @@ int subsample_main(string[] args) {
       auto readinfo = pileup.read_at_idx(leftmost_idx);
       auto mod = ModifyProcessReadBlob(leftmost);
       auto blob = mod.toBlob;
-      writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
-      output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
-      output.bgzf_writer.write!int(cast(int)leftmost.refid);
-      output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
-      output.bgzf_writer.write(blob);
+      if (readinfo.is_dropped) {
+        writeln("Dropped pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
+      } else {
+        writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
+        output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
+        output.bgzf_writer.write!int(cast(int)leftmost.refid);
+        output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
+        output.bgzf_writer.write(blob);
+      }
       leftmost_idx = pileup.popFront();
       if (!pileup.empty)
         leftmost = pileup.front.get;
@@ -187,7 +199,7 @@ int subsample_main(string[] args) {
         current = ProcessReadBlob(stream.read);
         if (current.isNull)
           break;
-        current_idx = pileup.push(ReadInfo(current));
+        current_idx = pileup.push(ReadState(current));
         rightmost = current;
         rightmost_idx = current_idx;
       }
@@ -199,7 +211,7 @@ int subsample_main(string[] args) {
         rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
           break;
-        rightmost_idx = pileup.push(ReadInfo(rightmost));
+        rightmost_idx = pileup.push(ReadState(rightmost));
       }
 
       if (false) {
@@ -239,12 +251,22 @@ int subsample_main(string[] args) {
           auto hash = SuperFastHash(current.read_name);
           double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
           double rand = cast(double)(hash & 0xffffff)/0x1000000;
+          write("readinfo ");
           auto readinfo = pileup.read_at_idx(current_idx);
           if (rand < -sample_drop_rate) {
             readinfo.set_drop;
+            pileup.update_read_at_index(current_idx,readinfo); // this is ugly
+            assert(readinfo.is_dropped);
+            write("readinfo2 ");
+            auto readinfo2 = pileup.read_at_idx(current_idx);
+            writeln(&readinfo, " ", &readinfo2);
+            // assert(readinfo is readinfo2);
+            assert(readinfo.is_dropped);
+            assert(readinfo2.is_dropped);
           }
           else {
             readinfo.set_keep;
+            pileup.update_read_at_index(current_idx,readinfo);
           }
           write("Pos ",current.refid,":",current.start_pos);
           writeln(" #",hash," depth ",this_cov," max ",max_cov," sample drop rate ",sample_drop_rate," rand ",rand," ",readinfo.state);
