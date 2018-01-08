@@ -71,6 +71,7 @@ Options:
          --type [fasthash]   Algorithm for subsampling (fasthash, default is none)
          --max-cov [depth]   Maximum coverage (approx)
          -o, --output fn     Set output file (default stdout)
+         -r, --remove        Remove over sampled reads from output
 
          --logging type   Set logging to debug|info|warning|critical -nyi
 
@@ -147,6 +148,7 @@ int subsample_main(string[] args) {
          "type", &type,
          "max-cov", &max_cov,
          "output|o", &outputfn,
+         "remove|r", &remove,
          );
 
   enforce(outputfn != "", "Output not defined");
@@ -174,12 +176,17 @@ int subsample_main(string[] args) {
     auto reap = () {
       assert(!leftmost.isNull);
       auto readinfo = pileup.read_at_idx(leftmost_idx);
-      auto mod = ModifyProcessReadBlob(leftmost);
-      auto blob = mod.toBlob;
       if (readinfo.is_dropped) {
         writeln("Dropped pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
       } else {
         writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
+      }
+      if (!remove) {
+        auto mod = ModifyProcessReadBlob(leftmost);
+        if (readinfo.is_dropped)
+          mod.set_qc_fail;
+        auto blob = mod.toBlob;
+        // another hack for now:
         output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
         output.bgzf_writer.write!int(cast(int)leftmost.refid);
         output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
@@ -308,7 +315,7 @@ int subsample_main(string[] args) {
 //   5. &Write header (bgzf magic), bgzf blocks
 //     a. &check ringbuffer implementation
 //     b. &create test comparing unpacked versions
-//     c. refactor a bit and check for unmapped reads
+//     c. refactor a bit and check for unmapped reads - straighten out flag use
 //     d. run memory checker
 //   6. Go multi-core
 //   7. Introduce option for (development) validation (less checking by default) and

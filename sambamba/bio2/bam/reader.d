@@ -100,7 +100,7 @@ struct ReadBlob {
   private ubyte[] _data;
   uint offset_cigar=int.max, offset_seq=int.max, offset_qual=int.max;
 
-  mixin ReadFlags!(_flag_nc);
+  mixin ReadFlags!(_flag);
   mixin CheckMapped!(refid);
 
   /*
@@ -207,8 +207,12 @@ struct ProcessReadBlob {
     return _read2.refid;
   }
 
-  private @property nothrow RefId _flag() {
+  @property nothrow uint _flag_nc() {
     return _read2._flag_nc;
+  }
+
+  @property nothrow uint _flag() {
+    return _read2._flag;
   }
 
   alias ref_id refid;

@@ -38,13 +38,23 @@ import sambamba.bio2.bgzf_writer;
 import sambamba.bio2.constants;
 
 import sambamba.bio2.bam.header;
-import sambamba.bio2.bam.reader : ProcessReadBlob;
+import sambamba.bio2.bam.reader : ProcessReadBlob, Offset;
 
 struct ModifyProcessReadBlob { // make this generic later
   ProcessReadBlob _read2;
 
   @property ubyte[] toBlob() {
     return _read2.toBlob();
+  }
+
+  @property void set_qc_fail() {
+    auto data = _read2.toBlob;
+    writeln(_read2._flag);
+    // data[Offset.flag_nc] = data[Offset.flag_nc] & 0x200;
+    // writeln(data[Offset.flag_nc]);
+    // buf.write!(T,Endian.littleEndian)(value,0);
+    uint flag_nc = _read2._flag_nc & 0x200ffff;
+    data[Offset.flag_nc..$].write!(uint,Endian.littleEndian)(flag_nc,0);
   }
 }
 
