@@ -53,8 +53,11 @@ struct ModifyProcessReadBlob { // make this generic later
     // data[Offset.flag_nc] = data[Offset.flag_nc] & 0x200;
     // writeln(data[Offset.flag_nc]);
     // buf.write!(T,Endian.littleEndian)(value,0);
-    uint flag_nc = _read2._flag_nc & 0x200ffff;
-    data[Offset.flag_nc..$].write!(uint,Endian.littleEndian)(flag_nc,0);
+    //  ushort _flag()          { return fetch!ushort(Offset.flag); }
+
+    ushort flag = _read2._flag | 0x200;
+    writeln("flag=",flag);
+    data[Offset.flag..Offset.flag+4].write!(ushort,Endian.littleEndian)(flag,0);
   }
 }
 

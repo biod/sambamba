@@ -96,7 +96,7 @@ template CheckMapped(alias refid) {
 }
 
 enum Offset {
-  bin_mq_nl=0, flag_nc=4, l_seq=8, next_refID=12, next_pos=16, tlen=20, read_name=24
+  bin_mq_nl=0, flag_nc=4, flag=6, l_seq=8, next_refID=12, next_pos=16, tlen=20, read_name=24
 };
 
 /**
@@ -157,7 +157,7 @@ struct ReadBlob {
   @property @trusted nothrow private const
   ubyte _l_read_name()     { return _bin_mq_nl & 0xFF; }
   @property @trusted nothrow private const
-  ushort _flag()           { return _flag_nc >> 16; }
+  ushort _flag()          { return fetch!ushort(Offset.flag); }
   @property @trusted nothrow private const
   ushort _n_cigar_op()     { return _flag_nc & 0xFFFF; }
   @property @trusted nothrow private const
@@ -234,7 +234,7 @@ struct ProcessReadBlob {
     return _read2._flag_nc;
   }
 
-  @property nothrow uint _flag() {
+  @property nothrow ushort _flag() {
     return _read2._flag;
   }
 
