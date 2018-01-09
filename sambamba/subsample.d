@@ -60,6 +60,8 @@ import sambamba.bio2.constants;
 import sambamba.bio2.pileup;
 import sambamba.bio2.reads;
 
+import bio.core.utils.exception;
+
 void printUsage() {
   writeln("
 Usage: sambamba subsample [options] <input.bam> [<input2.bam> [...]]
@@ -164,7 +166,7 @@ int subsample_main(string[] args) {
 
     auto output = BamWriter(outputfn,stream.header,9);
     auto current = ProcessReadBlob(stream.read);
-    enforce(!current.isNull);
+    asserte(!current.isNull);
     auto current_idx = pileup.push(ReadState(current));
     assert(current_idx == 0);
     // writeln("First pos is ",current.ref_id,":",current.start_pos);
@@ -179,7 +181,10 @@ int subsample_main(string[] args) {
       if (readinfo.is_dropped) {
         writeln("Dropped pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
       } else {
-        writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
+        if (leftmost.is_mapped)
+          writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
+        else
+          writeln("Writing unmapped ",readinfo.state);
       }
       if (!remove) {
         auto mod = ModifyProcessReadBlob(leftmost);
@@ -188,8 +193,8 @@ int subsample_main(string[] args) {
         auto blob = mod.toBlob;
         // another hack for now:
         output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
-        output.bgzf_writer.write!int(cast(int)leftmost.refid);
-        output.bgzf_writer.write!int(cast(int)leftmost.start_pos);
+        output.bgzf_writer.write!int(cast(int)leftmost.raw_ref_id);
+        output.bgzf_writer.write!int(cast(int)leftmost.raw_start_pos);
         output.bgzf_writer.write(blob);
       }
       leftmost_idx = pileup.popFront();
@@ -232,6 +237,7 @@ int subsample_main(string[] args) {
         writeln("     reached end ",pileup.ring.length());
       }
 
+      writeln("Current: ",current.show_flags);
       if (!current.is_qc_fail) {
         // Compute depth (leftmost, current, rightmost)
         auto depth = 0;
@@ -239,7 +245,8 @@ int subsample_main(string[] args) {
         auto rdepth = 0;
         for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
           auto check = pileup.read_at_idx(idx).get;
-          if (!check.is_qc_fail) {
+          writeln("Check: ",check.show_flags);
+          if (check.is_mapped && !check.is_qc_fail) {
             assert(current.is_mapped2);
             assert(check.is_mapped2);
             assert(current.ref_id == check.ref_id);

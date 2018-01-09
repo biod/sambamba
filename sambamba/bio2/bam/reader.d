@@ -27,6 +27,7 @@ import std.conv;
 import core.stdc.stdio: fopen, fread, fclose;
 import std.exception;
 import std.file;
+import std.format : format;
 import std.stdio;
 import std.string;
 import std.typecons;
@@ -34,6 +35,7 @@ import std.bitmanip;
 
 import bio.bam.cigar;
 import bio.bam.constants;
+import bio.core.utils.exception;
 
 import sambamba.bio2.bgzf;
 import sambamba.bio2.constants;
@@ -52,21 +54,38 @@ template ReadFlags(alias flag) {
   @property bool is_first_of_pair()         nothrow { return cast(bool)(flag & 0x40); }
   @property bool is_second_of_pair()        nothrow { return cast(bool)(flag & 0x80); }
   @property bool is_secondary_alignment()   nothrow { return cast(bool)(flag & 0x100); }
-  @property bool is_qc_fail() nothrow {
-    assert(is_mapped());
+  @property bool is_qc_fail() {
+    asserte(is_mapped(),to!string(this));
     return cast(bool)(flag & 0x200); }
   alias is_qc_fail failed_quality_control;
   /// PCR or optical duplicate
   @property bool is_duplicate()             nothrow { return cast(bool)(flag & 0x400); }
   /// Supplementary alignment
   @property bool is_supplementary()         nothrow { return cast(bool)(flag & 0x800); }
+  @property string show_flags() {
+    string res = format("b%b-%d",flag,flag);
+    if (is_paired) res ~= " pair";
+    if (is_proper_pair) res ~= " proper";
+    if (is_mapped) res ~= " mapped";
+    if (is_unmapped) res ~= " unmapped";
+    if (mate_is_unmapped) res ~= " mate_unmapped";
+    if (is_reverse_strand) res ~= " rev_strand";
+    if (mate_is_reverse_strand) res ~= " mate_rev_strand";
+    if (is_first_of_pair) res ~= " first_of_pair";
+    if (is_second_of_pair) res ~= " second_of_pair";
+    if (is_secondary_alignment) res ~= " secondary_aln";
+    if (is_mapped && is_qc_fail) res ~= " qc_fail";
+    if (is_duplicate) res ~= " duplicate";
+    if (is_supplementary) res ~= " suppl";
+    return res;
+  }
 }
 
 template CheckMapped(alias refid) {
   @property nothrow bool is_unmapped2() {
     return is_unmapped;
   }
-  @property nothrow bool is_mapped2() {
+  @property bool is_mapped2() {
     debug {
       if (is_mapped) {
         assert(refid != -1, "ref_id can not be -1 for mapped read");  // BAM spec
@@ -174,7 +193,7 @@ struct ReadBlob {
   alias _mapq mapping_quality; // MAPQ
 
   string toString() {
-    return "<** " ~ ReadBlob.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+    return "<** " ~ ReadBlob.stringof ~ " (data size " ~ to!string(_data.length) ~ ") " ~ to!string(refid) ~ ":" ~ to!string(pos) ~ " length " ~ to!string(sequence_length) ~ " flags " ~ show_flags() ~ ">";
   }
 
 }
@@ -202,8 +221,12 @@ struct ProcessReadBlob {
     return _read2.isNull;
   }
 
-  @property nothrow RefId ref_id() {
-    assert(_read2.is_mapped2,"Trying to get ref_id an unmapped read");
+  @property RefId ref_id() {
+    enforce(_read2.is_mapped2,"Trying to get ref_id an unmapped read " ~ to!string(_read2));
+    return _read2.refid;
+  }
+
+  @property RefId raw_ref_id() {
     return _read2.refid;
   }
 
@@ -222,7 +245,11 @@ struct ProcessReadBlob {
   /// CIGAR.
   @property GenomePos start_pos() {
     assert(_read2.is_mapped2,"Trying to get pos on an unmapped read"); // BAM spec
-    enforce(_read2.pos < GenomePos.max);
+    asserte(_read2.pos < GenomePos.max);
+    return cast(GenomePos)_read2.pos;
+  }
+
+  @property GenomePos raw_start_pos() {
     return cast(GenomePos)_read2.pos;
   }
 
