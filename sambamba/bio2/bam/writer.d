@@ -49,14 +49,14 @@ struct ModifyProcessReadBlob { // make this generic later
 
   @property void set_qc_fail() {
     auto data = _read2.toBlob;
-    writeln(_read2._flag);
+    // writeln(_read2._flag);
     // data[Offset.flag_nc] = data[Offset.flag_nc] & 0x200;
     // writeln(data[Offset.flag_nc]);
     // buf.write!(T,Endian.littleEndian)(value,0);
     //  ushort _flag()          { return fetch!ushort(Offset.flag); }
 
     ushort flag = _read2._flag | 0x200;
-    writeln("flag=",flag);
+    // writeln("flag=",flag);
     data[Offset.flag..Offset.flag+4].write!(ushort,Endian.littleEndian)(flag,0);
   }
 }

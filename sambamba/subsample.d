@@ -178,6 +178,7 @@ int subsample_main(string[] args) {
     auto reap = () {
       assert(!leftmost.isNull);
       auto readinfo = pileup.read_at_idx(leftmost_idx);
+      /*
       if (readinfo.is_dropped) {
         writeln("Dropped pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
       } else {
@@ -186,6 +187,7 @@ int subsample_main(string[] args) {
         else
           writeln("Writing unmapped ",readinfo.state);
       }
+      */
       if (!remove) {
         auto mod = ModifyProcessReadBlob(leftmost);
         if (readinfo.is_dropped)
@@ -237,7 +239,7 @@ int subsample_main(string[] args) {
         writeln("     reached end ",pileup.ring.length());
       }
 
-      writeln("Current: ",current.show_flags);
+      // writeln("Current: ",current.show_flags);
       if (!current.is_qc_fail) {
         // Compute depth (leftmost, current, rightmost)
         auto depth = 0;
@@ -245,7 +247,7 @@ int subsample_main(string[] args) {
         auto rdepth = 0;
         for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
           auto check = pileup.read_at_idx(idx).get;
-          writeln("Check: ",check.show_flags);
+          // writeln("Check: ",check.show_flags);
           if (check.is_mapped && !check.is_qc_fail) {
             assert(current.is_mapped2);
             assert(check.is_mapped2);
@@ -265,25 +267,18 @@ int subsample_main(string[] args) {
           auto hash = SuperFastHash(current.read_name);
           double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
           double rand = cast(double)(hash & 0xffffff)/0x1000000;
-          write("readinfo ");
+          // write("readinfo ");
           auto readinfo = pileup.read_at_idx(current_idx);
           if (rand < -sample_drop_rate) {
             readinfo.set_drop;
             pileup.update_read_at_index(current_idx,readinfo); // this is ugly
-            assert(readinfo.is_dropped);
-            write("readinfo2 ");
-            auto readinfo2 = pileup.read_at_idx(current_idx);
-            writeln(&readinfo, " ", &readinfo2);
-            // assert(readinfo is readinfo2);
-            assert(readinfo.is_dropped);
-            assert(readinfo2.is_dropped);
           }
           else {
             readinfo.set_keep;
             pileup.update_read_at_index(current_idx,readinfo);
           }
-          write("Pos ",current.refid,":",current.start_pos);
-          writeln(" #",hash," depth ",this_cov," max ",max_cov," sample drop rate ",sample_drop_rate," rand ",rand," ",readinfo.state);
+          // write("Pos ",current.refid,":",current.start_pos);
+          // writeln(" #",hash," depth ",this_cov," max ",max_cov," sample drop rate ",sample_drop_rate," rand ",rand," ",readinfo.state);
         }
         if (false)
           writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
@@ -322,10 +317,10 @@ int subsample_main(string[] args) {
 //   5. &Write header (bgzf magic), bgzf blocks
 //     a. &check ringbuffer implementation
 //     b. &create test comparing unpacked versions
-//     c. refactor a bit and check for unmapped reads - straighten out flag use
+//     c. &refactor a bit and check for unmapped reads - straighten out flag use
 //     d. run memory checker
-//   6. Go multi-core
-//   7. Introduce option for (development) validation (less checking by default) and
-//      introduce assert_throws
+//   6. Go multi-core on read and process too
+//   7. &Introduce option for (development) validation (less checking by default) and
+//      introduce assert_throws (now asserte)
 //   8. markdup filter
-//   9. improve for pairs
+//   9. improve algorithm for pairs
