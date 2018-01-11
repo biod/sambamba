@@ -27,7 +27,7 @@ import std.experimental.logger;
 
 import sambamba.bio2.constants;
 
-immutable ulong DEFAULT_BUFFER_SIZE = 100_000;
+immutable ulong DEFAULT_BUFFER_SIZE = 1_000_000;
 
 
 /**
@@ -51,6 +51,8 @@ struct RingBufferIndex {
   this(ulong v) {
     value = v;
   }
+
+  // @disable this(this); // disable copy semantics;
 
   auto get() inout {
     return value;
@@ -88,7 +90,10 @@ struct RingBuffer(T) {
   /** initializes round buffer of size $(D n) */
   this(size_t n) {
     _items = new T[n];
+    // _items.reserve(n);
   }
+
+  @disable this(this); // disable copy semantics;
 
   /*
   Does not work because data is no longer available!
@@ -97,7 +102,7 @@ struct RingBuffer(T) {
   }
   */
 
-  bool empty() @property const {
+  bool empty() @property @nogc nothrow const {
     return _tail == _head;
   }
 

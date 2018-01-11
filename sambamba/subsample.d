@@ -42,6 +42,8 @@ module sambamba.subsample;
 
  */
 
+import core.memory : GC;
+
 import std.algorithm.comparison : max;
 import std.conv;
 import std.experimental.logger;
@@ -204,7 +206,10 @@ int subsample_main(string[] args) {
         leftmost = pileup.front.get;
     };
 
+    ulong count = 0;
     while (true) { // loop through pileup
+      // if (count++ % 10_000 == 0)
+      //   GC.collect();
       assert(!current.isNull);
       while (current.is_unmapped2) {
         // we hit an unmapped set, need to purge (this won't work on threads)
