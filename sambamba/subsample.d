@@ -188,7 +188,7 @@ int subsample_main(string[] args) {
           writeln("Writing unmapped ",readinfo.state);
       }
       */
-      if (!remove) {
+      if (!remove || !readinfo.is_dropped) {
         auto mod = ModifyProcessReadBlob(leftmost);
         if (readinfo.is_dropped)
           mod.set_qc_fail;

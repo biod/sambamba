@@ -25,9 +25,13 @@ testSubSample() {
     outfn=$outdir/subsample.bam
     $sambamba subsample --type fasthash $outdir/ex1_header.sorted.bam --max-cov 1000 -o$outfn > $outdir/subsample.out
     assertEquals 0 $?
-    assertEquals "c3dc5e6d5dff1eaa3ff2d8e22cba5221" $(md5sum $outfn |cut -c 1-32)
+    assertEquals "ab4a69f0093674e9feec54afc2411059" $(md5sum $outfn |cut -c 1-32)
     # should be same as sorted bam
-    assertEquals "6a48f9edf04bf95d3ac65d7395224440" `./bin/sambamba view -f unpack output/subsample.bam |md5sum|cut -c 1-32`
+    assertEquals "6e226f6acc8466115600d4de52ca8944" `./bin/sambamba view -f unpack $outfn |md5sum|cut -c 1-32`
+    outfn=$outdir/subsample2.bam
+    $sambamba subsample -r --type fasthash $outdir/ex1_header.sorted.bam --max-cov 10 -o$outfn > $outdir/subsample2.out
+    assertEquals 0 $?
+    assertEquals "4092fb75c87cde6efc47ff0a4dc443fb" `./bin/sambamba view -f unpack $outfn |md5sum|cut -c 1-32`
 }
 
 testSortByName() {
