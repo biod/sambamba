@@ -18,7 +18,7 @@
 D_COMPILER=ldc2
 LDC_LIB_PATH=$(HOME)/.guix-profile/lib
 
-UNDEAD_PATH=$(HOME)/.dub/packages/undead-1.0.9/undead/src
+UNDEAD_PATH=../undeaD/src
 BIOD_PATH=../BioD
 
 DFLAGS = -wi -I. -I$(BIOD_PATH) -IundeaD/src -I$(UNDEAD_PATH)
@@ -26,8 +26,8 @@ DFLAGS = -wi -I. -I$(BIOD_PATH) -IundeaD/src -I$(UNDEAD_PATH)
 # DLIBS_DEBUG = -debuglib=phobos2-ldc-debug,druntime-ldc-debug $(LDC_LIB_PATH)/libphobos2-ldc-debug.a $(LDC_LIB_PATH)/libdruntime-ldc-debug.a -link-debuglib
 DLIBS_DEBUG = -debuglib=phobos2-ldc-debug-shared,druntime-ldc-debug-shared -link-debuglib -L-lphobos2-ldc-debug-shared -L-ldruntime-ldc-debug-shared
 RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
-# LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
-LIBS   = htslib/libhts.a -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
+LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
+# LIBS   = htslib/libhts.a -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
 LIBS_STATIC = $(DLIBS) htslib/libhts.a $(LDC_LIB_PATH)/liblz4.a
 SRC    = $(wildcard utils/*.d thirdparty/*.d cram/*.d) $(wildcard $(UNDEAD_PATH)/undead/**/*.d) $(wildcard $(UNDEAD_PATH)/undead/*.d) $(wildcard $(BIOD_PATH)/bio/*/*.d $(BIOD_PATH)/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d) utils/ldc_version_info_.d
 OBJ    = $(SRC:.d=.o)
@@ -100,7 +100,7 @@ clean: clean-d clean-tests
 	cd htslib ; make clean
 
 clean-d:
-	rm -rf bin/*
+	rm -v bin/*
 	rm -f $(OBJ) $(OUT) trace.{def,log}
 
 clean-tests:
