@@ -130,7 +130,7 @@ struct ReadBlob {
   }
   */
 
-  @property cleanup() {
+  @property void cleanup() {
     delete _data;
     _data = null;
   }
@@ -222,7 +222,7 @@ struct ProcessReadBlob {
     _read2 = _r;
   }
 
-  @property cleanup() {
+  @property void cleanup() {
     _read2.cleanup;
   }
 

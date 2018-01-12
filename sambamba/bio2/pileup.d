@@ -28,7 +28,7 @@ import std.experimental.logger;
 
 import sambamba.bio2.constants;
 
-immutable ulong DEFAULT_BUFFER_SIZE = 10_000_000;
+immutable ulong DEFAULT_BUFFER_SIZE = 1_000_000;
 
 /**
    Cyclic buffer or ringbuffer based on Artem's original. Uses copy
@@ -143,6 +143,7 @@ struct RingBuffer(T) {
   RingBufferIndex popFront() {
     enforce(!is_empty, "ringbuffer is empty");
     static if (__traits(compiles, _items[0].cleanup)) {
+      writeln("cleanup");
       _items[_head.get() % $].cleanup();
     }
     ++_head.value;

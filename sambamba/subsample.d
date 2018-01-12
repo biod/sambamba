@@ -83,7 +83,7 @@ Examples:
 ");
 }
 
-enum RState { unknown, keep, drop }
+enum RState { unknown, keep, drop, dirty }
 
 // ReadState keeps track of the state of a processed Read. This state
 // is maintained on the ringbuffer. We may change this design later.
@@ -100,6 +100,7 @@ struct ReadState {
   // @disable this(this); // disable copy semantics;
 
   @property cleanup() {
+    assert(is_dirty);
     read.cleanup;
   }
   @property ref ProcessReadBlob get() {
@@ -111,8 +112,14 @@ struct ReadState {
   @property void set_drop() {
     state = RState.drop;
   }
+  @property void set_dirty() {
+    state = RState.dirty;
+  }
   @property bool is_dropped() {
     return state == RState.drop;
+  }
+  @property bool is_dirty() {
+    return state == RState.dirty;
   }
 }
 
@@ -165,8 +172,8 @@ int subsample_main(string[] args) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ReadState();
     auto stream = BamReadBlobStream(fn);
-
     auto output = BamWriter(outputfn,stream.header,9);
+
     auto current = ProcessReadBlob(stream.read);
     asserte(!current.isNull);
     auto current_idx = pileup.push(ReadState(current));
@@ -180,6 +187,7 @@ int subsample_main(string[] args) {
     auto reap = () {
       assert(!leftmost.isNull);
       auto readinfo = pileup.read_at_idx(leftmost_idx);
+      assert(!readinfo.is_dirty);
       /*
       if (readinfo.is_dropped) {
         writeln("Dropped pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
@@ -201,6 +209,9 @@ int subsample_main(string[] args) {
         output.bgzf_writer.write!int(cast(int)leftmost.raw_start_pos);
         output.bgzf_writer.write(blob);
       }
+      readinfo.set_dirty;
+      pileup.update_read_at_index(leftmost_idx,readinfo); // this is ugly
+
       leftmost_idx = pileup.popFront();
       if (!pileup.empty)
         leftmost = pileup.front.get;
