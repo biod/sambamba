@@ -130,6 +130,11 @@ struct ReadBlob {
   }
   */
 
+  @property cleanup() {
+    delete _data;
+    _data = null;
+  }
+
   // Turn ReadBlob into class-struct hybrid or a cluct ;)
   // @disable this(this); // disable copy semantics;
 
@@ -215,6 +220,10 @@ struct ProcessReadBlob {
 
   this(Nullable!ReadBlob _r) {
     _read2 = _r;
+  }
+
+  @property cleanup() {
+    _read2.cleanup;
   }
 
   @property nothrow bool isNull() {

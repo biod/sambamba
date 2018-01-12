@@ -22,13 +22,13 @@ module bio2.pileup;
 
 import std.exception;
 import std.stdio;
+import std.traits;
 
 import std.experimental.logger;
 
 import sambamba.bio2.constants;
 
-immutable ulong DEFAULT_BUFFER_SIZE = 1_000_000;
-
+immutable ulong DEFAULT_BUFFER_SIZE = 10_000_000;
 
 /**
    Cyclic buffer or ringbuffer based on Artem's original. Uses copy
@@ -86,6 +86,7 @@ struct RingBuffer(T) {
   T[] _items;
   RingBufferIndex _head;
   RingBufferIndex _tail;
+  size_t max_size = 0;
 
   /** initializes round buffer of size $(D n) */
   this(size_t n) {
@@ -141,6 +142,9 @@ struct RingBuffer(T) {
 
   RingBufferIndex popFront() {
     enforce(!is_empty, "ringbuffer is empty");
+    static if (__traits(compiles, _items[0].cleanup)) {
+      _items[_head.get() % $].cleanup();
+    }
     ++_head.value;
     return _head;
   }
@@ -149,6 +153,7 @@ struct RingBuffer(T) {
   RingBufferIndex put(T item) {
     enforce(!is_full, "ringbuffer is full - you need to expand buffer");
     enforce(_tail < _tail.max, "ringbuffer overflow");
+    max_size = length > max_size ? length : max_size;
     _items[_tail.get() % $] = item; // uses copy semantics
     auto prev = _tail;
     ++_tail.value;

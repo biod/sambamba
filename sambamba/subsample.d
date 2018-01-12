@@ -42,8 +42,6 @@ module sambamba.subsample;
 
  */
 
-import core.memory : GC;
-
 import std.algorithm.comparison : max;
 import std.conv;
 import std.experimental.logger;
@@ -101,10 +99,12 @@ struct ReadState {
 
   // @disable this(this); // disable copy semantics;
 
+  @property cleanup() {
+    read.cleanup;
+  }
   @property ref ProcessReadBlob get() {
     return read;
   }
-
   @property void set_keep() {
     state = RState.keep;
   }
@@ -208,8 +208,6 @@ int subsample_main(string[] args) {
 
     ulong count = 0;
     while (true) { // loop through pileup
-      // if (count++ % 10_000 == 0)
-      //   GC.collect();
       assert(!current.isNull);
       while (current.is_unmapped2) {
         // we hit an unmapped set, need to purge (this won't work on threads)
@@ -309,6 +307,7 @@ int subsample_main(string[] args) {
     }
     while (!pileup.empty)
       reap();
+    writeln("Max pileup size ",pileup.ring.max_size);
   }
   return 0;
 }

@@ -23,7 +23,8 @@
 
 module sambamba.bio2.bgzf_writer;
 
-import core.stdc.stdlib : malloc, free;
+// import core.stdc.stdlib : malloc, free;
+import core.memory: pureMalloc, pureFree;
 import core.stdc.stdio: fopen, fread, fclose;
 import std.bitmanip;
 import std.conv;
@@ -93,7 +94,7 @@ public:
     // create extra block to which we can write while n_tasks are
     // executed
     auto comp_buf_size = (2 * n_tasks + 2) * max_block_size;
-    auto p = cast(ubyte*)malloc(comp_buf_size);
+    auto p = cast(ubyte*)pureMalloc(comp_buf_size);
     compression_buf = p[0 .. comp_buf_size];
     buffer          = compression_buf[0 .. block_size];
     tmp             = compression_buf[max_block_size .. max_block_size * 2];
@@ -237,6 +238,6 @@ public:
     flush();
     f.rawWrite(BGZF_EOF);
     f.close();
-    free(compression_buf.ptr);
+    pureFree(compression_buf.ptr);
   }
 }
