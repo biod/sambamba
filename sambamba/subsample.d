@@ -189,41 +189,43 @@ int subsample_main(string[] args) {
     auto stream = BamReadBlobStream(fn);
     auto output = BamWriter(outputfn,stream.header,9);
 
-    auto current = ProcessReadBlob(stream.read);
-    asserte(!current.isNull);
-    auto current_idx = pileup.push(ReadState(current));
+    auto currentx = ProcessReadBlob(stream.read);
+    asserte(!currentx.isNull);
+    auto current_idx = pileup.push(ReadState(currentx));
     assert(current_idx == 0);
     // writeln("First pos is ",current.ref_id,":",current.start_pos);
-    auto rightmost = current;
+    // auto rightmost = current;
     auto rightmost_idx = current_idx;
-    auto leftmost = current;
+    // auto leftmost = current;
     auto leftmost_idx = current_idx;
 
     auto reap = () {
-      assert(!leftmost.isNull);
-      auto readinfo = pileup.read_at_idx(leftmost_idx);
+      // assert(!leftmost.isNull); implicit
+      auto readinfo = pileup.read_at(leftmost_idx);
       assert(!readinfo.is_dirty);
       if (!remove || !readinfo.is_dropped) {
-        auto mod = ModifyProcessReadBlob(leftmost);
+        auto r = readinfo.get;
+        auto mod = ModifyProcessReadBlob(r);
         if (readinfo.is_dropped)
           mod.set_qc_fail;
         auto blob = mod.toBlob;
         // another hack for now:
         output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
-        output.bgzf_writer.write!int(cast(int)leftmost.raw_ref_id);
-        output.bgzf_writer.write!int(cast(int)leftmost.raw_start_pos);
+        output.bgzf_writer.write!int(cast(int)r.raw_ref_id);
+        output.bgzf_writer.write!int(cast(int)r.raw_start_pos);
         output.bgzf_writer.write(blob);
       }
       readinfo.set_dirty;
       pileup.update_read_at_index(leftmost_idx,readinfo); // this is ugly
 
       leftmost_idx = pileup.popFront();
-      if (!pileup.empty)
-        leftmost = pileup.front.get;
+      // if (!pileup.empty)
+      //   leftmost = pileup.front.get;
     };
 
     ulong count = 0;
-    while (true) { // loop through pileup
+    while (!pileup.empty) { // loop through pileup
+      auto current = pileup.read_at(current_idx).get;
       assert(!current.isNull);
       while (current.is_unmapped2) {
         // we hit an unmapped set, need to purge (this won't work on threads)
@@ -233,15 +235,18 @@ int subsample_main(string[] args) {
         if (current.isNull)
           break;
         current_idx = pileup.push(ReadState(current));
-        rightmost = current;
+        current = pileup.read_at(current_idx).get;
+        // rightmost = current;
         rightmost_idx = current_idx;
       }
       assert(current.is_mapped2);
+      ProcessReadBlob rightmost = pileup.read_at(rightmost_idx).get;
       while (!rightmost.isNull && rightmost.is_mapped2 && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
         rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
           break;
         rightmost_idx = pileup.push(ReadState(rightmost));
+        rightmost = pileup.read_at(rightmost_idx).get;
       }
 
       // writeln("Current: ",current.show_flags);
@@ -251,7 +256,7 @@ int subsample_main(string[] args) {
         auto ldepth = 0;
         auto rdepth = 0;
         for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
-          auto check = pileup.read_at_idx(idx).get;
+          auto check = pileup.read_at(idx).get;
           if (check.is_mapped && !check.is_qc_fail) {
             assert(current.is_mapped2);
             assert(check.is_mapped2);
@@ -269,7 +274,7 @@ int subsample_main(string[] args) {
           auto hash = SuperFastHash(current.read_name);
           double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
           double rand = cast(double)(hash & 0xffffff)/0x1000000;
-          auto readinfo = pileup.read_at_idx(current_idx);
+          auto readinfo = pileup.read_at(current_idx);
           if (rand < -sample_drop_rate) {
             readinfo.set_drop;
             pileup.update_read_at_index(current_idx,readinfo); // this is ugly
@@ -286,14 +291,17 @@ int subsample_main(string[] args) {
         break;
 
       // Move to next (current)
-      current_idx = pileup.get_next_idx(current_idx);
+      current_idx = pileup.get_next_idx(current_idx); // incr.
       auto prev = current;
-      current = pileup.read_at_idx(current_idx).get;
+      current = pileup.read_at(current_idx).get;
       if (current.is_mapped2 && prev.is_mapped2 && current.ref_id == prev.ref_id)
         enforce(current.start_pos >= prev.start_pos, "BAM file is not sorted");
       assert(!current.isNull);
 
       // Reaper: write and remove leading reads (leftmost and current)
+
+      ProcessReadBlob leftmost = pileup.read_at(leftmost_idx).get;
+      writeln(leftmost_idx,current_idx,rightmost_idx);
       while (!pileup.empty && (leftmost.is_unmapped2 || (leftmost.is_mapped2 && current.is_mapped2 && (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos)))) {
         reap();
       }

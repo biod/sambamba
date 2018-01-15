@@ -123,7 +123,8 @@ struct RingBuffer(T) {
     return idx == _tail.get()-1;
   }
 
-  ref T read_at(RingBufferIndex idx) {
+  ref T get_at(RingBufferIndex idx) {
+    writeln("head,idx,tail",_head,idx,_tail);
     enforce(!is_empty, "ringbuffer is empty");
     enforce(idx >= _head, "ringbuffer range error (idx before front)");
     enforce(idx != _tail, "ringbuffer range error (idx at end)");
@@ -131,12 +132,17 @@ struct RingBuffer(T) {
     return _items[idx.get() % $];
   }
 
-  // This function is a hack.
-  void update_at(RingBufferIndex idx, T item) {
+  bool is_valid(RingBufferIndex idx) {
     enforce(!is_empty, "ringbuffer is empty");
     enforce(idx >= _head, "ringbuffer range error (idx before front)");
     enforce(idx != _tail, "ringbuffer range error (idx at end)");
     enforce(idx < _tail, "ringbuffer range error (idx after end)");
+    return true;
+  }
+
+  // This function is a hack.
+  void update_at(RingBufferIndex idx, T item) {
+    is_valid(idx);
     _items[idx.get() % $] = item; // uses copy semantics
   }
 
@@ -223,8 +229,8 @@ class PileUp(R) {
   bool empty() @property const { return ring.is_empty();}
   ref R front() { return ring.front(); }
   bool idx_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
-  ref R read_at_idx(RingBufferIndex idx) {
-    return ring.read_at(idx);
+  ref R read_at(RingBufferIndex idx) {
+    return ring.get_at(idx);
   }
 
   void update_read_at_index(RingBufferIndex idx, R read) {
@@ -233,6 +239,7 @@ class PileUp(R) {
 
   RingBufferIndex get_next_idx(RingBufferIndex idx) {
     idx.value += 1;
+    assert(ring.is_valid(idx),"Out of range");
     return idx;
   }
 
