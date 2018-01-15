@@ -203,16 +203,6 @@ int subsample_main(string[] args) {
       assert(!leftmost.isNull);
       auto readinfo = pileup.read_at_idx(leftmost_idx);
       assert(!readinfo.is_dirty);
-      /*
-      if (readinfo.is_dropped) {
-        writeln("Dropped pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
-      } else {
-        if (leftmost.is_mapped)
-          writeln("Writing pos ",leftmost.refid,":",leftmost.start_pos," ",readinfo.state);
-        else
-          writeln("Writing unmapped ",readinfo.state);
-      }
-      */
       if (!remove || !readinfo.is_dropped) {
         auto mod = ModifyProcessReadBlob(leftmost);
         if (readinfo.is_dropped)
@@ -234,7 +224,6 @@ int subsample_main(string[] args) {
 
     ulong count = 0;
     while (true) { // loop through pileup
-      // write(".");
       assert(!current.isNull);
       while (current.is_unmapped2) {
         // we hit an unmapped set, need to purge (this won't work on threads)
@@ -248,25 +237,11 @@ int subsample_main(string[] args) {
         rightmost_idx = current_idx;
       }
       assert(current.is_mapped2);
-      // writeln("Current pos is ",current.ref_id,":",current.start_pos);
-      // Fill ring buffer ahead until the window is full (current and rightmost)
-      // rightmost is null at the end of the genome
       while (!rightmost.isNull && rightmost.is_mapped2 && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
         rightmost = ProcessReadBlob(stream.read);
         if (rightmost.isNull)
           break;
         rightmost_idx = pileup.push(ReadState(rightmost));
-      }
-
-      if (false) {
-      // Now we have a pileup and we can check this read (output)
-      assert(leftmost.is_mapped2);
-      writeln("     start  at ",leftmost.ref_id," ",leftmost.start_pos,":",leftmost.end_pos);
-      writeln("---> pileup at ",current.ref_id," ",current.start_pos,":",current.end_pos);
-      if (!rightmost.isNull && rightmost.is_mapped2)
-        writeln("     ending at ",rightmost.ref_id," ",rightmost.start_pos,":",rightmost.end_pos);
-      else
-        writeln("     reached end ",pileup.ring.length());
       }
 
       // writeln("Current: ",current.show_flags);
@@ -277,7 +252,6 @@ int subsample_main(string[] args) {
         auto rdepth = 0;
         for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
           auto check = pileup.read_at_idx(idx).get;
-          // writeln("Check: ",check.show_flags);
           if (check.is_mapped && !check.is_qc_fail) {
             assert(current.is_mapped2);
             assert(check.is_mapped2);
@@ -288,8 +262,6 @@ int subsample_main(string[] args) {
               ldepth++;
             if (read_overlaps(current.end_loc,check)) // 5s
               rdepth++;
-            //  depth++;
-            // }
           }
         }
         auto this_cov = max(ldepth,rdepth);
@@ -297,7 +269,6 @@ int subsample_main(string[] args) {
           auto hash = SuperFastHash(current.read_name);
           double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
           double rand = cast(double)(hash & 0xffffff)/0x1000000;
-          // write("readinfo ");
           auto readinfo = pileup.read_at_idx(current_idx);
           if (rand < -sample_drop_rate) {
             readinfo.set_drop;
@@ -307,11 +278,7 @@ int subsample_main(string[] args) {
             readinfo.set_keep;
             pileup.update_read_at_index(current_idx,readinfo);
           }
-          // write("Pos ",current.refid,":",current.start_pos);
-          // writeln(" #",hash," depth ",this_cov," max ",max_cov," sample drop rate ",sample_drop_rate," rand ",rand," ",readinfo.state);
         }
-        if (false)
-          writeln("**** ",current.read_name," Depth l",ldepth," r",rdepth," t",depth," mapq ",current.mapping_quality()," tlen ", current.tlen," seqlen ",current.sequence_length, " maplen ",current.consumed_reference_bases, " ", current.sequence, "cigar", current.cigar);
       }
 
       // Stop at end of data
@@ -328,7 +295,6 @@ int subsample_main(string[] args) {
 
       // Reaper: write and remove leading reads (leftmost and current)
       while (!pileup.empty && (leftmost.is_unmapped2 || (leftmost.is_mapped2 && current.is_mapped2 && (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos)))) {
-        // write read
         reap();
       }
     }
