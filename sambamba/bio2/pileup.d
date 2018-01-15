@@ -142,8 +142,8 @@ struct RingBuffer(T) {
 
   RingBufferIndex popFront() {
     enforce(!is_empty, "ringbuffer is empty");
-    static if (__traits(compiles, _items[0].cleanup)) {
-      writeln("cleanup");
+    static if (__traits(compiles, _items[0].cleanupx)) {
+      // write("x");
       _items[_head.get() % $].cleanup();
     }
     ++_head.value;

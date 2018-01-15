@@ -42,6 +42,7 @@ module sambamba.subsample;
 
  */
 
+import core.memory : GC;
 import std.algorithm.comparison : max;
 import std.conv;
 import std.experimental.logger;
@@ -125,9 +126,12 @@ struct ReadState {
 
 
 /**
-   Implementation of Hash1. While reads stream in they get piled up in
-   a ringbuffer. The ringbuffer gets filled ahead until the read that is
-   no longer overlapping, creating a window:
+   Implementation of fasthash which is the simplest implementation,
+   comparable to that of others.
+
+   While reads stream in they get piled up in a ringbuffer. The
+   ringbuffer gets filled ahead until the read that is no longer
+   overlapping, creating a window from leftmost to rightmost:
 
                                                           r-------------
                                                ----y---------------
@@ -138,8 +142,18 @@ struct ReadState {
               l------------------x-----
           leftmost             start_pos       end_pos  rightmost
 
-   once the reads have been counted it moves to the next read, reads ahead
-   and destroys the leftmost reads that have gone out of the window.
+   once the reads have been counted it moves to the next read, reads
+   ahead and destroys the leftmost reads that have gone out of the
+   window.
+
+   Some read stacks are (theoretically) unlimited in size. Therefore
+   we stop processing them at (say) 20x the max_cov. At that point the
+   reader goes into a separate mode, continuing to read and write on
+   the fly without filling the ringbuffer.
+
+   Depth is cached in a separate ringbuffer at start positions. The
+   depth at the end_pos is inferred/estimated from this.
+
 */
 int subsample_main(string[] args) {
   bool remove = false;
@@ -168,6 +182,7 @@ int subsample_main(string[] args) {
   auto infns = args[1..$];
 
   assert(max_cov > 0);
+  GC.disable();
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ReadState();
@@ -219,6 +234,7 @@ int subsample_main(string[] args) {
 
     ulong count = 0;
     while (true) { // loop through pileup
+      // write(".");
       assert(!current.isNull);
       while (current.is_unmapped2) {
         // we hit an unmapped set, need to purge (this won't work on threads)
