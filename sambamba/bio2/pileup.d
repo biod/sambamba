@@ -218,8 +218,14 @@ unittest {
    Represent a pileup of reads in a buffer.
 */
 
+/*
+  Read RingBuffer with current pointer, so you have three states
+  (first, current, last).
+*/
+
 class PileUp(R) {
   RingBuffer!R ring;
+  RingBufferIndex current;
 
   this(ulong bufsize=DEFAULT_BUFFER_SIZE) {
     ring = RingBuffer!R(bufsize);
@@ -227,12 +233,16 @@ class PileUp(R) {
 
   RingBufferIndex push(R r) { return ring.put(r); }
   bool empty() @property const { return ring.is_empty();}
+  RingBufferIndex popFront() { return ring.popFront(); }
   ref R front() { return ring.front(); }
-  bool idx_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
-  ref R read_at(RingBufferIndex idx) {
+  alias front leftmost;
+  ref R rightmost() { return ring.back(); }
+  ref R read(RingBufferIndex idx = current) {
     return ring.get_at(idx);
   }
+  bool is_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
 
+  /*
   void update_read_at_index(RingBufferIndex idx, R read) {
     ring.update_at(idx,read);
   }
@@ -243,12 +253,9 @@ class PileUp(R) {
     return idx;
   }
 
-  RingBufferIndex popFront() {
-    return ring.popFront();
-  }
-
   bool is_past_end(RingBufferIndex idx) {
     return (idx > ring._tail);
   }
+  */
 
 }

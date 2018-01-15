@@ -84,7 +84,12 @@ Examples:
 ");
 }
 
-enum RState { unknown, keep, drop, dirty }
+enum RState {
+  unknown,     // unknown/unmapped read (always write)
+  keep,        // keep in set (allways write)
+  drop,        // drop from set (no write or mark as bad quality)
+  dirty        // delete from ring buffer (done)
+}
 
 // ReadState keeps track of the state of a processed Read. This state
 // is maintained on the ringbuffer. We may change this design later.
@@ -94,6 +99,7 @@ struct ReadState {
   RState state;
 
   this(ProcessReadBlob _r) {
+    enforce(!_r.isNull);
     read = _r;
     state = RState.unknown;
   }
@@ -147,14 +153,54 @@ struct ReadState {
    window.
 
    Some read stacks are (theoretically) unlimited in size. Therefore
-   we stop processing them at (say) 20x the max_cov. At that point the
-   reader goes into a separate mode, continuing to read and write on
-   the fly without filling the ringbuffer.
+   we stop processing them at (say) 20x the max_cov (max_reached). At
+   that point the reader goes into a separate mode, continuing to read
+   and write on the fly without filling the ringbuffer.
 
    Depth is cached in a separate ringbuffer at start positions. The
    depth at the end_pos is inferred/estimated from this.
 
+   In pseudo code:
+
+   each read
+     read+write while is_ignore == unmapped/bad quality/duplicates
+     read ahead while overlapping
+       if max_coverage reached
+         go into separate blocking mode
+         write out stack
+     compute depth
+     store depth in cache
+     mark read for keep/drop
+     destroy reads that are no longer overlapping (reaper)
+
+   Pretty simple. In the future we may add an extra layer for
+   processing, but I don't think it will help much.
+
 */
+
+// ---- Move through reads that are ignored. Modifies pileup
+void while_invalid_read(RingBufferIndex read, void delegate() dg) {
+  dg();
+}
+
+  // auto read = pileup.get(current);
+  /*
+    assert(!current.isNull);
+    while (current.is_unmapped2) {
+    // we hit an unmapped set, need to purge (this won't work on threads)
+    // writeln("Skip unmapped read");
+    reap();
+    current = ProcessReadBlob(stream.read);
+    if (current.isNull)
+    break;
+    current_idx = pileup.push(ReadState(current));
+    current = pileup.read_at(current_idx).get;
+    // rightmost = current;
+    rightmost_idx = current_idx;
+    }
+    assert(current.is_mapped2);
+  */
+
 int subsample_main(string[] args) {
   bool remove = false;
   globalLogLevel(LogLevel.trace); // debug level
@@ -177,7 +223,7 @@ int subsample_main(string[] args) {
          );
 
   enforce(outputfn != "", "Output not defined");
-  enforce(type != "", "Algorithm not defined");
+  enforce(type == "fasthash", "Algorithm not defined");
   enforce(max_cov != 0, "Maximum coverage not set");
   auto infns = args[1..$];
 
@@ -189,143 +235,20 @@ int subsample_main(string[] args) {
     auto stream = BamReadBlobStream(fn);
     auto output = BamWriter(outputfn,stream.header,9);
 
-    auto currentx = ProcessReadBlob(stream.read);
-    asserte(!currentx.isNull);
-    auto current_idx = pileup.push(ReadState(currentx));
-    assert(current_idx == 0);
-    // writeln("First pos is ",current.ref_id,":",current.start_pos);
-    // auto rightmost = current;
-    auto rightmost_idx = current_idx;
-    // auto leftmost = current;
-    auto leftmost_idx = current_idx;
+    auto first_read = ProcessReadBlob(stream.read);
+    auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
+    // pileup.current = first;
 
-    auto reap = () {
-      // assert(!leftmost.isNull); implicit
-      auto readinfo = pileup.read_at(leftmost_idx);
-      assert(!readinfo.is_dirty);
-      if (!remove || !readinfo.is_dropped) {
-        auto r = readinfo.get;
-        auto mod = ModifyProcessReadBlob(r);
-        if (readinfo.is_dropped)
-          mod.set_qc_fail;
-        auto blob = mod.toBlob;
-        // another hack for now:
-        output.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
-        output.bgzf_writer.write!int(cast(int)r.raw_ref_id);
-        output.bgzf_writer.write!int(cast(int)r.raw_start_pos);
-        output.bgzf_writer.write(blob);
-      }
-      readinfo.set_dirty;
-      pileup.update_read_at_index(leftmost_idx,readinfo); // this is ugly
-
-      leftmost_idx = pileup.popFront();
-      // if (!pileup.empty)
-      //   leftmost = pileup.front.get;
-    };
-
-    ulong count = 0;
-    while (!pileup.empty) { // loop through pileup
-      auto current = pileup.read_at(current_idx).get;
-      assert(!current.isNull);
-      while (current.is_unmapped2) {
-        // we hit an unmapped set, need to purge (this won't work on threads)
-        // writeln("Skip unmapped read");
-        reap();
-        current = ProcessReadBlob(stream.read);
-        if (current.isNull)
-          break;
-        current_idx = pileup.push(ReadState(current));
-        current = pileup.read_at(current_idx).get;
-        // rightmost = current;
-        rightmost_idx = current_idx;
-      }
-      assert(current.is_mapped2);
-      ProcessReadBlob rightmost = pileup.read_at(rightmost_idx).get;
-      while (!rightmost.isNull && rightmost.is_mapped2 && current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1) {
-        rightmost = ProcessReadBlob(stream.read);
-        if (rightmost.isNull)
-          break;
-        rightmost_idx = pileup.push(ReadState(rightmost));
-        rightmost = pileup.read_at(rightmost_idx).get;
-      }
-
-      // writeln("Current: ",current.show_flags);
-      if (!current.is_qc_fail) {
-        // Compute depth (leftmost, current, rightmost)
-        auto depth = 0;
-        auto ldepth = 0;
-        auto rdepth = 0;
-        for (RingBufferIndex idx = leftmost_idx; idx < rightmost_idx; idx++) {
-          auto check = pileup.read_at(idx).get;
-          if (check.is_mapped && !check.is_qc_fail) {
-            assert(current.is_mapped2);
-            assert(check.is_mapped2);
-            assert(current.ref_id == check.ref_id);
-            // all time is consumed in this section
-            // if (reads_overlap(current,check)) { // 8s
-            if (read_overlaps(current.start_loc,check)) // 5s
-              ldepth++;
-            if (read_overlaps(current.end_loc,check)) // 5s
-              rdepth++;
-          }
-        }
-        auto this_cov = max(ldepth,rdepth);
-        if (this_cov > max_cov) {
-          auto hash = SuperFastHash(current.read_name);
-          double sample_drop_rate = cast(double)(1 - (this_cov - max_cov)) / this_cov;
-          double rand = cast(double)(hash & 0xffffff)/0x1000000;
-          auto readinfo = pileup.read_at(current_idx);
-          if (rand < -sample_drop_rate) {
-            readinfo.set_drop;
-            pileup.update_read_at_index(current_idx,readinfo); // this is ugly
-          }
-          else {
-            readinfo.set_keep;
-            pileup.update_read_at_index(current_idx,readinfo);
-          }
-        }
-      }
-
-      // Stop at end of data
-      if (rightmost.isNull && pileup.idx_at_end(current_idx))
-        break;
-
-      // Move to next (current)
-      current_idx = pileup.get_next_idx(current_idx); // incr.
-      auto prev = current;
-      current = pileup.read_at(current_idx).get;
-      if (current.is_mapped2 && prev.is_mapped2 && current.ref_id == prev.ref_id)
-        enforce(current.start_pos >= prev.start_pos, "BAM file is not sorted");
-      assert(!current.isNull);
-
-      // Reaper: write and remove leading reads (leftmost and current)
-
-      ProcessReadBlob leftmost = pileup.read_at(leftmost_idx).get;
-      writeln(leftmost_idx,current_idx,rightmost_idx);
-      while (!pileup.empty && (leftmost.is_unmapped2 || (leftmost.is_mapped2 && current.is_mapped2 && (leftmost.ref_id != current.ref_id || leftmost.end_pos < current.start_pos)))) {
-        reap();
-      }
+    while(true) { // keep reading while !pileup.empty && !stream.empty
+      auto current = first;
+      while_invalid_read(current,() {
+          writeln("HEY",current);
+          // force_write(pileup);
+          // current = next(read);
+          // pileup.push(current);
+        });
+      return 1;
     }
-    while (!pileup.empty)
-      reap();
-    writeln("Max pileup size ",pileup.ring.max_size);
   }
   return 0;
 }
-
-// TODO:
-//
-//   1. &find template alignment length (end_pos)
-//   2. &check depth at &start and &end (should match pileup)
-//   3. &quality filter
-//   4. &check for valid RNAME in case of CIGAR
-//   5. &Write header (bgzf magic), bgzf blocks
-//     a. &check ringbuffer implementation
-//     b. &create test comparing unpacked versions
-//     c. &refactor a bit and check for unmapped reads - straighten out flag use
-//     d. run memory checker
-//   6. Go multi-core on read and process too
-//   7. &Introduce option for (development) validation (less checking by default) and
-//      introduce assert_throws (now asserte)
-//   8. markdup filter
-//   9. improve algorithm for pairs
