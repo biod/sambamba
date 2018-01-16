@@ -46,8 +46,8 @@ template ReadFlags(alias flag) {
   @property bool is_paired()                nothrow { return cast(bool)(flag & 0x1); }
   /// Each segment properly aligned according to the aligner
   @property bool is_proper_pair()           nothrow { return cast(bool)(flag & 0x2); }
-  @property bool is_unmapped()              nothrow { return cast(bool)(flag & 0x4); }
-  @property bool is_mapped()                nothrow { return cast(bool)(!(flag & 0x4)); }
+  @property bool is_unmapped_raw()          nothrow { return cast(bool)(flag & 0x4); }
+  @property bool is_mapped_raw()            nothrow { return cast(bool)(!(flag & 0x4)); }
   @property bool mate_is_unmapped()         nothrow { return cast(bool)(flag & 0x8); }
   @property bool is_reverse_strand()        nothrow { return cast(bool)(flag & 0x10); }
   @property bool mate_is_reverse_strand()   nothrow { return cast(bool)(flag & 0x20); }
@@ -55,7 +55,7 @@ template ReadFlags(alias flag) {
   @property bool is_second_of_pair()        nothrow { return cast(bool)(flag & 0x80); }
   @property bool is_secondary_alignment()   nothrow { return cast(bool)(flag & 0x100); }
   @property bool is_qc_fail() {
-    asserte(is_mapped(),to!string(this));
+    asserte(is_mapped_raw,to!string(this));
     return cast(bool)(flag & 0x200); }
   alias is_qc_fail failed_quality_control;
   /// PCR or optical duplicate
@@ -66,15 +66,15 @@ template ReadFlags(alias flag) {
     string res = format("b%b-%d",flag,flag);
     if (is_paired) res ~= " pair";
     if (is_proper_pair) res ~= " proper";
-    if (is_mapped) res ~= " mapped";
-    if (is_unmapped) res ~= " unmapped";
+    if (is_mapped_raw) res ~= " mapped";
+    if (is_unmapped_raw) res ~= " unmapped";
     if (mate_is_unmapped) res ~= " mate_unmapped";
     if (is_reverse_strand) res ~= " rev_strand";
     if (mate_is_reverse_strand) res ~= " mate_rev_strand";
     if (is_first_of_pair) res ~= " first_of_pair";
     if (is_second_of_pair) res ~= " second_of_pair";
     if (is_secondary_alignment) res ~= " secondary_aln";
-    if (is_mapped && is_qc_fail) res ~= " qc_fail";
+    if (is_mapped_raw && is_qc_fail) res ~= " qc_fail";
     if (is_duplicate) res ~= " duplicate";
     if (is_supplementary) res ~= " suppl";
     return res;
@@ -83,15 +83,15 @@ template ReadFlags(alias flag) {
 
 template CheckMapped(alias refid) {
   @property nothrow bool is_unmapped2() {
-    return is_unmapped;
+    return is_unmapped_raw;
   }
   @property bool is_mapped2() {
     debug {
-      if (is_mapped) {
+      if (is_mapped_raw) {
         assert(refid != -1, "ref_id can not be -1 for mapped read");  // BAM spec
       }
     }
-    return !is_unmapped;
+    return !is_unmapped_raw;
   }
 }
 

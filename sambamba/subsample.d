@@ -182,7 +182,7 @@ struct ReadState {
 void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
   auto read = ProcessReadBlob(reader.read);
   // auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
-  while(!read.isNull && read.is_unmapped2) {
+  while(!read.isNull && read.is_unmapped) {
     dg(read);
     read = ProcessReadBlob(reader.read);
   }
