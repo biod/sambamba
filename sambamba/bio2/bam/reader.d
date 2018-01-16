@@ -82,10 +82,10 @@ template ReadFlags(alias flag) {
 }
 
 template CheckMapped(alias refid) {
-  @property nothrow bool is_unmapped2() {
+  @property nothrow bool is_unmapped() {
     return is_unmapped_raw;
   }
-  @property bool is_mapped2() {
+  @property bool is_mapped() {
     debug {
       if (is_mapped_raw) {
         assert(refid != -1, "ref_id can not be -1 for mapped read");  // BAM spec
@@ -231,7 +231,7 @@ struct ProcessReadBlob {
   }
 
   @property RefId ref_id() {
-    enforce(_read2.is_mapped2,"Trying to get ref_id an unmapped read " ~ to!string(_read2));
+    enforce(_read2.is_mapped,"Trying to get ref_id an unmapped read " ~ to!string(_read2));
     return _read2.refid;
   }
 
@@ -253,7 +253,7 @@ struct ProcessReadBlob {
   /// start_loc), i.e., the first base that gets consumed in the
   /// CIGAR.
   @property GenomePos start_pos() {
-    assert(_read2.is_mapped2,"Trying to get pos on an unmapped read"); // BAM spec
+    assert(_read2.is_mapped,"Trying to get pos on an unmapped read"); // BAM spec
     asserte(_read2.pos < GenomePos.max);
     return cast(GenomePos)_read2.pos;
   }
@@ -278,7 +278,7 @@ struct ProcessReadBlob {
   }
 
   @property @trusted MappingQuality mapping_quality() { // MAPQ
-    assert(_read2.is_mapped2,"Trying to get MAPQ on an unmapped read"); // BAM spec
+    assert(_read2.is_mapped,"Trying to get MAPQ on an unmapped read"); // BAM spec
     return MappingQuality(_read2.mapping_quality);
   }
 
@@ -296,7 +296,7 @@ struct ProcessReadBlob {
   /// avoid a heap allocation.
   @property @trusted Nullable!GenomePos consumed_reference_bases() {
     if (consumed_reference_bases2.isNull) {
-      assert(_read2.is_mapped2,"Trying to get consumed bases on an unmapped read"); // BAM spec
+      assert(_read2.is_mapped,"Trying to get consumed bases on an unmapped read"); // BAM spec
       assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
       auto raw = cast(uint[]) _read2.raw_cigar();
       if (raw.length==1 && raw[0] == '*')
@@ -317,7 +317,7 @@ struct ProcessReadBlob {
   /// Count query consumed bases. Uses raw_cigar to avoid a heap
   /// allocation.
   @property @trusted GenomePos consumed_query_bases() {
-    assert(_read2.is_mapped2,"Trying to get consumed bases on an unmapped read"); // BAM spec
+    assert(_read2.is_mapped,"Trying to get consumed bases on an unmapped read"); // BAM spec
     assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
     auto raw = cast(uint[]) _read2.raw_cigar();
     if (raw.length==1 && raw[0] == '*')
@@ -337,7 +337,7 @@ struct ProcessReadBlob {
   /// null. Caches name.
   @property Nullable!string read_name() {
     if (read_name2.isNull) {
-      assert(_read2.is_mapped2,"Trying to get RNAME on an unmapped read"); // BAM spec
+      assert(_read2.is_mapped,"Trying to get RNAME on an unmapped read"); // BAM spec
       auto raw = _read2.read_name;
       if (raw.length == 0 || (raw.length ==1 && raw[0] == '*'))
         return read_name2; // null
@@ -353,7 +353,7 @@ struct ProcessReadBlob {
   /// operations. Caches Cigar when there are operations.
   @property Nullable!CigarOperations cigar() {
     if (cigar2.isNull) {
-      assert(_read2.is_mapped2,"Trying to get CIGAR on an unmapped read"); // BAM spec
+      assert(_read2.is_mapped,"Trying to get CIGAR on an unmapped read"); // BAM spec
       assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
       auto raw = cast(uint[]) _read2.raw_cigar();
       if (raw.length==0 || (raw.length==1 && raw[0] == '*'))

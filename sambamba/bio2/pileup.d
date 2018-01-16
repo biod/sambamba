@@ -257,5 +257,10 @@ class PileUp(R) {
     return (idx > ring._tail);
   }
   */
-
+  void purge(void delegate(R) dg) {
+    while(!empty) {
+      dg(front);
+    }
+    current = RingBufferIndex();
+  }
 }

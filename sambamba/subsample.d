@@ -182,29 +182,21 @@ struct ReadState {
 void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
   auto read = ProcessReadBlob(reader.read);
   // auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
-  while(!read.isNull && read.is_unmapped) {
+  while(!read.isNull && (read.is_unmapped || read.is_qc_fail || read.is_duplicate)) {
     dg(read);
     read = ProcessReadBlob(reader.read);
   }
 }
 
-  // auto read = pileup.get(current);
-  /*
-    assert(!current.isNull);
-    while (current.is_unmapped2) {
-    // we hit an unmapped set, need to purge (this won't work on threads)
-    // writeln("Skip unmapped read");
-    reap();
-    current = ProcessReadBlob(stream.read);
-    if (current.isNull)
-    break;
-    current_idx = pileup.push(ReadState(current));
-    current = pileup.read_at(current_idx).get;
-    // rightmost = current;
-    rightmost_idx = current_idx;
-    }
-    assert(current.is_mapped2);
-  */
+// ---- Move through reads that are ignored. Modifies pileup
+void foreach_unmapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
+  auto read = ProcessReadBlob(reader.read);
+  // auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
+  while(!read.isNull && read.is_unmapped) {
+    dg(read);
+    read = ProcessReadBlob(reader.read);
+  }
+}
 
 int subsample_main(string[] args) {
   bool remove = false;
@@ -243,19 +235,12 @@ int subsample_main(string[] args) {
     // pileup.current = first;
 
     while(true) { // keep reading while !pileup.empty && !stream.empty
-      foreach_invalid_read(reader, (ProcessReadBlob read) {
-          writeln("HEY",read);
-          auto mod = ModifyProcessReadBlob(read);
-          auto blob = mod.toBlob;
-          // another hack for now:
-          writer.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
-          writer.bgzf_writer.write!int(cast(int)read.raw_ref_id);
-          writer.bgzf_writer.write!int(cast(int)read.raw_start_pos);
-          writer.bgzf_writer.write(blob);
-
-          // force_write(pileup);
-          // current = next(read);
-          // pileup.push(current);
+      foreach_unmapped_read(reader, (ProcessReadBlob read) {
+          pileup.purge( (ReadState read) {
+              writer.push(read.read);
+            });
+          writeln(read);
+          writer.push(read);
         });
       return 1;
     }

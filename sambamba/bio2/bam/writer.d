@@ -69,4 +69,18 @@ struct BamWriter {
     write_bam_header(bgzf_writer,header);
   }
 
+  void push(ModifyProcessReadBlob read) {
+    auto mod = read;
+    auto blob = mod.toBlob;
+    // another hack for now:
+    bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
+    bgzf_writer.write!int(cast(int)mod._read2.raw_ref_id);
+    bgzf_writer.write!int(cast(int)mod._read2.raw_start_pos);
+    bgzf_writer.write(blob);
+  }
+
+  void push(ProcessReadBlob read) {
+    push(ModifyProcessReadBlob(read));
+  }
+
 }
