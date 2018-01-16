@@ -178,24 +178,27 @@ struct ReadState {
 
 */
 
-// ---- Move through reads that are ignored. Modifies pileup
-void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
-  auto read = ProcessReadBlob(reader.read);
-  // auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
-  while(!read.isNull && (read.is_unmapped || read.is_qc_fail || read.is_duplicate)) {
+void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, void delegate(ProcessReadBlob) dg) {
+  auto read = ProcessReadBlob(reader.front);
+  while(!read.isNull && test(read)) {
     dg(read);
     read = ProcessReadBlob(reader.read);
   }
+};
+
+// ---- Move through reads that are ignored. Modifies pileup
+void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
+  foreach_test_read(reader, (read) { return read.is_unmapped || read.is_qc_fail || read.is_duplicate; },dg);
 }
 
 // ---- Move through reads that are ignored. Modifies pileup
 void foreach_unmapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
-  auto read = ProcessReadBlob(reader.read);
-  // auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
-  while(!read.isNull && read.is_unmapped) {
-    dg(read);
-    read = ProcessReadBlob(reader.read);
-  }
+  foreach_test_read(reader, (read) { return read.is_unmapped; },dg);
+}
+
+// ---- Move through reads that are ignored. Modifies pileup
+void foreach_mapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
+  foreach_test_read(reader, (read) { return read.is_mapped; },dg);
 }
 
 int subsample_main(string[] args) {
@@ -230,19 +233,31 @@ int subsample_main(string[] args) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ReadState();
     auto reader = BamReadBlobStream(fn);
+    reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
 
     // pileup.current = first;
 
-    while(true) { // keep reading while !pileup.empty && !stream.empty
+    while(!pileup.empty || !reader.empty) {
+      write(".");
+
+      // Stage1: write out all unmapped
       foreach_unmapped_read(reader, (ProcessReadBlob read) {
           pileup.purge( (ReadState read) {
               writer.push(read.read);
             });
-          writeln(read);
+          writeln("Unmapped ",read);
           writer.push(read);
         });
-      return 1;
+      // Stage2: read ahead for mapped reads and calculate depth
+      foreach_mapped_read(reader, (ProcessReadBlob read) {
+          writeln("Mapped ",read);
+          writer.push(read);
+        });
+
+      // Stage3: mark reads
+
+      // Stage4: write reads and remove from ringbuffer
     }
   }
   return 0;

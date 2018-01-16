@@ -452,7 +452,7 @@ struct BamReadBlobStream {
     return stream.eof();
   }
 
-  ReadBlob front() {
+  Nullable!ReadBlob front() {
     assert(!empty());
     return current;
   }
