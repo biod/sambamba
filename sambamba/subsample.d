@@ -179,8 +179,13 @@ struct ReadState {
 */
 
 // ---- Move through reads that are ignored. Modifies pileup
-void while_invalid_read(RingBufferIndex read, void delegate() dg) {
-  dg();
+void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
+  auto read = ProcessReadBlob(reader.read);
+  // auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
+  while(!read.isNull && read.is_unmapped2) {
+    dg(read);
+    read = ProcessReadBlob(reader.read);
+  }
 }
 
   // auto read = pileup.get(current);
@@ -232,17 +237,22 @@ int subsample_main(string[] args) {
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ReadState();
-    auto stream = BamReadBlobStream(fn);
-    auto output = BamWriter(outputfn,stream.header,9);
+    auto reader = BamReadBlobStream(fn);
+    auto writer = BamWriter(outputfn,reader.header,9);
 
-    auto first_read = ProcessReadBlob(stream.read);
-    auto first = pileup.push(ReadState(first_read)); // the current pointer maintains state with the pileup
     // pileup.current = first;
 
     while(true) { // keep reading while !pileup.empty && !stream.empty
-      auto current = first;
-      while_invalid_read(current,() {
-          writeln("HEY",current);
+      foreach_invalid_read(reader, (ProcessReadBlob read) {
+          writeln("HEY",read);
+          auto mod = ModifyProcessReadBlob(read);
+          auto blob = mod.toBlob;
+          // another hack for now:
+          writer.bgzf_writer.write!int(cast(int)(blob.length+2*int.sizeof));
+          writer.bgzf_writer.write!int(cast(int)read.raw_ref_id);
+          writer.bgzf_writer.write!int(cast(int)read.raw_start_pos);
+          writer.bgzf_writer.write(blob);
+
           // force_write(pileup);
           // current = next(read);
           // pileup.push(current);

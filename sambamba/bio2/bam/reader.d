@@ -472,7 +472,7 @@ struct BamReadBlobStream {
   /// Returns a read if available. Otherwise null
   Nullable!ReadBlob read() {
     if (empty()) return Nullable!ReadBlob();
-    auto prev = current;
+    // auto prev = current;
     popFront();
     return current;
   }
