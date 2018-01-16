@@ -186,17 +186,24 @@ void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBl
   }
 };
 
-// ---- Move through reads that are ignored. Modifies pileup
+// ---- Move through reads that are ignored.
 void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
   foreach_test_read(reader, (read) { return read.is_unmapped || read.is_qc_fail || read.is_duplicate; },dg);
 }
 
-// ---- Move through reads that are ignored. Modifies pileup
+// ---- When current is unmapped, move through reads that are ignored.
+void foreach_outside_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
+  if (reader.front.is_unmapped) {
+    foreach_invalid_read(reader,dg);
+  }
+}
+
+// ---- Move through reads that are ignored.
 void foreach_unmapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
   foreach_test_read(reader, (read) { return read.is_unmapped; },dg);
 }
 
-// ---- Move through reads that are ignored. Modifies pileup
+// ---- Move through reads that are ignored.
 void foreach_mapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
   foreach_test_read(reader, (read) { return read.is_mapped; },dg);
 }
@@ -239,10 +246,8 @@ int subsample_main(string[] args) {
     // pileup.current = first;
 
     while(!pileup.empty || !reader.empty) {
-      write(".");
-
-      // Stage1: write out all unmapped
-      foreach_unmapped_read(reader, (ProcessReadBlob read) {
+      // Stage1: current is unmapped, write out all invalid
+      foreach_outside_read(reader, (ProcessReadBlob read) {
           pileup.purge( (ReadState read) {
               writer.push(read.read);
             });
@@ -250,12 +255,12 @@ int subsample_main(string[] args) {
           writer.push(read);
         });
       // Stage2: read ahead for mapped reads and calculate depth
-      foreach_mapped_read(reader, (ProcessReadBlob read) {
-          writeln("Mapped ",read);
-          writer.push(read);
+      read_ahead(reader, (ProcessReadBlob read) {
+          writeln("Readahead ",read);
+          pileup.push(read);
         });
 
-      // Stage3: mark reads
+      // Stage3: mark reads in pileup
 
       // Stage4: write reads and remove from ringbuffer
     }
