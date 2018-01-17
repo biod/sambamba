@@ -179,9 +179,20 @@ struct ReadState {
 */
 
 void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, void delegate(ProcessReadBlob) dg) {
+  if (reader.empty) return;
   auto read = ProcessReadBlob(reader.front);
   while(!read.isNull && test(read)) {
     dg(read);
+    read = ProcessReadBlob(reader.read);
+  }
+};
+
+void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
+  if (reader.empty) return;
+  auto read = ProcessReadBlob(reader.front);
+  while(!read.isNull && test(read)) {
+    if (!dg(read))
+      break;
     read = ProcessReadBlob(reader.read);
   }
 };
@@ -206,6 +217,10 @@ void foreach_unmapped_read(ref BamReadBlobStream reader, void delegate(ProcessRe
 // ---- Move through reads that are ignored.
 void foreach_mapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
   foreach_test_read(reader, (read) { return read.is_mapped; },dg);
+}
+
+void foreach_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) dg) {
+  foreach_test_read(reader, (read) { return true; },dg);
 }
 
 int subsample_main(string[] args) {
@@ -243,27 +258,28 @@ int subsample_main(string[] args) {
     reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
 
-    // pileup.current = first;
-
-    while(!pileup.empty || !reader.empty) {
-      // Stage1: current is unmapped, write out all invalid
-      foreach_outside_read(reader, (ProcessReadBlob read) {
-          pileup.purge( (ReadState read) {
-              writer.push(read.read);
-            });
-          writeln("Unmapped ",read);
-          writer.push(read);
-        });
-      // Stage2: read ahead for mapped reads and calculate depth
-      read_ahead(reader, (ProcessReadBlob read) {
+    while(!reader.empty) {
+      // Stage1: read ahead for mapped reads and calculate depth
+      foreach_read(reader, (ProcessReadBlob read) {
           writeln("Readahead ",read);
-          pileup.push(read);
+          pileup.push(ReadState(read));
+          return true; // get next
         });
 
       // Stage3: mark reads in pileup
 
       // Stage4: write reads and remove from ringbuffer
+      pileup.purge( (ReadState read) {
+          write(".");
+          writer.push(read.read);
+        });
+      pileup.current_inc; // move the current read pointer
     }
+    // Finally write out remaining reads
+    pileup.purge( (ReadState read) {
+        write(",");
+        writer.push(read.read);
+      });
   }
   return 0;
 }

@@ -229,6 +229,7 @@ class PileUp(R) {
 
   this(ulong bufsize=DEFAULT_BUFFER_SIZE) {
     ring = RingBuffer!R(bufsize);
+    current = ring._head;
   }
 
   RingBufferIndex push(R r) { return ring.put(r); }
@@ -241,25 +242,15 @@ class PileUp(R) {
     return ring.get_at(idx);
   }
   bool is_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
-
-  /*
-  void update_read_at_index(RingBufferIndex idx, R read) {
-    ring.update_at(idx,read);
+  @property void current_inc() {
+    assert(!ring.is_tail(current));
+    ++current;
   }
 
-  RingBufferIndex get_next_idx(RingBufferIndex idx) {
-    idx.value += 1;
-    assert(ring.is_valid(idx),"Out of range");
-    return idx;
-  }
-
-  bool is_past_end(RingBufferIndex idx) {
-    return (idx > ring._tail);
-  }
-  */
   void purge(void delegate(R) dg) {
     while(!empty) {
       dg(front);
+      popFront();
     }
     current = RingBufferIndex();
   }
