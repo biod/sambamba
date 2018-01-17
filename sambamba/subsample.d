@@ -223,6 +223,18 @@ void foreach_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) d
   foreach_test_read(reader, (read) { return true; },dg);
 }
 
+// keep reading until rightmost outside current read.
+bool in_window(PileUp!ReadState pileup, ProcessReadBlob read) {
+  auto rightmost = read;
+  auto current = pileup.read(pileup.current).read;
+  if (current.is_unmapped)
+    return true; // unmapped reads are just pushed
+  if (rightmost.is_unmapped)
+    return true; // we have to push until we have a mapped one or the buffer is full
+  return current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1;
+}
+
+
 int subsample_main(string[] args) {
   bool remove = false;
   globalLogLevel(LogLevel.trace); // debug level
@@ -253,7 +265,7 @@ int subsample_main(string[] args) {
   GC.disable();
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
-    auto pileup = new PileUp!ReadState();
+    auto pileup = new PileUp!ReadState(max_cov * 20);
     auto reader = BamReadBlobStream(fn);
     reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
@@ -263,6 +275,19 @@ int subsample_main(string[] args) {
       foreach_read(reader, (ProcessReadBlob read) {
           writeln("Readahead ",read);
           pileup.push(ReadState(read));
+          if (!in_window(pileup,read)) {
+            reader.popFront(); // last read is in the pileup
+            return false; // move on for processing
+          }
+          if (pileup.is_full) {
+            writeln("Purgin!!");
+            pileup.purge( (ReadState read) {
+                // FIXME check state of ringbuffer
+                write("f");
+                writer.push(read.read);
+              });
+            return false; // move on
+          }
           return true; // get next
         });
 
@@ -273,7 +298,7 @@ int subsample_main(string[] args) {
           write(".");
           writer.push(read.read);
         });
-      pileup.current_inc; // move the current read pointer
+      if (!pileup.empty) pileup.current_inc; // move the current read pointer
     }
     // Finally write out remaining reads
     pileup.purge( (ReadState read) {

@@ -23,10 +23,12 @@ module bio2.pileup;
 import std.exception;
 import std.stdio;
 import std.traits;
+import std.typecons;
 
 import std.experimental.logger;
 
 import sambamba.bio2.constants;
+import bio.core.utils.exception;
 
 immutable ulong DEFAULT_BUFFER_SIZE = 1_000_000;
 
@@ -124,7 +126,6 @@ struct RingBuffer(T) {
   }
 
   ref T get_at(RingBufferIndex idx) {
-    writeln("head,idx,tail",_head,idx,_tail);
     enforce(!is_empty, "ringbuffer is empty");
     enforce(idx >= _head, "ringbuffer range error (idx before front)");
     enforce(idx != _tail, "ringbuffer range error (idx at end)");
@@ -225,26 +226,33 @@ unittest {
 
 class PileUp(R) {
   RingBuffer!R ring;
-  RingBufferIndex current;
+  Nullable!RingBufferIndex current;
 
   this(ulong bufsize=DEFAULT_BUFFER_SIZE) {
     ring = RingBuffer!R(bufsize);
-    current = ring._head;
   }
 
   RingBufferIndex push(R r) { return ring.put(r); }
   bool empty() @property const { return ring.is_empty();}
+  bool is_full() @property const { return ring.is_full();}
   RingBufferIndex popFront() { return ring.popFront(); }
   ref R front() { return ring.front(); }
   alias front leftmost;
   ref R rightmost() { return ring.back(); }
-  ref R read(RingBufferIndex idx = current) {
+  ref R read(Nullable!RingBufferIndex idx = current) {
+    enforce(!idx.isNull, "idx should not be null");
     return ring.get_at(idx);
   }
   bool is_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
+
   @property void current_inc() {
-    assert(!ring.is_tail(current));
+    asserte(!empty);
+    asserte(!ring.is_tail(current));
     ++current;
+  }
+
+  void current_reset() {
+    current = RingBufferIndex();
   }
 
   void purge(void delegate(R) dg) {
@@ -252,6 +260,6 @@ class PileUp(R) {
       dg(front);
       popFront();
     }
-    current = RingBufferIndex();
+    current_reset();
   }
 }

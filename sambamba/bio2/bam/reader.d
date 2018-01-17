@@ -269,6 +269,10 @@ struct ProcessReadBlob {
     return start_pos + consumed_reference_bases;
   }
 
+  @property GenomePos raw_end_pos() {
+    return raw_start_pos + consumed_reference_bases;
+  }
+
   @property GenomeLocation start_loc() {
     return GenomeLocation(ref_id,start_pos);
   }
@@ -398,7 +402,8 @@ struct ProcessReadBlob {
   }
 
   string toString() {
-    return "<** " ~ ProcessReadBlob.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+    // return "<** " ~ ProcessReadBlob.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
+    return _read2.get.toString();
   }
 
 }
