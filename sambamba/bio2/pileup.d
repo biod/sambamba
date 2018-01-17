@@ -268,6 +268,15 @@ class PileUp(R) {
     current = RingBufferIndex();
   }
 
+  void purge_while(bool delegate(R) dg) {
+    while(!empty) {
+      if (!dg(front))
+        return; // skip the rest and do not move current
+      popFront();
+    }
+    set_current_to_head();
+  }
+
   void purge(void delegate(R) dg) {
     while(!empty) {
       dg(front);

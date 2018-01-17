@@ -130,7 +130,6 @@ struct ReadState {
   }
 }
 
-
 /**
    Implementation of fasthash which is the simplest implementation,
    comparable to that of others.
@@ -281,14 +280,14 @@ int subsample_main(string[] args) {
           }
           pileup.push(ReadState(read));
           if (!in_window(pileup,read)) {
-            reader.popFront(); // last read is in the pileup
-            return false; // move on for processing
+            reader.popFront();  // last read is in the pileup
+            pileup.current_inc; // move current forward in pileup
+            return false;       // and move on for processing
           }
-          // pileup.current_inc;
-          return true; // get next
+          return true; // still in window, get next
         });
 
-      // Stage2: pileup is full
+      // Stage2: pileup buffer is full
       if (pileup.is_full) {
         count_pileup_full++;
         pileup.purge( (ReadState read) {
@@ -299,11 +298,14 @@ int subsample_main(string[] args) {
       // Stage3: mark reads in pileup
 
       // Stage4: write out-of-scope reads and remove from ringbuffer
-      pileup.purge( (ReadState read) {
-          write(".");
-          writer.push(read.read);
+      pileup.purge_while( (ReadState read) {
+          if (read.is_dirty) {
+            write(".");
+            writer.push(read.read);
+            return true;
+          }
+          return false; // skip rest and do not reset current
         });
-      if (!pileup.empty) pileup.current_inc; // move the current read pointer
     }
     // Finally write out remaining reads
     pileup.purge( (ReadState read) {
