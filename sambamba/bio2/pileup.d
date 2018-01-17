@@ -177,11 +177,15 @@ struct RingBuffer(T) {
     return _items.length == length();
   }
 
-  RingBufferIndex pushed() @property const {
-    return _tail;
+  bool in_range(RingBufferIndex idx) @property const {
+    return idx >= _head && idx < _tail;
   }
-  RingBufferIndex popped() @property const {
-    return _head;
+
+  ulong pushed() @property const {
+    return _tail.value;
+  }
+  ulong popped() @property const {
+    return _head.value;
   }
 
 }
@@ -230,6 +234,7 @@ class PileUp(R) {
 
   this(ulong bufsize=DEFAULT_BUFFER_SIZE) {
     ring = RingBuffer!R(bufsize);
+    set_current_to_head;
   }
 
   RingBufferIndex push(R r) { return ring.put(r); }
@@ -239,9 +244,13 @@ class PileUp(R) {
   ref R front() { return ring.front(); }
   alias front leftmost;
   ref R rightmost() { return ring.back(); }
-  ref R read(Nullable!RingBufferIndex idx = current) {
-    enforce(!idx.isNull, "idx should not be null");
+  ref R read(RingBufferIndex idx) {
+    enforce(ring.in_range(idx), "idx should be set for PileUp.read");
     return ring.get_at(idx);
+  }
+  ref R read_current() {
+    enforce(!current.isNull, "current should be set for PileUp.read_current");
+    return read(current);
   }
   bool is_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
 
@@ -249,6 +258,10 @@ class PileUp(R) {
     asserte(!empty);
     asserte(!ring.is_tail(current));
     ++current;
+  }
+
+  @property void set_current_to_head() {
+    current = ring._head; // note pileup can be empty
   }
 
   void current_reset() {
@@ -260,6 +273,6 @@ class PileUp(R) {
       dg(front);
       popFront();
     }
-    current_reset();
+    set_current_to_head();
   }
 }

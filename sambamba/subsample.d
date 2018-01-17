@@ -226,7 +226,7 @@ void foreach_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) d
 // keep reading until rightmost outside current read.
 bool in_window(PileUp!ReadState pileup, ProcessReadBlob read) {
   auto rightmost = read;
-  auto current = pileup.read(pileup.current).read;
+  auto current = pileup.read_current.read;
   if (current.is_unmapped)
     return true; // unmapped reads are just pushed
   if (rightmost.is_unmapped)
@@ -263,6 +263,8 @@ int subsample_main(string[] args) {
 
   assert(max_cov > 0);
   GC.disable();
+  uint count_pileup_full = 0;
+
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ReadState(max_cov * 20);
@@ -274,26 +276,29 @@ int subsample_main(string[] args) {
       // Stage1: read ahead for mapped reads and calculate depth
       foreach_read(reader, (ProcessReadBlob read) {
           writeln("Readahead ",read);
+          if (pileup.is_full) {
+            return false; // move on for processing
+          }
           pileup.push(ReadState(read));
           if (!in_window(pileup,read)) {
             reader.popFront(); // last read is in the pileup
             return false; // move on for processing
           }
-          if (pileup.is_full) {
-            writeln("Purgin!!");
-            pileup.purge( (ReadState read) {
-                // FIXME check state of ringbuffer
-                write("f");
-                writer.push(read.read);
-              });
-            return false; // move on
-          }
+          // pileup.current_inc;
           return true; // get next
         });
 
+      // Stage2: pileup is full
+      if (pileup.is_full) {
+        count_pileup_full++;
+        pileup.purge( (ReadState read) {
+            write("f");
+            writer.push(read.read);
+          });
+      }
       // Stage3: mark reads in pileup
 
-      // Stage4: write reads and remove from ringbuffer
+      // Stage4: write out-of-scope reads and remove from ringbuffer
       pileup.purge( (ReadState read) {
           write(".");
           writer.push(read.read);
@@ -305,6 +310,8 @@ int subsample_main(string[] args) {
         write(",");
         writer.push(read.read);
       });
+    writeln("Pileup pushed ",pileup.ring.pushed," popped ",pileup.ring.popped);
   }
+  writeln("Pileup was full ",count_pileup_full," times");
   return 0;
 }
