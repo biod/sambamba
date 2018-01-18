@@ -189,6 +189,23 @@ struct RingBuffer(T) {
     return _head.value;
   }
 
+  @property void cleanup() {
+    _head = RingBufferIndex();
+    _tail = RingBufferIndex();
+  }
+
+  string toString() {
+    string res = "ring ";
+    for(RingBufferIndex i = _head; i<_tail; i++)
+      res ~= to!string(get_at(i));
+    return res;
+  }
+
+  @property string stats() {
+    return "Ringbuffer pushed " ~ to!string(pushed) ~ " popped " ~ to!string(popped) ~ " max-size " ~
+      to!string(max_size) // , "/", (pileup.ring.max_size+1)/pileup.ring.length);
+      ;
+  }
 }
 
 unittest {
@@ -285,9 +302,12 @@ class PileUp(R) {
     }
     set_current_to_head();
   }
+
+  @property string stats() {
+    return ring.stats();
+  }
+
   override string toString() {
-    return "Pileup pushed " ~ to!string(ring.pushed) ~ " popped " ~ to!string(ring.popped) ~ " max-size " ~
-      to!string(ring.max_size) // , "/", (pileup.ring.max_size+1)/pileup.ring.length);
-      ;
+    return stats;
   }
 }

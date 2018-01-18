@@ -113,6 +113,9 @@ struct ReadState {
   @property ref ProcessReadBlob get() {
     return read;
   }
+  @property GenomePos start_pos() {
+    return read.start_pos;
+  }
   @property void set_keep() {
     state = RState.keep;
   }
@@ -247,18 +250,35 @@ struct DepthPos {
 // from the nearest start positions
 
 class Depth {
-  RingBuffer!DepthPos startpos; // always sorted!
+  RingBuffer!DepthPos buf; // start_pos is always sorted!
+  Nullable!RefId ref_id;
 
   this(ulong bufsize=DEFAULT_BUFFER_SIZE) {
-    startpos = RingBuffer!DepthPos(bufsize);
+    buf = RingBuffer!DepthPos(bufsize);
   }
 
+  // Adds a new read, updates depth and removes info no longer needed
   void add(ProcessReadBlob read) {
-    if (startpos.empty || startpos.back.pos != read.start_pos) {
-      startpos.put(DepthPos(read.start_pos,1));
+    writeln("Adding ",read.start_pos);
+    if (ref_id.isNull || ref_id.get != read.ref_id) {
+      // writeln("CLEANUP",ref_id," ",read.ref_id);
+      buf.cleanup;
+      ref_id = read.ref_id;
+    }
+    if (buf.empty || buf.back.pos != read.start_pos) {
+      buf.put(DepthPos(read.start_pos,1));
     }
     else {
-      startpos.back.depth++;
+      buf.back.depth++;
+    }
+    writeln(buf.toString);
+  }
+
+  void cleanup_before(GenomePos pos) {
+    // pop items of front
+    writeln("Check cleanup_before ",pos);
+    for (auto item = buf.front; item.pos < pos; item = buf.front) {
+      buf.popFront;
     }
   }
 };
@@ -314,6 +334,8 @@ int subsample_main(string[] args) {
           if (!in_window(pileup,read)) {
             reader.popFront();  // last read is in the pileup
             pileup.current_inc; // move current forward in pileup
+            if (do_count(pileup.read_current.read))
+              depth.cleanup_before(pileup.read_current.start_pos); // discard out of window
             return false;       // and move on for processing
           }
           return true; // still in window, get next
@@ -344,7 +366,7 @@ int subsample_main(string[] args) {
         write(",");
         writer.push(read.read);
       });
-    stderr.writeln(pileup);
+    stderr.writeln(pileup.stats);
   }
   stderr.writeln("Pileup was full ",count_pileup_full," times");
   return 0;
