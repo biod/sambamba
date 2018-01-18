@@ -196,6 +196,10 @@ void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBl
   }
 };
 
+bool do_count(ProcessReadBlob read) {
+  return !(read.is_unmapped || read.is_qc_fail || read.is_duplicate);
+}
+
 // ---- Move through reads that are ignored.
 void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
   foreach_test_read(reader, (read) { return read.is_unmapped || read.is_qc_fail || read.is_duplicate; },dg);
@@ -222,6 +226,7 @@ void foreach_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) d
   foreach_test_read(reader, (read) { return true; },dg);
 }
 
+
 // keep reading until rightmost outside current read.
 bool in_window(PileUp!ReadState pileup, ProcessReadBlob read) {
   auto rightmost = read;
@@ -233,6 +238,30 @@ bool in_window(PileUp!ReadState pileup, ProcessReadBlob read) {
   return current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1;
 }
 
+struct DepthPos {
+  GenomePos pos;
+  ulong depth;
+}
+
+// Only start_pos depth is stored. If necessary, the end_pos depth is estimated
+// from the nearest start positions
+
+class Depth {
+  RingBuffer!DepthPos startpos; // always sorted!
+
+  this(ulong bufsize=DEFAULT_BUFFER_SIZE) {
+    startpos = RingBuffer!DepthPos(bufsize);
+  }
+
+  void add(ProcessReadBlob read) {
+    if (startpos.empty || startpos.back.pos != read.start_pos) {
+      startpos.put(DepthPos(read.start_pos,1));
+    }
+    else {
+      startpos.back.depth++;
+    }
+  }
+};
 
 int subsample_main(string[] args) {
   bool remove = false;
@@ -267,6 +296,7 @@ int subsample_main(string[] args) {
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ReadState(max_cov * 20);
+    auto depth = new Depth(max_cov * 100);
     auto reader = BamReadBlobStream(fn);
     reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
@@ -279,6 +309,8 @@ int subsample_main(string[] args) {
             return false; // move on for processing
           }
           pileup.push(ReadState(read));
+          if (do_count(read))
+            depth.add(read);
           if (!in_window(pileup,read)) {
             reader.popFront();  // last read is in the pileup
             pileup.current_inc; // move current forward in pileup
@@ -312,8 +344,8 @@ int subsample_main(string[] args) {
         write(",");
         writer.push(read.read);
       });
-    writeln("Pileup pushed ",pileup.ring.pushed," popped ",pileup.ring.popped);
+    stderr.writeln(pileup);
   }
-  writeln("Pileup was full ",count_pileup_full," times");
+  stderr.writeln("Pileup was full ",count_pileup_full," times");
   return 0;
 }

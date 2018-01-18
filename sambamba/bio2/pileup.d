@@ -20,6 +20,7 @@
 */
 module bio2.pileup;
 
+import std.conv;
 import std.exception;
 import std.stdio;
 import std.traits;
@@ -283,5 +284,10 @@ class PileUp(R) {
       popFront();
     }
     set_current_to_head();
+  }
+  override string toString() {
+    return "Pileup pushed " ~ to!string(ring.pushed) ~ " popped " ~ to!string(ring.popped) ~ " max-size " ~
+      to!string(ring.max_size) // , "/", (pileup.ring.max_size+1)/pileup.ring.length);
+      ;
   }
 }
