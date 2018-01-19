@@ -290,13 +290,26 @@ class PileUp(R) {
     return ring.is_tail(current);
   }
 
+  void each_left_of_current(void delegate(RingBufferIndex, R) dg) {
+    R cur = read_current;
+    if (cur.is_unmapped) return;
+    auto idx = ring._head;
+    while(!ring.is_tail(idx)) {
+      auto r = read(idx);
+      if (r.is_mapped && r.end_pos >= cur.start_pos)
+        return;
+      dg(idx,r);
+      idx++;
+    }
+  }
+
   void purge_while(bool delegate(R) dg) {
     while(!empty) {
       if (!dg(front))
-        return; // skip the rest and do not move current
+        return; // skip the rest
       popFront();
     }
-    set_current_to_head();
+    // set_current_to_head();
   }
 
   void purge(void delegate(R) dg) {

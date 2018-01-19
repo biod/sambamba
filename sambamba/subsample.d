@@ -132,6 +132,12 @@ struct ReadState {
   @property GenomePos start_pos() {
     return read.start_pos;
   }
+  @property GenomePos end_pos() {
+    return read.end_pos;
+  }
+  @property bool is_mapped() {
+    return read.is_mapped;
+  }
   @property bool is_unmapped() {
     return read.is_unmapped;
   }
@@ -296,9 +302,10 @@ class Depth {
 
   void cleanup_before(GenomePos pos) {
     // pop items of front
-    writeln("Check cleanup_before ",pos);
-    for (auto item = cache.front; item.pos < pos; item = cache.front) {
+    if (cache.empty) return;
+    for (DepthPos d = cache.front; d.pos < pos; d = cache.front) {
       cache.popFront;
+      if (cache.empty) return;
     }
   }
 };
@@ -335,13 +342,15 @@ int subsample_main(string[] args) {
 
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
-    auto pileup = new PileUp!ReadState(max_cov * 20);
+    auto pileup = new PileUp!ReadState(max_cov * 100);
     auto depth = new Depth(max_cov * 100);
     auto reader = BamReadBlobStream(fn);
     reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
 
-    // The main loop moves pileup.current a step at a time
+    // The main loop moves pileup.current a step at a time. State is maintained
+    // in the reader (current file pos), pileup (leftmost, current, rightmost)
+    // and the Depth cache (position depth).
     while(!reader.empty) {
       // Stage1: read ahead for mapped reads and calculate depth
       foreach_read(reader, (ProcessReadBlob read) {
@@ -379,16 +388,23 @@ int subsample_main(string[] args) {
       }
 
       // Stage4: write out-of-scope reads and remove from ringbuffer
+      pileup.each_left_of_current( (RingBufferIndex idx, ReadState read) {
+          read.set_dirty;
+          pileup.ring.update_at(idx,read); // because of copy semantics
+        });
+
       pileup.purge_while( (ReadState read) {
           if (read.is_dirty) {
-            write(".");
+            write("d");
             writer.push(read.read);
             return true;
           }
           return false; // skip rest and do not reset current
         });
-      //    if (do_count(pileup.read_current.read))
-      //        depth.cleanup_before(pileup.read_current.start_pos); // discard out of window
+
+      // purge unused positions in Depth ring buffer
+      if (!pileup.empty && !pileup.current.isNull && do_count(pileup.read_current.read))
+        depth.cleanup_before(pileup.read_current.start_pos); // discard out of window
     }
     // Finally write out remaining reads
     pileup.purge( (ReadState read) {
