@@ -463,7 +463,7 @@ struct BamReadBlobStream {
   }
 
   void popFront() {
-    assert(!empty());
+    asserte(!empty());
     immutable block_size = stream.read!int();
     immutable refid = stream.read!int();
     immutable pos = stream.read!int();

@@ -286,6 +286,10 @@ class PileUp(R) {
     current = RingBufferIndex();
   }
 
+  @property bool current_is_tail() {
+    return ring.is_tail(current);
+  }
+
   void purge_while(bool delegate(R) dg) {
     while(!empty) {
       if (!dg(front))

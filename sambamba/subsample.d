@@ -110,12 +110,6 @@ struct ReadState {
     assert(is_dirty);
     read.cleanup;
   }
-  @property ref ProcessReadBlob get() {
-    return read;
-  }
-  @property GenomePos start_pos() {
-    return read.start_pos;
-  }
   @property void set_keep() {
     state = RState.keep;
   }
@@ -130,6 +124,16 @@ struct ReadState {
   }
   @property bool is_dirty() {
     return state == RState.dirty;
+  }
+  // forwarders
+  @property ref ProcessReadBlob get() {
+    return read;
+  }
+  @property GenomePos start_pos() {
+    return read.start_pos;
+  }
+  @property bool is_unmapped() {
+    return read.is_unmapped;
   }
 }
 
@@ -165,7 +169,7 @@ struct ReadState {
    In pseudo code:
 
    each read
-     read+write while is_ignore == unmapped/bad quality/duplicates
+     (read+write while is_ignore == unmapped/bad quality/duplicates)
      read ahead while overlapping
        if max_coverage reached
          go into separate blocking mode
@@ -199,6 +203,18 @@ void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBl
   }
 };
 
+// Same as above but always pop read from reader
+void foreach_test_process_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
+  if (reader.empty) return;
+  auto read = ProcessReadBlob(reader.front);
+  while(!read.isNull && test(read)) {
+    auto res = dg(read);
+    read = ProcessReadBlob(reader.read);
+    if (!res)
+      break;
+  }
+};
+
 bool do_count(ProcessReadBlob read) {
   return !(read.is_unmapped || read.is_qc_fail || read.is_duplicate);
 }
@@ -225,19 +241,20 @@ void foreach_mapped_read(ref BamReadBlobStream reader, void delegate(ProcessRead
   foreach_test_read(reader, (read) { return read.is_mapped; },dg);
 }
 
+// ---- Read and process each read
 void foreach_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) dg) {
-  foreach_test_read(reader, (read) { return true; },dg);
+  foreach_test_process_read(reader, (read) { return true; },dg);
 }
 
 
-// keep reading until rightmost outside current read.
-bool in_window(PileUp!ReadState pileup, ProcessReadBlob read) {
+// keep reading until rightmost outside the current read (stack) or until we hit
+// a new ref_id
+bool keep_reading_while_in_window(PileUp!ReadState pileup, ProcessReadBlob read) {
   auto rightmost = read;
   auto current = pileup.read_current.read;
-  if (current.is_unmapped)
-    return true; // unmapped reads are just pushed
+  asserte(current.is_mapped,"Trying to process an unmapped read");
   if (rightmost.is_unmapped)
-    return true; // we have to push until we have a mapped one or the buffer is full
+    return true; // we have to push on until we have a mapped one
   return current.ref_id == rightmost.ref_id && rightmost.start_pos < current.end_pos+1;
 }
 
@@ -250,35 +267,38 @@ struct DepthPos {
 // from the nearest start positions
 
 class Depth {
-  RingBuffer!DepthPos buf; // start_pos is always sorted!
+  RingBuffer!DepthPos cache; // start_pos is always sorted!
   Nullable!RefId ref_id;
 
   this(ulong bufsize=DEFAULT_BUFFER_SIZE) {
-    buf = RingBuffer!DepthPos(bufsize);
+    cache = RingBuffer!DepthPos(bufsize);
   }
 
-  // Adds a new read, updates depth and removes info no longer needed
+  // Adds a new read, updates depth at read.start and read.end. We are assuming
+  // reads coming in are sorted with a valid position
   void add(ProcessReadBlob read) {
-    writeln("Adding ",read.start_pos);
+    // writeln("Adding ",read.start_pos);
     if (ref_id.isNull || ref_id.get != read.ref_id) {
-      // writeln("CLEANUP",ref_id," ",read.ref_id);
-      buf.cleanup;
+      // moving into a new window/pileup
+      cache.cleanup;
       ref_id = read.ref_id;
     }
-    if (buf.empty || buf.back.pos != read.start_pos) {
-      buf.put(DepthPos(read.start_pos,1));
+    if (cache.empty || cache.back.pos != read.start_pos) {
+      // new position to record in the cache
+      cache.put(DepthPos(read.start_pos,1));
     }
     else {
-      buf.back.depth++;
+      // update existing position
+      cache.back.depth++;
     }
-    writeln(buf.toString);
+    writeln(cache.toString);
   }
 
   void cleanup_before(GenomePos pos) {
     // pop items of front
     writeln("Check cleanup_before ",pos);
-    for (auto item = buf.front; item.pos < pos; item = buf.front) {
-      buf.popFront;
+    for (auto item = cache.front; item.pos < pos; item = cache.front) {
+      cache.popFront;
     }
   }
 };
@@ -321,35 +341,42 @@ int subsample_main(string[] args) {
     reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
 
+    // The main loop moves pileup.current a step at a time
     while(!reader.empty) {
       // Stage1: read ahead for mapped reads and calculate depth
       foreach_read(reader, (ProcessReadBlob read) {
           writeln("Readahead ",read);
-          if (pileup.is_full) {
+          pileup.push(ReadState(read)); // push onto pileup
+          if (pileup.is_full)
             return false; // move on for processing
-          }
-          pileup.push(ReadState(read));
-          if (do_count(read))
+          if (pileup.read_current.is_unmapped)
+            return false; // move on to next current read in pileup
+          if (do_count(read)) // valid read
             depth.add(read);
-          if (!in_window(pileup,read)) {
-            reader.popFront();  // last read is in the pileup
-            pileup.current_inc; // move current forward in pileup
-            if (do_count(pileup.read_current.read))
-              depth.cleanup_before(pileup.read_current.start_pos); // discard out of window
+          if (keep_reading_while_in_window(pileup,read))
+            return true; // keep cycling in loop
+          else {
+            // moved out of the window
+            writeln("Out of window");
             return false;       // and move on for processing
           }
-          return true; // still in window, get next
         });
 
-      // Stage2: pileup buffer is full
+      // Stage2: check pileup buffer is full
       if (pileup.is_full) {
         count_pileup_full++;
         pileup.purge( (ReadState read) {
             write("f");
             writer.push(read.read);
+            enforce(false,"Pileup buffer is full");
           });
       }
-      // Stage3: mark reads in pileup
+      // Stage3: mark reads in pileup - there should be no IO here
+      if (!pileup.empty) {
+        auto read = pileup.read_current;
+        if(!pileup.current_is_tail)
+          pileup.current_inc;
+      }
 
       // Stage4: write out-of-scope reads and remove from ringbuffer
       pileup.purge_while( (ReadState read) {
@@ -360,6 +387,8 @@ int subsample_main(string[] args) {
           }
           return false; // skip rest and do not reset current
         });
+      //    if (do_count(pileup.read_current.read))
+      //        depth.cleanup_before(pileup.read_current.start_pos); // discard out of window
     }
     // Finally write out remaining reads
     pileup.purge( (ReadState read) {
