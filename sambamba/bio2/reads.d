@@ -22,18 +22,19 @@
 module bio2.reads;
 
 import sambamba.bio2.constants;
+import bio.core.utils.exception;
 
 import std.stdio;
 
 bool read_overlaps(R)(GenomeLocation loc, R r) {
-  assert(r.is_mapped2);
+  assert(r.is_mapped);
   return r.ref_id == loc.ref_id && loc.pos >= r.start_pos && loc.pos <= r.end_pos;
 }
 
 bool reads_overlap(R)(R r1, R r2) {
-  assert(r1.is_mapped2);
-  assert(r2.is_mapped2);
-  assert(r2.ref_id == r1.ref_id);
+  asserte(r1.is_mapped);
+  asserte(r2.is_mapped);
+  asserte(r2.ref_id == r1.ref_id);
   // r1                      rrrrrrrrrrr
   // r2                ---------???????????
   if (r2.start_pos < r1.start_pos && r2.end_pos >= r1.start_pos) {

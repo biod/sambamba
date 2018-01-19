@@ -116,11 +116,14 @@ struct RingBuffer(T) {
     enforce(!is_empty, "ringbuffer is empty");
     return _items[_head.get() % $];
   }
+  alias back last;
 
   auto ref back() @property {
     enforce(!is_empty, "ringbuffer is empty");
     return _items[(_tail.get() - 1) % $];
   }
+
+  alias front first;
 
   bool is_tail(RingBufferIndex idx) {
     return idx == _tail.get()-1;
@@ -288,6 +291,15 @@ class PileUp(R) {
 
   @property bool current_is_tail() {
     return ring.is_tail(current);
+  }
+
+  void each(void delegate(R) dg) {
+    auto idx = ring._head;
+    while(!ring.is_tail(idx)) {
+      auto r = read(idx);
+      dg(r);
+      idx++;
+    }
   }
 
   void each_left_of_current(void delegate(RingBufferIndex, R) dg) {

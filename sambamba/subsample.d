@@ -129,6 +129,9 @@ struct ReadState {
   @property ref ProcessReadBlob get() {
     return read;
   }
+  @property RefId ref_id() {
+    return read.ref_id;
+  }
   @property GenomePos start_pos() {
     return read.start_pos;
   }
@@ -282,30 +285,39 @@ class Depth {
 
   // Adds a new read, updates depth at read.start and read.end. We are assuming
   // reads coming in are sorted with a valid position
-  void add(ProcessReadBlob read) {
+  void add(ref PileUp!ReadState pileup, ProcessReadBlob read) {
     // writeln("Adding ",read.start_pos);
     if (ref_id.isNull || ref_id.get != read.ref_id) {
       // moving into a new window/pileup
       cache.cleanup;
       ref_id = read.ref_id;
     }
-    if (cache.empty || cache.back.pos != read.start_pos) {
+    if (cache.empty) {
       // new position to record in the cache
       cache.put(DepthPos(read.start_pos,1));
     }
+    else if (cache.last.pos != read.start_pos) {
+      // recompute depth - this can be faster
+      ulong depth = 0;
+      pileup.each( (ReadState r) {
+          if (read.is_mapped && r.is_mapped && read.ref_id == r.ref_id && reads_overlap(read,r.read))
+              depth++;
+        });
+      cache.put(DepthPos(read.start_pos,depth));
+    }
     else {
       // update existing position
-      cache.back.depth++;
+      cache.last.depth++;
     }
     writeln(cache.toString);
   }
 
   void cleanup_before(GenomePos pos) {
     // pop items of front
-    if (cache.empty) return;
+    if (cache.empty || cache.length < 2) return;
     for (DepthPos d = cache.front; d.pos < pos; d = cache.front) {
+      if (cache.empty || cache.length < 2) return;
       cache.popFront;
-      if (cache.empty) return;
     }
   }
 };
@@ -361,7 +373,7 @@ int subsample_main(string[] args) {
           if (pileup.read_current.is_unmapped)
             return false; // move on to next current read in pileup
           if (do_count(read)) // valid read
-            depth.add(read);
+            depth.add(pileup,read); // this is where counting happens
           if (keep_reading_while_in_window(pileup,read))
             return true; // keep cycling in loop
           else {
@@ -380,7 +392,7 @@ int subsample_main(string[] args) {
             enforce(false,"Pileup buffer is full");
           });
       }
-      // Stage3: mark reads in pileup - there should be no IO here
+      // Stage3: mark read in pileup - there should be no IO here
       if (!pileup.empty) {
         auto read = pileup.read_current;
         if(!pileup.current_is_tail)
