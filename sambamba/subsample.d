@@ -283,15 +283,18 @@ class Depth {
     cache = RingBuffer!DepthPos(bufsize);
   }
 
+  void reset(RefId new_ref_id) {
+    cache.cleanup; // reset ring buffer
+    ref_id = new_ref_id;
+  }
+
   // Adds a new read, updates depth at read.start and read.end. We are assuming
   // reads coming in are sorted with a valid position
   void add(ref PileUp!ReadState pileup, ProcessReadBlob read) {
-    // writeln("Adding ",read.start_pos);
-    if (ref_id.isNull || ref_id.get != read.ref_id) {
-      // moving into a new window/pileup
-      cache.cleanup;
-      ref_id = read.ref_id;
-    }
+    assert(read.is_mapped);
+    if(ref_id.isNull) ref_id = read.ref_id;
+    assert(ref_id.get == read.ref_id);
+
     if (cache.empty) {
       // new position to record in the cache
       cache.put(DepthPos(read.start_pos,1));
@@ -364,9 +367,29 @@ int subsample_main(string[] args) {
     // in the reader (current file pos), pileup (leftmost, current, rightmost)
     // and the Depth cache (position depth).
     while(!reader.empty) {
+      // Stage0: if current moves on new refid reset pileup and depth cache
+      if (pileup.empty) {
+        // special case: we can write straight through
+        foreach_invalid_read(reader, (ProcessReadBlob read) {
+            write("W");
+            writer.push(read);
+          });
+       }
+      if (!pileup.empty) {
+        auto read = reader.front;
+        if (read.is_mapped && depth.ref_id != read.refid) {
+          // moving into a new pileup
+          pileup.purge( (ReadState read) {
+              write(",");
+              writer.push(read.read);
+            });
+          depth.reset(read.refid);
+        }
+      }
+
       // Stage1: read ahead for mapped reads and calculate depth
       foreach_read(reader, (ProcessReadBlob read) {
-          writeln("Readahead ",read);
+         writeln("Readahead ",read);
           pileup.push(ReadState(read)); // push onto pileup
           if (pileup.is_full)
             return false; // move on for processing
