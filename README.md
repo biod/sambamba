@@ -230,6 +230,13 @@ documentation](https://github.com/biod/sambamba-dev-docs).
 <a name="debug"></a>
 # Debugging and troubleshooting
 
+## Segfaults on certain Intel Xeons
+
+Some popular Xeon processors segfault under heavy hyper threading -
+which Sambamba utilizes.  Please read
+[this](https://blog.cloudflare.com/however-improbable-the-story-of-a-processor-bug/)
+when encountering seemingly random crashes.
+
 ## Dump core
 
 In a crash sambamba can dump a core file. To make this happen set
