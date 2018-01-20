@@ -321,7 +321,6 @@ class PileUp(R) {
         return; // skip the rest
       popFront();
     }
-    // set_current_to_head();
   }
 
   void purge(void delegate(R) dg) {

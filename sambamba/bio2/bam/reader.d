@@ -401,6 +401,10 @@ struct ProcessReadBlob {
     return _read2._data;
   }
 
+  @property string posString() {
+    return (is_mapped ? to!string(ref_id) ~ ":" ~ to!string(start_pos) : "unmapped");
+  }
+
   string toString() {
     // return "<** " ~ ProcessReadBlob.stringof ~ ") " ~ to!string(_read2.refid) ~ ":" ~ to!string(_read2.pos) ~ " length " ~ to!string(sequence_length) ~ ">";
     return _read2.get.toString();

@@ -212,7 +212,7 @@ void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBl
   }
 };
 
-// Same as above but always pop read from reader
+// Same as above but always pop read from reader after dg call
 void foreach_test_process_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
   if (reader.empty) return;
   auto read = ProcessReadBlob(reader.front);
@@ -357,8 +357,8 @@ int subsample_main(string[] args) {
 
   foreach (string fn; infns) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
-    auto pileup = new PileUp!ReadState(max_cov * 100);
-    auto depth = new Depth(max_cov * 100);
+    auto pileup = new PileUp!ReadState();
+    auto depth = new Depth();
     auto reader = BamReadBlobStream(fn);
     reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
@@ -401,7 +401,6 @@ int subsample_main(string[] args) {
             return true; // keep cycling in loop
           else {
             // moved out of the window
-            writeln("Out of window");
             return false;       // and move on for processing
           }
         });
@@ -444,6 +443,7 @@ int subsample_main(string[] args) {
     // Finally write out remaining reads
     pileup.purge( (ReadState read) {
         write(",");
+        writeln("Writing: ",read.read.posString);
         writer.push(read.read);
       });
     stderr.writeln(pileup.stats);
