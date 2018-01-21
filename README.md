@@ -284,7 +284,8 @@ the tarball and run the contained install.sh script with TARGET
 Run sambamba in gdb with
 
 ```
-gdb --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
+gdb -ex 'handle SIGUSR1 SIGUSR2 nostop noprint' \
+  --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
 ```
 
 <a name="license"></a>

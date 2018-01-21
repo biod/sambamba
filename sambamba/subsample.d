@@ -193,36 +193,42 @@ struct ReadState {
 
 */
 
-void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, void delegate(ProcessReadBlob) dg) {
-  if (reader.front.isNull) return;
-  auto read = ProcessReadBlob(reader.front);
+void foreach_test_read(ref BamBlobReader reader, bool delegate(ProcessReadBlob) test, void delegate(ProcessReadBlob) dg) {
+  if (reader.empty) return;
+  auto read = ProcessReadBlob(reader.peek);
   while(!read.isNull && test(read)) {
     dg(read);
-    if (reader.empty) break;
-    read = ProcessReadBlob(reader.read);
+    read = ProcessReadBlob(reader.fetch);
   }
 };
 
-void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
-  if (reader.front.isNull) return;
-  auto read = ProcessReadBlob(reader.front);
+void foreach_test_read(ref BamBlobReader reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
+  if (reader.empty) return;
+  auto read = ProcessReadBlob(reader.peek);
   while(!read.isNull && test(read)) {
     if (!dg(read))
       break;
     if (reader.empty) break;
-    read = ProcessReadBlob(reader.read);
+    read = ProcessReadBlob(reader.fetch);
   }
 };
 
-// Same as above but always pop read from reader after dg call
-void foreach_test_process_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
+void foreach_test_process_read(ref BamBlobReader reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
   if (reader.empty) return;
-  auto read = ProcessReadBlob(reader.front);
+  auto read = ProcessReadBlob(reader.peek);
   while(!read.isNull && test(read)) {
     auto cont = dg(read);
     if (reader.empty) break;
-    read = ProcessReadBlob(reader.read);
+    read = ProcessReadBlob(reader.fetch);
     if (!cont) break;
+  }
+};
+
+void foreach_test_process_read(ref BamBlobReader reader, bool delegate(ProcessReadBlob) test, void delegate(ProcessReadBlob) dg) {
+  auto read = ProcessReadBlob(reader.peek);
+  while(!read.isNull && test(read)) {
+    dg(read);
+    read = ProcessReadBlob(reader.fetch);
   }
 };
 
@@ -231,29 +237,29 @@ bool do_count(ProcessReadBlob read) {
 }
 
 // ---- Move through reads that are ignored.
-void foreach_invalid_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
-  foreach_test_read(reader, (read) { return read.is_unmapped || read.is_qc_fail || read.is_duplicate; },dg);
+void foreach_invalid_read(ref BamBlobReader reader, void delegate(ProcessReadBlob) dg) {
+  foreach_test_process_read(reader, (read) { return read.is_unmapped || read.is_qc_fail || read.is_duplicate; },dg);
 }
 
 // ---- When current is unmapped, move through reads that are ignored.
-void foreach_outside_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
-  if (reader.front.is_unmapped) {
+void foreach_outside_read(ref BamBlobReader reader, void delegate(ProcessReadBlob) dg) {
+  if (reader.peek.is_unmapped) {
     foreach_invalid_read(reader,dg);
   }
 }
 
 // ---- Move through reads that are ignored.
-void foreach_unmapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
+void foreach_unmapped_read(ref BamBlobReader reader, void delegate(ProcessReadBlob) dg) {
   foreach_test_read(reader, (read) { return read.is_unmapped; },dg);
 }
 
 // ---- Move through reads that are ignored.
-void foreach_mapped_read(ref BamReadBlobStream reader, void delegate(ProcessReadBlob) dg) {
+void foreach_mapped_read(ref BamBlobReader reader, void delegate(ProcessReadBlob) dg) {
   foreach_test_read(reader, (read) { return read.is_mapped; },dg);
 }
 
 // ---- Read and process each read
-void foreach_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) dg) {
+void foreach_read(ref BamBlobReader reader, bool delegate(ProcessReadBlob) dg) {
   foreach_test_process_read(reader, (read) { return true; },dg);
 }
 
@@ -361,7 +367,7 @@ int subsample_main(string[] args) {
     enforce(outputfn != fn,"Input file can not be same as output file "~fn);
     auto pileup = new PileUp!ReadState();
     auto depth = new Depth();
-    auto reader = BamReadBlobStream(fn);
+    auto reader = BamBlobReader(fn);
     auto writer = BamWriter(outputfn,reader.header,9);
 
     // The main loop moves pileup.current a step at a time. State is maintained
@@ -372,12 +378,12 @@ int subsample_main(string[] args) {
       if (pileup.empty) {
         // special case: we can write straight through
         foreach_invalid_read(reader, (ProcessReadBlob read) {
-            write("W");
+            write("Write direct ",read);
             writer.push(read);
           });
        }
       if (!pileup.empty) {
-        auto read = reader.front;
+        auto read = reader.peek;
         if (read.is_mapped && depth.ref_id != read.refid) {
           // moving into a new pileup
           pileup.purge( (ReadState read) {

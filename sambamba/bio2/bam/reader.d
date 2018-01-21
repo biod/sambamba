@@ -55,7 +55,7 @@ template ReadFlags(alias flag) {
   @property bool is_second_of_pair()        nothrow { return cast(bool)(flag & 0x80); }
   @property bool is_secondary_alignment()   nothrow { return cast(bool)(flag & 0x100); }
   @property bool is_qc_fail() {
-    asserte(is_mapped_raw,to!string(this));
+    assert(is_mapped_raw,to!string(this));
     return cast(bool)(flag & 0x200); }
   alias is_qc_fail failed_quality_control;
   /// PCR or optical duplicate
@@ -480,14 +480,52 @@ struct BamReadBlobStream {
     assert(readbuf._data.ptr == data.ptr);
   }
 
-  /// Fetches and returns the next read if available. Otherwise
-  /// null. Note that you may still need to process the read in front
-  /// first - the processing logic differs a bit from default front -
-  /// popFront. Maybe move this into a different processor.
-  Nullable!ReadBlob read() {
-    if (empty()) return Nullable!ReadBlob();
-    popFront();
-    return readbuf;
+}
+
+/**
+   Reader - use on single thread only
+
+   This one provides peek support. Peek looks one read ahead in the read stream.
+*/
+
+struct BamBlobReader {
+  BgzfStream stream;
+  BamHeader header;
+  Nullable!ReadBlob peekbuf; // points to current read
+  // ubyte[] data; // in sync with peekbuf
+
+  this(string fn) {
+    stream = BgzfStream(fn);
+    fetch_bam_header(header, stream);
+  }
+
+  bool empty() @property {
+    return peekbuf.isNull && stream.eof();
+  }
+
+  Nullable!ReadBlob peek() {
+    if (peekbuf.isNull && !empty)
+      fetch();
+    return peekbuf;
+  }
+
+  /// Fetches the next read. If the peekbuf is not empty return that
+  /// first and reset peekbuf.
+  Nullable!ReadBlob fetch() {
+    if (!peekbuf.isNull) {
+      auto readbuf = peekbuf;
+      peekbuf = Nullable!ReadBlob();
+      return readbuf;
+    }
+    asserte(!empty); // should have been checked for
+    immutable block_size = stream.read!int();
+    immutable refid = stream.read!int();
+    immutable pos = stream.read!int();
+
+    // void *p = pureMalloc(block_size-2*int.sizeof); // test for GC effectiveness
+    auto data = new ubyte[block_size-2*int.sizeof];
+    peekbuf = ReadBlob(refid,pos,stream.read(data));
+    return peekbuf;
   }
 
   /// Returns the next matching read. Otherwise null
@@ -495,9 +533,10 @@ struct BamReadBlobStream {
   /// Example:
   ///
   ///    auto readbuf = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
+  /*
   Nullable!ReadBlob read_if(R)(bool delegate(R r) is_match) {
     while(!empty()) {
-      read();
+      auto readbuf = read();
       if (is_match(R(readbuf)))
         return readbuf;
       else
@@ -505,5 +544,5 @@ struct BamReadBlobStream {
     }
     return Nullable!ReadBlob();
   }
-
+  */
 }
