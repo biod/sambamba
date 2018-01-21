@@ -449,53 +449,59 @@ struct BamReadBlobs {
 struct BamReadBlobStream {
   BgzfStream stream;
   BamHeader header;
-  Nullable!ReadBlob current;
-  ubyte[] data; // in sync with current
+  Nullable!ReadBlob readbuf; // points to current read
+  ubyte[] data; // in sync with readbuf
 
   this(string fn) {
     stream = BgzfStream(fn);
     fetch_bam_header(header, stream);
+    if (!empty)
+      popFront(); // preload front
   }
 
   bool empty() @property {
     return stream.eof();
   }
 
+  // Returns first read available. If past eof returns null.
   Nullable!ReadBlob front() {
-    assert(!empty());
-    return current;
+    return readbuf;
   }
 
   void popFront() {
-    asserte(!empty());
+    asserte(!empty); // should have been checked for
     immutable block_size = stream.read!int();
     immutable refid = stream.read!int();
     immutable pos = stream.read!int();
 
     // void *p = pureMalloc(block_size-2*int.sizeof); // test for GC effectiveness
     data = new ubyte[block_size-2*int.sizeof];
-    current = ReadBlob(refid,pos,stream.read(data));
-    assert(current._data.ptr == data.ptr);
+    readbuf = ReadBlob(refid,pos,stream.read(data));
+    assert(readbuf._data.ptr == data.ptr);
   }
 
-  /// Returns a read if available. Otherwise null
+  /// Fetches and returns the next read if available. Otherwise
+  /// null. Note that you may still need to process the read in front
+  /// first - the processing logic differs a bit from default front -
+  /// popFront. Maybe move this into a different processor.
   Nullable!ReadBlob read() {
     if (empty()) return Nullable!ReadBlob();
-    // auto prev = current;
     popFront();
-    return current;
+    return readbuf;
   }
 
   /// Returns the next matching read. Otherwise null
   ///
   /// Example:
   ///
-  ///    auto current = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
+  ///    auto readbuf = ProcessReadBlob(stream.read_if!ProcessReadBlob((r) => !remove && r.is_mapped));
   Nullable!ReadBlob read_if(R)(bool delegate(R r) is_match) {
     while(!empty()) {
       read();
-      if (is_match(R(current)))
-        return current;
+      if (is_match(R(readbuf)))
+        return readbuf;
+      else
+        return Nullable!ReadBlob();
     }
     return Nullable!ReadBlob();
   }

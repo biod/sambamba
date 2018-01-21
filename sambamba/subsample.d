@@ -194,20 +194,22 @@ struct ReadState {
 */
 
 void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, void delegate(ProcessReadBlob) dg) {
-  if (reader.empty) return;
+  if (reader.front.isNull) return;
   auto read = ProcessReadBlob(reader.front);
   while(!read.isNull && test(read)) {
     dg(read);
+    if (reader.empty) break;
     read = ProcessReadBlob(reader.read);
   }
 };
 
 void foreach_test_read(ref BamReadBlobStream reader, bool delegate(ProcessReadBlob) test, bool delegate(ProcessReadBlob) dg) {
-  if (reader.empty) return;
+  if (reader.front.isNull) return;
   auto read = ProcessReadBlob(reader.front);
   while(!read.isNull && test(read)) {
     if (!dg(read))
       break;
+    if (reader.empty) break;
     read = ProcessReadBlob(reader.read);
   }
 };
@@ -217,10 +219,10 @@ void foreach_test_process_read(ref BamReadBlobStream reader, bool delegate(Proce
   if (reader.empty) return;
   auto read = ProcessReadBlob(reader.front);
   while(!read.isNull && test(read)) {
-    auto res = dg(read);
+    auto cont = dg(read);
+    if (reader.empty) break;
     read = ProcessReadBlob(reader.read);
-    if (!res)
-      break;
+    if (!cont) break;
   }
 };
 
@@ -360,7 +362,6 @@ int subsample_main(string[] args) {
     auto pileup = new PileUp!ReadState();
     auto depth = new Depth();
     auto reader = BamReadBlobStream(fn);
-    reader.popFront;
     auto writer = BamWriter(outputfn,reader.header,9);
 
     // The main loop moves pileup.current a step at a time. State is maintained
@@ -389,7 +390,7 @@ int subsample_main(string[] args) {
 
       // Stage1: read ahead for mapped reads and calculate depth
       foreach_read(reader, (ProcessReadBlob read) {
-         writeln("Readahead ",read);
+         writeln("Pushing ",read);
           pileup.push(ReadState(read)); // push onto pileup
           if (pileup.is_full)
             return false; // move on for processing
@@ -421,12 +422,14 @@ int subsample_main(string[] args) {
           pileup.current_inc;
       }
 
-      // Stage4: write out-of-scope reads and remove from ringbuffer
+      // Stage4: write out-of-scope reads and remove from ringbuffer.
+      // First mark as dirty
       pileup.each_left_of_current( (RingBufferIndex idx, ReadState read) {
           read.set_dirty;
           pileup.ring.update_at(idx,read); // because of copy semantics
         });
 
+      // Next write them
       pileup.purge_while( (ReadState read) {
           if (read.is_dirty) {
             write("d");
@@ -437,8 +440,9 @@ int subsample_main(string[] args) {
         });
 
       // purge unused positions in Depth ring buffer
-      if (!pileup.empty && !pileup.current.isNull && do_count(pileup.read_current.read))
+      if (!pileup.empty && !pileup.current.isNull && do_count(pileup.read_current.read)) {
         depth.cleanup_before(pileup.read_current.start_pos); // discard out of window
+      }
     }
     // Finally write out remaining reads
     pileup.purge( (ReadState read) {
