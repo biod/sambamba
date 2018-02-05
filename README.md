@@ -1,3 +1,5 @@
+Note that this is a development branch of sambamba!
+
 # sambamba
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba)
 
@@ -126,8 +128,7 @@ similar. Also try running the latest version of sambamba to make sure
 it has not been fixed already. Support/installation questions should
 be aimed at the mailing list. The issue tracker is for development
 issues around the software itself. When reporting an issue include the
-output of the program and the contents of the .log.txt file in the
-output directory.
+output of the program and the contents of the output directory.
 
 ## Check list:
 
@@ -139,7 +140,7 @@ output directory.
 6. [ ] If it is a support/install question I have posted it to the [mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion)
 7. [ ] If it is software development related I have posted a new issue on the [issue tracker](https://github.com/biod/sambamba/issues) or added to an existing one
 8. [ ] In the message I have included the output of my sambamba run
-9. [ ] In the message I have included the relevant .log.txt file in the output directory
+9. [ ] In the message I have included the relevant files in the output directory
 10. [ ] I have made available the data to reproduce the problem (optional)
 
 To find bugs the sambamba software developers may ask to install a
@@ -168,35 +169,48 @@ which targets LLVM.
 
 ## Compilation dependencies
 
-- zlib
+- git (to check out the repo)
+- gcc compiler 4.9 or later (for htslib)
+- D compiler 1.7.0 or later (ldc2, see below)
+- python2 (parses D-compiler header for version info)
+- zlib (library)
+- lz4 (library)
 - htslib (submodule)
-- lz4 (submodule)
-- BioD (submodule)
-- undeaD (submodule)
+- BioD (source)
+- undeaD (source)
 - python2
 
 ## Compiling for Linux
 
-The LDC compiler's github repository also provides binary images. The current
-preferred release for sambamba is LDC - the LLVM D compiler (>= 1.1.0). After
-installing LDC:
-
-```sh
-    git clone --recursive https://github.com/biod/sambamba.git
-    cd sambamba
-    git clone https://github.com/dlang/undeaD
-    make sambamba-ldmd2-64
-```
-
-Installing LDC only means unpacking an archive and setting some
-environmental variables, e.g. unpacking into `$HOME`:
+The LDC compiler's github repository provides binary images. The current
+preferred release for sambamba is LDC - the LLVM D compiler (>= 1.6.1). After
+installing LDC from https://github.com/ldc-developers/ldc/releases/ with, for example
 
 ```sh
 cd
-wget https://github.com/ldc-developers/ldc/releases/download/v$ver/ldc2-$ver-linux-x86_64.tar.xz
-tar xJf ldc2-$ver-linux-x86_64.tar.xz
-export PATH=~/ldc2-$ver-linux-x86_64/bin/:$PATH
-export LIBRARY_PATH=~/ldc2-$ver-linux-x86_64/lib/
+wget https://github.com/ldc-developers/ldc/releases/download/v$ver/ldc2-1.7.0-linux-x86_64.tar.xz
+tar xvJf ldc2-1.7.0-linux-x86_64.tar.xz
+export PATH=$HOME/ldc2-1.7.0-linux-x86_64/bin:$PATH
+export LIBRARY_PATH=$HOME/ldc2-1.7.0-linux-x86_64/lib
+```
+
+```sh
+git clone --recursive https://github.com/biod/sambamba.git
+cd sambamba
+make
+```
+
+To build a debug release run
+
+```sh
+make clean && make debug
+```
+
+To run the test fetch shunit2 from https://github.com/kward/shunit2 and put it in the path so
+you can run
+
+```sh
+make check
 ```
 
 ### GNU Guix
@@ -208,6 +222,9 @@ guix package -i ldc
 ```
 
 ## Compiling for Mac OS X
+
+Note: the Makefile does not work. Someone want to fix that using the
+Makefile.old version? See also https://github.com/biod/sambamba/issues/338.
 
 ```sh
     brew install ldc
@@ -227,9 +244,16 @@ documentation](https://github.com/biod/sambamba-dev-docs).
 <a name="debug"></a>
 # Debugging and troubleshooting
 
+## Segfaults on certain Intel Xeons
+
+Important note: some popular Xeon processors segfault under heavy
+hyper threading - which Sambamba utilizes.  Please read
+[this](https://blog.cloudflare.com/however-improbable-the-story-of-a-processor-bug/)
+when encountering seemingly random crashes.
+
 ## Dump core
 
-In a crash sambamba can dump a core. To make this happen set
+In a crash sambamba can dump a core file. To make this happen set
 
 ```sh
 ulimit -c unlimited
@@ -274,7 +298,8 @@ the tarball and run the contained install.sh script with TARGET
 Run sambamba in gdb with
 
 ```
-gdb --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
+gdb -ex 'handle SIGUSR1 SIGUSR2 nostop noprint' \
+  --args ~/sambamba-test/sambamba-*/bin/sambamba view --throw-error
 ```
 
 <a name="license"></a>

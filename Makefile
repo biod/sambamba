@@ -1,107 +1,72 @@
-D_COMPILER=dmd
-D_FLAGS=--compiler=dmd -IBioD -IundeaD/src -g -d#-O -release -inline # -version=serial
-LDMD=ldmd2
+# This is a minimalistic make file to build sambamba with ldc2 as per instructions on
+# https://github.com/biod/sambamba#compiling-sambamba
 
-STATIC_LIB_PATH=-Lhtslib -Llz4/lib
-STATIC_LIB_SUBCMD=$(STATIC_LIB_PATH) -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic
-RDMD_FLAGS=--force --build-only --compiler=$(D_COMPILER) $(D_FLAGS)
+D_COMPILER=ldc2
+DFLAGS = -wi -I. -IBioD -IundeaD/src -g
 
-PLATFORM := $(shell uname -s)
+DLIBS  = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
+DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
+# RPATH  = -L--rpath=$(dir $(realpath $(LIBRARY_PATH)/libz.so)):$(dir $(realpath $(LIBRARY_PATH)/liblz4.so))
+LIBS   = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lrt -L-lpthread -L-lm
+LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a lz4/lib/liblz4.a
+SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
+OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
+OUT    = build/sambamba
 
-ifeq "$(PLATFORM)" "Darwin"
+STATIC_LIB_PATH=-Lhtslib -Llz4
 
-LINK_CMD=gcc -dead_strip -lphobos2-ldc -ldruntime-ldc -lm -lpthread htslib/libhts.a lz4/lib/liblz4.a build/sambamba.o -o build/sambamba
-DMD_STATIC_LIBS=htslib/libhts.a lz4/lib/liblz4.a
+.PHONY: all debug release static clean test
 
-define split-debug
-dsymutil build/sambamba -o build/sambamba.dSYM
-strip -S build/sambamba
-endef
+debug:       DFLAGS += -O0 -d-debug -link-debuglib
 
-else
+release:     DFLAGS += -O -release
 
-LINK_CMD=gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o $(STATIC_LIB_SUBCMD) -lphobos2-ldc -ldruntime-ldc  -lrt -lpthread -lm -ldl
-DMD_STATIC_LIBS=-L-Lhtslib -L-l:libhts.a -L-l:libphobos2.a -L-Llz4/lib -L-l:liblz4.a
-
-define split-debug
-objcopy --only-keep-debug build/sambamba sambamba.debug
-objcopy --strip-debug build/sambamba
-objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
-mv sambamba.debug build/
-endef
-
-endif
-
-PREREQS := ldc-version-info htslib-static lz4-static
-
-# DMD only - this goal is used because of fast compilation speed, during development
-all: $(PREREQS)
-	mkdir -p build/
-	rdmd --force --build-only $(D_FLAGS) $(DMD_STATIC_LIBS) -ofbuild/sambamba main.d
-
-# This is the main Makefile goal, used for building releases (best performance)
-sambamba-ldmd2-64: $(PREREQS)
-	mkdir -p build/
-	$(LDMD) @sambamba-ldmd-release.rsp
-	$(LINK_CMD)
-	$(split-debug)
-
-# For debugging; GDB & Valgrind are more friendly to executables created using LDC/GDC than DMD
-sambamba-ldmd2-debug: $(PREREQS)
-	mkdir -p build/
-	$(LDMD) @sambamba-ldmd-debug.rsp
-	$(LINK_CMD)
-
-ldc-version-info:
-	./gen_ldc_version_info.py $(shell which $(LDMD)) > utils/ldc_version_info_.d
-
-htslib-static:
-	cd htslib && $(MAKE)
+all: release
 
 lz4-static: lz4/lib/liblz4.a
 
 lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhash.c
 	cd lz4/lib && $(CC) -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
 
-# all below link to libhts dynamically for simplicity
+htslib-static:
+	cd htslib && $(MAKE)
 
-sambamba-flagstat:
+ldc-version-info:
+	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+
+utils/ldc_version_info_.o: ldc-version-info
+	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
+
+build-setup: htslib-static lz4-static ldc-version-info
 	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-flagstat sambamba/flagstat.d
 
-sambamba-merge:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-merge sambamba/merge.d
+default debug release static: $(OUT)
 
-sambamba-index:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-index sambamba/index.d
+# ---- Compile step
+%.o: %.d
+	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
-sambamba-sort:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-sort sambamba/sort.d
+# ---- Link step
+$(OUT): build-setup $(OBJ)
+	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
 
-sambamba-view:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-view sambamba/view.d
+test:
+	./run_tests.sh
 
-sambamba-slice:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-slice sambamba/slice.d
+check: test
 
-sambamba-markdup:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-markdup sambamba/markdup.d
+debug-strip: debug
+	objcopy --only-keep-debug build/sambamba sambamba.debug
+	objcopy --strip-debug build/sambamba
+	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
+	mv sambamba.debug build/
 
-sambamba-depth:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-depth sambamba/depth.d
+install:
+	install -m 0755 build/sambamba $(prefix)/bin
 
-sambamba-pileup:
-	mkdir -p build/
-	rdmd $(RDMD_FLAGS) -L-lhts -version=standalone -ofbuild/sambamba-pileup sambamba/pileup.d
+clean: clean-d
+	cd htslib ; make clean
 
-.PHONY: clean ldc-version-info
-
-clean:
-	rm -rf build/ ; $(MAKE) -C htslib clean ; $(MAKE) -C lz4 clean
+clean-d:
+	rm -rf build/*
+	rm -f $(OBJ) $(OUT) trace.{def,log}
