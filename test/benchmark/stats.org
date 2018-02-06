@@ -1,8 +1,28 @@
 * Performance metrics
 
+** View
+
+*** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD
+
+sambamba 0.6.7
+
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
+
+time ./build/sambamba view /gnu/data/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam.orig > /dev/null
+
+real    0m3.150s
+user    0m24.668s
+sys     0m0.320s
+
 ** Sort
 
-*** Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz
+*** 56x Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz, 256Gb
+
+sambamba 0.6.6
 
 This version was built with:
     LDC 0.17.1
@@ -14,6 +34,24 @@ time ./sambamba_v0.6.6 sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
 real    10m0.932s
 user    151m39.172s
 sys     3m7.596s
+
+sambamba 0.6.6
+
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
+
+time ./sambamba sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
+
+real    9m22.501s
+user    98m24.748s
+sys     2m51.996s
+
+Note, updating compiler shows a speed gain for 0.6.6.
+
+sambamba 0.6.7
 
 This version was built with:
     LDC 1.7.0
@@ -27,10 +65,20 @@ real    18m15.809s
 user    158m30.148s
 sys     3m15.932s
 
-Ouch!
+Ouch! A regression.
+
+sambamba 0.6.7
 
 This version was built with:
     LDC 1.1.1
     using DMD v2.071.2
     using LLVM 3.9.1
     bootstrapped with LDC - the LLVM D compiler (1.1.1)
+    ldc2 -wi -I. -IBioD -IundeaD/src -g -O3 -release -enable-inlining -boundscheck=off
+
+penguin2:~$ time ./sambamba sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
+real    18m40.223s
+user    159m34.292s
+sys     3m19.300s
+
+So, the same build is 2x slower than the previous version.

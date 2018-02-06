@@ -19,7 +19,7 @@ STATIC_LIB_PATH=-Lhtslib -Llz4
 
 debug:       DFLAGS += -O0 -d-debug -link-debuglib
 
-release:     DFLAGS += -O3 -release
+release:     DFLAGS += -O3 -release -enable-inlining -boundscheck=off
 
 all: release
 
@@ -57,7 +57,7 @@ test:
 
 check: test
 
-debug-strip: debug
+debug-strip:
 	objcopy --only-keep-debug build/sambamba sambamba.debug
 	objcopy --strip-debug build/sambamba
 	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
