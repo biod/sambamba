@@ -19,7 +19,7 @@ STATIC_LIB_PATH=-Lhtslib -Llz4
 
 debug:       DFLAGS += -O0 -d-debug -link-debuglib
 
-release:     DFLAGS += -O -release
+release:     DFLAGS += -O3 -release
 
 all: release
 
@@ -40,7 +40,9 @@ utils/ldc_version_info_.o: ldc-version-info
 build-setup: htslib-static lz4-static ldc-version-info
 	mkdir -p build/
 
-default debug release static: $(OUT)
+default debug release: $(OUT)
+
+default: all
 
 # ---- Compile step
 %.o: %.d

@@ -1,0 +1,36 @@
+* Performance metrics
+
+** Sort
+
+*** Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz
+
+This version was built with:
+    LDC 0.17.1
+    using DMD v2.068.2
+    using LLVM 3.8.0
+    bootstrapped with version not available
+
+time ./sambamba_v0.6.6 sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
+real    10m0.932s
+user    151m39.172s
+sys     3m7.596s
+
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+time ./sambamba sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
+
+real    18m15.809s
+user    158m30.148s
+sys     3m15.932s
+
+Ouch!
+
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
