@@ -2,3 +2,4 @@ d: ldc
 script:
   - make
   - make check
+
