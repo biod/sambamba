@@ -1,9 +1,6 @@
 language: d
 d:
-  - ldc2
   - ldc
   - dmd
 script:
-  - ldc2 --version
   - make
-  - make check
