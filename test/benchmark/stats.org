@@ -82,3 +82,19 @@ user    159m34.292s
 sys     3m19.300s
 
 So, the same build is 2x slower than the previous version.
+
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
+    Using ldmd2 @sambamba-ldmd-release.rsp
+    "-g" "-O2" "-c" "-m64" "-release" "-IBioD/" "-IundeaD/src/" "-ofbuild/sambamba.o" "-odbuild" "-I."
+    gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o -Lhtslib -Llz4/lib -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic /home/wrk/opt/ldc2-1.1.1-linux-x86_64/lib/libphobos2-ldc.a /home/wrk/opt/ldc2-1.1.1-linux-x86_64/lib/libdruntime-ldc.a -lrt -lpthread -lm
+
+
+date && time ./sambamba sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
+
+real    9m9.465s
+user    97m56.204s
+sys     2m50.512s
