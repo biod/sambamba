@@ -1,5 +1,5 @@
 d: ldc
 script:
+  - ldc2 --version
   - make
   - make check
-
