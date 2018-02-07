@@ -43,9 +43,9 @@ guix-debug:  DFLAGS += -O0 -g -d-debug -unittest
 # The following options are run in development from ~/.guix-profile and need to inject the RPATH
 debug:       DFLAGS += -O0 -g -d-debug $(RPATH) -link-debuglib -unittest
 
-release:     DFLAGS += -O -release $(RPATH)
+release static:     DFLAGS += -O3 -release $(RPATH) -enable-inlining -Hkeep-all-bodies -boundscheck=off
 
-static:      DFLAGS += -O -release -static -L-Bstatic -L-L/gnu/store/rmjlycdgiq8pfy5hfi42qhw3k7p6kdav-glibc-2.25/lib/
+static:      DFLAGS += -static -L-Bstatic -L-L/gnu/store/rmjlycdgiq8pfy5hfi42qhw3k7p6kdav-glibc-2.25/lib/
 
 profile:     DFLAGS += -g -O -profile $(RPATH)
 
