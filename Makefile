@@ -3,11 +3,15 @@
 #
 # Typical usage:
 #
-#    make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib
+#    make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib debug|profile|release|static
 #
-#  Debug version
+# Static release with optimization (for releases):
 #
-#    make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib debug
+#   make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib pgo-static
+#
+# Debug version
+#
+#   make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib debug
 
 D_COMPILER=ldc2
 DFLAGS      = -wi -I. -IBioD -IundeaD/src -g
@@ -24,11 +28,15 @@ STATIC_LIB_PATH=-Lhtslib -Llz4
 
 .PHONY: all debug release static clean test
 
-debug:              DFLAGS += -O0 -d-debug -link-debuglib
+debug:                             DFLAGS += -O0 -d-debug -link-debuglib
 
-release static:     DFLAGS += -O3 -release -enable-inlining -boundscheck=off
+profile:                           DFLAGS += -fprofile-instr-generate=profile.raw
 
-static:             DFLAGS += -static -L-Bstatic
+release static profile pgo-static: DFLAGS += -O3 -release -enable-inlining -boundscheck=off
+
+static:                            DFLAGS += -static -L-Bstatic
+
+pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
 
 all: release
 
@@ -50,6 +58,11 @@ build-setup: htslib-static lz4-static ldc-version-info
 	mkdir -p build/
 
 default debug release static: $(OUT)
+
+profile: release
+	./build/sambamba sort /gnu/data/in_raw.bam -p > /dev/null
+	ldc-profdata merge -output=profile.data profile.raw
+	rm ./build/sambamba ./build/sambamba.o # trigger rebuild
 
 default: all
 
@@ -75,11 +88,15 @@ debug-strip:
 	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
 	mv sambamba.debug build/
 
+pgo-static: profile static debug-strip
+
 install:
 	install -m 0755 build/sambamba $(prefix)/bin
 
 clean: clean-d
 	cd htslib ; make clean
+	rm -f profile.data
+	rm -f profile.raw
 
 clean-d:
 	rm -rf build/*
