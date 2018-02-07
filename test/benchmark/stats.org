@@ -18,6 +18,20 @@ real    0m3.150s
 user    0m24.668s
 sys     0m0.320s
 
+sambamba 0.6.7
+
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+
+real    0m2.869s
+user    0m22.344s
+sys     0m0.344s
+
+
 ** Sort
 
 *** 56x Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz, 256Gb
@@ -98,3 +112,17 @@ date && time ./sambamba sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
 real    9m9.465s
 user    97m56.204s
 sys     2m50.512s
+
+Updated the makefile to build with -singleobj. Now LLVM kicks in
+
+sambamba 0.6.7
+
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+real    8m1.978s
+user    89m13.936s
+sys     2m47.392s

@@ -1,25 +1,34 @@
 # This is a minimalistic make file to build sambamba with ldc2 as per instructions on
 # https://github.com/biod/sambamba#compiling-sambamba
+#
+# Typical usage:
+#
+#    make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib
+#
+#  Debug version
+#
+#    make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib debug
 
 D_COMPILER=ldc2
-DFLAGS = -wi -I. -IBioD -IundeaD/src -g
+DFLAGS      = -wi -I. -IBioD -IundeaD/src -g
 
-DLIBS  = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
+DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
-# RPATH  = -L--rpath=$(dir $(realpath $(LIBRARY_PATH)/libz.so)):$(dir $(realpath $(LIBRARY_PATH)/liblz4.so))
-LIBS   = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lrt -L-lpthread -L-lm
+LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lrt -L-lpthread -L-lm
 LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a lz4/lib/liblz4.a
-SRC    = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
-OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
-OUT    = build/sambamba
+SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
+OBJ         = $(SRC:.d=.o) utils/ldc_version_info_.o
+OUT         = build/sambamba
 
 STATIC_LIB_PATH=-Lhtslib -Llz4
 
 .PHONY: all debug release static clean test
 
-debug:       DFLAGS += -O0 -d-debug -link-debuglib
+debug:              DFLAGS += -O0 -d-debug -link-debuglib
 
-release:     DFLAGS += -O3 -release -enable-inlining -boundscheck=off
+release static:     DFLAGS += -O3 -release -enable-inlining -boundscheck=off
+
+static:             DFLAGS += -static -L-Bstatic
 
 all: release
 
@@ -40,7 +49,7 @@ utils/ldc_version_info_.o: ldc-version-info
 build-setup: htslib-static lz4-static ldc-version-info
 	mkdir -p build/
 
-default debug release: $(OUT)
+default debug release static: $(OUT)
 
 default: all
 
@@ -48,9 +57,12 @@ default: all
 %.o: %.d
 	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
+singleobj:
+	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=build/sambamba.o $(SRC)
+
 # ---- Link step
-$(OUT): build-setup $(OBJ)
-	$(D_COMPILER) $(DFLAGS) -of=build/sambamba $(OBJ) $(LIBS)
+$(OUT): build-setup singleobj utils/ldc_version_info_.o
+	$(D_COMPILER) $(DFLAGS) -of=build/sambamba build/sambamba.o utils/ldc_version_info_.o $(LIBS)
 
 test:
 	./run_tests.sh
