@@ -50,6 +50,7 @@ htslib-static:
 
 ldc-version-info:
 	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+	cat utils/ldc_version_info_.d
 
 utils/ldc_version_info_.o: ldc-version-info
 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
