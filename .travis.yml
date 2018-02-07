@@ -1,6 +1,5 @@
 language: d
 d:
   - ldc
-  - dmd
 script:
   - make
