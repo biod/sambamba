@@ -1,4 +1,5 @@
-d: ldc
+d:
+  - ldc2
 script:
   - ldc2 --version
   - make
