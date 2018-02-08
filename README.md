@@ -15,18 +15,19 @@
 <a name="intro"></a>
 # Introduction
 
-Sambamba is a high performance modern robust and fast tool (and
-library), written in the D programming language, for working with SAM
-and BAM files.  Current functionality is an important
-subset of samtools functionality, including view, index, sort,
-markdup, and depth. Most tools support piping: just specify `/dev/stdin`
-or `/dev/stdout` as filenames.
+Sambamba is a high performance highly parallel robust and fast tool
+(and library), written in the D programming language, for working with
+SAM and BAM files.  Current functionality is an important subset of
+samtools functionality, including view, index, sort, markdup, and
+depth. Most tools support piping: just specify `/dev/stdin` or
+`/dev/stdout` as filenames.
 
-For almost 5 years the main advantage over `samtools` was parallelized BAM reading.
-Finally in March 2017 `samtools` 1.4 was released, reaching parity on this.
-That said, we still have quite a few interesting features to offer:
+For almost 5 years the main advantage over `samtools` was parallelized
+BAM reading.  Finally in March 2017 `samtools` 1.4 was released,
+reaching parity on this.  That said, sambamba has a few interesting
+features to offer:
 
-- faster `sort`, see [performance](./test/benchmark/stats.org)
+- fast `sort`, see [performance](./test/benchmark/stats.org)
 - automatic index creation when writing any coordinate-sorted file
 - `view -L <bed file>` utilizes BAM index to skip unrelated chunks
 - `depth` allows to measure base, sliding window, or region coverages
@@ -39,7 +40,7 @@ Sambamba is free and open source software, licensed under GPLv2+.
 See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-view.html)
 to know more about what is available and how to use it.
 
-For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
+For more information on Sambamba contact Artem Tarasov and Pjotr Prins.
 
 <a name="install"></a>
 # Binary installation
@@ -51,11 +52,11 @@ are Github source and binary
 the tarball, unpack it and run it. For example
 
 ```sh
-wget https://github.com/biod/sambamba/releases/download/v0.6.6/sambamba_v0.6.6_linux.tar.bz2
-tar xvjf sambamba_v0.6.6_linux.tar.bz2
-./sambamba_v0.6.6
+wget https://github.com/biod/sambamba/releases/download/v0.6.8/sambamba_v0.6.8_linux.tar.bz2
+tar xvjf sambamba_v0.6.8_linux.tar.bz2
+./sambamba_v0.6.8
 
-    sambamba 0.6.6
+    sambamba 0.6.8
 
         Usage: sambamba [command] [args...]
 
@@ -63,35 +64,6 @@ tar xvjf sambamba_v0.6.6_linux.tar.bz2
                              'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
         To get help on a particular command, just call it without args.
 ```
-
-## Install latest pre-release
-
-A *latest* pre-release of sambamba 0.6.7 for Linux that includes debug
-information and *all* dependencies is available from this
-[link](http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J). This
-24Mb download reflects the development edition and includes recent
-versions of libraries, samtools and bcftools. It should install on any
-Linux distribution, including old ones on HPC clusters.
-
-Install the tarball by unpacking it and running the contained install
-script with a target directory e.g.
-
-```sh
-wget http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f822hv9zsz-sambamba-0.6.7-pre1-7cff065-x86_64.tar.bz2
-tar xvjf QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f822hv9zsz-sambamba-0.6.7-pre1-7cff065-x86_64.tar.bz2
-./install.sh ~/sambamba-test
-~/sambamba-test/bin/sambamba
-
-    sambamba 0.6.7-pre1
-
-    Usage: sambamba [command] [args...]
-
-        Available commands: 'view', 'index', 'merge', 'sort',
-                            'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
-
-```
-
-Binaries are also available through the following packaging tools (note the version numbers):
 
 ## Bioconda install
 
