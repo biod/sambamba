@@ -26,13 +26,14 @@ For almost 5 years the main advantage over `samtools` was parallelized BAM readi
 Finally in March 2017 `samtools` 1.4 was released, reaching parity on this.
 That said, we still have quite a few interesting features to offer:
 
-- faster `sort` (no benchmarks yet, sorry)
+- faster `sort`, see [performance](./test/benchmark/stats.org)
 - automatic index creation when writing any coordinate-sorted file
 - `view -L <bed file>` utilizes BAM index to skip unrelated chunks
 - `depth` allows to measure base, sliding window, or region coverages
   - [Chanjo](https://www.chanjo.co/) builds upon this and gets you to exon/gene levels of abstraction
 - `markdup`, a fast implementation of Picard algorithm
 - `slice` quickly extracts a region into a new file, tweaking only first/last chunks
+- and more
 
 Sambamba is free and open source software, licensed under GPLv2+.
 See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-view.html)

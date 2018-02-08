@@ -159,3 +159,32 @@ real    8m0.528s
 user    88m44.084s
 sys     2m45.888s
 #+END_SRC
+
+When sambamba is given enough RAM to hold everything in memory sambamba is twice
+as fast (apparently half the time goes to intermediate IO)
+
+#+BEGIN_SRC sh
+time ./sambamba sort -N -o /dev/null ENCFF696RLQ.bam -p -m 120G
+#+END_SRC
+
+#+BEGIN_SRC
+real    3m46.856s
+user    81m44.524s
+sys     1m56.388s
+#+END_SRC
+
+with 64GB it is
+
+#+BEGIN_SRC
+real    5m36.062s
+user    88m43.176s
+sys     3m0.536s
+#+END_SRC
+
+and with 32GB it is
+
+#+BEGIN_SRC
+real    7m22.125s
+user    89m6.188s
+sys     2m51.228s
+#+END_SRC
