@@ -1,0 +1,5 @@
+language: d
+d:
+  - ldc
+script:
+  - make

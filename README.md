@@ -1,7 +1,6 @@
-Note that this is a development branch of sambamba!
+[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba)
 
 # sambamba
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba)
 
 ## Table of Contents
 
@@ -16,30 +15,47 @@ Note that this is a development branch of sambamba!
 <a name="intro"></a>
 # Introduction
 
-Sambamba is a high performance modern robust and fast tool (and
-library), written in the D programming language, for working with SAM
-and BAM files.  Current functionality is an important
-subset of samtools functionality, including view, index, sort,
-markdup, and depth. Most tools support piping: just specify `/dev/stdin`
-or `/dev/stdout` as filenames.
+Sambamba is a high performance highly parallel robust and fast tool
+(and library), written in the D programming language, for working with
+SAM and BAM files.  Current functionality is an important subset of
+samtools functionality, including view, index, sort, markdup, and
+depth. Most tools support piping: just specify `/dev/stdin` or
+`/dev/stdout` as filenames.
 
-For almost 5 years the main advantage over `samtools` was parallelized BAM reading.
-Finally in March 2017 `samtools` 1.4 was released, reaching parity on this.
-That said, we still have quite a few interesting features to offer:
+When we started writing sambamba (in 2012) the main advantage over
+`samtools` was parallelized BAM reading and writing.  In March 2017
+`samtools` 1.4 was released, reaching parity on this. A
+[recent performance comparison](https://github.com/guigolab/sambamBench-nf)
+shows that sambamba holds its ground and can do better in different
+configurations. Here are some comparison
+[metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html). For
+example for flagstat sambamba is 1.4x faster than samtools. For index
+they are similar. For Markdup almost 6x faster and for view 4x faster. For sort sambamba
+has been beaten, though sambamba is 2x faster on large RAM machines.
 
-- faster `sort` (no benchmarks yet, sorry)
+In addition sambamba has a few interesting features to offer, in particular
+
+- faster large machine `sort`, see [performance](./test/benchmark/stats.org)
 - automatic index creation when writing any coordinate-sorted file
 - `view -L <bed file>` utilizes BAM index to skip unrelated chunks
 - `depth` allows to measure base, sliding window, or region coverages
   - [Chanjo](https://www.chanjo.co/) builds upon this and gets you to exon/gene levels of abstraction
 - `markdup`, a fast implementation of Picard algorithm
 - `slice` quickly extracts a region into a new file, tweaking only first/last chunks
+- and more
+
+Even though Sambamba started out as a samtools clone we are now in the
+process of adding new functionality - also in the
+[BioD project](https://github.com/biod/BioD). The D language is
+extremely suitable for high performance computing. At this point we
+think that the BAM format is here to stay for processing sequencing
+data and we aim to make it easy to parse and process BAM files.
 
 Sambamba is free and open source software, licensed under GPLv2+.
 See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-view.html)
 to know more about what is available and how to use it.
 
-For more information on Sambamba you can contact Artem Tarasov and Pjotr Prins.
+For more information on Sambamba contact the mailing list (see below).
 
 <a name="install"></a>
 # Binary installation
@@ -51,11 +67,11 @@ are Github source and binary
 the tarball, unpack it and run it. For example
 
 ```sh
-wget https://github.com/biod/sambamba/releases/download/v0.6.6/sambamba_v0.6.6_linux.tar.bz2
-tar xvjf sambamba_v0.6.6_linux.tar.bz2
-./sambamba_v0.6.6
+wget https://github.com/biod/sambamba/releases/download/v0.6.8/sambamba_v0.6.8_linux.tar.bz2
+tar xvjf sambamba_v0.6.8_linux.tar.bz2
+./sambamba_v0.6.8
 
-    sambamba 0.6.6
+    sambamba 0.6.8
 
         Usage: sambamba [command] [args...]
 
@@ -63,35 +79,6 @@ tar xvjf sambamba_v0.6.6_linux.tar.bz2
                              'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
         To get help on a particular command, just call it without args.
 ```
-
-## Install latest pre-release
-
-A *latest* pre-release of sambamba 0.6.7 for Linux that includes debug
-information and *all* dependencies is available from this
-[link](http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J). This
-24Mb download reflects the development edition and includes recent
-versions of libraries, samtools and bcftools. It should install on any
-Linux distribution, including old ones on HPC clusters.
-
-Install the tarball by unpacking it and running the contained install
-script with a target directory e.g.
-
-```sh
-wget http://test-gn2.genenetwork.org/ipfs/QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f822hv9zsz-sambamba-0.6.7-pre1-7cff065-x86_64.tar.bz2
-tar xvjf QmakasNfZhdbPA3xJYNxNX7at5FtYnS4hUNnvDbzxhZf2J/hb13hjys1064jmb6z17yc1f822hv9zsz-sambamba-0.6.7-pre1-7cff065-x86_64.tar.bz2
-./install.sh ~/sambamba-test
-~/sambamba-test/bin/sambamba
-
-    sambamba 0.6.7-pre1
-
-    Usage: sambamba [command] [args...]
-
-        Available commands: 'view', 'index', 'merge', 'sort',
-                            'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
-
-```
-
-Binaries are also available through the following packaging tools (note the version numbers):
 
 ## Bioconda install
 
@@ -169,6 +156,10 @@ which targets LLVM.
 
 ## Compilation dependencies
 
+- git (to check out the repo)
+- gcc compiler 4.9 or later (for htslib)
+- D compiler 1.7.0 or later (ldc2, see below)
+- python2 (parses D-compiler header for version info)
 - zlib (library)
 - lz4 (library)
 - htslib (submodule)
@@ -178,28 +169,35 @@ which targets LLVM.
 
 ## Compiling for Linux
 
-(this section needs to be updated)
-
-The LDC compiler's github repository also provides binary images. The current
-preferred release for sambamba is LDC - the LLVM D compiler (>= 1.1.0). After
-installing LDC:
-
-```sh
-    git clone --recursive https://github.com/biod/sambamba.git
-    cd sambamba
-    git clone https://github.com/dlang/undeaD
-    make sambamba-ldmd2-64
-```
-
-Installing LDC only means unpacking an archive and setting some
-environmental variables, e.g. unpacking into `$HOME`:
+The LDC compiler's github repository provides binary images. The current
+preferred release for sambamba is LDC - the LLVM D compiler (>= 1.6.1). After
+installing LDC from https://github.com/ldc-developers/ldc/releases/ with, for example
 
 ```sh
 cd
-wget https://github.com/ldc-developers/ldc/releases/download/v$ver/ldc2-$ver-linux-x86_64.tar.xz
-tar xJf ldc2-$ver-linux-x86_64.tar.xz
-export PATH=~/ldc2-$ver-linux-x86_64/bin/:$PATH
-export LIBRARY_PATH=~/ldc2-$ver-linux-x86_64/lib/
+wget https://github.com/ldc-developers/ldc/releases/download/v$ver/ldc2-1.7.0-linux-x86_64.tar.xz
+tar xvJf ldc2-1.7.0-linux-x86_64.tar.xz
+export PATH=$HOME/ldc2-1.7.0-linux-x86_64/bin:$PATH
+export LIBRARY_PATH=$HOME/ldc2-1.7.0-linux-x86_64/lib
+```
+
+```sh
+git clone --recursive https://github.com/biod/sambamba.git
+cd sambamba
+make
+```
+
+To build a debug release run
+
+```sh
+make clean && make debug
+```
+
+To run the test fetch shunit2 from https://github.com/kward/shunit2 and put it in the path so
+you can run
+
+```sh
+make check
 ```
 
 ### GNU Guix
@@ -211,6 +209,9 @@ guix package -i ldc
 ```
 
 ## Compiling for Mac OS X
+
+Note: the Makefile does not work. Someone want to fix that using the
+Makefile.old version? See also https://github.com/biod/sambamba/issues/338.
 
 ```sh
     brew install ldc
@@ -232,8 +233,8 @@ documentation](https://github.com/biod/sambamba-dev-docs).
 
 ## Segfaults on certain Intel Xeons
 
-Some popular Xeon processors segfault under heavy hyper threading -
-which Sambamba utilizes.  Please read
+Important note: some popular Xeon processors segfault under heavy
+hyper threading - which Sambamba utilizes.  Please read
 [this](https://blog.cloudflare.com/however-improbable-the-story-of-a-processor-bug/)
 when encountering seemingly random crashes.
 

@@ -1,0 +1,190 @@
+* Performance metrics
+
+** View
+
+*** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD
+
+**** sambamba 0.6.7
+
+#+BEGIN_SRC sh
+time ./build/sambamba view /gnu/data/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam.orig > /dev/null
+#+END_SRC
+
+#+BEGIN_SRC
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
+
+real    0m3.150s
+user    0m24.668s
+sys     0m0.320s
+
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+real    0m2.869s
+user    0m22.344s
+sys     0m0.344s
+#+END_SRC
+
+** Sort
+
+*** 56x Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz, 256Gb
+
+**** sambamba 0.6.6
+
+#+BEGIN_SRC sh
+time ./sambamba_v0.6.6 sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
+#+END_SRC
+
+#+BEGIN_SRC
+This version was built with:
+    LDC 0.17.1
+    using DMD v2.068.2
+    using LLVM 3.8.0
+    bootstrapped with version not available
+
+real    10m0.932s
+user    151m39.172s
+sys     3m7.596s
+
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
+
+real    9m22.501s
+user    98m24.748s
+sys     2m51.996s
+#+END_SRC
+
+Note, updating compiler shows a speed gain for 0.6.6.
+
+**** sambamba 0.6.7
+
+#+BEGIN_SRC
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+real    18m15.809s
+user    158m30.148s
+sys     3m15.932s
+#+END_SRC
+
+Ouch! A regression in the shipped release 0.6.7.
+
+#+BEGIN_SRC
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
+    ldc2 -wi -I. -IBioD -IundeaD/src -g -O3 -release -enable-inlining -boundscheck=off
+
+real    18m40.223s
+user    159m34.292s
+sys     3m19.300s
+#+END_SRC
+
+So, the same build is 2x slower than the previous version.
+
+#+BEGIN_SRC
+This version was built with:
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
+    Using ldmd2 @sambamba-ldmd-release.rsp
+    "-g" "-O2" "-c" "-m64" "-release" "-IBioD/" "-IundeaD/src/" "-ofbuild/sambamba.o" "-odbuild" "-I."
+    gcc -Wl,--gc-sections -o build/sambamba build/sambamba.o -Lhtslib -Llz4/lib -Wl,-Bstatic -lhts -llz4 -Wl,-Bdynamic /home/wrk/opt/ldc2-1.1.1-linux-x86_64/lib/libphobos2-ldc.a /home/wrk/opt/ldc2-1.1.1-linux-x86_64/lib/libdruntime-ldc.a -lrt -lpthread -lm
+
+real    9m9.465s
+user    97m56.204s
+sys     2m50.512s
+#+END_SRC
+
+Updated the makefile to build with -singleobj. Now LLVM kicks in!
+
+#+BEGIN_SRC
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+real    8m1.978s
+user    89m13.936s
+sys     2m47.392s
+#+END_SRC
+
+Next I tried adding [[https://johanengelen.github.io/ldc/2016/04/13/PGO-in-LDC-virtual-calls.html][profile guided optimization]]. But that turned out
+to be slower
+
+#+BEGIN_SRC
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+real    11m16.267s
+user    116m15.556s
+sys     2m56.244s
+#+END_SRC
+
+So, the release is reverted an after a version bump:
+
+**** sambamba 0.6.8
+
+#+BEGIN_SRC
+Wed Feb  7 03:43:14 CST 2018
+sambamba 0.6.8-pre1
+
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+real    8m0.528s
+user    88m44.084s
+sys     2m45.888s
+#+END_SRC
+
+When sambamba is given enough RAM to hold everything in memory sambamba is twice
+as fast (apparently half the time goes to intermediate IO)
+
+#+BEGIN_SRC sh
+time ./sambamba sort -N -o /dev/null ENCFF696RLQ.bam -p -m 120G
+#+END_SRC
+
+#+BEGIN_SRC
+real    3m46.856s
+user    81m44.524s
+sys     1m56.388s
+#+END_SRC
+
+with 64GB it is
+
+#+BEGIN_SRC
+real    5m36.062s
+user    88m43.176s
+sys     3m0.536s
+#+END_SRC
+
+and with 32GB it is
+
+#+BEGIN_SRC
+real    7m22.125s
+user    89m6.188s
+sys     2m51.228s
+#+END_SRC
