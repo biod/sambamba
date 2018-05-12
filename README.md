@@ -22,12 +22,16 @@ samtools functionality, including view, index, sort, markdup, and
 depth. Most tools support piping: just specify `/dev/stdin` or
 `/dev/stdout` as filenames.
 
-For almost 5 years the main advantage over `samtools` was parallelized
-BAM reading.  Finally in March 2017 `samtools` 1.4 was released,
-reaching parity on this.  That said, sambamba has a few interesting
-features to offer:
+When we started writing sambamba (in 2012) the main advantage over
+`samtools` was parallelized BAM reading and writing.  In March 2017
+`samtools` 1.4 was released, reaching parity on this. A
+[recent performance comparison](https://github.com/guigolab/sambamBench-nf)
+shows that sambamba holds its ground and can do better in different
+configurations. Here are some comparison [metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html).
 
-- fast `sort`, see [performance](./test/benchmark/stats.org)
+In addition sambamba has a few interesting features to offer, in particular
+
+- faster `sort`, see [performance](./test/benchmark/stats.org)
 - automatic index creation when writing any coordinate-sorted file
 - `view -L <bed file>` utilizes BAM index to skip unrelated chunks
 - `depth` allows to measure base, sliding window, or region coverages
