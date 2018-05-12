@@ -27,11 +27,15 @@ When we started writing sambamba (in 2012) the main advantage over
 `samtools` 1.4 was released, reaching parity on this. A
 [recent performance comparison](https://github.com/guigolab/sambamBench-nf)
 shows that sambamba holds its ground and can do better in different
-configurations. Here are some comparison [metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html).
+configurations. Here are some comparison
+[metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html). For
+example for flagstat sambamba is 1.4x faster than samtools. For index
+they are similar. For Markdup almost 6x faster and for view 4x faster. For sort sambamba
+has been beaten, though sambamba is 2x faster on large RAM machines.
 
 In addition sambamba has a few interesting features to offer, in particular
 
-- faster `sort`, see [performance](./test/benchmark/stats.org)
+- faster large machine `sort`, see [performance](./test/benchmark/stats.org)
 - automatic index creation when writing any coordinate-sorted file
 - `view -L <bed file>` utilizes BAM index to skip unrelated chunks
 - `depth` allows to measure base, sliding window, or region coverages
@@ -40,11 +44,18 @@ In addition sambamba has a few interesting features to offer, in particular
 - `slice` quickly extracts a region into a new file, tweaking only first/last chunks
 - and more
 
+Even though Sambamba started out as a samtools clone we are now in the
+process of adding new functionality - also in the
+[BioD project](https://github.com/biod/BioD). The D language is
+extremely suitable for high performance computing. At this point we
+think that the BAM format is here to stay for processing sequencing
+data and we aim to make it easy to parse and process BAM files.
+
 Sambamba is free and open source software, licensed under GPLv2+.
 See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-view.html)
 to know more about what is available and how to use it.
 
-For more information on Sambamba contact Artem Tarasov and Pjotr Prins.
+For more information on Sambamba contact the mailing list (see below).
 
 <a name="install"></a>
 # Binary installation
