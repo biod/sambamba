@@ -40,8 +40,8 @@ import std.range;
 import std.stdio;
 import std.typecons;
 
-import sambamba.bio2.bam.reader;
-import sambamba.bio2.bgzf;
+import bio2.bam.reader;
+import bio2.bgzf;
 
 void printUsage() {
   writeln("

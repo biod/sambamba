@@ -53,13 +53,13 @@ import std.range;
 import std.stdio;
 import std.typecons;
 
-import sambamba.bio2.bam.reader;
-import sambamba.bio2.bam.writer;
-import sambamba.bio2.bgzf;
-import sambamba.bio2.hashing;
-import sambamba.bio2.constants;
-import sambamba.bio2.pileup;
-import sambamba.bio2.reads;
+import bio2.bam.reader;
+import bio2.bam.writer;
+import bio2.bgzf;
+import bio2.hashing;
+import bio2.constants;
+import bio2.pileup;
+import bio2.reads;
 
 import bio.core.utils.exception;
 

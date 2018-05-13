@@ -17,21 +17,24 @@
 
 Sambamba is a high performance highly parallel robust and fast tool
 (and library), written in the D programming language, for working with
-SAM and BAM files.  Current functionality is an important subset of
-samtools functionality, including view, index, sort, markdup, and
-depth. Most tools support piping: just specify `/dev/stdin` or
-`/dev/stdout` as filenames.
+SAM and BAM files. Because of its efficiency is an important work
+horse running in many sequencing centres around the world
+today.
 
-When we started writing sambamba (in 2012) the main advantage over
-`samtools` was parallelized BAM reading and writing.  In March 2017
-`samtools` 1.4 was released, reaching parity on this. A
+Current functionality is an important subset of samtools
+functionality, including view, index, sort, markdup, and depth. Most
+tools support piping: just specify `/dev/stdin` or `/dev/stdout` as
+filenames. When we started writing sambamba (in 2012) the main
+advantage over `samtools` was parallelized BAM reading and writing.
+In March 2017 `samtools` 1.4 was released, reaching parity on this. A
 [recent performance comparison](https://github.com/guigolab/sambamBench-nf)
 shows that sambamba holds its ground and can do better in different
 configurations. Here are some comparison
 [metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html). For
 example for flagstat sambamba is 1.4x faster than samtools. For index
-they are similar. For Markdup almost 6x faster and for view 4x faster. For sort sambamba
-has been beaten, though sambamba is 2x faster on large RAM machines.
+they are similar. For Markdup almost 6x faster and for view 4x
+faster. For sort sambamba has been beaten generally, though sambamba
+is up to 2x faster on large RAM machines.
 
 In addition sambamba has a few interesting features to offer, in particular
 

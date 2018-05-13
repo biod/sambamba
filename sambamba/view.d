@@ -37,7 +37,7 @@ import sambamba.utils.common.progressbar;
 import sambamba.utils.view.alignmentrangeprocessor;
 import sambamba.utils.view.headerserializer;
 import sambamba.utils.common.bed;
-import sambamba.bio2.unpack;
+import bio2.unpack;
 // import core.sys.posix.stdlib; // for exit
 
 import utils.version_ : addPG;
