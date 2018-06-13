@@ -86,7 +86,9 @@ auto samtoolsInfo()
   if (samtoolsVersion is null) {
     auto samtools = execute([samtoolsBin]);
     enforce(samtools.status==1, "samtools failed: " ~ samtools.output);
-    samtoolsVersion = samtools.output.split("\n")[2];
+    auto r = regex(r"Version: 1\.\d(\.\d)?[^\n]+");
+    enforce(matchFirst(samtools.output, r), "Can not find version in " ~ samtools.output);
+    samtoolsVersion = matchFirst(samtools.output, r).hit;
     enforce(samtoolsVersion.startsWith("Version: 1."), "version " ~ samtoolsVersion ~ " of samtools is unsupported");
   }
   return [samtoolsBin, samtoolsVersion];
@@ -106,7 +108,7 @@ auto bcftoolsInfo()
   if (bcftoolsVersion is null) {
     auto bcftools = execute([bcftoolsBin]);
     enforce(bcftools.status == 1, "bcftools failed: " ~ bcftools.output);
-    auto r = regex(r"Version: 1\.\d\.\d[^\n]+");
+    auto r = regex(r"Version: 1\.\d(\.\d)?[^\n]+");
     enforce(matchFirst(bcftools.output, r), "Can not find version in " ~ bcftools.output);
     bcftoolsVersion = matchFirst(bcftools.output, r).hit;
     enforce(bcftoolsVersion.startsWith("Version: 1."), "version " ~ bcftoolsVersion ~ " of bcftools is unsupported");
