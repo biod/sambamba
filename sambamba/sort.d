@@ -414,17 +414,19 @@ class Sorter {
 
         if (show_progress) {
             stderr.writeln("Merging sorted chunks...");
-            weights.length = num_of_chunks;
+            float[] weights1;
+            weights1.length = num_of_chunks;
             merging_progress.length = num_of_chunks;
             merging_progress[] = 0.0;
 
             bar = new shared(ProgressBar)();
 
             foreach (i; 0 .. num_of_chunks) {
-                weights[i] = std.file.getSize(tmpfiles[i]); // set file size as weight
+                weights1[i] = std.file.getSize(tmpfiles[i]); // set file size as weight
             }
 
-            normalize(cast()weights);
+            normalize(weights1);
+            weights = cast(shared)weights1;
         }
 
         foreach (i; 0 .. num_of_chunks) {
