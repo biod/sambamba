@@ -14,7 +14,7 @@
 #   make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib debug
 
 D_COMPILER=ldc2
-DFLAGS      = -wi -I. -IBioD -IundeaD/src -g
+DFLAGS      = -wi -I. -I../BioD -IBioD -IundeaD/src -g
 
 DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a

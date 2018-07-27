@@ -1,6 +1,7 @@
 /*
     This file is part of Sambamba.
     Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2017    Pjotr Prins <pjotr.prins@thebird.nl>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -403,8 +404,11 @@ int merge_main(string[] args) {
             alias ReturnType!(BamReader.readsWithProgress!withoutOffsets) AlignmentRangePB;
             auto alignmentranges_with_file_ids = new Tuple!(AlignmentRangePB, size_t)[files.length];
 
-            auto weights = cast(shared)array(map!(pipe!(getSize, to!float))(filenames));
-            normalize(cast()weights);
+            // auto weights = cast(shared)array(map!(pipe!(getSize, to!float))(filenames));
+            auto weights1 = array(map!(pipe!(getSize, to!float))(filenames));
+            normalize(weights1);
+            // auto weights = cast(shared)weights1;
+            immutable weights = cast(immutable)weights1;
 
             foreach (i; 0 .. files.length) {
                 alignmentranges_with_file_ids[i] = tuple(

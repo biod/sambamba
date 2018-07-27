@@ -1,5 +1,5 @@
 # GNU Guix makefile. GNU Guix is the package manager for GNU and we use it for
-# sambamba development and deployment. Normally use the standard Makefile 
+# sambamba development and deployment. Normally use the standard Makefile
 # instead.
 #
 # To build sambamba on GNU Guix:
@@ -59,9 +59,9 @@ guix-debug debug profile: LIBS += $(DLIBS_DEBUG)
 
 all: debug
 
-sambamba/bio2/pileup.d: sambamba/bio2/bam/reader.d
+# bio2/pileup.d: bio2/bam/reader.d
 
-sambamba/subsample.d: sambamba/bio2/pileup.d
+# sambamba/subsample.d: bio2/pileup.d
 
 utils/ldc_version_info_.d:
 	./gen_ldc_version_info.py $(shell which ldc2) > utils/ldc_version_info_.d
