@@ -20,7 +20,7 @@ DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
 LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lrt -L-lpthread -L-lm
 LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a lz4/lib/liblz4.a
-SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
+SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ         = $(SRC:.d=.o) utils/ldc_version_info_.o
 OUT         = build/sambamba
 
@@ -72,10 +72,12 @@ default: all
 	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
 singleobj:
+	$(info compile single object...)
 	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=build/sambamba.o $(SRC)
 
 # ---- Link step
 $(OUT): build-setup singleobj utils/ldc_version_info_.o
+	$(info linking...)
 	$(D_COMPILER) $(DFLAGS) -of=build/sambamba build/sambamba.o utils/ldc_version_info_.o $(LIBS)
 
 test:

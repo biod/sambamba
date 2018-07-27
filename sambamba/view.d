@@ -1,6 +1,7 @@
 /*
     This file is part of Sambamba.
-    Copyright (C) 2012-2016    Artem Tarasov <lomereiter@gmail.com>
+    Copyright © 2012-2016    Artem Tarasov <lomereiter@gmail.com>
+    Copyright © 2012-2017    Pjotr Prins <pjotr.prins@thebird.nl>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,11 +22,14 @@ module sambamba.view;
 
 import bio.bam.reader;
 import bio.bam.read;
-import bio.bam.splitter;
 import bio.bam.region;
+import bio.bam.splitter;
+
+import bio.core.region;
+import bio.core.utils.format;
+
 import bio.sam.reader;
 import cram.reader;
-import bio.core.region;
 
 import sambamba.utils.common.filtering;
 import sambamba.utils.common.overwrite;
@@ -33,63 +37,65 @@ import sambamba.utils.common.progressbar;
 import sambamba.utils.view.alignmentrangeprocessor;
 import sambamba.utils.view.headerserializer;
 import sambamba.utils.common.bed;
+import bio2.unpack;
 // import core.sys.posix.stdlib; // for exit
 
-import bio.core.utils.format;
 import utils.version_ : addPG;
 
-import std.stdio;
-import std.string;
 import std.array;
-import std.traits;
+import std.algorithm;
+import std.conv;
+import std.exception;
 import std.getopt;
 import std.parallelism;
-import std.algorithm;
 import std.math : isNaN;
 import std.random;
 import std.range;
-import std.conv;
+import std.stdio;
+import std.string;
+import std.traits;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]");
-    stderr.writeln();
-    stderr.writeln("Options: -F, --filter=FILTER");
-    stderr.writeln("                    set custom filter for alignments");
-    stderr.writeln("         --num-filter=NUMFILTER");
-    stderr.writeln("                    filter flag bits; 'i1/i2' corresponds to -f i1 -F i2 samtools arguments;");
-    stderr.writeln("                    either of the numbers can be omitted");
-    stderr.writeln("         -f, --format=sam|bam|cram|json");
-    stderr.writeln("                    specify which format to use for output (default is SAM)");
-    stderr.writeln("         -h, --with-header");
-    stderr.writeln("                    print header before reads (always done for BAM output)");
-    stderr.writeln("         -H, --header");
-    stderr.writeln("                    output only header to stdout (if format=bam, the header is printed as SAM)");
-    stderr.writeln("         -I, --reference-info");
-    stderr.writeln("                    output to stdout only reference names and lengths in JSON");
-    stderr.writeln("         -L, --regions=FILENAME");
-    stderr.writeln("                    output only reads overlapping one of regions from the BED file");
-    stderr.writeln("         -c, --count");
-    stderr.writeln("                    output to stdout only count of matching records, hHI are ignored");
-    stderr.writeln("         -v, --valid");
-    stderr.writeln("                    output only valid alignments");
-    stderr.writeln("         -S, --sam-input");
-    stderr.writeln("                    specify that input is in SAM format");
-    stderr.writeln("         -C, --cram-input");
-    stderr.writeln("                    specify that input is in CRAM format");
-    stderr.writeln("         -T, --ref-filename=FASTA");
-    stderr.writeln("                    specify reference for writing CRAM");
-    stderr.writeln("         -p, --show-progress");
-    stderr.writeln("                    show progressbar in STDERR (works only for BAM files with no regions specified)");
-    stderr.writeln("         -l, --compression-level");
-    stderr.writeln("                    specify compression level (from 0 to 9, works only for BAM output)");
-    stderr.writeln("         -o, --output-filename");
-    stderr.writeln("                    specify output filename");
-    stderr.writeln("         -t, --nthreads=NTHREADS");
-    stderr.writeln("                    maximum number of threads to use");
-    stderr.writeln("         -s, --subsample=FRACTION");
-    stderr.writeln("                    subsample reads (read pairs)");
-    stderr.writeln("         --subsampling-seed=SEED");
-    stderr.writeln("                    set seed for subsampling");
+    stderr.writeln("Usage: sambamba-view [options] <input.bam | input.sam> [region1 [...]]
+
+Options: -F, --filter=FILTER
+                    set custom filter for alignments
+         --num-filter=NUMFILTER
+                    filter flag bits; 'i1/i2' corresponds to -f i1 -F i2 samtools arguments;
+                    either of the numbers can be omitted
+         -f, --format=sam|bam|cram|json|unpack
+                    specify which format to use for output (default is SAM);
+                    unpack streams unpacked BAM
+         -h, --with-header
+                    print header before reads (always done for BAM output)
+         -H, --header
+                    output only header to stdout (if format=bam, the header is printed as SAM)
+         -I, --reference-info
+                    output to stdout only reference names and lengths in JSON
+         -L, --regions=FILENAME
+                    output only reads overlapping one of regions from the BED file
+         -c, --count
+                    output to stdout only count of matching records, hHI are ignored
+         -v, --valid
+                    output only valid alignments
+         -S, --sam-input
+                    specify that input is in SAM format
+         -C, --cram-input
+                    specify that input is in CRAM format
+         -T, --ref-filename=FASTA
+                    specify reference for writing CRAM
+         -p, --show-progress
+                    show progressbar in STDERR (works only for BAM files with no regions specified)
+         -l, --compression-level
+                    specify compression level (from 0 to 9, works only for BAM output)
+         -o, --output-filename
+                    specify output filename
+         -t, --nthreads=NTHREADS
+                    maximum number of threads to use
+         -s, --subsample=FRACTION
+                    subsample reads (read pairs)
+         --subsampling-seed=SEED
+                    set seed for subsampling");
 }
 
 void outputReferenceInfoJson(T)(T bam) {
@@ -195,50 +201,55 @@ int view_main(string[] args) {
 
         protectFromOverwrite(args[1], output_filename);
 
+        File output_file;
+        if (output_filename is null || output_filename == "-")
+          output_file = stdout;
+        else
+          output_file = File(output_filename, "w+");
+
         if (is_cram && is_sam)
             throw new Exception("only one of --sam-input and --cram-input can be specified");
 
+        if (format == "unpack" ) {
+          enforce(!is_cram && !is_sam,"we can only unpack bam files at this point!");
+          // unpack is part of sambamba2
+          return unpack_bams(args[1..$],output_file); // exits
+        }
         auto task_pool = new TaskPool(n_threads);
         scope(exit) task_pool.finish();
         if (is_sam) {
-            auto sam = new SamReader(args[1]);
-            return sambambaMain(sam, task_pool, args);
+          auto sam = new SamReader(args[1]);
+          return sambambaMain(sam, task_pool, args, output_file);
         } else if (!is_cram) {
-            auto bam = new BamReader(args[1], task_pool);
-            return sambambaMain(bam, task_pool, args);
+          auto bam = new BamReader(args[1], task_pool);
+          return sambambaMain(bam, task_pool, args, output_file);
         } else {
-            auto cram = new CramReader(args[1], task_pool);
-            return sambambaMain(cram, task_pool, args);
+          auto cram = new CramReader(args[1], task_pool);
+          return sambambaMain(cram, task_pool, args, output_file);
         }
     } catch (Exception e) {
-        stderr.writeln("sambamba-view: ", e.msg);
+          stderr.writeln("sambamba-view: ", e.msg);
 
-        version(development) {
+          version(development) {
             throw e; // rethrow to see detailed message
-        }
+          }
 
-        return 1;
+          return 1;
+        }
     }
-}
 
 auto filtered(R)(R reads, Filter f) {
-    return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
+  return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
 }
 
-int sambambaMain(T)(T _bam, TaskPool pool, string[] args)
-{
+ int sambambaMain(T)(T _bam, TaskPool pool, string[] args, File output_file)
+ {
     auto bam = _bam; // FIXME: uhm, that was a workaround for some closure-related bug
 
     if (reference_info_only && !count_only) {
         outputReferenceInfoJson(bam);
         return 0;
     }
-
-    File output_file;
-    if (output_filename is null || output_filename == "-")
-        output_file = stdout;
-    else
-        output_file = File(output_filename, "w+");
 
     if (!header_only)  // = some processing is done
         addPG("view", unparsed_args, bam.header);

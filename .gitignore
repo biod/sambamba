@@ -1,3 +1,13 @@
+.dub/
+dub.selections.json
+BioD/
+BioD
+./BioD
+undeaD/
+lz4/
+core
+bin/
+test*
 build/
 shunit*
 /*.sam
@@ -6,6 +16,9 @@ shunit*
 /*.cram
 /*.crai
 /*.txt
+*.hex
+*.zcat
+*.out
 /utils/ldc_version_info_.d
 profile.data
 profile.raw

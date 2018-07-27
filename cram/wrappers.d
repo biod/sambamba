@@ -23,13 +23,13 @@ struct RcPtr(T, alias Free) {
             this.ptr = ptr;
             debug {
                 payload_id = ++payload_counter;
-                stderr.writeln("Init ", T.stringof, "* #", payload_id);
+                // stderr.writeln("Init ", T.stringof, "* #", payload_id);
             }
         }
 
         ~this() {
             debug {
-                stderr.writeln("Free ", T.stringof, "* #", payload_id);
+                // stderr.writeln("Free ", T.stringof, "* #", payload_id);
             }
             Free(ptr);
         }
@@ -51,7 +51,7 @@ struct RcPtr(T, alias Free) {
     this(this)
     {
         static if (is(T == cram_slice)) {
-            debug stderr.writeln("COPIED #", data.payload_id + 1);
+            // debug stderr.writeln("COPIED #", data.payload_id + 1);
         }
     }
 
@@ -159,7 +159,7 @@ struct CramContainerRange {
         auto err_msg = "Failed to read container header";
         while (true) {
             // read container header
-            debug stderr.writeln("cram_read_container");
+            // debug stderr.writeln("cram_read_container");
             auto ptr = nullChecked!cram_read_container(err_msg, _fd);
             if (ptr is null) {
                 empty = true;
@@ -240,8 +240,8 @@ class UndecodedSliceRange {
         _container.curr_slice++;
 
         auto err_msg = "Failure in cram_read_slice";
-        debug stderr.writeln("cram_read_slice (", _container.curr_slice,
-                             "/", _container.max_slice, ")");
+        // debug stderr.writeln("cram_read_slice (", _container.curr_slice,
+        //                      "/", _container.max_slice, ")");
         auto ptr = cram_read_slice(_fd);
         if (ptr is null) {
             throw new CramException(err_msg);

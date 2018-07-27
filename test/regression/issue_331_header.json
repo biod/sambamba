@@ -1,0 +1,273 @@
+{
+    "format_version": "1.4",
+    "pg_lines": [
+        {
+            "command_line": "knownAlleles=[] targetIntervals=\/hpc\/cog_bioinf\/data\/mapping\/diagnostiek\/Exomes\/160330_NB501039_0019_AHWNWYBGXX\/12878\/tmp\/12878_dedup.target.intervals.list LODThresholdForCleaning=5.0 consensusDeterminationModel=USE_READS entropyThreshold=0.15 maxReadsInMemory=150000 maxIsizeForMovement=3000 maxPositionalMoveAllowed=200 maxConsensuses=30 maxReadsForConsensuses=120 maxReadsForRealignment=20000 noOriginalAlignmentTags=false nWayOut=null generate_nWayOut_md5s=false check_early=false noPGTag=false keepPGTags=false indelsFileForDebugging=null statisticsFileForDebugging=null SNPsFileForDebugging=null",
+            "identifier": "GATK IndelRealigner",
+            "previous_program": "",
+            "program_name": "",
+            "program_version": "3.4-46-gbc02625"
+        }
+    ],
+    "rg_lines": [
+        {
+            "date": "",
+            "description": "",
+            "flow_order": "",
+            "identifier": "12878_AHWNWYBGXX_S1_L001_001",
+            "key_sequence": "",
+            "library": "12878",
+            "platform": "ILLUMINA",
+            "platform_unit": "AHWNWYBGXX",
+            "predicted_insert_size": 0,
+            "programs": "",
+            "sample": "12878",
+            "sequencing_center": ""
+        },
+        {
+            "date": "",
+            "description": "",
+            "flow_order": "",
+            "identifier": "12878_AHWNWYBGXX_S1_L002_001",
+            "key_sequence": "",
+            "library": "12878",
+            "platform": "ILLUMINA",
+            "platform_unit": "AHWNWYBGXX",
+            "predicted_insert_size": 0,
+            "programs": "",
+            "sample": "12878",
+            "sequencing_center": ""
+        },
+        {
+            "date": "",
+            "description": "",
+            "flow_order": "",
+            "identifier": "12878_AHWNWYBGXX_S1_L003_001",
+            "key_sequence": "",
+            "library": "12878",
+            "platform": "ILLUMINA",
+            "platform_unit": "AHWNWYBGXX",
+            "predicted_insert_size": 0,
+            "programs": "",
+            "sample": "12878",
+            "sequencing_center": ""
+        },
+        {
+            "date": "",
+            "description": "",
+            "flow_order": "",
+            "identifier": "12878_AHWNWYBGXX_S1_L004_001",
+            "key_sequence": "",
+            "library": "12878",
+            "platform": "ILLUMINA",
+            "platform_unit": "AHWNWYBGXX",
+            "predicted_insert_size": 0,
+            "programs": "",
+            "sample": "12878",
+            "sequencing_center": ""
+        }
+    ],
+    "sorting_order": "coordinate",
+    "sq_lines": [
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 249250621,
+            "sequence_name": "1",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 243199373,
+            "sequence_name": "2",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 198022430,
+            "sequence_name": "3",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 191154276,
+            "sequence_name": "4",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 180915260,
+            "sequence_name": "5",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 171115067,
+            "sequence_name": "6",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 159138663,
+            "sequence_name": "7",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 146364022,
+            "sequence_name": "8",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 141213431,
+            "sequence_name": "9",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 135534747,
+            "sequence_name": "10",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 135006516,
+            "sequence_name": "11",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 133851895,
+            "sequence_name": "12",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 115169878,
+            "sequence_name": "13",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 107349540,
+            "sequence_name": "14",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 102531392,
+            "sequence_name": "15",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 90354753,
+            "sequence_name": "16",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 81195210,
+            "sequence_name": "17",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 78077248,
+            "sequence_name": "18",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 59128983,
+            "sequence_name": "19",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 63025520,
+            "sequence_name": "20",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 48129895,
+            "sequence_name": "21",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 51304566,
+            "sequence_name": "22",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 155270560,
+            "sequence_name": "X",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 59373566,
+            "sequence_name": "Y",
+            "species": "",
+            "uri": ""
+        },
+        {
+            "assembly": "",
+            "md5": "",
+            "sequence_length": 16569,
+            "sequence_name": "MT",
+            "species": "",
+            "uri": ""
+        }
+    ]
+}

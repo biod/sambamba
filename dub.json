@@ -1,0 +1,13 @@
+{
+  "name": "sambamba",
+  "targetType": "none",
+  "authors": [
+    "pjotrp"
+  ],
+  "dependencies": {
+    "undead": "~>1.0.9"
+  },
+  "description": "Sambamba",
+  "copyright": "Copyright © 2012-2017, Artem Tarasov and Pjotr Prins",
+  "license": "GPL3",
+}
