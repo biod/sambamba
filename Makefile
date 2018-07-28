@@ -22,7 +22,7 @@ LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lrt -L-lpt
 LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a lz4/lib/liblz4.a
 SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ         = $(SRC:.d=.o) utils/ldc_version_info_.o
-OUT         = build/sambamba
+OUT         = bin/sambamba
 
 STATIC_LIB_PATH=-Lhtslib -Llz4
 
@@ -56,14 +56,14 @@ utils/ldc_version_info_.o: ldc-version-info
 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
 
 build-setup: htslib-static lz4-static ldc-version-info
-	mkdir -p build/
+	mkdir -p bin/
 
 default debug release static: $(OUT)
 
 profile: release
-	./build/sambamba sort /gnu/data/in_raw.bam -p > /dev/null
+	./bin/sambamba sort /gnu/data/in_raw.bam -p > /dev/null
 	ldc-profdata merge -output=profile.data profile.raw
-	rm ./build/sambamba ./build/sambamba.o # trigger rebuild
+	rm ./bin/sambamba ./bin/sambamba.o # trigger rebuild
 
 default: all
 
@@ -73,12 +73,12 @@ default: all
 
 singleobj:
 	$(info compile single object...)
-	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=build/sambamba.o $(SRC)
+	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=bin/sambamba.o $(SRC)
 
 # ---- Link step
 $(OUT): build-setup singleobj utils/ldc_version_info_.o
 	$(info linking...)
-	$(D_COMPILER) $(DFLAGS) -of=build/sambamba build/sambamba.o utils/ldc_version_info_.o $(LIBS)
+	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba bin/sambamba.o utils/ldc_version_info_.o $(LIBS)
 
 test:
 	./run_tests.sh
@@ -86,15 +86,15 @@ test:
 check: test
 
 debug-strip:
-	objcopy --only-keep-debug build/sambamba sambamba.debug
-	objcopy --strip-debug build/sambamba
-	objcopy --add-gnu-debuglink=sambamba.debug build/sambamba
-	mv sambamba.debug build/
+	objcopy --only-keep-debug bin/sambamba sambamba.debug
+	objcopy --strip-debug bin/sambamba
+	objcopy --add-gnu-debuglink=sambamba.debug bin/sambamba
+	mv sambamba.debug bin/
 
 pgo-static: profile static debug-strip
 
 install:
-	install -m 0755 build/sambamba $(prefix)/bin
+	install -m 0755 bin/sambamba $(prefix)/bin
 
 clean: clean-d
 	cd htslib ; make clean
@@ -102,5 +102,5 @@ clean: clean-d
 	rm -f profile.raw
 
 clean-d:
-	rm -rf build/*
+	rm -rf bin/*
 	rm -f $(OBJ) $(OUT) trace.{def,log}

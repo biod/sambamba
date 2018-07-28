@@ -1,7 +1,7 @@
 /*
     This file is part of Sambamba.
     Copyright (C) 2012-2017    Artem Tarasov <lomereiter@gmail.com>
-    Copyright (C) 2012-2017    Pjotr Prins <pjotr.prins@thebird.nl>
+    Copyright (C) 2012-2018    Pjotr Prins <pjotr.prins@thebird.nl>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ For bug reports and feature requests see
 
 void printVersion() {
     stderr.writeln();
-    stderr.writeln("sambamba " ~ VERSION ~ " by Artem Tarasov and Pjotr Prins (C) 2012-2017");
+    stderr.writeln("sambamba " ~ VERSION ~ " by Artem Tarasov and Pjotr Prins (C) 2012-2018");
     stderr.writeln("    LDC " ~ LDC_VERSION_STRING ~ " / DMD " ~ DMD_VERSION_STRING ~
      " / LLVM" ~ LLVM_VERSION_STRING ~ " / bootstrap " ~ BOOTSTRAP_VERSION_STRING);
     stderr.writeln();
