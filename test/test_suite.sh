@@ -19,13 +19,13 @@ testSamtoBam() {
     $sambamba view $nsortedbam -f sam > $nsortedbam.sam.2
     assertEquals "ff5d66e6cd1cab4e8e6330f2829b7c41" $(md5sum $nsortedbam.sam.2 |cut -c 1-32)
     # Test BAM
-    assertEquals "a51687bb6f8c0d5e7e8eecf08d84e2eb" $(md5sum $nsortedbam |cut -c 1-32)
+    assertEquals "b5d64266e9544a656f0efbd0f8030b20" $(md5sum $nsortedbam |cut -c 1-32)
     # ex1_header.sorted.bam with index
     $sambamba sort $outfn -o $sortedbam
-    assertEquals "a51687bb6f8c0d5e7e8eecf08d84e2eb" $(md5sum $outfn |cut -c 1-32)
+    assertEquals "b5d64266e9544a656f0efbd0f8030b20" $(md5sum $outfn |cut -c 1-32)
     $sambamba index $nsortedbam
-    assertEquals "37a40998dbe8c74345005a4c343563ef" `./bin/sambamba view -f unpack $nsortedbam |md5sum|cut -c 1-32`
-    assertEquals "6a48f9edf04bf95d3ac65d7395224440" `./bin/sambamba view -f unpack $sortedbam |md5sum|cut -c 1-32`
+    assertEquals "aabb4fb319497dec1069028dd354eeda" `./bin/sambamba view -f unpack $nsortedbam |md5sum|cut -c 1-32`
+    assertEquals "68e19d0f1092e1f0429ba07b418d1d9f" `./bin/sambamba view -f unpack $sortedbam |md5sum|cut -c 1-32`
 }
 
 testSubSample() {
@@ -60,7 +60,7 @@ testSortByCoordinate() {
     assertEquals 0 $?
     $sambamba view -t2 $outfn > $outfn.sam
     # check sorted with cat output/ex1_header.sorted2.bam.sam |awk '{print $3 " " $4}'|less
-    assertEquals "2ae7237feab3ba5e389830b15ce834ee" `./bin/sambamba view -f unpack $outfn |md5sum|cut -c 1-32`
+    assertEquals "d92c51b9e067590d7d5a18a0bdbbe0cc" `./bin/sambamba view -f unpack $outfn |md5sum|cut -c 1-32`
 }
 
 testSlice() {
