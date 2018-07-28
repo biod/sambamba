@@ -8,7 +8,7 @@
 #
 # run with
 #
-#   ./build/sambamba
+#   ./bin/sambamba
 #
 # certain paths may need to be set, e.g.
 #

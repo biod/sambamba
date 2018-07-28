@@ -1,6 +1,7 @@
 /*
     This file is part of Sambamba.
     Copyright (C) 2012-2017    Artem Tarasov <lomereiter@gmail.com>
+    Copyright (C) 2012-2018    Pjotr Prins <pjotr.prins@thebird.nl>
 
     Sambamba is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
