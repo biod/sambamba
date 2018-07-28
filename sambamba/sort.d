@@ -426,7 +426,7 @@ class Sorter {
             }
 
             normalize(weights1);
-            weights = cast(shared)weights1;
+            weights = cast(shared)weights1.dup();
         }
 
         foreach (i; 0 .. num_of_chunks) {

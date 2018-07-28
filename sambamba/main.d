@@ -81,7 +81,7 @@ For bug reports and feature requests see
 
 void printVersion() {
     stderr.writeln();
-    stderr.writeln("sambamba " ~ VERSION ~ " by Artem Tarasov and Pjotr Prins (C) 2012-2018");
+    stderr.writeln("sambamba " ~ VERSION ~ " by Artem Tarasov and Pjotr Prins (C) 2012-2017");
     stderr.writeln("    LDC " ~ LDC_VERSION_STRING ~ " / DMD " ~ DMD_VERSION_STRING ~
      " / LLVM" ~ LLVM_VERSION_STRING ~ " / bootstrap " ~ BOOTSTRAP_VERSION_STRING);
     stderr.writeln();

@@ -10,8 +10,16 @@ sortedbam=$outdir/ex1_header.sorted.bam
 
 testSamtoBam() {
     outfn=$nsortedbam
+    # first identity SAM but without header
+    $sambamba view -S test/ex1_header.sam -f sam > $nsortedbam.sam.1
+    assertEquals "ff5d66e6cd1cab4e8e6330f2829b7c41" $(md5sum $nsortedbam.sam.1 |cut -c 1-32)
+    # now convert to BAM
     $sambamba view -S test/ex1_header.sam -f bam > $nsortedbam
-    assertEquals "a51687bb6f8c0d5e7e8eecf08d84e2eb" $(md5sum $outfn |cut -c 1-32)
+    # BAM back to identity
+    $sambamba view $nsortedbam -f sam > $nsortedbam.sam.2
+    assertEquals "ff5d66e6cd1cab4e8e6330f2829b7c41" $(md5sum $nsortedbam.sam.2 |cut -c 1-32)
+    # Test BAM
+    assertEquals "a51687bb6f8c0d5e7e8eecf08d84e2eb" $(md5sum $nsortedbam |cut -c 1-32)
     # ex1_header.sorted.bam with index
     $sambamba sort $outfn -o $sortedbam
     assertEquals "a51687bb6f8c0d5e7e8eecf08d84e2eb" $(md5sum $outfn |cut -c 1-32)
@@ -21,6 +29,7 @@ testSamtoBam() {
 }
 
 testSubSample() {
+    return # not testing subsampling yet
     # bam file is part of BioD
     outfn=$outdir/subsample.bam
     $sambamba subsample --type fasthash $outdir/ex1_header.sorted.bam --max-cov 1000 -o$outfn > $outdir/subsample.out
