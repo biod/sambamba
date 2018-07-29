@@ -1,3 +1,12 @@
 [submodule "htslib"]
 	path = htslib
 	url = https://github.com/lomereiter/htslib.git
+[submodule "undeaD"]
+	path = undeaD
+	url = https://github.com/dlang/undeaD
+[submodule "BioD"]
+	path = BioD
+	url = https://github.com/biod/BioD.git
+[submodule "lz4"]
+	path = lz4
+	url = https://github.com/lz4/lz4.git

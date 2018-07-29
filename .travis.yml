@@ -1,5 +1,22 @@
 language: d
 d:
   - ldc
+matrix:
+  # OSX testing is under development
+  allow_failures:
+    - os: osx
+  include:
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          packages:
+            # Our dev environment is a more recent GNU C++
+            # note that Debian liblz4-dev no longer supports LZ4 frames
+            # - liblz4-dev
+            - shunit2
+    - os: osx
+      compiler: clang
 script:
   - make
+  - make test
