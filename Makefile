@@ -18,8 +18,8 @@ DFLAGS      = -wi -I. -IBioD -IundeaD/src -g
 
 DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
-LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lrt -L-lpthread -L-lm
-LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a lz4/lib/liblz4.a
+LIBS        = htslib/libhts.a -L-llz4 -L-L$(LIBRARY_PATH) -L-lrt -L-lpthread -L-lm
+LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LIBRARY_PATH)/liblz4.a
 SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ         = $(SRC:.d=.o) utils/ldc_version_info_.o
 OUT         = bin/sambamba
@@ -40,11 +40,6 @@ pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
 
 all: release
 
-lz4-static: lz4/lib/liblz4.a
-
-lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhash.c
-	cd lz4/lib && $(CC) -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
-
 htslib-static:
 	cd htslib && $(MAKE)
 
@@ -55,7 +50,7 @@ ldc-version-info:
 utils/ldc_version_info_.o: ldc-version-info
 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
 
-build-setup: htslib-static lz4-static ldc-version-info
+build-setup: htslib-static ldc-version-info
 	mkdir -p bin/
 
 default debug release static: $(OUT)
