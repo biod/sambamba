@@ -558,14 +558,14 @@ auto readPairsAndFragments(alias hashFunc=simpleHash, R)
             (reads, table_size_log2, overflow_list_size, tmp_dir, task_pool);
 }
 
-/////////////////////////////////////////////////////////////////////////////////
-/// no more than 32767 libraries and 16383 reference sequences are supported ////
-/////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+/// no more than 536 million libraries and 2 billion reference sequences are supported ////
+///////////////////////////////////////////////////////////////////////////////////////////
 
 // 8 bytes
 struct SingleEndBasicInfo {
-    mixin(bitfields!(short, "library_id", 16,
-                     ushort, "ref_id", 14,
+    mixin(bitfields!(short, "library_id", 30,
+                     ushort, "ref_id", 32,
                      ubyte, "reversed", 1,
                      ubyte, "paired", 1));
     int coord;
@@ -575,7 +575,7 @@ struct SingleEndBasicInfo {
             reversed == other.reversed && library_id == other.library_id;
     }
 }
-static assert(SingleEndBasicInfo.sizeof == 8);
+static assert(SingleEndBasicInfo.sizeof == 16);
 
 struct SingleEndInfo {
     SingleEndBasicInfo basic_info;
@@ -585,8 +585,8 @@ struct SingleEndInfo {
 }
 
 struct PairedEndsInfo {
-    mixin(bitfields!(short, "library_id", 16,
-                     ushort, "ref_id1", 14,
+    mixin(bitfields!(short, "library_id", 30,
+                     ushort, "ref_id1", 32,
                      ubyte, "reversed1", 1,
                      ubyte, "reversed2", 1));
     int coord1;
@@ -675,7 +675,7 @@ class ReadGroupIndex {
             }
             ++i;
         }
-        enforce(n_libs <= 32767, "More than 32767 libraries are unsupported");
+        enforce(n_libs <= 536870911, "More than 536870911 libraries are unsupported");
     }
 
     /// -1 if read group with such name is not found in the header
@@ -1232,7 +1232,6 @@ int markdup_main(string[] args) {
         // Set up the BAM reader and pass in the thread pool
         auto bam = new MultiBamReader(args[1 .. $-1], taskPool);
         auto n_refs = bam.reference_sequences.length;
-        enforce(n_refs < 16384, "More than 16383 reference sequences are unsupported");
 
         auto rg_index = new ReadGroupIndex(bam.header);
 
