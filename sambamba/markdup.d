@@ -564,8 +564,8 @@ auto readPairsAndFragments(alias hashFunc=simpleHash, R)
 
 // 8 bytes
 struct SingleEndBasicInfo {
-    mixin(bitfields!(short, "library_id", 30,
-                     ushort, "ref_id", 32,
+    mixin(bitfields!(int, "library_id", 30,
+                     uint, "ref_id", 32,
                      ubyte, "reversed", 1,
                      ubyte, "paired", 1));
     int coord;
@@ -585,13 +585,13 @@ struct SingleEndInfo {
 }
 
 struct PairedEndsInfo {
-    mixin(bitfields!(short, "library_id", 30,
-                     ushort, "ref_id1", 32,
+    mixin(bitfields!(long, "library_id", 30,
+                     uint, "ref_id1", 32,
                      ubyte, "reversed1", 1,
                      ubyte, "reversed2", 1));
     int coord1;
     int coord2;
-    ushort ref_id2;
+    uint ref_id2;
 
     uint score; // sum of base qualities that are >= 15
     ulong idx1, idx2;
@@ -601,7 +601,7 @@ struct PairedEndsInfo {
         // HACK! HACK! HACK! use the fact that the structures are almost
         // the same except the one bit meaning 'paired' instead of 'reversed2'.
         auto p = cast(ubyte*)(&result);
-        p[0 .. 8] = (cast(ubyte*)(&this))[0 .. 8];
+        p[0 .. 16] = (cast(ubyte*)(&this))[0 .. 16];
         result.paired = true;
         return result;
     }
@@ -762,6 +762,7 @@ SingleEndBasicInfo basicInfo(E)(auto ref E e) {
 bool samePosition(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
     static if (is(E1 == PairedEndsInfo) && is(E2 == PairedEndsInfo)) {
         return *cast(ulong*)(&e1) == *cast(ulong*)(&e2) &&
+            e1.coord1 == e2.coord1 &&
             e1.ref_id2 == e2.ref_id2 && e1.coord2 == e2.coord2;
     } else {
         return basicInfo(e1).samePosition(basicInfo(e2));
