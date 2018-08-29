@@ -558,14 +558,14 @@ auto readPairsAndFragments(alias hashFunc=simpleHash, R)
             (reads, table_size_log2, overflow_list_size, tmp_dir, task_pool);
 }
 
-/////////////////////////////////////////////////////////////////////////////////
-/// no more than 32767 libraries and 16383 reference sequences are supported ////
-/////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+/// no more than 536 million libraries and 2 billion reference sequences are supported ////
+///////////////////////////////////////////////////////////////////////////////////////////
 
 // 8 bytes
 struct SingleEndBasicInfo {
-    mixin(bitfields!(short, "library_id", 16,
-                     ushort, "ref_id", 14,
+    mixin(bitfields!(int, "library_id", 30,
+                     uint, "ref_id", 32,
                      ubyte, "reversed", 1,
                      ubyte, "paired", 1));
     int coord;
@@ -575,7 +575,7 @@ struct SingleEndBasicInfo {
             reversed == other.reversed && library_id == other.library_id;
     }
 }
-static assert(SingleEndBasicInfo.sizeof == 8);
+static assert(SingleEndBasicInfo.sizeof == 16);
 
 struct SingleEndInfo {
     SingleEndBasicInfo basic_info;
@@ -585,13 +585,13 @@ struct SingleEndInfo {
 }
 
 struct PairedEndsInfo {
-    mixin(bitfields!(short, "library_id", 16,
-                     ushort, "ref_id1", 14,
+    mixin(bitfields!(long, "library_id", 30,
+                     uint, "ref_id1", 32,
                      ubyte, "reversed1", 1,
                      ubyte, "reversed2", 1));
     int coord1;
     int coord2;
-    ushort ref_id2;
+    uint ref_id2;
 
     uint score; // sum of base qualities that are >= 15
     ulong idx1, idx2;
@@ -601,7 +601,7 @@ struct PairedEndsInfo {
         // HACK! HACK! HACK! use the fact that the structures are almost
         // the same except the one bit meaning 'paired' instead of 'reversed2'.
         auto p = cast(ubyte*)(&result);
-        p[0 .. 8] = (cast(ubyte*)(&this))[0 .. 8];
+        p[0 .. 16] = (cast(ubyte*)(&this))[0 .. 16];
         result.paired = true;
         return result;
     }
@@ -675,7 +675,7 @@ class ReadGroupIndex {
             }
             ++i;
         }
-        enforce(n_libs <= 32767, "More than 32767 libraries are unsupported");
+        enforce(n_libs <= 536870911, "More than 536870911 libraries are unsupported");
     }
 
     /// -1 if read group with such name is not found in the header
@@ -762,6 +762,7 @@ SingleEndBasicInfo basicInfo(E)(auto ref E e) {
 bool samePosition(E1, E2)(auto ref E1 e1, auto ref E2 e2) {
     static if (is(E1 == PairedEndsInfo) && is(E2 == PairedEndsInfo)) {
         return *cast(ulong*)(&e1) == *cast(ulong*)(&e2) &&
+            e1.coord1 == e2.coord1 &&
             e1.ref_id2 == e2.ref_id2 && e1.coord2 == e2.coord2;
     } else {
         return basicInfo(e1).samePosition(basicInfo(e2));
@@ -1232,7 +1233,6 @@ int markdup_main(string[] args) {
         // Set up the BAM reader and pass in the thread pool
         auto bam = new MultiBamReader(args[1 .. $-1], taskPool);
         auto n_refs = bam.reference_sequences.length;
-        enforce(n_refs < 16384, "More than 16383 reference sequences are unsupported");
 
         auto rg_index = new ReadGroupIndex(bam.header);
 
