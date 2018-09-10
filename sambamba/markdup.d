@@ -715,12 +715,12 @@ auto collectSingleEndInfo(IndexedBamRead read, ReadGroupIndex read_group_index) 
     result.coord = computeFivePrimeCoord(read);
     result.idx = read.index;
     result.score = computeScore(read);
-    result.ref_id = cast(ushort)read.ref_id;
+    result.ref_id = read.ref_id;
     result.reversed = read.is_reverse_strand ? 1 : 0;
     result.paired = (read.is_paired && !read.mate_is_unmapped) ? 1 : 0;
 
     auto rg = read_group_index.getId(getRG(read));
-    result.library_id = cast(short)read_group_index.getLibraryId(rg);
+    result.library_id = read_group_index.getLibraryId(rg);
     return result;
 }
 
