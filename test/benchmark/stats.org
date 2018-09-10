@@ -2,7 +2,20 @@
 
 ** View
 
-*** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD
+*** 4x Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz (hyperthreaded)
+
+#+BEGIN_SRC
+monza:~/tmp$ time ./sambamba view /gnu/data/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam.orig > /dev/null
+
+sambamba 0.6.8-pre2 by Artem Tarasov and Pjotr Prins (C) 2012-2017
+    LDC 1.10.0 / DMD v2.080.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (0.17.4)
+
+real    0m6.854s
+user    0m26.456s
+sys     0m0.584s
+#+END_SRC
+
+*** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD (hyperthreaded)
 
 **** sambamba 0.6.7
 

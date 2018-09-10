@@ -155,7 +155,7 @@ Note: in general there is no need to compile sambamba. You can use a
 recent binary install as listed above.
 
 The preferred method for compiling Sambamba is with the LDC compiler
-which targets LLVM.
+which targets LLVM. LLVM versions 6 is faster than earlier editions.
 
 ## Compilation dependencies
 
@@ -190,7 +190,7 @@ cd sambamba
 make
 ```
 
-To build a debug release run
+To build a development/debug version run
 
 ```sh
 make clean && make debug

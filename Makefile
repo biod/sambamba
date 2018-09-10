@@ -3,15 +3,15 @@
 #
 # Typical usage:
 #
-#    make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib debug|profile|release|static
+#    make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug|profile|release|static
 #
 # Static release with optimization (for releases):
 #
-#   make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib pgo-static
+#   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib pgo-static
 #
 # Debug version
 #
-#   make LIBRARY_PATH=~/opt/ldc2-1.7.0-linux-x86_64/lib debug
+#   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug
 
 D_COMPILER=ldc2
 DFLAGS      = -wi -I. -IBioD -IundeaD/src -g

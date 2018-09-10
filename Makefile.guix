@@ -1,10 +1,10 @@
-# GNU Guix makefile. GNU Guix is the package manager for GNU and we use it for
-# sambamba development and deployment. Normally use the standard Makefile
-# instead.
+# GNU Guix makefile. GNU Guix is the package manager for GNU and we
+# use it for sambamba development and deployment. Normally use the
+# standard Makefile instead because it compiles into a singleobj.
 #
 # To build sambamba on GNU Guix:
 #
-#   make -f Makefile.guix
+#   make -f Makefile.guix GUIX=~/opt/sambamba-dev-env
 #
 # run with
 #
@@ -18,7 +18,10 @@
 #
 # The following two are modified by the Guix package:
 D_COMPILER=ldc2
-LDC_LIB_PATH=$(HOME)/.guix-profile/lib
+ifndef GUIX
+  GUIX=$(HOME)/.guix-profile
+endif
+LDC_LIB_PATH=$(GUIX)/lib
 
 UNDEAD_PATH=../undeaD/src
 BIOD_PATH=../BioD
@@ -31,7 +34,7 @@ RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $
 LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
 # LIBS   = htslib/libhts.a -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
 LIBS_STATIC = $(DLIBS) htslib/libhts.a $(LDC_LIB_PATH)/liblz4.a
-SRC    = $(wildcard utils/*.d thirdparty/*.d cram/*.d) $(wildcard $(UNDEAD_PATH)/undead/**/*.d) $(wildcard $(UNDEAD_PATH)/undead/*.d) $(wildcard $(BIOD_PATH)/bio/*/*.d $(BIOD_PATH)/bio/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d) utils/ldc_version_info_.d
+SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d undeaD/src/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ    = $(SRC:.d=.o)
 OUT    = bin/sambamba
 
