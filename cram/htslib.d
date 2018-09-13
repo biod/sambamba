@@ -756,6 +756,7 @@ struct _Anonymous_22
 	}
 	cram_block_method method;
   cram_block_method orig_method;
+  /*
 	enum cram_content_type
 	{
 		CT_ERROR = -1,
@@ -766,6 +767,7 @@ struct _Anonymous_22
 		EXTERNAL = 4,
 		CORE = 5
 	}
+  */
 	cram_content_type content_type;
 	int content_id;
 	int comp_size;
@@ -833,6 +835,7 @@ struct cram_map
 
 struct _Anonymous_24
 {
+  /*
 	enum cram_content_type
 	{
 		CT_ERROR = -1,
@@ -843,6 +846,7 @@ struct _Anonymous_24
 		EXTERNAL = 4,
 		CORE = 5
 	}
+  */
 	cram_content_type content_type;
 	int ref_seq_id;
 	int ref_seq_start;
