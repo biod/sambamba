@@ -1,9 +1,14 @@
 # This is a minimalistic make file to build sambamba with ldc2 as per instructions on
 # https://github.com/biod/sambamba#compiling-sambamba
 #
+# Targets (64-bit):
+#
+#   Linux
+#   OSX
+#
 # Typical usage:
 #
-#    make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug|profile|release|static
+#   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug|profile|release|static
 #
 # Static release with optimization (for releases):
 #
@@ -12,13 +17,20 @@
 # Debug version
 #
 #   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug
+#
 
 D_COMPILER=ldc2
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  SYS = OSX
+endif
+
 DFLAGS      = -wi -I. -IBioD -IundeaD/src -g
 
 DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
-LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lrt -L-lpthread -L-lm
+LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lpthread -L-lm
 LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LIBRARY_PATH)/liblz4.a
 SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ         = $(SRC:.d=.o) utils/ldc_version_info_.o
