@@ -24,6 +24,9 @@ D_COMPILER=ldc2
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
   SYS = OSX
+else
+  SYS = LINUX
+  LINK_OBJ = utils/ldc_version_info_.o
 endif
 
 DFLAGS      = -wi -I. -IBioD -IundeaD/src -g
@@ -90,7 +93,7 @@ singleobj:
 # ---- Link step
 $(OUT): build-setup singleobj utils/ldc_version_info_.o
 	$(info linking...)
-	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba bin/sambamba.o utils/ldc_version_info_.o $(LIBS)
+	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba bin/sambamba.o $(LINK_OBJ) $(LIBS)
 
 test:
 	./run_tests.sh
