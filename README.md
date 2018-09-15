@@ -2,15 +2,36 @@
 
 # sambamba
 
-## Table of Contents
+Table of Contents
+=================
 
-- [Introduction](#intro)
-- [Binary installation](#install)
-- [Getting help](#help)
-- [Compiling](#compile)
-- [Debugging and troubleshooting](#debug)
-- [License](#license)
-- [Credits](#credits)
+   * [sambamba](#sambamba)
+      * [Table of Contents](#table-of-contents)
+   * [Introduction](#introduction)
+   * [Binary installation](#binary-installation)
+      * [Install stable release](#install-stable-release)
+      * [Bioconda install](#bioconda-install)
+      * [GNU Guix install](#gnu-guix-install)
+      * [Debian GNU/Linux install](#debian-gnulinux-install)
+      * [Homebrew install](#homebrew-install)
+   * [Getting help](#getting-help)
+      * [Reporting a sambamba bug or issue](#reporting-a-sambamba-bug-or-issue)
+      * [Check list:](#check-list)
+      * [Code of conduct](#code-of-conduct)
+   * [Compiling Sambamba](#compiling-sambamba)
+      * [Compilation dependencies](#compilation-dependencies)
+      * [Compiling for Linux](#compiling-for-linux)
+         * [GNU Guix](#gnu-guix)
+      * [Compiling for Mac OS X](#compiling-for-mac-os-x)
+      * [Development](#development)
+   * [Debugging and troubleshooting](#debugging-and-troubleshooting)
+      * [Segfaults on certain Intel Xeons](#segfaults-on-certain-intel-xeons)
+      * [Dump core](#dump-core)
+      * [Use catchsegv](#use-catchsegv)
+      * [Using gdb](#using-gdb)
+   * [License](#license)
+   * [Credit](#credit)
+
 
 <a name="intro"></a>
 # Introduction
@@ -221,7 +242,7 @@ Makefile.old version? See also https://github.com/biod/sambamba/issues/338.
     git clone --recursive https://github.com/biod/sambamba.git
     cd sambamba
     git clone https://github.com/dlang/undeaD
-    make sambamba-ldmd2-64
+    make
 ```
 
 ## Development
@@ -304,6 +325,8 @@ If you are using Sambamba in your research and want to support future
 work on Sambamba, please cite the following publication:
 
 A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. [Sambamba: fast processing of NGS alignment formats](https://doi.org/10.1093/bioinformatics/btv098). Bioinformatics, 2015.
+
+## Bibtex reference
 
 ```bibtex
 
