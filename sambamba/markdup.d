@@ -37,6 +37,9 @@ import std.traits, std.typecons, std.range, std.algorithm, std.parallelism,
        std.exception, std.file, std.typetuple, std.conv, std.array, std.bitmanip,
        core.stdc.stdlib, std.datetime, undead.stream : BufferedFile, FileMode;
 
+import std.datetime;
+import std.datetime.stopwatch : benchmark, StopWatch;
+
 /// Read + its index (0-based)
 struct IndexedBamRead {
     ulong index;
@@ -270,7 +273,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         version(profile) {
             ~this() {
                 stderr.writeln("duped during compaction:     ", _duped_during_compaction);
-                stderr.writeln("time spent on compaction:    ", _compact_sw.peek().msecs, " ms");
+                stderr.writeln("time spent on compaction:    ", _compact_sw.peek().total!"msecs", " ms");
             }
         }
 
@@ -1071,7 +1074,9 @@ auto getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
     stderr.write("  collecting indices of duplicate reads... ");
     sw.start();
     auto duplicates = collectDuplicates(paired_ends, single_ends, second_ends, cfg, pool);
-    sw.stop(); stderr.writeln("  done in ", sw.peek().msecs, " ms"); sw.reset();
+    sw.stop();
+    immutable t = sw.peek();
+    stderr.writeln("  done in ", t.total!"msecs", " ms"); sw.reset();
     stderr.writeln("  found ", duplicates.length, " duplicates");
 
     paired_ends.removeTemporaryFiles();
@@ -1256,9 +1261,9 @@ int markdup_main(string[] args) {
         auto dup_idx_storage = getDuplicateOffsets(reads, rg_index, taskPool, cfg);
 
         auto elapsed = sw.peek();
-        stderr.writeln("collected list of positions in ",
-                       elapsed.seconds / 60, " min ",
-                       elapsed.seconds % 60, " sec");
+        stderr.writeln("collected list of positions in ",elapsed.total!"minutes"," min ",elapsed.total!"seconds"," sec");
+        // elapsed / 60, " min ",
+        //               elapsed % 60, " sec");
 
         // marking or removing duplicates
         bam = new MultiBamReader(args[1 .. $-1]);  // FIXME: initialized twice
@@ -1298,9 +1303,8 @@ int markdup_main(string[] args) {
         }
 
         sw.stop();
-        stderr.writeln("total time elapsed: ",
-                       sw.peek().seconds / 60, " min ",
-                       sw.peek().seconds % 60, " sec");
+        auto elapsed2 = sw.peek();
+        stderr.writeln("collected list of positions in ",elapsed2.total!"minutes"," min ",elapsed2.total!"seconds"," sec");
 
     } catch (Throwable e) {
         stderr.writeln("sambamba-markdup: ", e.msg);
