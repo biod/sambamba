@@ -1261,9 +1261,7 @@ int markdup_main(string[] args) {
         auto dup_idx_storage = getDuplicateOffsets(reads, rg_index, taskPool, cfg);
 
         auto elapsed = sw.peek();
-        stderr.writeln("collected list of positions in ",elapsed.total!"minutes"," min ",elapsed.total!"seconds"," sec");
-        // elapsed / 60, " min ",
-        //               elapsed % 60, " sec");
+        stderr.writeln("collected list of positions in ",elapsed.total!"minutes"," min ",elapsed.total!"seconds" % 60," sec");
 
         // marking or removing duplicates
         bam = new MultiBamReader(args[1 .. $-1]);  // FIXME: initialized twice
@@ -1304,7 +1302,7 @@ int markdup_main(string[] args) {
 
         sw.stop();
         auto elapsed2 = sw.peek();
-        stderr.writeln("collected list of positions in ",elapsed2.total!"minutes"," min ",elapsed2.total!"seconds"," sec");
+        stderr.writeln("collected list of positions in ",elapsed2.total!"minutes"," min ",elapsed2.total!"seconds" % 60," sec");
 
     } catch (Throwable e) {
         stderr.writeln("sambamba-markdup: ", e.msg);
