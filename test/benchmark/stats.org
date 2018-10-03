@@ -217,3 +217,41 @@ real    7m22.125s
 user    89m6.188s
 sys     2m51.228s
 #+END_SRC
+
+** Markdup
+*** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD (hyperthreaded)
+
+**** sambamba 0.6.7-pre1
+
+/usr/bin/time --verbose sambamba markdup /gnu/data/in_raw.sorted.bam /gnu/data/in_raw.sorted.bam t2.bam
+finding positions of the duplicate reads in the file...
+  sorted 11286293 end pairs
+     and 156042 single ends (among them 0 unmatched pairs)
+  collecting indices of duplicate reads...   done in 1521 ms
+  found 6603388 duplicates
+collected list of positions in 0 min 16 sec
+marking duplicates...
+total time elapsed: 1 min 4 sec
+        Command being timed: "sambamba markdup /gnu/data/in_raw.sorted.bam /gnu/data/in_raw.sorted.bam t2.bam"
+        User time (seconds): 423.78
+        System time (seconds): 4.47
+        Percent of CPU this job got: 666%
+        Elapsed (wall clock) time (h:mm:ss or m:ss): 1:04.24
+        Average shared text size (kbytes): 0
+        Average unshared data size (kbytes): 0
+        Average stack size (kbytes): 0
+        Average total size (kbytes): 0
+        Maximum resident set size (kbytes): 1542764
+        Average resident set size (kbytes): 0
+        Major (requiring I/O) page faults: 0
+        Minor (reclaiming a frame) page faults: 1839470
+        Voluntary context switches: 368082
+        Involuntary context switches: 8537
+        Swaps: 0
+        File system inputs: 0
+        File system outputs: 2643840
+        Socket messages sent: 0
+        Socket messages received: 0
+        Signals delivered: 0
+        Page size (bytes): 4096
+        Exit status: 0

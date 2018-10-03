@@ -12,13 +12,17 @@
 
 ## Install Sambamba from source
 
-To build Sambamba from source you can opt to install the build tools with GNU Guix
+After checking out the source from github with git submodules is is
+possibleto install the build tools with GNU Guix
 
     guix package -i gcc gdb bash ld-wrapper ldc which python2 git
 
-Even better you can create a container in the source tree and run our development setup
+Even better, with Guix, you can create a light-weight container in the source tree
+and run our development setup
 
-    guix environment -C guix --ad-hoc gcc gdb bash ld-wrapper ldc which python2 git
+    guix environment -C guix --ad-hoc gcc gdb bash ld-wrapper ldc which python git
     make clean
     make -j 4
     make check
+
+this way all dependencies are isolated.

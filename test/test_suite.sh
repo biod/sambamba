@@ -183,6 +183,13 @@ testIssue331() {
     assertEquals 0 $?
 }
 
+testIssue356(){
+    # check for missing PM tag in @RG
+    $sambamba view -S test/issue_356.sam -f bam -o $outdir/issue_356.bam
+    $sambamba view $outdir/issue_356.bam -H|grep -q "PM:HiSeq2500_HighOutput"
+    assertEquals 0 $?
+}
+
 shunit2=`which shunit2`
 if [ -x "$shunit2" ]; then
     . $shunit2
