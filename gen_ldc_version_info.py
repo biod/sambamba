@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 from __future__ import print_function
 import re, sys, subprocess
@@ -10,7 +10,7 @@ if len(sys.argv) < 2:
 ldc = sys.argv[1].replace("ldmd2", "ldc2")
 ldc_output = subprocess.Popen([ldc, '-version'], stdout=subprocess.PIPE).communicate()[0]
 version_re = r"""^.+\((?P<LDC>[^\)]+)\):\n\s*based on DMD (?P<DMD>\S+) and LLVM (?P<LLVM>\S+)\n(?:\s*built with (?P<BOOTSTRAP>.*)\n)?"""
-match = re.match(version_re, ldc_output, re.MULTILINE)
+match = re.match(version_re, ldc_output.decode("utf-8") , re.MULTILINE)
 
 if not match:
     sys.exit("ERROR: failed to generated LDC version information")

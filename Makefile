@@ -64,7 +64,7 @@ htslib-static:
 	cd htslib && $(MAKE)
 
 ldc-version-info:
-	python ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 	cat utils/ldc_version_info_.d
 
 utils/ldc_version_info_.o: ldc-version-info
