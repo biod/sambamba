@@ -5,6 +5,9 @@ opts="-q"
 outdir=output
 mkdir -p $outdir
 
+md5sum=`which md5sum`
+[ -z $md5sum ] && md5sum="md5 -r " # for OSX
+
 # Name sorted and pos sorted
 nsortedbam=$outdir/ex1_header.nsorted.bam
 sortedbam=$outdir/ex1_header.sorted.bam
