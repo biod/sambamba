@@ -9,4 +9,4 @@
 	url = https://github.com/biod/BioD.git
 [submodule "undeaD"]
 	path = undeaD
-	url = git@github.com:biod/undeaD.git
+	url = https://github.com/biod/undeaD.git
