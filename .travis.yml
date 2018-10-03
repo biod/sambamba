@@ -15,6 +15,7 @@ matrix:
             # note that Debian liblz4-dev no longer supports LZ4 frames
             # - liblz4-dev
             - shunit2
+            - md5sum
     - os: osx
       compiler: clang
 script:

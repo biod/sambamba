@@ -23,7 +23,7 @@ also #345 and
   * #335 Intel Xeon bug may segfault Sambamba - this was tracked down to an Intel Xeon bug
   * #345 sambamba index 0.6.7 takes 4x longer than 0.6.6 on the same files
 + Documentation updates
-+ Updated lz4 to latest
++ Updated lz4 to latest (still source in tree because Debian dropped frame support in liblz4-dev)
 + Added support for GNU Guix and build containers
 + Added shunit2 to the source tree for testing
 + Update python build dependencies to use python3.x
