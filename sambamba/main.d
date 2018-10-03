@@ -19,7 +19,9 @@
 
 */
 
+import std.algorithm;
 import std.experimental.logger;
+import std.range.primitives;
 
 import sambamba.depth;
 import sambamba.index;
@@ -73,6 +75,10 @@ Usage: sambamba [command] [args...]
 
 To get help on a particular command, call it without args.
 
+Global options
+
+    -q          quiet mode (do not show banner)
+
 For bug reports and feature requests see
 
        https://github.com/biod/
@@ -89,14 +95,16 @@ void printVersion() {
 
 int main(string[] args) {
     globalLogLevel(LogLevel.info);
-    printVersion();
+    if (args.find("-q").empty)
+      printVersion();
 
-    if (args.length == 1) {
+    auto args2 = args.remove!(a => a == "-q");
+    if (args2.length == 1) {
         printUsage();
         return 1;
     }
 
-    auto _args = args[0] ~ args[2 .. $];
+    auto _args = args2[0] ~ args2[2 .. $];
 
     switch (args[1]) {
         case "view":      return view_main(_args);
