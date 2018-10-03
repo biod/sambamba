@@ -2,10 +2,23 @@
 
 ## Sambamba dependencies
 
-* D compiler
-* gcc tool chain
-* BioD
-* htslib
-* undeaD
+* D compiler (ldc)
+* BioD (git submodule)
+* gcc tool chain (for htslib and lz4)
+* htslib (git submodule)
+* undeaD (git submodule)
 * libz
 * liblz4
+
+## Install Sambamba from source
+
+To build Sambamba from source you can opt to install the build tools with GNU Guix
+
+    guix package -i gcc gdb bash ld-wrapper ldc which python2 git
+
+Even better you can create a container in the source tree and run our development setup
+
+    guix environment -C guix --ad-hoc gcc gdb bash ld-wrapper ldc which python2 git
+    make clean
+    make -j 4
+    make check

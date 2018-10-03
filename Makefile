@@ -64,7 +64,7 @@ htslib-static:
 	cd htslib && $(MAKE)
 
 ldc-version-info:
-	./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+	python ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 	cat utils/ldc_version_info_.d
 
 utils/ldc_version_info_.o: ldc-version-info
@@ -112,7 +112,7 @@ install:
 	install -m 0755 bin/sambamba $(prefix)/bin
 
 clean: clean-d
-	cd htslib ; make clean
+	cd htslib ; $(MAKE) clean
 	rm -f profile.data
 	rm -f profile.raw
 

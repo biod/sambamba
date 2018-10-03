@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 sambamba=./bin/sambamba
 outdir=output
@@ -187,5 +187,5 @@ shunit2=`which shunit2`
 if [ -x "$shunit2" ]; then
     . $shunit2
 else
-    . shunit2-2.0.3/src/shell/shunit2
+    . contrib/shunit2-2.0.3/shunit2
 fi
