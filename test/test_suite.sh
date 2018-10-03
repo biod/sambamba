@@ -16,20 +16,20 @@ testSamtoBam() {
     outfn=$nsortedbam
     # first identity SAM but without header
     $sambamba $opts view -S test/ex1_header.sam -f sam > $nsortedbam.sam.1
-    assertEquals "ff5d66e6cd1cab4e8e6330f2829b7c41" $(md5sum $nsortedbam.sam.1 |cut -c 1-32)
+    assertEquals "ff5d66e6cd1cab4e8e6330f2829b7c41" $($md5sum $nsortedbam.sam.1 |cut -c 1-32)
     # now convert to BAM
     $sambamba $opts view -S test/ex1_header.sam -f bam > $nsortedbam
     # BAM back to identity
     $sambamba $opts view $nsortedbam -f sam > $nsortedbam.sam.2
-    assertEquals "ff5d66e6cd1cab4e8e6330f2829b7c41" $(md5sum $nsortedbam.sam.2 |cut -c 1-32)
+    assertEquals "ff5d66e6cd1cab4e8e6330f2829b7c41" $($md5sum $nsortedbam.sam.2 |cut -c 1-32)
     # Test BAM
-    assertEquals "b5d64266e9544a656f0efbd0f8030b20" $(md5sum $nsortedbam |cut -c 1-32)
+    assertEquals "b5d64266e9544a656f0efbd0f8030b20" $($md5sum $nsortedbam |cut -c 1-32)
     # ex1_header.sorted.bam with index
     $sambamba $opts sort $outfn -o $sortedbam
-    assertEquals "b5d64266e9544a656f0efbd0f8030b20" $(md5sum $outfn |cut -c 1-32)
+    assertEquals "b5d64266e9544a656f0efbd0f8030b20" $($md5sum $outfn |cut -c 1-32)
     $sambamba $opts index $nsortedbam
-    assertEquals "aabb4fb319497dec1069028dd354eeda" `$sambamba $opts view -f unpack $nsortedbam |md5sum|cut -c 1-32`
-    assertEquals "68e19d0f1092e1f0429ba07b418d1d9f" `$sambamba $opts view -f unpack $sortedbam |md5sum|cut -c 1-32`
+    assertEquals "aabb4fb319497dec1069028dd354eeda" `$sambamba $opts view -f unpack $nsortedbam |$md5sum|cut -c 1-32`
+    assertEquals "68e19d0f1092e1f0429ba07b418d1d9f" `$sambamba $opts view -f unpack $sortedbam |$md5sum|cut -c 1-32`
 }
 
 testSubSample() {
@@ -38,13 +38,13 @@ testSubSample() {
     outfn=$outdir/subsample.bam
     $sambamba $opts subsample --type fasthash $outdir/ex1_header.sorted.bam --max-cov 1000 -o$outfn > $outdir/subsample.out
     assertEquals 0 $?
-    assertEquals "ab4a69f0093674e9feec54afc2411059" $(md5sum $outfn |cut -c 1-32)
+    assertEquals "ab4a69f0093674e9feec54afc2411059" $($md5sum $outfn |cut -c 1-32)
     # should be same as sorted bam
-    assertEquals "6e226f6acc8466115600d4de52ca8944" `$sambamba $opts view -f unpack $outfn |md5sum|cut -c 1-32`
+    assertEquals "6e226f6acc8466115600d4de52ca8944" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
     outfn=$outdir/subsample2.bam
     $sambamba $opts subsample -r --type fasthash $outdir/ex1_header.sorted.bam --max-cov 10 -o$outfn > $outdir/subsample2.out
     assertEquals 0 $?
-    assertEquals "4092fb75c87cde6efc47ff0a4dc443fb" `$sambamba $opts view -f unpack $outfn |md5sum|cut -c 1-32`
+    assertEquals "4092fb75c87cde6efc47ff0a4dc443fb" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
 }
 
 testSortByName() {
@@ -64,7 +64,7 @@ testSortByCoordinate() {
     assertEquals 0 $?
     $sambamba $opts view -t2 $outfn > $outfn.sam
     # check sorted with cat output/ex1_header.sorted2.bam.sam |awk '{print $3 " " $4}'|less
-    assertEquals "d92c51b9e067590d7d5a18a0bdbbe0cc" `$sambamba $opts view -f unpack $outfn |md5sum|cut -c 1-32`
+    assertEquals "d92c51b9e067590d7d5a18a0bdbbe0cc" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
 }
 
 testSlice() {
