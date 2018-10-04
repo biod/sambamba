@@ -54,8 +54,8 @@ configurations. Here are some comparison
 [metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html). For
 example for flagstat sambamba is 1.4x faster than samtools. For index
 they are similar. For Markdup almost 6x faster and for view 4x
-faster. For sort sambamba has been beaten generally, though sambamba
-is up to 2x faster on large RAM machines.
+faster. For sort sambamba has been beaten, though sambamba is up to 2x
+faster than samtools on large RAM machines (120GB+).
 
 In addition sambamba has a few interesting features to offer, in particular
 
@@ -79,7 +79,7 @@ Sambamba is free and open source software, licensed under GPLv2+.
 See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-view.html)
 to know more about what is available and how to use it.
 
-For more information on Sambamba contact the mailing list (see below).
+For more information on Sambamba contact the mailing list (see [Getting help](#getting-help)).
 
 <a name="install"></a>
 # Binary installation
@@ -90,7 +90,7 @@ are Github source and binary
 [releases](https://github.com/biod/sambamba/releases). Simply download
 the tarball, unpack it and run it. For example
 
-```sh
+```bash
 wget https://github.com/biod/sambamba/releases/download/v0.6.8/sambamba_v0.6.8_linux.tar.bz2
 tar xvjf sambamba_v0.6.8_linux.tar.bz2
 ./sambamba_v0.6.8
@@ -116,12 +116,11 @@ A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for samb
 
 ## Debian GNU/Linux install
 
-Debian: see Debian packages.
+Debian: see [Debian packages](https://tracker.debian.org/pkg/sambamba).
 
 ## Homebrew install
 
 Users of Homebrew can also use the formula from `homebrew-science`.
-
 
 <a name="help"></a>
 # Getting help
@@ -180,16 +179,7 @@ which targets LLVM. LLVM versions 6 is faster than earlier editions.
 
 ## Compilation dependencies
 
-- git (to check out the repo)
-- gcc compiler 4.9 or later (for htslib)
-- D compiler 1.7.0 or later (ldc2, see below)
-- python2 (parses D-compiler header for version info)
-- zlib (library)
-- lz4 (library)
-- htslib (submodule)
-- BioD (source)
-- undeaD (source)
-- python2
+See [INSTALL.md](./INSTALL.md).
 
 ## Compiling for Linux
 
@@ -224,6 +214,8 @@ you can run
 make check
 ```
 
+See also [INSTALL.md](./INSTALL.md).
+
 ### GNU Guix
 
 To build sambamba the LDC compiler is also available in GNU Guix:
@@ -234,14 +226,13 @@ guix package -i ldc
 
 ## Compiling for Mac OS X
 
-Note: the Makefile does not work. Someone want to fix that using the
-Makefile.old version? See also https://github.com/biod/sambamba/issues/338.
+Sambamba builds on MacOS. We have a Travis [integration test](https://travis-ci.org/pjotrp/sambamba) as
+an example. It can be something like
 
 ```sh
     brew install ldc
     git clone --recursive https://github.com/biod/sambamba.git
     cd sambamba
-    git clone https://github.com/dlang/undeaD
     make
 ```
 
@@ -253,6 +244,7 @@ documentation can be found in the source code and the [development
 documentation](https://github.com/biod/sambamba-dev-docs).
 
 <a name="debug"></a>
+
 # Debugging and troubleshooting
 
 ## Segfaults on certain Intel Xeons

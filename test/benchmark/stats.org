@@ -1,8 +1,8 @@
 * Performance metrics
 
 ** View
-
 *** 4x Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz (hyperthreaded)
+**** sambamba 0.6.8-pre3
 
 #+BEGIN_SRC
 monza:~/tmp$ time ./sambamba view /gnu/data/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam.orig > /dev/null
@@ -33,11 +33,23 @@ sys     0m0.584s
 
 *** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD (hyperthreaded)
 
-**** sambamba 0.6.7
-
 #+BEGIN_SRC sh
 time ./build/sambamba view /gnu/data/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam.orig > /dev/null
 #+END_SRC
+
+**** sambamba 0.6.8
+
+#+BEGIN_SRC
+sambamba 0.6.8 by Artem Tarasov and Pjotr Prins (C) 2012-2018
+    LDC 1.10.0 / DMD v2.080.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (0.17.4)
+
+real    0m2.869s
+user    0m21.972s
+sys     0m0.356s
+
+#+END_SRC
+
+**** sambamba 0.6.7
 
 #+BEGIN_SRC
 This version was built with:
@@ -62,38 +74,80 @@ sys     0m0.344s
 #+END_SRC
 
 ** Sort
-
 *** 56x Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz, 256Gb
-
-**** sambamba 0.6.6
 
 #+BEGIN_SRC sh
 time ./sambamba_v0.6.6 sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
 #+END_SRC
 
+**** sambamba 0.6.8
+
 #+BEGIN_SRC
-This version was built with:
-    LDC 0.17.1
-    using DMD v2.068.2
-    using LLVM 3.8.0
-    bootstrapped with version not available
+sambamba 0.6.8 by Artem Tarasov and Pjotr Prins (C) 2012-2018
+    LDC 1.10.0 / DMD v2.080.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (0.17.4)
 
-real    10m0.932s
-user    151m39.172s
-sys     3m7.596s
-
-This version was built with:
-    LDC 1.1.1
-    using DMD v2.071.2
-    using LLVM 3.9.1
-    bootstrapped with LDC - the LLVM D compiler (1.1.1)
-
-real    9m22.501s
-user    98m24.748s
-sys     2m51.996s
+real    7m50.558s
+user    89m10.808s
+sys     2m57.188s
 #+END_SRC
 
-Note, updating compiler shows a speed gain for 0.6.6.
+and with 120GB RAM
+
+#+BEGIN_SRC
+sambamba 0.6.8 by Artem Tarasov and Pjotr Prins (C) 2012-2018
+    LDC 1.10.0 / DMD v2.080.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (0.17.4)
+
+real    3m49.953s
+user    81m16.956s
+sys     1m58.332s
+#+END_SRC
+
+**** sambamba 0.6.8-pre1
+
+#+BEGIN_SRC
+Wed Feb  7 03:43:14 CST 2018
+sambamba 0.6.8-pre1
+
+This version was built with:
+    LDC 1.7.0
+    using DMD v2.077.1
+    using LLVM 5.0.1
+    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+
+real    8m0.528s
+user    88m44.084s
+sys     2m45.888s
+
+#+END_SRC
+
+When sambamba is given enough RAM to hold everything in memory sambamba is twice
+as fast (apparently half the time goes to intermediate IO)
+
+#+BEGIN_SRC sh
+time ./sambamba sort -N -o /dev/null ENCFF696RLQ.bam -p -m 120G
+#+END_SRC
+
+#+BEGIN_SRC
+real    3m46.856s
+user    81m44.524s
+sys     1m56.388s
+#+END_SRC
+
+with 64GB it is
+
+#+BEGIN_SRC
+real    5m36.062s
+user    88m43.176s
+sys     3m0.536s
+#+END_SRC
+
+and with 32GB it is
+
+#+BEGIN_SRC
+real    7m22.125s
+user    89m6.188s
+sys     2m51.228s
+#+END_SRC
 
 **** sambamba 0.6.7
 
@@ -172,57 +226,79 @@ sys     2m56.244s
 
 So, the release is reverted an after a version bump:
 
-**** sambamba 0.6.8
+**** sambamba 0.6.6
 
 #+BEGIN_SRC
-Wed Feb  7 03:43:14 CST 2018
-sambamba 0.6.8-pre1
+This version was built with:
+    LDC 0.17.1
+    using DMD v2.068.2
+    using LLVM 3.8.0
+    bootstrapped with version not available
+
+real    10m0.932s
+user    151m39.172s
+sys     3m7.596s
 
 This version was built with:
-    LDC 1.7.0
-    using DMD v2.077.1
-    using LLVM 5.0.1
-    bootstrapped with LDC - the LLVM D compiler (1.7.0)
+    LDC 1.1.1
+    using DMD v2.071.2
+    using LLVM 3.9.1
+    bootstrapped with LDC - the LLVM D compiler (1.1.1)
 
-real    8m0.528s
-user    88m44.084s
-sys     2m45.888s
+real    9m22.501s
+user    98m24.748s
+sys     2m51.996s
 #+END_SRC
 
-When sambamba is given enough RAM to hold everything in memory sambamba is twice
-as fast (apparently half the time goes to intermediate IO)
-
-#+BEGIN_SRC sh
-time ./sambamba sort -N -o /dev/null ENCFF696RLQ.bam -p -m 120G
-#+END_SRC
-
-#+BEGIN_SRC
-real    3m46.856s
-user    81m44.524s
-sys     1m56.388s
-#+END_SRC
-
-with 64GB it is
-
-#+BEGIN_SRC
-real    5m36.062s
-user    88m43.176s
-sys     3m0.536s
-#+END_SRC
-
-and with 32GB it is
-
-#+BEGIN_SRC
-real    7m22.125s
-user    89m6.188s
-sys     2m51.228s
-#+END_SRC
+Note, updating compiler shows a speed gain for 0.6.6.
 
 ** Markdup
 *** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD (hyperthreaded)
 
+**** sambamba 0.6.8
+
+#+BEGIN_SRC
+sambamba 0.6.8 by Artem Tarasov and Pjotr Prins (C) 2012-2018
+    LDC 1.10.0 / DMD v2.080.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (0.17.4)
+
+finding positions of the duplicate reads in the file...
+  sorted 11286293 end pairs
+     and 156042 single ends (among them 0 unmatched pairs)
+  collecting indices of duplicate reads...   done in 1325 ms
+  found 6603388 duplicates
+collected list of positions in 0 min 16 sec
+marking duplicates...
+collected list of positions in 1 min 2 sec
+        Command being timed: "./bin/sambamba markdup /gnu/data/in_raw.sorted.bam /gnu/data/in_raw.sorted.bam t2.bam"
+        User time (seconds): 406.49
+        System time (seconds): 3.86
+        Percent of CPU this job got: 649%
+        Elapsed (wall clock) time (h:mm:ss or m:ss): 1:03.13
+        Average shared text size (kbytes): 0
+        Average unshared data size (kbytes): 0
+        Average stack size (kbytes): 0
+        Average total size (kbytes): 0
+        Maximum resident set size (kbytes): 1709720
+        Average resident set size (kbytes): 0
+        Major (requiring I/O) page faults: 0
+        Minor (reclaiming a frame) page faults: 1140382
+        Voluntary context switches: 393213
+        Involuntary context switches: 8993
+        Swaps: 0
+        File system inputs: 0
+        File system outputs: 2663824
+        Socket messages sent: 0
+        Socket messages received: 0
+        Signals delivered: 0
+        Page size (bytes): 4096
+        Exit status: 0
+#+END_SRC
+
+Uses slightly more memory but is faster than
+
 **** sambamba 0.6.7-pre1
 
+#+BEGIN_SRC
 /usr/bin/time --verbose sambamba markdup /gnu/data/in_raw.sorted.bam /gnu/data/in_raw.sorted.bam t2.bam
 finding positions of the duplicate reads in the file...
   sorted 11286293 end pairs
@@ -255,3 +331,4 @@ total time elapsed: 1 min 4 sec
         Signals delivered: 0
         Page size (bytes): 4096
         Exit status: 0
+#+END_SRC
