@@ -33,7 +33,7 @@ To install the image, download and
 
 ```sh
 md5sum sambamba-0.6.8.gz
-25efb5604ae5fe7c750e8020326787c5  sambamba-0.8.6.gz
+ee61000bcb33a82013c284bac8feb91f  sambamba-0.6.8.gz
 gzip -d sambamba-0.6.8.gz
 chmod a+x sambamba-0.6.8
 
@@ -43,7 +43,7 @@ sambamba 0.6.8 by Artem Tarasov and Pjotr Prins (C) 2012-2018
     LDC 1.10.0 / DMD v2.080.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (0.17.4)
 ```
 
-The binary images were reproducibly built on x86_64 with
+The binary images were built on x86_64 with
 
 ```sh
 ~/.config/guix/current/bin/guix pull -l
@@ -52,7 +52,6 @@ Generation 3    Sep 25 2018 09:39:08
     repository URL: https://git.savannah.gnu.org/git/guix.git
     branch: origin/master
     commit: 932839ff124ff3b0dd3070914fb1c5beec69bf32
-
 
 guix environment -C guix --ad-hoc gcc gdb bash ld-wrapper ldc which python git
 make clean && make -j 16 && make check
@@ -65,7 +64,7 @@ for x in `ldd bin/sambamba|cut -d ' ' -f 3` ; do realpath $x ; done
 /gnu/store/bmaxmigwnlbdpls20px2ipq1fll36ncd-gcc-8.2.0-lib/lib/libgcc_s.so.1
 /gnu/store/l4lr0f5cjd0nbsaaf8b5dmcw1a1yypr3-glibc-2.27/lib/libc-2.27.so
 # build static image
-make clean && make release -j 16 && make check
+make clean && make static -j 16 && make check
 ```
 
 Git submodule versions were

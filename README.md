@@ -88,21 +88,8 @@ For more information on Sambamba contact the mailing list (see [Getting help](#g
 For those not in the mood to learn/install new package managers, there
 are Github source and binary
 [releases](https://github.com/biod/sambamba/releases). Simply download
-the tarball, unpack it and run it. For example
-
-```bash
-wget https://github.com/biod/sambamba/releases/download/v0.6.8/sambamba_v0.6.8_linux.tar.bz2
-tar xvjf sambamba_v0.6.8_linux.tar.bz2
-./sambamba_v0.6.8
-
-    sambamba 0.6.8
-
-        Usage: sambamba [command] [args...]
-
-        Available commands: 'view', 'index', 'merge', 'sort',
-                             'flagstat', 'slice', 'markdup', 'depth', 'mpileup'
-        To get help on a particular command, just call it without args.
-```
+the tarball, unpack it and run it according to the accompanying
+release notes.
 
 ## Bioconda install
 
