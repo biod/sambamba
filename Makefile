@@ -26,7 +26,6 @@ ifeq ($(UNAME_S),Darwin)
   SYS = OSX
 else
   SYS = LINUX
-  LINK_OBJ = utils/ldc_version_info_.o
 endif
 
 DFLAGS      = -wi -I. -IBioD -IundeaD/src -g
@@ -35,8 +34,8 @@ DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
 LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lpthread -L-lm
 LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LIBRARY_PATH)/liblz4.a
-SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
-OBJ         = $(SRC:.d=.o) utils/ldc_version_info_.o
+SRC         = $(sort utils/ldc_version_info_.d $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d))
+OBJ         = $(SRC:.d=.o)
 OUT         = bin/sambamba
 
 STATIC_LIB_PATH=-Lhtslib -Llz4
@@ -63,14 +62,13 @@ lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhas
 htslib-static:
 	cd htslib && $(MAKE)
 
-ldc-version-info:
+utils/ldc_version_info_.d:
 	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 	cat utils/ldc_version_info_.d
 
-utils/ldc_version_info_.o: ldc-version-info
-	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
+ldc_version_info: utils/ldc_version_info_.d
 
-build-setup: lz4-static htslib-static ldc-version-info
+build-setup: ldc_version_info lz4-static htslib-static
 	mkdir -p bin/
 
 default debug release static: $(OUT)
@@ -91,7 +89,7 @@ singleobj:
 	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=bin/sambamba.o $(SRC)
 
 # ---- Link step
-$(OUT): build-setup singleobj utils/ldc_version_info_.o
+$(OUT): build-setup singleobj
 	$(info linking...)
 	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba bin/sambamba.o $(LINK_OBJ) $(LIBS)
 
