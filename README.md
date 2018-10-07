@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba)
+[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![DebianBadge](https://badges.debian.net/badges/debian/testing/sambamba/version.svg)](https://packages.debian.org/testing/sambamba) [![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba)
 
 # sambamba
 
@@ -103,11 +103,13 @@ A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for samb
 
 ## Debian GNU/Linux install
 
+[![DebianBadge](https://badges.debian.net/badges/debian/testing/sambamba/version.svg)](https://packages.debian.org/testing/sambamba)
+
 Debian: see [Debian packages](https://tracker.debian.org/pkg/sambamba).
 
 ## Homebrew install
 
-Users of Homebrew can also use the formula from `homebrew-science`.
+Users of Homebrew can also use the formula from `homebrew-bio`.
 
 <a name="help"></a>
 # Getting help
