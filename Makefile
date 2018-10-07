@@ -42,6 +42,8 @@ STATIC_LIB_PATH=-Lhtslib -Llz4
 
 .PHONY: all debug release static clean test
 
+all: release
+
 debug:                             DFLAGS += -O0 -d-debug -link-debuglib
 
 profile:                           DFLAGS += -fprofile-instr-generate=profile.raw
@@ -51,8 +53,6 @@ release static profile pgo-static: DFLAGS += -O3 -release -enable-inlining -boun
 static:                            DFLAGS += -static -L-Bstatic
 
 pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
-
-all: release
 
 lz4-static: lz4/lib/liblz4.a
 
@@ -84,12 +84,12 @@ default: all
 %.o: %.d
 	$(D_COMPILER) $(DFLAGS) -c $< -od=$(dir $@)
 
-singleobj:
+singleobj: build-setup
 	$(info compile single object...)
 	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=bin/sambamba.o $(SRC)
 
 # ---- Link step
-$(OUT): build-setup singleobj
+$(OUT): singleobj
 	$(info linking...)
 	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba bin/sambamba.o $(LINK_OBJ) $(LIBS)
 
@@ -116,4 +116,5 @@ clean: clean-d
 
 clean-d:
 	rm -rf bin/*
+	rm -vf utils/ldc_version_info_.d
 	rm -f $(OBJ) $(OUT) trace.{def,log}
