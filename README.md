@@ -1,4 +1,6 @@
-[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![DebianBadge](https://badges.debian.net/badges/debian/testing/sambamba/version.svg)](https://packages.debian.org/testing/sambamba) [![Anaconda-Server Badge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba)
+[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![AnacondaBadge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba) [![BrewBadge](https://img.shields.io/badge/%F0%9F%8D%BAbrew-sambamba-brightgreen.svg)](https://github.com/brewsci/homebrew-bio)
+[![GuixBadge](https://img.shields.io/badge/gnuguix-sambamba-brightgreen.svg)](https://www.gnu.org/software/guix/packages/S/)
+[![DebianBadge](https://badges.debian.net/badges/debian/testing/sambamba/version.svg)](https://packages.debian.org/testing/sambamba)
 
 # sambamba
 
@@ -105,15 +107,19 @@ With Conda use the [`bioconda`](https://bioconda.github.io/) channel.
 
 ## GNU Guix install
 
+[![GuixBadge](https://img.shields.io/badge/gnuguix-sambamba--0.6.8-brightgreen.svg)](https://www.gnu.org/software/guix/packages/S/)
+
 A reproducible [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available. The development version is packaged [here](https://gitlab.com/genenetwork/guix-bioinformatics/blob/master/gn/packages/sambamba.scm).
 
 ## Debian GNU/Linux install
 
 [![DebianBadge](https://badges.debian.net/badges/debian/testing/sambamba/version.svg)](https://packages.debian.org/testing/sambamba)
 
-Debian: see [Debian packages](https://tracker.debian.org/pkg/sambamba).
+See also Debian package [status](https://tracker.debian.org/pkg/sambamba).
 
 ## Homebrew install
+
+[![BrewBadge](https://img.shields.io/badge/%F0%9F%8D%BAbrew-sambamba-brightgreen.svg)](https://github.com/brewsci/homebrew-bio)
 
 Users of Homebrew can also use the formula from [homebrew-bio](https://github.com/brewsci/homebrew-bio).
 
