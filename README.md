@@ -91,15 +91,21 @@ are Github source and binary
 the tarball, unpack it and run it according to the accompanying
 release notes.
 
+Below package managers Conda, GNU Guix, Debian and Homebrew also
+provide recent binary installs for Linux.  For MacOS you may use Conda
+or Homebrew.
+
 ## Bioconda install
 
 [![Install with CONDA](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba)
+
+Ther should be binary downloads for Linux and MacOS.
 
 With Conda use the [`bioconda`](https://bioconda.github.io/) channel.
 
 ## GNU Guix install
 
-A [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available. The development version is packaged [here](https://gitlab.com/genenetwork/guix-bioinformatics/blob/master/gn/packages/sambamba.scm).
+A reproducible [GNU Guix package](https://www.gnu.org/software/guix/packages/s.html) for sambamba is available. The development version is packaged [here](https://gitlab.com/genenetwork/guix-bioinformatics/blob/master/gn/packages/sambamba.scm).
 
 ## Debian GNU/Linux install
 
@@ -109,7 +115,11 @@ Debian: see [Debian packages](https://tracker.debian.org/pkg/sambamba).
 
 ## Homebrew install
 
-Users of Homebrew can also use the formula from `homebrew-bio`.
+Users of Homebrew can also use the formula from [homebrew-bio](https://github.com/brewsci/homebrew-bio).
+
+    brew install brewsci/bio/sambamba
+
+It should work for Linux and MacOS.
 
 <a name="help"></a>
 # Getting help
