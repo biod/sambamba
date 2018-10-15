@@ -64,7 +64,7 @@ void printUsage() {
     stderr.writeln("               output file name; if not provided, the result is written to a file with .sorted.bam extension");
     stderr.writeln("         -n, --sort-by-name");
     stderr.writeln("               sort by read name instead of coordinate (lexicographical order)");
-    stderr.writeln("         -q, --sort-query-picard");
+    stderr.writeln("         -s, --sort-picard");
     stderr.writeln("               sort by query name like in picard");
     stderr.writeln("         -N, --natural-sort");
     stderr.writeln("               sort by read name instead of coordinate (so-called 'natural' sort as in samtools)");
