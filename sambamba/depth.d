@@ -356,7 +356,11 @@ abstract class ColumnPrinter {
                 if (column.reads[idx1].mate_overlap != MateOverlapStatus.none &&
                     column.reads[idx2].mate_overlap != MateOverlapStatus.none)
                 {
+                  debug {
                     assert(column.reads[idx1].mate_overlap == column.reads[idx2].mate_overlap);
+                  }
+                  if (column.reads[idx1].mate_overlap == column.reads[idx2].mate_overlap)
+                    stderr.writeln("[WARNING] mates overlap in index ",column.reads[idx1].mate_overlap);
                 }
 
                 overlapping_mate_positions_buf[n_overlaps++] = tuple(idx1, idx2);
@@ -715,8 +719,10 @@ abstract class PerRegionPrinter : ColumnPrinter {
             r2.mate_overlap == MateOverlapStatus.fixed)
             return;
 
-        assert(r1.mate_overlap == MateOverlapStatus.detected);
-        assert(r2.mate_overlap == MateOverlapStatus.detected);
+        debug {
+          assert(r1.mate_overlap == MateOverlapStatus.detected);
+          assert(r2.mate_overlap == MateOverlapStatus.detected);
+        }
 
         // re-count all good bases
         auto n1_full = countOverlappingBases(r1, id);
