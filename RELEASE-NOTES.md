@@ -1,3 +1,7 @@
+## ChangeLog v0.6.9-pre
+
++ Added support for Picard style sorting, see https://github.com/biod/sambamba/issues/369 - thanks https://github.com/TimurIs
+
 ## ChangeLog v0.6.8 (20181004)
 
 Pre-release with a much faster statically compiled binary. 10-20%
