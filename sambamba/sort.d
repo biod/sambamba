@@ -64,6 +64,8 @@ void printUsage() {
     stderr.writeln("               output file name; if not provided, the result is written to a file with .sorted.bam extension");
     stderr.writeln("         -n, --sort-by-name");
     stderr.writeln("               sort by read name instead of coordinate (lexicographical order)");
+    stderr.writeln("         -s, --sort-picard");
+    stderr.writeln("               sort by query name like in picard");
     stderr.writeln("         -N, --natural-sort");
     stderr.writeln("               sort by read name instead of coordinate (so-called 'natural' sort as in samtools)");
     stderr.writeln("         -l, --compression-level=COMPRESSION_LEVEL");
@@ -86,6 +88,7 @@ version(standalone) {
 
 private __gshared bool sort_by_name;
 private __gshared bool natural_sort;
+private __gshared bool picard_sort;
 private bool show_progress;
 
 private shared(ProgressBar) bar;
@@ -216,6 +219,8 @@ class Sorter {
             mergeSort!(compareReadNames, false)(chunk, task_pool, tmp);
         } else if (natural_sort) {
             mergeSort!(mixedCompareReadNames, false)(chunk, task_pool, tmp);
+        } else if (picard_sort) {
+            mergeSort!(compareReadNamesAsPicard, false)(chunk, task_pool, tmp);
         } else {
             mergeSort!(compareCoordinatesAndStrand, false)(chunk, task_pool, tmp);
         }
@@ -265,14 +270,16 @@ class Sorter {
             mergeSortedChunks!compareReadNames();
         else if (natural_sort)
             mergeSortedChunks!mixedCompareReadNames();
+        else if (picard_sort)
+            mergeSortedChunks!compareReadNamesAsPicard();
         else
             mergeSortedChunks!compareCoordinatesAndStrand();
     }
 
     private void createHeader() {
         header = bam.header;
-        header.sorting_order = (sort_by_name || natural_sort) ? SortingOrder.queryname :
-                                                                SortingOrder.coordinate;
+        header.sorting_order = (sort_by_name || natural_sort || picard_sort) ? SortingOrder.queryname :
+                                                                               SortingOrder.coordinate;
     }
 
     private size_t k; // number of sorting tasks submitted
@@ -491,14 +498,15 @@ int sort_main(string[] args) {
                "out|o",                 &sorter.output_filename,
                "sort-by-name|n",        &sort_by_name,
                "natural-sort|N",        &natural_sort,
+               "sort-picard|s",         &picard_sort,
                "uncompressed-chunks|u", &sorter.uncompressed_chunks,
                "compression-level|l",   &sorter.compression_level,
                "show-progress|p",       &show_progress,
                "nthreads|t",            &n_threads,
                "filter|F",              &sorter.filter_str);
 
-        if (sort_by_name && natural_sort) {
-            stderr.writeln("only one of -n and -N parameters can be provided");
+        if ((sort_by_name && (natural_sort || picard_sort)) || (natural_sort && picard_sort)) {
+            stderr.writeln("only one of -n and -N and -s parameters can be provided");
             return -1;
         }
 
