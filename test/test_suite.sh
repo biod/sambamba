@@ -67,6 +67,14 @@ testSortByCoordinate() {
     assertEquals "d92c51b9e067590d7d5a18a0bdbbe0cc" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
 }
 
+testSortPicard() {
+    outfn=$outdir/ex1_header.picardSorted.bam
+    $sambamba $opts sort -t2 --sort-picard -m 300K $nsortedbam -o $outfn
+    assertEquals 0 $?
+    $sambamba $opts view -t2 $outfn > $outfn.sam
+    assertEquals "2d9af987d7aeaf3a38396870a2f30dca" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
+}
+
 testSlice() {
     $sambamba $opts slice $sortedbam chr1 -o /dev/null
     assertEquals 0 $?
