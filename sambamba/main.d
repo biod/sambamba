@@ -60,7 +60,7 @@ Usage: sambamba [command] [args...]
     sort        sort file (BAM)
     slice       slice file (BAM using BED)
     markdup     mark or remove duplicates (BAM)
-    subsample   subsamble (BAM)
+    subsample   subsample (BAM)
     flagstat    output statistics (BAM)
     depth       output statistics (BAM)
     validate    simple validator (BAM)
