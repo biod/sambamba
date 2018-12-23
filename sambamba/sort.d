@@ -68,6 +68,8 @@ void printUsage() {
     stderr.writeln("               sort by query name like in picard");
     stderr.writeln("         -N, --natural-sort");
     stderr.writeln("               sort by read name instead of coordinate (so-called 'natural' sort as in samtools)");
+    stderr.writeln("         -M, --match-mates");
+    stderr.writeln("               pull mates of the same alignment together when sorting by read name");
     stderr.writeln("         -l, --compression-level=COMPRESSION_LEVEL");
     stderr.writeln("               level of compression for sorted BAM, from 0 to 9");
     stderr.writeln("         -u, --uncompressed-chunks");
@@ -89,6 +91,7 @@ version(standalone) {
 private __gshared bool sort_by_name;
 private __gshared bool natural_sort;
 private __gshared bool picard_sort;
+private __gshared bool match_mates;
 private bool show_progress;
 
 private shared(ProgressBar) bar;
@@ -216,9 +219,15 @@ class Sorter {
         BamRead[] tmp = buf[0 .. chunk.length];
         scope (exit) core.stdc.stdlib.free(buf);
         if (sort_by_name) {
-            mergeSort!(compareReadNames, false)(chunk, task_pool, tmp);
+            if (match_mates)
+                mergeSort!(compareReadNamesAndMates, false)(chunk, task_pool, tmp);
+            else    
+                mergeSort!(compareReadNames, false)(chunk, task_pool, tmp);
         } else if (natural_sort) {
-            mergeSort!(mixedCompareReadNames, false)(chunk, task_pool, tmp);
+            if (match_mates)
+                mergeSort!(mixedCompareReadNamesAndMates, false)(chunk, task_pool, tmp);
+            else
+                mergeSort!(mixedCompareReadNames, false)(chunk, task_pool, tmp);
         } else if (picard_sort) {
             mergeSort!(compareReadNamesAsPicard, false)(chunk, task_pool, tmp);
         } else {
@@ -267,9 +276,15 @@ class Sorter {
         }
 
         if (sort_by_name)
-            mergeSortedChunks!compareReadNames();
+            if (match_mates)
+                mergeSortedChunks!compareReadNamesAndMates();
+            else
+                mergeSortedChunks!compareReadNames();
         else if (natural_sort)
-            mergeSortedChunks!mixedCompareReadNames();
+            if (match_mates)
+                mergeSortedChunks!mixedCompareReadNamesAndMates();
+            else
+                mergeSortedChunks!mixedCompareReadNames();
         else if (picard_sort)
             mergeSortedChunks!compareReadNamesAsPicard();
         else
@@ -499,6 +514,7 @@ int sort_main(string[] args) {
                "sort-by-name|n",        &sort_by_name,
                "natural-sort|N",        &natural_sort,
                "sort-picard",           &picard_sort,
+               "match-mates|M",         &match_mates,
                "uncompressed-chunks|u", &sorter.uncompressed_chunks,
                "compression-level|l",   &sorter.compression_level,
                "show-progress|p",       &show_progress,
@@ -507,6 +523,11 @@ int sort_main(string[] args) {
 
         if ((sort_by_name && (natural_sort || picard_sort)) || (natural_sort && picard_sort)) {
             stderr.writeln("only one of -n and -N and -s parameters can be provided");
+            return -1;
+        }
+
+        if (match_mates && !(sort_by_name || natural_sort)) {
+            stderr.writeln("-M option only works in combination with either -n or -N");
             return -1;
         }
 
