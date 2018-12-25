@@ -1,6 +1,8 @@
 ## ChangeLog v0.6.9-pre
 
 + Added support for Picard style sorting, see https://github.com/biod/sambamba/issues/369 - thanks https://github.com/TimurIs
++ Add a new sorting option to pull together mates when sorting by read name, see https://github.com/biod/sambamba/pull/380 - thanks https://github.com/emi80
++ Many module renames to build a BioD for the future - thanks https://github.com/george-githinji
 
 ## ChangeLog v0.6.8 (20181004)
 
