@@ -19,11 +19,11 @@
 */
 module sambamba.sort;
 
-import bio.bam.reader;
-import bio.bam.writer;
-import bio.sam.header;
-import bio.bam.read;
-import bio.bam.splitter;
+import bio.std.hts.bam.reader;
+import bio.std.hts.bam.writer;
+import bio.std.hts.sam.header;
+import bio.std.hts.bam.read;
+import bio.std.hts.bam.splitter;
 import bio.core.utils.tmpfile;
 
 import std.range;
@@ -37,7 +37,7 @@ import std.parallelism;
 import std.getopt;
 import std.path;
 import std.file;
-import undead.stream;
+import contrib.undead.stream;
 import std.stdio;
 import std.typecons;
 import core.atomic;

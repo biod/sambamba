@@ -3,7 +3,7 @@ module utils.version_;
 immutable string VERSION = "0.6.8";
 immutable string HEADER_VERSION = "1.0"; // goes in header for reproducibility between sambamba versions
 
-import bio.sam.header;
+import bio.std.hts.sam.header;
 import std.array : join;
 
 SamHeader addPG(string tool, string[] args, SamHeader header) {

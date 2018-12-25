@@ -40,8 +40,8 @@ import std.range;
 import std.stdio;
 import std.typecons;
 
-import bio2.bam.reader;
-import bio2.bgzf;
+import bio.std.experimental.hts.bam.reader;
+import bio.std.experimental.hts.bgzf;
 
 void printUsage() {
   writeln("

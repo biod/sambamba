@@ -26,7 +26,7 @@ import std.algorithm;
 import bio.core.utils.roundbuf;
 import bio.core.utils.outbuffer;
 
-import bio.bam.read;
+import bio.std.hts.bam.read;
 
 struct ReadStorage {
     private size_t max_sz;

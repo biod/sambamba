@@ -20,7 +20,7 @@
 module sambamba.flagstat;
 
 /// port of samtools flagstat tool
-import bio.bam.reader;
+import bio.std.hts.bam.reader;
 import std.stdio, std.conv, std.parallelism, std.getopt, std.string;
 
 import sambamba.utils.common.progressbar;

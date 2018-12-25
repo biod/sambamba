@@ -19,11 +19,11 @@
 */
 module sambamba.utils.view.headerserializer;
 
-import bio.sam.header;
+import bio.std.hts.sam.header;
 import std.conv;
 import std.array;
 import std.stdio;
-import bio.bam.thirdparty.msgpack;
+import bio.std.hts.thirdparty.msgpack;
 
 private {
     abstract class IHeaderSerializer {

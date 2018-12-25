@@ -70,10 +70,10 @@ module sambamba.merge;
 
    */
 
-import bio.bam.reader;
-import bio.bam.writer;
-import bio.bam.utils.samheadermerger;
-import bio.bam.read;
+import bio.std.hts.bam.reader;
+import bio.std.hts.bam.writer;
+import bio.std.hts.utils.samheadermerger;
+import bio.std.hts.bam.read;
 
 import std.stdio;
 import std.algorithm;
@@ -86,7 +86,7 @@ import std.typecons;
 import std.traits;
 import std.numeric;
 import std.parallelism;
-import undead.stream;
+import contrib.undead.stream;
 import std.getopt;
 
 import core.atomic;
@@ -98,7 +98,7 @@ import sambamba.utils.common.filtering;
 import sambamba.utils.common.readstorage;
 import bio.core.utils.outbuffer;
 import bio.core.utils.roundbuf;
-import bio.bam.utils.value;
+import bio.std.hts.utils.value;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-merge [options] <output.bam> <input1.bam> <input2.bam> [...]");

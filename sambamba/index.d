@@ -20,7 +20,7 @@
 module sambamba.index;
 
 import std.stdio;
-import undead.stream;
+import contrib.undead.stream;
 import std.range;
 import std.parallelism;
 import std.getopt;
@@ -28,8 +28,8 @@ import cram.reader;
 
 import sambamba.utils.common.progressbar;
 
-import bio.bam.bai.indexing;
-import bio.bam.reader;
+import bio.std.hts.bam.bai.indexing;
+import bio.std.hts.bam.reader;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam|input.cram> [output_file]");

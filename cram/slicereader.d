@@ -1,7 +1,7 @@
 module cram.slicereader;
 
 import cram.htslib, cram.wrappers, cram.exception;
-import bio.bam.abstractreader, bio.bam.read;
+import bio.std.hts.bam.abstractreader, bio.std.hts.bam.read;
 
 alias AllocateFunc = ubyte[] function(size_t);
 

@@ -19,9 +19,9 @@
 */
 module sambamba.slice;
 
-import bio.bam.reader;
-import bio.bam.writer;
-import bio.bam.constants;
+import bio.std.hts.bam.reader;
+import bio.std.hts.bam.writer;
+import bio.std.hts.bam.constants;
 import bio.core.bgzf.block;
 import bio.core.bgzf.compress;
 import bio.core.utils.stream;
@@ -29,7 +29,7 @@ import bio.core.region;
 
 import std.array;
 import std.algorithm;
-import undead.stream;
+import contrib.undead.stream;
 import std.getopt;
 import std.parallelism;
 import std.conv;
@@ -322,7 +322,7 @@ int slice_main(string[] args) {
         scope(exit) stream.close();
 
         if (output_filename != null) {
-            stream = new undead.stream.BufferedFile(output_filename, FileMode.OutNew);
+            stream = new contrib.undead.stream.BufferedFile(output_filename, FileMode.OutNew);
         } else {
             immutable BUFSIZE = 1_048_576;
             version (Posix) {
@@ -332,7 +332,7 @@ int slice_main(string[] args) {
                 import core.sys.windows.windows;
                 auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
             }
-            stream = new undead.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
+            stream = new contrib.undead.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
         }
 
         if (bed_filename is null && args[2] == "*") {

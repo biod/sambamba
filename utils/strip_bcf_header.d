@@ -18,7 +18,7 @@
 
 */
 module utils.strip_bcf_header;
-import undead.cstream : CFile, FileMode;
+import contrib.undead.cstream : CFile, FileMode;
 import std.exception;
 import std.algorithm : min;
 

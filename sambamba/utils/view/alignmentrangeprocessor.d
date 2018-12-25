@@ -19,10 +19,10 @@
 */
 module sambamba.utils.view.alignmentrangeprocessor;
 
-import bio.bam.reader;
-import bio.bam.read;
-import bio.bam.writer;
-import bio.bam.thirdparty.msgpack;
+import bio.std.hts.bam.reader;
+import bio.std.hts.bam.read;
+import bio.std.hts.bam.writer;
+import bio.std.hts.thirdparty.msgpack;
 import bio.core.utils.outbuffer;
 import bio.core.utils.range;
 import sambamba.utils.common.readstorage;
@@ -34,7 +34,7 @@ import std.range;
 import std.array;
 import std.format;
 import std.traits;
-import undead.stream : Stream, BufferedFile, FileMode;
+import contrib.undead.stream : Stream, BufferedFile, FileMode;
 import std.conv;
 import std.algorithm;
 import std.parallelism;

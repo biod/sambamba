@@ -1,14 +1,14 @@
 module cram.writer;
 
-import undead.stream;
+import contrib.undead.stream;
 import std.string;
 
 import cram.htslib;
 import cram.exception;
 
-import bio.bam.read;
-import bio.bam.referenceinfo;
-import bio.sam.header;
+import bio.std.hts.bam.read;
+import bio.std.hts.bam.referenceinfo;
+import bio.std.hts.sam.header;
 
 extern(C) {
     int fai_build(const(char)* fn);

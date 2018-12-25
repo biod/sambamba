@@ -22,8 +22,8 @@ module sambamba.fixbins;
 import std.stdio, std.getopt, std.parallelism;
 import sambamba.utils.common.progressbar;
 import sambamba.utils.common.overwrite;
-import bio.bam.reader, bio.bam.writer;
-import bio.bam.bai.bin;
+import bio.std.hts.bam.reader, bio.std.hts.bam.writer;
+import bio.std.hts.bam.bai.bin;
 
 void printUsage() {
     stderr.writeln("Usage: sambamba-fixbins [options] <input.bam> <output.bam>");

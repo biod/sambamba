@@ -3,9 +3,9 @@ module cram.reference;
 import cram.exception, cram.wrappers, cram.slicereader;
 import cram.htslib;
 
-import bio.bam.abstractreader;
-import bio.bam.referenceinfo;
-import bio.bam.read;
+import bio.std.hts.bam.abstractreader;
+import bio.std.hts.bam.referenceinfo;
+import bio.std.hts.bam.read;
 import std.string;
 import std.parallelism;
 import std.range, std.algorithm;

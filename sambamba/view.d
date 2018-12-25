@@ -20,15 +20,15 @@
 */
 module sambamba.view;
 
-import bio.bam.reader;
-import bio.bam.read;
-import bio.bam.region;
-import bio.bam.splitter;
+import bio.std.hts.bam.reader;
+import bio.std.hts.bam.read;
+import bio.std.hts.bam.region;
+import bio.std.hts.bam.splitter;
 
 import bio.core.region;
 import bio.core.utils.format;
 
-import bio.sam.reader;
+import bio.std.hts.sam.reader;
 import cram.reader;
 
 import sambamba.utils.common.filtering;
@@ -37,7 +37,7 @@ import sambamba.utils.common.progressbar;
 import sambamba.utils.view.alignmentrangeprocessor;
 import sambamba.utils.view.headerserializer;
 import sambamba.utils.common.bed;
-import bio2.unpack;
+import bio.std.experimental.hts.unpack;
 // import core.sys.posix.stdlib; // for exit
 
 import utils.version_ : addPG;

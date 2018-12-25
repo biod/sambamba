@@ -30,12 +30,12 @@ import thirdparty.unstablesort;
 import utils.lz4;
 import utils.version_ : addPG;
 
-import bio.bam.reader, bio.bam.readrange, bio.bam.writer, bio.bam.referenceinfo,
-       bio.bam.read, bio.sam.header, bio.bam.abstractreader,
-       bio.bam.multireader;
+import bio.std.hts.bam.reader, bio.std.hts.bam.readrange, bio.std.hts.bam.writer, bio.std.hts.bam.referenceinfo,
+       bio.std.hts.bam.read, bio.std.hts.sam.header, bio.std.hts.bam.abstractreader,
+       bio.std.hts.bam.multireader;
 import std.traits, std.typecons, std.range, std.algorithm, std.parallelism,
        std.exception, std.file, std.typetuple, std.conv, std.array, std.bitmanip,
-       core.stdc.stdlib, std.datetime, undead.stream : BufferedFile, FileMode;
+       core.stdc.stdlib, std.datetime, contrib.undead.stream : BufferedFile, FileMode;
 
 import std.datetime;
 import std.datetime.stopwatch : benchmark, StopWatch;

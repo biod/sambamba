@@ -53,13 +53,13 @@ import std.range;
 import std.stdio;
 import std.typecons;
 
-import bio2.bam.reader;
-import bio2.bam.writer;
-import bio2.bgzf;
-import bio2.hashing;
-import bio2.constants;
-import bio2.pileup;
-import bio2.reads;
+import bio.std.experimental.hts.bam.reader;
+import bio.std.experimental.hts.bam.writer;
+import bio.std.experimental.hts.bgzf;
+import bio.std.experimental.hts.hashing;
+import bio.std.experimental.hts.constants;
+import bio.std.experimental.hts.pileup;
+import bio.std.experimental.hts.reads;
 
 import bio.core.utils.exception;
 

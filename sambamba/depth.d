@@ -19,10 +19,10 @@
 */
 module sambamba.depth;
 
-import bio.bam.reader;
-import bio.bam.pileup;
-import bio.bam.region;
-import bio.bam.multireader;
+import bio.std.hts.bam.reader;
+import bio.std.hts.bam.pileup;
+import bio.std.hts.bam.region;
+import bio.std.hts.bam.multireader;
 import bio.core.base;
 import bio.core.region;
 import sambamba.utils.common.bed;

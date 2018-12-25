@@ -8,8 +8,8 @@ import cram.exception;
 import cram.wrappers;
 import cram.slicereader;
 
-import bio.bam.abstractreader, bio.bam.referenceinfo,
-       bio.sam.header, bio.bam.reference, bio.bam.read;
+import bio.std.hts.bam.abstractreader, bio.std.hts.bam.referenceinfo,
+       bio.std.hts.sam.header, bio.std.hts.bam.reference, bio.std.hts.bam.read;
 import std.string, std.array, std.range, std.algorithm, std.conv, std.typecons;
 import std.parallelism;
 
@@ -108,7 +108,7 @@ class CramReader : IBamSamReader {
         return reads;
     }
 
-    std.range.InputRange!(bio.bam.read.BamRead) allReads() @property {
+    std.range.InputRange!(bio.std.hts.bam.read.BamRead) allReads() @property {
         return inputRangeObject(reads());
     }
 

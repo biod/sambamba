@@ -28,10 +28,10 @@ import sambamba.utils.common.tmpdir;
 import sambamba.utils.common.overwrite;
 import utils.lz4;
 
-import bio.bam.multireader;
-import bio.bam.reader;
-import bio.bam.writer;
-import bio.bam.pileup;
+import bio.std.hts.bam.multireader;
+import bio.std.hts.bam.reader;
+import bio.std.hts.bam.writer;
+import bio.std.hts.bam.pileup;
 
 import bio.core.utils.format : write;
 import bio.core.utils.roundbuf;
@@ -48,7 +48,7 @@ import std.getopt;
 import std.string : strip, indexOf, toStringz;
 import core.stdc.stdlib;
 import std.typecons;
-import undead.stream;
+import contrib.undead.stream;
 import std.range;
 import std.algorithm;
 import std.path;

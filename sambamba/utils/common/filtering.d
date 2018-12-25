@@ -19,8 +19,8 @@
 */
 module sambamba.utils.common.filtering;
 
-import bio.bam.splitter;
-import bio.bam.region;
+import bio.std.hts.bam.splitter;
+import bio.std.hts.bam.region;
 
 import sambamba.utils.common.queryparser;
 import sambamba.utils.common.intervaltree;
@@ -58,9 +58,9 @@ Filter createFilterFromQuery(string query) {
 import std.regex;
 import std.algorithm;
 import std.conv;
-import bio.bam.read;
-import bio.bam.tagvalue;
-import bio.bam.validation.alignment;
+import bio.std.hts.bam.read;
+import bio.std.hts.bam.tagvalue;
+import bio.std.hts.bam.validation.alignment;
 
 /// Common interface for all filters
 interface Filter {

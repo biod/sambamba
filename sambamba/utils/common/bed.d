@@ -122,8 +122,8 @@ unittest {
     assert(!index["1"].hasOverlap(I(20, 22)));
 }
 
-import bio.bam.reader;
-public import bio.bam.region;
+import bio.std.hts.bam.reader;
+public import bio.std.hts.bam.region;
 
 BamRegion[] parseBed(Reader)(string bed_filename, Reader bam, bool non_overlapping=true, string[]* bed_lines=null) {
     Tuple!(string, Interval)[] ivs;
