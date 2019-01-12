@@ -75,6 +75,20 @@ testSortPicard() {
     assertEquals "2d9af987d7aeaf3a38396870a2f30dca" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
 }
 
+testSortByNameMatchMates() {
+    outfn=$outdir/match_mates_nameSorted.bam
+    $sambamba $opts sort -t2 -n -M -m 300K test/match_mates.bam -o $outfn
+    assertEquals 0 $?
+    assertEquals "8a0b62e1ac85185c31cf66126c876217" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
+}
+
+testNaturalSortMatchMates() {
+    outfn=$outdir/match_mates_naturalSorted.bam
+    $sambamba $opts sort -t2 -N -M -m 300K test/match_mates.bam -o $outfn
+    assertEquals 0 $?
+    assertEquals "8a0b62e1ac85185c31cf66126c876217" `$sambamba $opts view -f unpack $outfn |$md5sum|cut -c 1-32`
+}
+
 testSlice() {
     $sambamba $opts slice $sortedbam chr1 -o /dev/null
     assertEquals 0 $?
