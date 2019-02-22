@@ -26,6 +26,7 @@ import bio.core.bgzf.block;
 import bio.core.bgzf.compress;
 import bio.core.utils.stream;
 import bio.core.region;
+import bio.std.file.fasta : FastaRegions = Regions, FastaRecord = Record;
 
 import std.array;
 import std.algorithm;
@@ -33,6 +34,7 @@ import contrib.undead.stream;
 import std.getopt;
 import std.parallelism;
 import std.conv;
+import std.file;
 import std.stdio;
 import std.exception;
 import sambamba.utils.common.bed;
@@ -263,18 +265,21 @@ void copyAsIs(BamReader bam, Stream stream,
 
 void printUsage()
 {
-    stderr.writeln("Usage: sambamba-slice [options] <input.bam> [region1 [...]]");
+    stderr.writeln("Usage: sambamba-slice [options] <input.bam|input.fasta> [region1 [...]]");
     stderr.writeln();
-    stderr.writeln("       Fast copy of a region from indexed BAM file to a new file");
+    stderr.writeln("       Fast copy of a region from indexed BAM or FASTA file to a new file");
     stderr.writeln();
     stderr.writeln("       Regions are given in standard form ref:beg-end.");
+    stderr.writeln("       FASTA index file name must match FASTA file name, e.g. <input.fai>");
     stderr.writeln("       In addition, region '*' denotes reads with no reference.");
     stderr.writeln("       Output is to STDOUT unless output filename is specified.");
     stderr.writeln();
     stderr.writeln("OPTIONS: -o, --output-filename=OUTPUT_FILENAME");
-    stderr.writeln("            output BAM filename");
+    stderr.writeln("            output BAM or FASTA filename");
     stderr.writeln("         -L, --regions=FILENAME");
     stderr.writeln("            output only reads overlapping one of regions from the BED file");
+    stderr.writeln("         -F, --fasta-input");
+    stderr.writeln("               specify that input is in FASTA format");
 }
 
 version(standalone) {
@@ -288,17 +293,23 @@ int slice_main(string[] args) {
     // at least two arguments must be presented
     string output_filename = null;
     string bed_filename = null;
+    bool is_fasta;
 
     try {
         getopt(args,
                std.getopt.config.caseSensitive,
                "output-filename|o", &output_filename,
-               "regions|L",         &bed_filename);
+               "regions|L",         &bed_filename,
+               "fasta-input|F",     &is_fasta);
 
         // Check that an input file was specified.
         if (args.length < 2) {
             printUsage();
             return 0;
+        }
+        
+        if(is_fasta && bed_filename != null) {
+            throw new Exception("-L option is not compatible with FASTA files");
         }
 
         // Either a bed file or a set of regions needs to be specified.
@@ -310,42 +321,60 @@ int slice_main(string[] args) {
         if (bed_filename.length > 0 && args.length > 2) {
             throw new Exception("specifying both region and BED filename is disallowed");
         }
+        
+        if(!is_fasta) {
 
-        protectFromOverwrite(args[1], output_filename);
+            protectFromOverwrite(args[1], output_filename);
 
-        import std.parallelism;
-        defaultPoolThreads = 2;
+            import std.parallelism;
+            defaultPoolThreads = 2;
 
-        auto bam = new BamReader(args[1]);
+            auto bam = new BamReader(args[1]);
 
-        Stream stream;
-        scope(exit) stream.close();
+            Stream stream;
+            scope(exit) stream.close();
 
-        if (output_filename != null) {
-            stream = new contrib.undead.stream.BufferedFile(output_filename, FileMode.OutNew);
-        } else {
-            immutable BUFSIZE = 1_048_576;
-            version (Posix) {
-                auto handle = stdout.fileno;
-            }
-            version (Windows) {
-                import core.sys.windows.windows;
-                auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
-            }
-            stream = new contrib.undead.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
-        }
-
-        if (bed_filename is null && args[2] == "*") {
-            fetchUnmapped(bam, stream);
-        } else {
-            Region[] regions;
-            if (bed_filename !is null) {
-                auto bam_regions = parseBed(bed_filename, bam);
-                regions = bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end)).array;
+            if (output_filename != null) {
+                stream = new contrib.undead.stream.BufferedFile(output_filename, FileMode.OutNew);
             } else {
-                regions = map!parseRegion(args[2 .. $]).array;
+                immutable BUFSIZE = 1_048_576;
+                version (Posix) {
+                    auto handle = stdout.fileno;
+                }
+                version (Windows) {
+                    import core.sys.windows.windows;
+                    auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
+                }
+                stream = new contrib.undead.stream.BufferedFile(handle, FileMode.Out, BUFSIZE);
             }
-            fetchRegions(bam, regions, stream);
+
+            if (bed_filename is null && args[2] == "*") {
+                fetchUnmapped(bam, stream);
+            } else {
+                Region[] regions;
+                if (bed_filename !is null) {
+                    auto bam_regions = parseBed(bed_filename, bam);
+                    regions = bam_regions.map!(r => Region(bam.reference(r.ref_id).name, r.start, r.end)).array;
+                } else {
+                    regions = map!parseRegion(args[2 .. $]).array;
+                }
+                fetchRegions(bam, regions, stream);
+            }
+        }
+        else {
+            string[] queries = args[2 .. $];
+            auto records = FastaRegions(args[1], queries);    
+
+            string output;
+            foreach(FastaRecord rec; records)
+                output ~= rec.toString() ~ '\n';    
+
+            if(output_filename != null) {
+                std.file.write(output_filename, output);    
+            } 
+            else {
+                writeln(output);
+            }
         }
 
     } catch (Exception e) {
