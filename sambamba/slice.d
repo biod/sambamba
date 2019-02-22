@@ -26,7 +26,7 @@ import bio.core.bgzf.block;
 import bio.core.bgzf.compress;
 import bio.core.utils.stream;
 import bio.core.region;
-import bio.std.file.fasta : FastaRegions = Regions, FastaRecord = Record;
+import bio.std.file.fasta : FastaRegions = fastaRegions, FastaRecord = FastaRecord;
 
 import std.array;
 import std.algorithm;
