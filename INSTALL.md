@@ -18,9 +18,9 @@ possibleto install the build tools with GNU Guix
     guix package -i gcc gdb bash ld-wrapper ldc which python2 git
 
 Even better, with Guix, you can create a light-weight container in the source tree
-and run our development setup
+and run our development setup (gold was added lately by ldc)
 
-    guix environment -C guix --ad-hoc gcc gdb bash ld-wrapper ldc which python git
+    guix environment -C guix --ad-hoc gcc gdb bash ld-wrapper ldc which python git binutils-gold
     make clean
     make -j 4
     make check
