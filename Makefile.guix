@@ -94,7 +94,7 @@ $(OUT): $(OBJ)
 	$(D_COMPILER) $(DFLAGS) -of=$(OUT) $(OBJ) $(LIBS)
 
 test:	clean-tests
-	./run_tests.sh
+	./run_tests.sh $(OUT)
 
 biod:
 	cd $(BIOD_PATH)/src_ragel && make

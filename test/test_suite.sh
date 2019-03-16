@@ -1,6 +1,10 @@
 #!/bin/sh
 
-sambamba=./bin/sambamba
+sambamba=$1
+
+if [ ! -f $sambamba ]; then
+    sambamba=./bin/sambamba
+fi
 opts="-q"
 outdir=output
 mkdir -p $outdir

@@ -76,9 +76,9 @@ build-setup: ldc_version_info lz4-static htslib-static
 default debug release static: $(OUT)
 
 profile: release
-	./bin/sambamba sort /gnu/data/in_raw.bam -p > /dev/null
+	$(OUT) sort /gnu/data/in_raw.bam -p > /dev/null
 	ldc-profdata merge -output=profile.data profile.raw
-	rm ./bin/sambamba ./bin/sambamba.o # trigger rebuild
+	rm $(OUT) ./bin/sambamba.o # trigger rebuild
 
 default: all
 
@@ -88,15 +88,16 @@ default: all
 
 singleobj: build-setup
 	$(info compile single object...)
-	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=bin/sambamba.o $(SRC)
+	$(D_COMPILER) -singleobj $(DFLAGS) -c -of=$(OUT).o $(SRC)
 
 # ---- Link step
 $(OUT): singleobj
 	$(info linking...)
-	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba bin/sambamba.o $(LINK_OBJ) $(LIBS)
+	$(D_COMPILER) $(DFLAGS) -of=$(OUT) $(OUT).o $(LINK_OBJ) $(LIBS)
 
-test:
-	./run_tests.sh
+test: $(OUT)
+	$(OUT) --version
+	./run_tests.sh $(OUT)
 
 check: test
 
