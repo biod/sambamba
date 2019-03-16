@@ -65,10 +65,6 @@ Usage: sambamba [command] [args...]
     depth       output statistics (BAM)
     validate    simple validator (BAM)
 
-  Work in progress (WIP):
-
-    markdup2    mark or remove duplicates v2 (BAM)
-
   No longer recommended:
 
     mpileup     parallel execution of samtools (BAM)
