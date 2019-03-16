@@ -7,6 +7,3 @@
 [submodule "BioD"]
 	path = BioD
 	url = https://github.com/biod/BioD.git
-[submodule "undeaD"]
-	path = undeaD
-	url = https://github.com/biod/undeaD.git
