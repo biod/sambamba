@@ -28,7 +28,7 @@ else
   SYS = LINUX
 endif
 
-DFLAGS      = -wi -I. -IBioD -g
+DFLAGS      = -wi -I. -IBioD -g -J.
 
 DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
@@ -36,7 +36,7 @@ LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lpthread -
 LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LIBRARY_PATH)/liblz4.a
 SRC         = utils/ldc_version_info_.d utils/lz4.d utils/strip_bcf_header.d $(sort $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d)) utils/version_.d $(sort $(wildcard thirdparty/*.d cram/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d))
 OBJ         = $(SRC:.d=.o)
-OUT         = bin/sambamba
+OUT    = bin/sambamba-$(shell cat VERSION)
 
 STATIC_LIB_PATH=-Lhtslib -Llz4
 
@@ -51,6 +51,8 @@ profile:                           DFLAGS += -fprofile-instr-generate=profile.ra
 release static profile pgo-static: DFLAGS += -O3 -release -enable-inlining -boundscheck=off
 
 static:                            DFLAGS += -static -L-Bstatic
+
+static:                            OUT += -static
 
 pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
 
@@ -111,6 +113,7 @@ install:
 
 clean: clean-d
 	cd htslib ; $(MAKE) clean
+	rm lz4/lib/*.[oa]
 	rm -f profile.data
 	rm -f profile.raw
 

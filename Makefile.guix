@@ -1,6 +1,7 @@
 # GNU Guix makefile. GNU Guix is the package manager for GNU and we
 # use it for sambamba development and deployment. Normally use the
-# standard Makefile instead because it compiles into a singleobj.
+# standard Makefile instead because it compiles into a singleobj which
+# gives better performance. This Makefile is for development purposes.
 #
 # To build sambamba on GNU Guix:
 #
@@ -10,33 +11,28 @@
 #
 #   ./bin/sambamba
 #
-# certain paths may need to be set, e.g.
+# But it is preferred to run in a Guix environment/container. For more
+# information see INSTALL.md
 #
-#   make UNDEAD_PATH=../undeaD/src -f Makefile.guix
-#
-# For more information see INSTALL.md
-#
-# The following two are modified by the Guix package:
 D_COMPILER=ldc2
-ifndef GUIX
-  GUIX=$(HOME)/.guix-profile
-endif
-LDC_LIB_PATH=$(GUIX)/lib
+BIOD_PATH=./BioD
 
-UNDEAD_PATH=../undeaD/src
-BIOD_PATH=../BioD
-
-DFLAGS = -wi -I. -I$(BIOD_PATH) -IundeaD/src -I$(UNDEAD_PATH)
+DFLAGS = -wi -I. -I$(BIOD_PATH) -J.
 # DLIBS  = $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a
 # DLIBS_DEBUG = -debuglib=phobos2-ldc-debug,druntime-ldc-debug $(LDC_LIB_PATH)/libphobos2-ldc-debug.a $(LDC_LIB_PATH)/libdruntime-ldc-debug.a -link-debuglib
 DLIBS_DEBUG = -debuglib=phobos2-ldc-debug-shared,druntime-ldc-debug-shared -link-debuglib -L-lphobos2-ldc-debug-shared -L-ldruntime-ldc-debug-shared
-RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
-LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
+# RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
+RPATH = -L--rpath=$(LIBRARY_PATH)
+LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz lz4/lib/liblz4.a
+
 # LIBS   = htslib/libhts.a -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
-LIBS_STATIC = $(DLIBS) htslib/libhts.a $(LDC_LIB_PATH)/liblz4.a
-SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard undeaD/src/undead/*.d undeaD/src/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio2/*.d BioD/bio2/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
-OBJ    = $(SRC:.d=.o)
-OUT    = bin/sambamba
+LIBS_STATIC = $(DLIBS) htslib/libhts.a lz4/lib/liblz4.a
+SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d BioD/bio/*/*/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
+OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
+OUT    = bin/sambamba-$(shell cat VERSION)
+debug:  OUT += -debug
+static: OUT += -static
+
 
 .PHONY: all guix guix-debug debug release static profile clean test
 
@@ -46,17 +42,17 @@ guix:        DFLAGS += -O -release -g # Guix strips debug flags
 guix-debug:  DFLAGS += -O0 -g -d-debug -unittest
 
 # The following options are run in development from ~/.guix-profile and need to inject the RPATH
-debug:       DFLAGS += -O0 -g -d-debug $(RPATH) -link-debuglib -unittest
+debug:              DFLAGS += -O0 -g -d-debug $(RPATH) -link-debuglib -unittest
 
 release static:     DFLAGS += -O3 -release $(RPATH) -enable-inlining -Hkeep-all-bodies -boundscheck=off
 
-static:      DFLAGS += -static -L-Bstatic -L-L/gnu/store/rmjlycdgiq8pfy5hfi42qhw3k7p6kdav-glibc-2.25/lib/
+static:             DFLAGS += -static -L-Bstatic -L-L/gnu/store/rmjlycdgiq8pfy5hfi42qhw3k7p6kdav-glibc-2.25/lib/
 
-profile:     DFLAGS += -g -O -profile $(RPATH)
+profile:            DFLAGS += -g -O -profile $(RPATH)
 
-guix release:   LIBS += $(DLIBS)
+guix release:       LIBS += $(DLIBS)
 
-static:         LIBS = $(LIBS_STATIC)
+static:             LIBS = $(LIBS_STATIC)
 
 guix-debug debug profile: LIBS += $(DLIBS_DEBUG)
 
@@ -67,12 +63,25 @@ all: debug
 # sambamba/subsample.d: bio2/pileup.d
 
 utils/ldc_version_info_.d:
-	./gen_ldc_version_info.py $(shell which ldc2) > utils/ldc_version_info_.d
+	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+	cat utils/ldc_version_info_.d
 
-utils/ldc_version_info_.o: utils/ldc_version_info_.d
-	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
+ldc_version_info: utils/ldc_version_info_.d
 
-guix guix-debug default debug release static profile: $(OUT)
+lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhash.c
+	cd lz4/lib && gcc -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
+
+lz4-static: lz4/lib/liblz4.a
+
+build-setup: ldc_version_info lz4-static htslib-static
+	mkdir -p bin/
+
+# utils/ldc_version_info_.o: utils/ldc_version_info_.d
+# 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
+
+guix guix-debug default debug release static profile: ldc_version_info $(OUT)
+
+debug: lz4-static
 
 # ---- Compile step
 %.o: %.d
@@ -82,7 +91,7 @@ guix guix-debug default debug release static profile: $(OUT)
 $(OUT): $(OBJ)
 	cd htslib && $(MAKE)
 	mkdir -p bin/
-	$(D_COMPILER) $(DFLAGS) -of=bin/sambamba $(OBJ) $(LIBS)
+	$(D_COMPILER) $(DFLAGS) -of=$(OUT) $(OBJ) $(LIBS)
 
 test:	clean-tests
 	./run_tests.sh
@@ -103,6 +112,7 @@ install:
 
 clean-c:
 	cd htslib ; make clean
+	rm -v lz4/lib/*.[oa]
 
 clean-d:
 	rm -v $(OBJ) $(OUT) trace.{def,log}
@@ -111,4 +121,4 @@ clean-d:
 clean-tests:
 	rm -rf output/*
 
-clean: clean-d clean-tests
+clean: clean-c clean-d clean-tests

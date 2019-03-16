@@ -1,6 +1,6 @@
 module utils.version_;
 
-immutable string VERSION = "0.6.9";
+immutable string VERSION = import("VERSION");
 immutable string HEADER_VERSION = "1.0"; // goes in header for reproducibility between sambamba versions
 
 import bio.std.hts.sam.header;
