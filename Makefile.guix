@@ -46,7 +46,9 @@ release static:     DFLAGS += -O3 -release $(RPATH) -enable-inlining -Hkeep-all-
 
 static:             DFLAGS += -static -L-Bstatic -L-L/gnu/store/rmjlycdgiq8pfy5hfi42qhw3k7p6kdav-glibc-2.25/lib/
 
-profile:            DFLAGS += -g -O -profile $(RPATH)
+profile:            DFLAGS += -g -O -fprofile-instr-generate=profile.raw $(RPATH)
+
+profile:            LIBS += -L=-lprofile_rt
 
 guix release:       LIBS += $(DLIBS)
 
@@ -79,7 +81,7 @@ build-setup: ldc_version_info lz4-static htslib-static
 
 guix guix-debug default debug release static profile: ldc_version_info $(OUT)
 
-debug: lz4-static
+debug profile release: lz4-static
 
 # ---- Compile step
 %.o: %.d
@@ -87,7 +89,7 @@ debug: lz4-static
 
 # ---- Link step
 $(OUT): $(OBJ)
-	cd htslib && $(MAKE)
+	cd htslib && $(MAKE) -j 4
 	mkdir -p bin/
 	$(D_COMPILER) $(DFLAGS) -of=$(OUT) $(OBJ) $(LIBS)
 

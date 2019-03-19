@@ -44,11 +44,13 @@ STATIC_LIB_PATH=-Lhtslib -Llz4
 
 all: release
 
-debug:                             DFLAGS += -O0 -d-debug -link-debuglib
+debug:                     DFLAGS += -O0 -d-debug -link-debuglib
 
 profile:                           DFLAGS += -fprofile-instr-generate=profile.raw
 
-release static profile pgo-static: DFLAGS += -O3 -release -enable-inlining -boundscheck=off
+coverage:                          DFLAGS += -cov
+
+release static pgo-static:         DFLAGS += -O3 -release -enable-inlining -boundscheck=off
 
 static:                            DFLAGS += -static -L-Bstatic
 
@@ -60,7 +62,7 @@ lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhas
 	cd lz4/lib && gcc -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
 
 htslib-static:
-	cd htslib && $(MAKE)
+	cd htslib && $(MAKE) -j8
 
 utils/ldc_version_info_.d:
 	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
@@ -73,7 +75,9 @@ build-setup: ldc_version_info lz4-static htslib-static
 
 default debug release static: $(OUT)
 
-profile: release
+coverage: debug
+
+profile: debug
 	$(OUT) sort /gnu/data/in_raw.bam -p > /dev/null
 	ldc-profdata merge -output=profile.data profile.raw
 	rm $(OUT) ./bin/sambamba.o # trigger rebuild
@@ -105,7 +109,7 @@ debug-strip:
 	objcopy --add-gnu-debuglink=sambamba.debug bin/sambamba
 	mv sambamba.debug bin/
 
-pgo-static: profile static debug-strip
+pgo-static: static debug-strip
 
 install:
 	install -m 0755 bin/sambamba $(prefix)/bin
