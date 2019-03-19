@@ -30,9 +30,7 @@ LIBS_STATIC = $(DLIBS) htslib/libhts.a lz4/lib/liblz4.a
 SRC         = $(wildcard main.d utils/*.d thirdparty/*.d cram/*.d) $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d BioD/bio/*/*/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
 OUT    = bin/sambamba-$(shell cat VERSION)
-debug:  OUT += -debug
 static: OUT += -static
-
 
 .PHONY: all guix guix-debug debug release static profile clean test
 
