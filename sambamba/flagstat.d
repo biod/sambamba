@@ -134,6 +134,7 @@ int flagstat_main(string[] args) {
         }
     } catch (Throwable e) {
         stderr.writeln(e.msg);
+        return 1;
     }
     return 0;
 }
