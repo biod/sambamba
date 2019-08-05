@@ -93,7 +93,7 @@ void printUsage() {
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("            show progressbar in STDERR");
     stderr.writeln("         -b, --tabular");
-    stderr.writeln("            output in csv format")
+    stderr.writeln("            output in csv format");
 }
 
 int flagstat_main(string[] args) {
