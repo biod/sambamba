@@ -12,6 +12,9 @@ example, see this [[http://forum.dlang.org/thread/gvtjhpxdqpboppoodmxm@forum.dla
 carefully, suggests we should use multiple implementations for file
 access.
 
+The current version for sambamba is much loved for markdup, depth and
+slice options. It is logical to revisit these.
+
 Here we document some of the choices we are making for the new
 design. Starting with markdup2, the new version is a prototype for new
 sambamba architecture using more canonical D language features,
@@ -71,3 +74,9 @@ should use that.
 
 Because of the pipes it is crucial sambamba gives clear error messages
 and should be capable of writing to a log file.
+
+* Markdup
+
+The original markdup routine is written in sambamba/markdup.d. It
+maintains state in a structure called IndexedBamRead with an index
+value and the read object.
