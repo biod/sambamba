@@ -1,3 +1,8 @@
+## ChangeLog v0.7.0 (20190529)
+
++ Release avoids crashing problem by building with ldc-1.10.0, see https://github.com/biod/sambamba/issues/393
++ Merge pull request #396 from joelmartin/flagstat-return returning 0
+
 ## ChangeLog v0.6.9 (20190313)
 
 + Added support for Picard style sorting, see https://github.com/biod/sambamba/issues/369 - thanks https://github.com/TimurIs

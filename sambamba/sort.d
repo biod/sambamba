@@ -604,7 +604,7 @@ size_t parseMemory(string str) {
         case "GB":
             return sz * 1_000_000_000;
         default:
-            throw new Exception("couldn't parse ", initial_str);
+            throw new Exception("couldn't parse --memory-limit option ", initial_str);
     }
 }
 
