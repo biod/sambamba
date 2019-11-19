@@ -44,7 +44,7 @@ STATIC_LIB_PATH=-Lhtslib -Llz4
 
 all: release
 
-debug:                     DFLAGS += -O0 -d-debug -link-debuglib
+debug:                     DFLAGS += -O0 -d-debug -link-debuglib -L-lz
 
 profile:                           DFLAGS += -fprofile-instr-generate=profile.raw
 

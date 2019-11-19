@@ -17,10 +17,14 @@
 D_COMPILER=ldc2
 BIOD_PATH=./BioD
 
+# DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
+# DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
+
+
 DFLAGS = -wi -I. -I$(BIOD_PATH) -J.
 # DLIBS  = $(LDC_LIB_PATH)/libphobos2-ldc.a $(LDC_LIB_PATH)/libdruntime-ldc.a
 # DLIBS_DEBUG = -debuglib=phobos2-ldc-debug,druntime-ldc-debug $(LDC_LIB_PATH)/libphobos2-ldc-debug.a $(LDC_LIB_PATH)/libdruntime-ldc-debug.a -link-debuglib
-DLIBS_DEBUG = -debuglib=phobos2-ldc-debug-shared,druntime-ldc-debug-shared -link-debuglib -L-lphobos2-ldc-debug-shared -L-ldruntime-ldc-debug-shared
+# DLIBS_DEBUG = -debuglib=phobos2-ldc-debug-shared,druntime-ldc-debug-shared -link-debuglib -L-lphobos2-ldc-debug-shared -L-ldruntime-ldc-debug-shared
 # RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
 RPATH = -L--rpath=$(LIBRARY_PATH)
 LIBS   = htslib/libhts.a -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz lz4/lib/liblz4.a
