@@ -1,14 +1,12 @@
-[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![AnacondaBadge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba) [![BrewBadge](https://img.shields.io/badge/%F0%9F%8D%BAbrew-sambamba-brightgreen.svg)](https://github.com/brewsci/homebrew-bio)
+g[![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![AnacondaBadge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba) [![BrewBadge](https://img.shields.io/badge/%F0%9F%8D%BAbrew-sambamba-brightgreen.svg)](https://github.com/brewsci/homebrew-bio)
 [![GuixBadge](https://img.shields.io/badge/gnuguix-sambamba-brightgreen.svg)](https://www.gnu.org/software/guix/packages/S/)
 [![DebianBadge](https://badges.debian.net/badges/debian/testing/sambamba/version.svg)](https://packages.debian.org/testing/sambamba)
 
-# sambamba
+# SAMBAMBA
 
 Table of Contents
 =================
 
-   * [sambamba](#sambamba)
-      * [Table of Contents](#table-of-contents)
    * [Introduction](#introduction)
    * [Binary installation](#binary-installation)
       * [Install stable release](#install-stable-release)
@@ -40,41 +38,45 @@ Table of Contents
 
 Sambamba is a high performance highly parallel robust and fast tool
 (and library), written in the D programming language, for working with
-SAM and BAM files. Because of its efficiency is an important work
-horse running in many sequencing centres around the world
-today.
+SAM and BAM files. Because of its efficiency Sambamba is an important
+work horse running in many sequencing centres around the world today.
+As of November 2019, Sambamba has been cited over
+[277 times](http://scholar.google.nl/citations?hl=en&user=5ijHQRIAAAAJ)
+and has been installed from Conda over
+[120K times](https://anaconda.org/bioconda/sambamba).
 
 Current functionality is an important subset of samtools
 functionality, including view, index, sort, markdup, and depth. Most
 tools support piping: just specify `/dev/stdin` or `/dev/stdout` as
 filenames. When we started writing sambamba (in 2012) the main
 advantage over `samtools` was parallelized BAM reading and writing.
-In March 2017 `samtools` 1.4 was released, reaching parity on this. A
+In March 2017 `samtools` 1.4 was released, reaching parity at least on
+architecture. A
 [recent performance comparison](https://github.com/guigolab/sambamBench-nf)
-shows that sambamba holds its ground and can do better in different
-configurations. Here are some comparison
+shows that sambamba still holds its ground and can even do better.
+Here are some comparison
 [metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html). For
-example for flagstat sambamba is 1.4x faster than samtools. For index
+example, for flagstat sambamba is 1.4x faster than samtools. For index
 they are similar. For Markdup almost 6x faster and for view 4x
-faster. For sort sambamba has been beaten, though sambamba is up to 2x
-faster than samtools on large RAM machines (120GB+).
+faster. For sort sambamba has been beaten, though sambamba is notably
+up to 2x faster than samtools on large RAM machines (120GB+).
 
 In addition sambamba has a few interesting features to offer, in particular
 
-- faster large machine `sort`, see [performance](./test/benchmark/stats.org)
+- fast large machine `sort`, see [performance](./test/benchmark/stats.org)
 - automatic index creation when writing any coordinate-sorted file
 - `view -L <bed file>` utilizes BAM index to skip unrelated chunks
 - `depth` allows to measure base, sliding window, or region coverages
   - [Chanjo](https://www.chanjo.co/) builds upon this and gets you to exon/gene levels of abstraction
 - `markdup`, a fast implementation of Picard algorithm
 - `slice` quickly extracts a region into a new file, tweaking only first/last chunks
-- and more
+- and more (you'll have to try)
 
 Even though Sambamba started out as a samtools clone we are now in the
 process of adding new functionality - also in the
 [BioD project](https://github.com/biod/BioD). The D language is
-extremely suitable for high performance computing. At this point we
-think that the BAM format is here to stay for processing sequencing
+extremely suitable for high performance computing (HPC). At this point
+we think that the BAM format is here to stay for processing sequencing
 data and we aim to make it easy to parse and process BAM files.
 
 Sambamba is free and open source software, licensed under GPLv2+.
@@ -289,7 +291,8 @@ command). A full stacktrace for all threads:
 thread apply all backtrace full
 ```
 
-Note that GDB should be made aware of D garbage collector:
+Note that GDB should be made aware of D garbage collector which emits
+SIGUSR signals and gdb needs to ignore them with
 
 ```
 handle SIGUSR1 SIGUSR2 nostop noprint
@@ -313,13 +316,14 @@ gdb -ex 'handle SIGUSR1 SIGUSR2 nostop noprint' \
 <a name="license"></a>
 # License
 
-Sambamba is distributed under GNU Public License v2+.
+Sambamba is generously distributed under GNU Public License v2+.
 
 <a name="credits"></a>
 # Credit
 
-If you are using Sambamba in your research and want to support future
-work on Sambamba, please cite the following publication:
+Citations are the bread and butter of Science.  If you are using
+Sambamba in your research and want to support our future work on
+Sambamba, please cite the following publication:
 
 A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. [Sambamba: fast processing of NGS alignment formats](https://doi.org/10.1093/bioinformatics/btv098). Bioinformatics, 2015.
 
