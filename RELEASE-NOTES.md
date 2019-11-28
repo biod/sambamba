@@ -1,3 +1,8 @@
+## ChangeLog v0.7.1 (20191128)
+
++ Fixed major segfault problem that got introduced after ldc 1.10, see https://github.com/biod/sambamba/issues/393
++ make error message more informative - see https://github.com/biod/sambamba/pull/411/files, thanks https://github.com/EwaMarek
+
 ## ChangeLog v0.7.0 (20190529)
 
 + Release avoids crashing problem by building with ldc-1.10.0, see https://github.com/biod/sambamba/issues/393
