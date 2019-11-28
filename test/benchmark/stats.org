@@ -1,5 +1,11 @@
 * Performance metrics
 
+Download the test BAM file from https://www.internationalgenome.org/
+
+wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00100/alignment/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
+
+
+
 ** View
 *** 4x Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz (hyperthreaded)
 **** sambamba 0.6.8-pre3
@@ -332,3 +338,55 @@ total time elapsed: 1 min 4 sec
         Page size (bytes): 4096
         Exit status: 0
 #+END_SRC
+
+*** 8x Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz (Thinkpad T480)
+
+: /usr/bin/time --verbose ./bin/sambamba-0.7.1 "--DRT-gcopt=profile:1" markdup HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam test.bam
+
+**** sambamba 0.7.1
+
+Commit 5f52f04aae3de1dce2d13b9e748002b4e513ded0
+
+#+BEGIN_EXAMPLE
+ by Artem Tarasov and Pjotr Prins (C) 2012-2019
+    LDC 1.17.0 / DMD v2.087.1 / LLVM8.0.1 / bootstrap LDC - the LLVM D compiler (1.17.0)
+
+finding positions of the duplicate reads in the file...
+  sorted 3969781 end pairs
+     and 73839 single ends (among them 22397 unmatched pairs)
+  collecting indices of duplicate reads...   done in 372 ms
+  found 239673 duplicates
+collected list of positions in 0 min 6 sec
+marking duplicates...
+collected list of positions in 0 min 22 sec
+        Number of collections:  107
+        Total GC prep time:  10 milliseconds
+        Total mark time:  548 milliseconds
+        Total sweep time:  26 milliseconds
+        Max Pause Time:  10 milliseconds
+        Grand total GC time:  585 milliseconds
+GC summary: 1158 MB,  107 GC  585 ms, Pauses  558 ms <   10 ms
+        Command being timed: "./bin/sambamba-0.7.1 --DRT-gcopt=profile:1 markdup HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam test2.bam"
+        User time (seconds): 136.00
+        System time (seconds): 2.39
+        Percent of CPU this job got: 583%
+        Elapsed (wall clock) time (h:mm:ss or m:ss): 0:23.70
+        Average shared text size (kbytes): 0
+        Average unshared data size (kbytes): 0
+        Average stack size (kbytes): 0
+        Average total size (kbytes): 0
+        Maximum resident set size (kbytes): 1282940
+        Average resident set size (kbytes): 0
+        Major (requiring I/O) page faults: 0
+        Minor (reclaiming a frame) page faults: 396600
+        Voluntary context switches: 199806
+        Involuntary context switches: 5017
+        Swaps: 0
+        File system inputs: 16
+        File system outputs: 1967376
+        Socket messages sent: 0
+        Socket messages received: 0
+        Signals delivered: 0
+        Page size (bytes): 4096
+        Exit status: 0
+#+END_EXAMPLE

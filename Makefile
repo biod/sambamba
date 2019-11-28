@@ -32,8 +32,8 @@ DFLAGS      = -wi -I. -IBioD -g -J.
 
 DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
-LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lpthread -L-lm
-LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LIBRARY_PATH)/liblz4.a
+LIBS        = htslib/libhts.a lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lpthread -L-lm -L-lz
+LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) htslib/libhts.a $(LIBRARY_PATH)/liblz4.a -L-lz
 SRC         = utils/ldc_version_info_.d utils/lz4.d utils/strip_bcf_header.d $(sort $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d)) utils/version_.d $(sort $(wildcard thirdparty/*.d cram/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d))
 OBJ         = $(SRC:.d=.o)
 OUT         = bin/sambamba-$(shell cat VERSION)
@@ -44,13 +44,13 @@ STATIC_LIB_PATH=-Lhtslib -Llz4
 
 all: release
 
-debug:                     DFLAGS += -O0 -d-debug -link-debuglib -L-lz
+debug:                             DFLAGS += -O0 -d-debug -link-debuglib
 
 profile:                           DFLAGS += -fprofile-instr-generate=profile.raw
 
 coverage:                          DFLAGS += -cov
 
-release static pgo-static:         DFLAGS += -O3 -release -enable-inlining -boundscheck=off
+release static pgo-static:         DFLAGS += -O3 -release -enable-inlining -boundscheck=off -L-lz
 
 static:                            DFLAGS += -static -L-Bstatic
 

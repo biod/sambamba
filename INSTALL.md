@@ -26,3 +26,9 @@ and run our development setup (gold was added lately by ldc)
     make check
 
 this way all dependencies are isolated.
+
+## Build Sambamba with Debian
+
+Make sure the environment is minimal with something like
+
+    env -i /bin/bash --login --noprofile --norc
