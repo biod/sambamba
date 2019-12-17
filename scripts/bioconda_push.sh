@@ -2,7 +2,7 @@ RECIPES=~/github/bioconda-recipes # location of the cloned fork
 REMOTE=bioconda                   # bioconda/bioconda-recipes remote
 
 UPDATED_RECIPE=/tmp/sambamba.yaml
-python bioconda_yaml_gen.py > $UPDATED_RECIPE
+python3 bioconda_yaml_gen.py > $UPDATED_RECIPE
 VERSION=`grep version $UPDATED_RECIPE | cut -d\' -f2`
 
 cd $RECIPES

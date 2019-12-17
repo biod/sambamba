@@ -1,6 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from __future__ import print_function
 import re, sys, subprocess
 
 if len(sys.argv) < 2:
