@@ -16,6 +16,7 @@ shunit*
 /*.cram
 /*.crai
 /*.txt
+!meson_options.txt
 *.hex
 *.zcat
 *.out
