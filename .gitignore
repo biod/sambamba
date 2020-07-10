@@ -7,7 +7,7 @@ undeaD/
 lz4/
 core
 bin/
-test*
+test.log
 build/
 shunit*
 /*.sam
