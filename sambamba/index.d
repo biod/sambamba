@@ -65,6 +65,7 @@ int index_main(string[] args) {
     bool is_fasta;
     string out_filename = null;
 
+    // Getopt removes parsed arguments
     getopt(args,
            std.getopt.config.caseSensitive,
            "show-progress|p", &show_progress,
@@ -74,16 +75,19 @@ int index_main(string[] args) {
            "fasta-input|F",    &is_fasta);
 
     try {
-        if (args.length < 2 || args.length > 3) {
+        // args = ["sambamba", "input.bam", "output.bai"]
+        if (args.length != 2 && args.length != 3) {
             printUsage();
             return 0;
         }
+
+        string input_filename = args[1];
 
         if (!is_cram && !is_fasta) {
             if (args.length > 2)
                 out_filename = args[2];
             else
-                out_filename = args[1] ~ ".bai";
+                out_filename = input_filename ~ ".bai";
 
             // default taskPool uses only totalCPUs-1 threads,
             // but in case of indexing the most time is spent
@@ -95,7 +99,7 @@ int index_main(string[] args) {
             auto task_pool = new TaskPool(n_threads);
             scope(exit) task_pool.finish();
 
-            auto bam = new BamReader(args[1], task_pool);
+            auto bam = new BamReader(input_filename, task_pool);
             bam.assumeSequentialProcessing();
             Stream stream = new BufferedFile(out_filename, FileMode.Out);
             scope(exit) stream.close();
@@ -108,24 +112,24 @@ int index_main(string[] args) {
                 createIndex(bam, stream, check_bins);
             }
         } 
-        else if(!is_fasta) {
+        else if(is_cram) {
             if (show_progress)
                 stderr.writeln("[info] progressbar is unavailable for CRAM input");
             defaultPoolThreads = 0; // decompression not needed for CRAM
-            auto cram = new CramReader(args[1], taskPool);
+            auto cram = new CramReader(input_filename, taskPool);
             cram.createIndex(args[$-1]);
         }
-        else {
+        else if(is_fasta) {
             stderr.writeln("Indexing FASTA file...");
             if (show_progress)
                 stderr.writeln("[info] progressbar is unavailable for FASTA input"); 
             if (args.length > 2)
                 out_filename = args[2];
             else
-                out_filename = args[1] ~ ".fai";
+                out_filename = input_filename ~ ".fai";
             
             string records;
-            foreach(FaiRecord rec; buildFai(args[1]))
+            foreach(FaiRecord rec; buildFai(input_filename))
                 records ~= rec.toString() ~ '\n';
                 
             std.file.write(out_filename, records);
