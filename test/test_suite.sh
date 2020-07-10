@@ -220,6 +220,15 @@ testIssue356(){
     assertEquals 0 $?
 }
 
+testFastaIndex(){
+    # check input and output are from here: http://www.htslib.org/doc/faidx.html
+    $sambamba $opts index -F test/test.fasta $outdir/res.fai
+    command_res=`cat $outdir/res.fai`
+    # note that trailing '\n' is omitted
+    expected=$(printf "one\t66\t5\t30\t31\ntwo\t28\t98\t14\t15\n")
+    assertEquals "$expected" "$command_res"
+}
+
 shunit2=`which shunit2`
 if [ -x "$shunit2" ]; then
     . $shunit2
