@@ -23,3 +23,5 @@ shunit*
 /utils/ldc_version_info_.d
 profile.data
 profile.raw
+output
+builddir
