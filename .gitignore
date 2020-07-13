@@ -7,7 +7,7 @@ undeaD/
 lz4/
 core
 bin/
-test*
+test.log
 build/
 shunit*
 /*.sam
@@ -23,3 +23,5 @@ shunit*
 /utils/ldc_version_info_.d
 profile.data
 profile.raw
+output
+builddir

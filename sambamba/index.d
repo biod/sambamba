@@ -24,17 +24,19 @@ import contrib.undead.stream;
 import std.range;
 import std.parallelism;
 import std.getopt;
+import std.file;
 import cram.reader;
 
 import sambamba.utils.common.progressbar;
 
 import bio.std.hts.bam.bai.indexing;
 import bio.std.hts.bam.reader;
+import bio.std.file.fai;
 
 void printUsage() {
-    stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam|input.cram> [output_file]");
+    stderr.writeln("Usage: sambamba-index [OPTIONS] <input.bam|input.cram|input.fasta> [output_file]");
     stderr.writeln();
-    stderr.writeln("\tCreates index for a BAM or CRAM file");
+    stderr.writeln("\tCreates index for a BAM, CRAM or FASTA file");
     stderr.writeln();
     stderr.writeln("Options: -t, --nthreads=NTHREADS");
     stderr.writeln("               number of threads to use for decompression");
@@ -44,6 +46,8 @@ void printUsage() {
     stderr.writeln("               check that bins are set correctly");
     stderr.writeln("         -C, --cram-input");
     stderr.writeln("               specify that input is in CRAM format");
+    stderr.writeln("         -F, --fasta-input");
+    stderr.writeln("               specify that input is in FASTA format");
 }
 
 version(standalone) {
@@ -58,26 +62,32 @@ int index_main(string[] args) {
     bool check_bins;
     uint n_threads = totalCPUs;
     bool is_cram;
+    bool is_fasta;
     string out_filename = null;
 
+    // Getopt removes parsed arguments
     getopt(args,
            std.getopt.config.caseSensitive,
            "show-progress|p", &show_progress,
            "nthreads|t",      &n_threads,
            "check-bins|c",    &check_bins,
-           "cram-input|C",    &is_cram);
+           "cram-input|C",    &is_cram,
+           "fasta-input|F",    &is_fasta);
 
     try {
-        if (args.length < 2 || args.length > 3) {
+        // args = ["sambamba", "input.bam", "output.bai"]
+        if (args.length != 2 && args.length != 3) {
             printUsage();
             return 0;
         }
 
-        if (!is_cram) {
+        string input_filename = args[1];
+
+        if (!is_cram && !is_fasta) {
             if (args.length > 2)
                 out_filename = args[2];
             else
-                out_filename = args[1] ~ ".bai";
+                out_filename = input_filename ~ ".bai";
 
             // default taskPool uses only totalCPUs-1 threads,
             // but in case of indexing the most time is spent
@@ -89,7 +99,7 @@ int index_main(string[] args) {
             auto task_pool = new TaskPool(n_threads);
             scope(exit) task_pool.finish();
 
-            auto bam = new BamReader(args[1], task_pool);
+            auto bam = new BamReader(input_filename, task_pool);
             bam.assumeSequentialProcessing();
             Stream stream = new BufferedFile(out_filename, FileMode.Out);
             scope(exit) stream.close();
@@ -101,12 +111,29 @@ int index_main(string[] args) {
             } else {
                 createIndex(bam, stream, check_bins);
             }
-        } else {
+        } 
+        else if(is_cram) {
             if (show_progress)
                 stderr.writeln("[info] progressbar is unavailable for CRAM input");
             defaultPoolThreads = 0; // decompression not needed for CRAM
-            auto cram = new CramReader(args[1], taskPool);
+            auto cram = new CramReader(input_filename, taskPool);
             cram.createIndex(args[$-1]);
+        }
+        else if(is_fasta) {
+            stderr.writeln("Indexing FASTA file...");
+            if (show_progress)
+                stderr.writeln("[info] progressbar is unavailable for FASTA input"); 
+            if (args.length > 2)
+                out_filename = args[2];
+            else
+                out_filename = input_filename ~ ".fai";
+            
+            string records;
+            foreach(FaiRecord rec; buildFai(input_filename))
+                records ~= rec.toString() ~ '\n';
+                
+            std.file.write(out_filename, records);
+            
         }
     } catch (Throwable e) {
         stderr.writeln("sambamba-index: ", e.msg);
@@ -115,3 +142,4 @@ int index_main(string[] args) {
     }
     return 0;
 }
+
