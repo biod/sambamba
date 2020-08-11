@@ -12,8 +12,8 @@
 
 ## Install Sambamba from source
 
-After checking out the source from github with git submodules is is
-possibleto install the build tools with GNU Guix
+After checking out the source from github with git submodules it is
+possible to install the build tools with GNU Guix
 
     guix package -i gcc-toolchain gdb bash ld-wrapper ldc which python git
 
