@@ -1,7 +1,7 @@
 /*
    This file is part of BioD.
    Copyright (C) 2016   George Githinji <biorelated@gmail.com>
-   Copyright (C) 2018   Emilio Palumbo <emiliopalumbo@gmail.com> 
+   Copyright (C) 2018   Emilio Palumbo <emiliopalumbo@gmail.com>
    Permission is hereby granted, free of charge, to any person obtaining a
    copy of this software and associated documentation files (the "Software"),
    to deal in the Software without restriction, including without limitation
@@ -81,7 +81,7 @@ auto readFai(string filename) {
 unittest {
     auto faiString = "chr2\t10\t4\t50\t51";
     auto testIndex = tempDir.buildPath("test.fa.fai");
-    scope(exit) testIndex.remove;
+    // scope(exit) testIndex.remove;
     File(testIndex, "w").writeln(faiString);
     auto recs = readFai(testIndex).array;
     assert(recs.length == 1);
@@ -89,7 +89,7 @@ unittest {
     assert(recs[0].toString() == faiString);
 }
 
-auto makeIndex(T)(T records) {   
+auto makeIndex(T)(T records) {
     FaiRecord[string] index;
     foreach (record; records) {
         index[record.header] = record;
@@ -108,7 +108,7 @@ unittest {
 auto buildFai(string filename) {
 
     File f = File(filename, "r");
-    FaiRecord[] records; 
+    FaiRecord[] records;
     string lineTerm = f.byLine(KeepTerminator.yes).take(1).front.endsWith("\r\n") ? "\r\n" : "\n";
     f.seek(0);
     ulong offset;
