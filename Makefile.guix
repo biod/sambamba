@@ -101,7 +101,7 @@ test:	clean-tests
 biod:
 	cd $(BIOD_PATH)/src_ragel && make
 
-check: all test
+check: all debug test
 
 debug-strip: debug
 	objcopy --only-keep-debug bin/sambamba sambamba.debug
