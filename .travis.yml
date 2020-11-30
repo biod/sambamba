@@ -2,11 +2,15 @@ language: d
 d:
   - ldc
 matrix:
-  # OSX testing is under development
+  # ARM64 testing is under development
   allow_failures:
     - os: osx
   include:
     - os: linux
+      compiler: gcc
+    - os: linux
+      arch:
+        - arm64
       compiler: gcc
     - os: osx
       compiler: clang
