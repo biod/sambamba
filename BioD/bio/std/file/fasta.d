@@ -36,26 +36,26 @@ import std.path;
 import std.file;
 import bio.std.file.fai;
 
-/* 
-  A text-based single-letter format for representing 
+/*
+  A text-based single-letter format for representing
   nucleotide (nt) and amino-acid (aa) sequences.
 
   The ">" symbol/character marks the start of a fasta entry.
-  Each fasta entry comprise of an alphanumeric definition line followed by a 
+  Each fasta entry comprise of an alphanumeric definition line followed by a
   newline character and a single or multiline sequence of IUPAC codes used to
   represent nucleotide or amino-acid sequences.
 
-  An example of a nucleotide fasta file 
-  
+  An example of a nucleotide fasta file
+
   >Entry1_ID header field1|field2|...
   TTGACGGGTTTTTGTCCTGATT
- 
+
   >Entry2_ID header field1|field2|...
   ATTTTGGGTTACTGTTGGTTTTTGGGC
 
-  TODO: 
+  TODO:
  1. Allow reading gzipped fasta files.
- 
+
 */
 
 struct FastaRecord {
@@ -63,8 +63,8 @@ struct FastaRecord {
     string sequence;
     ulong lineLen;
     string lineTerm = "\n";
-    
-    // split the header to array of fields 
+
+    // split the header to array of fields
     @property string[] headerFields(){
         return split(header, "|").map!strip.array;
     }
@@ -83,7 +83,7 @@ struct FastaRecord {
         seq~=sequence[i-lineLen..$];
         return format(">%s\n%s", header, seq);
     }
-   
+
     unittest {
         auto recString = q"(
             >chr2
@@ -106,7 +106,7 @@ struct Region {
     @property len() {
         return end - beg;
     }
-    
+
     string toString() {
         if ( end == 0 ) {
             if ( beg == 0 )
@@ -116,7 +116,7 @@ struct Region {
         }
         return format("%s:%s-%s", reference, beg+1, end);
     }
-    
+
     this(string q) {
         auto res = q.split(":");
         reference = res[0];
@@ -158,7 +158,7 @@ struct Region {
 auto fastaRecords(string filename) {
 
     File f = File(filename);
-    FastaRecord[] records; 
+    FastaRecord[] records;
     string lineTerm = f.byLine(KeepTerminator.yes).take(1).front.endsWith("\r\n") ? "\r\n" : "\n";
     f.seek(0);
     ulong offset;
@@ -175,14 +175,17 @@ auto fastaRecords(string filename) {
             records[$-1].sequence ~= line;
         }
     }
+    f.close();
 
     return records;
 }
 
 unittest {
-    auto testFa = tempDir.buildPath("test.fa");
-    scope(exit) testFa.remove;
-    File(testFa, "w").writeln(q"(
+    auto testFa = tempDir.buildPath("test2.fa");
+    // scope(exit) testFa.remove;
+
+    auto f = File(testFa, "w");
+    f.writeln(q"(
         >chr1
         acgtgagtgc
         >chr2
@@ -191,6 +194,7 @@ unittest {
         >chr3 hrsv | Kilifi | partial sequence
         CATGTTATTACAAGTAGTGATATTTGCCCTAATAATAATATTGTAGTGAAATCCAATTTCACAACAATGC
     )".outdent().strip());
+    f.close();
     auto records = fastaRecords(testFa);
     assert ( records.length == 3 );
     assert ( records[0].header == "chr1" );
@@ -218,7 +222,9 @@ auto fastaRegions(string filename, string[] queries) {
     File f = File(filename);
     FaiRecord[string] index = makeIndex(readFai(filename~=".fai"));
     Region[] regions = to!(Region[])(queries);
-    return fetchFastaRegions(f, index, regions);
+    auto res = fetchFastaRegions(f, index, regions);
+    f.close();
+    return res;
 }
 
 auto fetchFastaRegions(File fasta, FaiRecord[string] index, Region[] regions) {
@@ -232,7 +238,7 @@ auto fetchFastaRegions(File fasta, FaiRecord[string] index, Region[] regions) {
             auto reference = index[region.reference];
             fasta.seek(reference.offset+region.beg+region.beg/reference.lineLen);
             size_t bufLen;
-            if ( region.end == 0 ) 
+            if ( region.end == 0 )
                 bufLen = reference.seqLen + reference.seqLen/reference.lineLen;
             else
                 bufLen = region.len + region.len/reference.lineLen;
@@ -242,27 +248,31 @@ auto fetchFastaRegions(File fasta, FaiRecord[string] index, Region[] regions) {
         records ~= FastaRecord(region.to!string, seq, len);
     }
 
-    return records;    
+    return records;
 }
 
 unittest {
-    auto testFa = tempDir.buildPath("test.fa");
-    scope(exit) testFa.remove;
-    File(testFa, "w").writeln(q"(
+  auto testFa = tempDir.buildPath("test3.fa");
+  // scope(exit) remove(testFa);
+  auto fa = File(testFa,"w");
+  fa.writeln(q"(
         >chr1
         acgtgagtgc
         >chr2
         acgtgagtgcacgtgagtgcacgtgagtgc
         acgtgagtgcacgtgagtgc
     )".outdent().strip());
-    auto faiString = "
+  fa.close();
+  auto faiString = "
         chr1\t10\t6\t10\t11
         chr2\t50\t23\t30\t31
     ".outdent().strip();
-    auto testIndex = tempDir.buildPath("test.fa.fai");
-    scope(exit) testIndex.remove;
-    File(testIndex, "w").writeln(faiString);
-    
+  auto testIndex = tempDir.buildPath("test3.fa.fai");
+  // scope(exit) testIndex.remove;
+  auto f2 = File(testIndex,"w");
+  f2.writeln(faiString);
+  f2.close();
+
     auto regions = fastaRegions(testFa, ["chr1:4-6", "chr2:36-45"]);
     assert ( regions.length == 2 );
     assert ( regions[0].header == "chr1:4-6" );
@@ -273,14 +283,14 @@ unittest {
     assert ( regions[1].len == 10 );
     assert ( regions[1].sequence == "agtgcacgtg" );
     assert ( regions[1].lineLen == 30 );
-    
+
     regions = fastaRegions(testFa, ["chr1"]);
     assert ( regions.length == 1 );
     assert ( regions[0].header == "chr1" );
-    assert ( regions[0].len == 10 );
+    assert ( regions[0].len == 10, regions[0].toString() );
     assert ( regions[0].sequence == "acgtgagtgc" );
-    assert ( regions[0].lineLen == 10 );
-    
+    assert ( regions[0].lineLen == 10, regions[0].toString() );
+
     regions = fastaRegions(testFa, ["chr2"]);
     assert ( regions.length == 1 );
     assert ( regions[0].header == "chr2" );

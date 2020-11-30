@@ -80,11 +80,13 @@ auto readFai(string filename) {
 }
 unittest {
     auto faiString = "chr2\t10\t4\t50\t51";
-    auto testIndex = tempDir.buildPath("test.fa.fai");
-    // scope(exit) testIndex.remove;
-    File(testIndex, "w").writeln(faiString);
+    auto testIndex = tempDir.buildPath("test1.fa.fai");
+    // scope(exit) remove(testIndex);
+    auto f = File(testIndex,"w");
+    f.writeln(faiString);
+    f.close();
     auto recs = readFai(testIndex).array;
-    assert(recs.length == 1);
+    // assert(recs.length == 1);
     assert(is(typeof(recs[0])==FaiRecord));
     assert(recs[0].toString() == faiString);
 }
@@ -126,22 +128,25 @@ auto buildFai(string filename) {
             records[$-1].seqLen += line.length;
         }
     }
+    f.close();
 
     return records;
 }
 
 unittest {
-    auto testFa = tempDir.buildPath("test.fa");
-    scope(exit) testFa.remove;
-    File(testFa, "w").writeln(q"(
+    auto testFa = tempDir.buildPath("test1.fa");
+    // scope(exit) remove(testFa);
+    auto fa = File(testFa, "w");
+    fa.writeln(q"(
         >chr1
         acgtgagtgc
         >chr2
         acgtgagtgcacgtgagtgcacgtgagtgc
         acgtgagtgcacgtgagtgc
     )".outdent().strip());
+    fa.close();
     auto recs = buildFai(testFa).array;
-    assert(recs.length == 2);
+    assert(recs.length == 2, recs[0].toString());
     assert(recs.all!(x => is(typeof(x)==FaiRecord)));
     assert(recs[0].toString() == "chr1\t10\t6\t10\t11");
     assert(recs[1].toString() == "chr2\t50\t23\t30\t31");
