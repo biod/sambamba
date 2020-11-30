@@ -7,7 +7,7 @@ limited because it was using essentially the same htslib backend as
 samtools. Removing the htslib dependency removes one maintenance
 headache. See also https://github.com/biod/sambamba/issues/425
 
-+ Removed CRAM support and htslib dependency
++ Removed CRAM support and htslib dependency with ec78eabfbdebd620cf5d4a4d8232692184eacbf7
 
 ## ChangeLog v0.7.1 (20191128)
 

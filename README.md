@@ -34,14 +34,16 @@ Table of Contents
 <a name="intro"></a>
 # Introduction
 
+
 Sambamba is a high performance highly parallel robust and fast tool
 (and library), written in the D programming language, for working with
 SAM and BAM files. Because of its efficiency Sambamba is an important
 work horse running in many sequencing centres around the world today.
-As of November 2019, Sambamba has been cited over
-[277 times](http://scholar.google.nl/citations?hl=en&user=5ijHQRIAAAAJ)
-and has been installed from Conda over
-[120K times](https://anaconda.org/bioconda/sambamba).
+As of November 2020, Sambamba has been cited over [450
+times](http://scholar.google.nl/citations?hl=en&user=5ijHQRIAAAAJ) and
+has been installed from Conda over [180K
+times](https://anaconda.org/bioconda/sambamba). Sambamba is also
+distributed by [Debian](https://packages.debian.org/testing/sambamba).
 
 Current functionality is an important subset of samtools
 functionality, including view, index, sort, markdup, and depth. Most
@@ -82,6 +84,14 @@ See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-vi
 to know more about what is available and how to use it.
 
 For more information on Sambamba contact the mailing list (see [Getting help](#getting-help)).
+
+## No CRAM support
+
+**Important notice: with version 0.8 support for CRAM was removed from
+Sambamba (see the [RELEASE NOTES](./RELEASE-NOTES.md))**
+
+To use CRAM you can still use one of the older (binary)
+[releases](https://github.com/biod/sambamba/releases) of Sambamba.
 
 <a name="install"></a>
 # Binary installation
@@ -180,7 +190,7 @@ Note: in general there is no need to compile sambamba. You can use a
 recent binary install as listed above.
 
 The preferred method for compiling Sambamba is with the LDC compiler
-which targets LLVM. LLVM versions 6 is faster than earlier editions.
+which targets LLVM. LLVM version 6 is faster than earlier editions.
 
 ## Compilation dependencies
 
@@ -223,13 +233,16 @@ See also [INSTALL.md](./INSTALL.md).
 
 ### GNU Guix
 
-To build sambamba the LDC compiler is also available in GNU Guix:
+Our development and release environment is GNU Guix.  To build
+sambamba the LDC compiler is also available in GNU Guix:
 
 ```sh
-guix package -i ldc
+guix package -A ldc
 ```
 
-## Compiling for Mac OS X
+For more instructions see [INSTALL.md](./INSTALL.md).
+
+## Compiling for MacOS
 
 Sambamba builds on MacOS. We have a Travis [integration test](https://travis-ci.org/pjotrp/sambamba) as
 an example. It can be something like
@@ -254,10 +267,11 @@ documentation](https://github.com/biod/sambamba-dev-docs).
 
 ## Segfaults on certain Intel Xeons
 
-Important note: some popular Xeon processors segfault under heavy
-hyper threading - which Sambamba utilizes.  Please read
+Important note: some older Xeon processors segfault under heavy hyper
+threading - which Sambamba utilizes.  Please read
 [this](https://blog.cloudflare.com/however-improbable-the-story-of-a-processor-bug/)
-when encountering seemingly random crashes.
+when encountering seemingly random crashes. There is no real fix other
+than disabling hyperthreading. Also discussed [here](https://github.com/biod/sambamba/issues/335). Thank Intel for producing this bug.
 
 ## Dump core
 
