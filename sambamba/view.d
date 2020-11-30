@@ -29,7 +29,6 @@ import bio.core.region;
 import bio.core.utils.format;
 
 import bio.std.hts.sam.reader;
-import cram.reader;
 
 import sambamba.utils.common.filtering;
 import sambamba.utils.common.overwrite;
@@ -63,7 +62,7 @@ Options: -F, --filter=FILTER
          --num-filter=NUMFILTER
                     filter flag bits; 'i1/i2' corresponds to -f i1 -F i2 samtools arguments;
                     either of the numbers can be omitted
-         -f, --format=sam|bam|cram|json|unpack
+         -f, --format=sam|bam|json|unpack
                     specify which format to use for output (default is SAM);
                     unpack streams unpacked BAM
          -h, --with-header
@@ -80,10 +79,8 @@ Options: -F, --filter=FILTER
                     output only valid alignments
          -S, --sam-input
                     specify that input is in SAM format
-         -C, --cram-input
-                    specify that input is in CRAM format
          -T, --ref-filename=FASTA
-                    specify reference for writing CRAM
+                    specify reference for writing (NA)
          -p, --show-progress
                     show progressbar in STDERR (works only for BAM files with no regions specified)
          -l, --compression-level
@@ -110,7 +107,7 @@ void outputReferenceInfoJson(T)(T bam) {
         } else {
             w.put(',');
         }
-        w.put(`{"name":`);
+        w.put(`"{name":`);
         writeJson((const(char)[] s) { w.put(s); }, refseq.name);
         w.put(`,"length":`);
         writeJson((const(char)[] s) { w.put(s); }, refseq.length);
@@ -180,7 +177,6 @@ int view_main(string[] args) {
                "count|c",             &count_only,
                "valid|v",             &skip_invalid_alignments,
                "sam-input|S",         &is_sam,
-               "cram-input|C",        &is_cram, // TODO: autodetection of format
                "show-progress|p",     &show_progress,
                "compression-level|l", &compression_level,
                "output-filename|o",   &output_filename,
@@ -223,9 +219,6 @@ int view_main(string[] args) {
         } else if (!is_cram) {
           auto bam = new BamReader(args[1], task_pool);
           return sambambaMain(bam, task_pool, args, output_file);
-        } else {
-          auto cram = new CramReader(args[1], task_pool);
-          return sambambaMain(cram, task_pool, args, output_file);
         }
     } catch (Exception e) {
           stderr.writeln("sambamba-view: ", e.msg);
@@ -235,8 +228,9 @@ int view_main(string[] args) {
           }
 
           return 1;
-        }
     }
+    return 0;
+}
 
 auto filtered(R)(R reads, Filter f) {
   return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!q{a[0]}();
@@ -340,7 +334,7 @@ auto filtered(R)(R reads, Filter f) {
             }
         } else {
         // for BAM/CRAM, random access is available
-        static if (is(T == BamReader) || is(T == CramReader)) {
+        static if (is(T == BamReader)) {
             if (args.length > 2) {
                 auto regions = map!parseRegion(args[2 .. $]);
 
@@ -366,13 +360,9 @@ auto filtered(R)(R reads, Filter f) {
                 auto reads = joiner(alignment_ranges);
                 runProcessor(bam, reads, read_filter);
             } else if (bed_filename.length > 0) {
-                static if (is(T == CramReader)) {
-                    throw new Exception("BED support is unavailable for CRAM");
-                } else {
                     auto regions = parseBed(bed_filename, bam);
                     auto reads = bam.getReadsOverlapping(regions);
                     runProcessor(bam, reads, read_filter);
-                }
             }
         }
         }
@@ -393,10 +383,6 @@ auto filtered(R)(R reads, Filter f) {
             return processAlignments(new BamSerializer(output_filename,
                                                        output_file,
                                                        compression_level, pool));
-        } else if (format == "cram") {
-            output_file.close();
-            return processAlignments(new CramSerializer(output_filename, ref_fn,
-                                                        n_threads));
         }
 
         scope (exit) output_file.close();
@@ -408,7 +394,7 @@ auto filtered(R)(R reads, Filter f) {
             case "msgpack":
                 return processAlignments(new MsgpackSerializer(output_file));
             default:
-                stderr.writeln("output format must be one of sam, bam, cram, json");
+                stderr.writeln("output format must be one of sam, bam, json");
                 return 1;
         }
     }

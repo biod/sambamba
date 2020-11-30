@@ -1,3 +1,14 @@
+
+## ChangeLog v0.8.0 (2020??)
+
+Maintainance release and bug fixes: this is a special release where we
+removed all CRAM support. The added value of CRAM in sambamba was
+limited because it was using essentially the same htslib backend as
+samtools. Removing the htslib dependency removes one maintenance
+headache. See also https://github.com/biod/sambamba/issues/425
+
++ Removed CRAM support and htslib dependency
+
 ## ChangeLog v0.7.1 (20191128)
 
 + Fixed major segfault problem that got introduced after ldc 1.10, see https://github.com/biod/sambamba/issues/393

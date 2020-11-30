@@ -54,7 +54,7 @@ Usage: sambamba [command] [args...]
   Available commands:
 
     view        view contents and convert from one format
-                to another (SAM/BAM/CRAM/JSON/UNPACK)
+                to another (SAM/BAM/JSON/UNPACK)
     index       build index (BAI)
     merge       merge files (BAM)
     sort        sort file (BAM)

@@ -59,13 +59,6 @@ utils_src = [
 ]
 
 cram_src = [
-    'cram/exception.d',
-    'cram/htslib.d',
-    'cram/reader.d',
-    'cram/reference.d',
-    'cram/slicereader.d',
-    'cram/wrappers.d',
-    'cram/writer.d'
 ]
 
 thirdparty_src = [
@@ -90,7 +83,6 @@ manpages = [
 #
 biod_dep   = dependency('biod', version: '>=0.1.0', static: true)
 lz4_dep    = dependency('liblz4')
-htslib_dep = dependency('htslib', version: '>=1.3.2')
 
 #
 # Configure
@@ -121,7 +113,6 @@ sambamba_exe = executable('sambamba',
      version_info_d_fname],
     dependencies: [biod_dep,
                    lz4_dep,
-                   htslib_dep],
     d_args: extra_dflags,
     d_import_dirs: [include_directories('.')],
     install: true

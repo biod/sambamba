@@ -3,12 +3,8 @@
 ## Sambamba dependencies
 
 * D compiler (ldc)
-* BioD (git submodule)
-* gcc tool chain (for htslib and lz4)
-* htslib (git submodule)
-* undeaD (git submodule)
+* gcc tool chain (for lz4)
 * libz
-* liblz4
 
 ## Install Sambamba from source
 
@@ -22,13 +18,20 @@ and run our development setup (gold was added lately by ldc)
 
     guix environment -C guix --ad-hoc gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim
     make clean
-    make -j 4
-    make check
+    make -f Makefile.guix -j 4
+    make -f Makefile.guix check
 
-this way all dependencies are isolated.
+this way all dependencies are isolated. To create a static release use
 
-## Build Sambamba with Debian
+    make static
 
-Make sure the environment is minimal with something like
+## Development
 
-    env -i /bin/bash --login --noprofile --norc
+We use GNU Guix containers for development. Install Guix and run a build
+container with
+
+    . .guix-build
+    make -f Makefile.guix
+    make -f Makefile.guix check
+
+Note that this also works in the emacs shell.

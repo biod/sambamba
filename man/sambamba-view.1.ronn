@@ -1,24 +1,23 @@
-sambamba-view(1) -- tool for extracting information from SAM/BAM/CRAM files
+sambamba-view(1) -- tool for extracting information from SAM/BAM files
 ======================================================================
 
 ## SYNOPSIS
 
-`sambamba view` [OPTIONS] <input.bam | input.sam | input.cram> [region1 [...]]
+`sambamba view` [OPTIONS] <input.bam | input.sam> [region1 [...]]
 
 ## DESCRIPTION
 
-`sambamba view` allows to efficiently filter SAM/BAM/CRAM files for
+`sambamba view` allows to efficiently filter SAM/BAM files for
 alignments satisfying various conditions, as well as access its SAM
 header and information about reference sequences. In order to make
 these data readily available for consumption by scripts in
 Perl/Python/Ruby, JSON output is provided.
 
-By default, the tool expects BAM file as an input.  In order to work
-with CRAM, specify -C and for SAM, specify `-S`|`--sam-input` as a
-command-line option, the tool does NOT try to guess file format from
-the extension.  Beware that when reading SAM, the tool will skip tags
-which don't conform to the SAM/BAM specification, and set invalid
-fields to their default values.
+By default, the tool expects BAM file as an input.  In order to work SAM,
+specify `-S`|`--sam-input` as a command-line option, the tool does NOT try to
+guess file format from the extension.  Beware that when reading SAM, the tool
+will skip tags which don't conform to the SAM/BAM specification, and set
+invalid fields to their default values.
 
 ## FILTERING
 
@@ -54,7 +53,7 @@ The output is one line per read, for building a proper JSON array pipe the outpu
     Set custom filter for alignments.
 
   * `-f`, `--format`=<FORMAT>:
-    Specify output format. <FORMAT> must be one of sam, bam, cram, or json (in lowercase).
+    Specify output format. <FORMAT> must be one of sam, bam, or json (in lowercase).
     Default is SAM.
 
   * `-h`, `--with-header`:
@@ -78,9 +77,6 @@ The output is one line per read, for building a proper JSON array pipe the outpu
 
   * `-S`, `--sam-input`:
     Specify that the input is SAM file (default is BAM for all operations).
-
-  * `-C`, `--cram-input`:
-    Specify that input is in CRAM format
 
   * `-p`, `--show-progress`:
     Show progressbar in STDERR. Works only for BAM files, and with no regions

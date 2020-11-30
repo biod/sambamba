@@ -1,4 +1,4 @@
-sambamba(1) -- toolkit for working with SAM/BAM/CRAM files
+sambamba(1) -- toolkit for working with SAM/BAM files
 ==========================================================
 
 ## SYNOPSIS

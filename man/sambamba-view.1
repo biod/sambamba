@@ -4,16 +4,16 @@
 .TH "SAMBAMBA\-VIEW" "1" "June 2016" "" ""
 .
 .SH "NAME"
-\fBsambamba\-view\fR \- tool for extracting information from SAM/BAM/CRAM files
+\fBsambamba\-view\fR \- tool for extracting information from SAM/BAM files
 .
 .SH "SYNOPSIS"
-\fBsambamba view\fR \fIOPTIONS\fR <input\.bam | input\.sam | input\.cram> [region1 [\.\.\.]]
+\fBsambamba view\fR \fIOPTIONS\fR <input\.bam | input\.sam> [region1 [\.\.\.]]
 .
 .SH "DESCRIPTION"
-\fBsambamba view\fR allows to efficiently filter SAM/BAM/CRAM files for alignments satisfying various conditions, as well as access its SAM header and information about reference sequences\. In order to make these data readily available for consumption by scripts in Perl/Python/Ruby, JSON output is provided\.
+\fBsambamba view\fR allows to efficiently filter SAM/BAM files for alignments satisfying various conditions, as well as access its SAM header and information about reference sequences\. In order to make these data readily available for consumption by scripts in Perl/Python/Ruby, JSON output is provided\.
 .
 .P
-By default, the tool expects BAM file as an input\. In order to work with CRAM, specify \-C and for SAM, specify \fB\-S\fR|\fB\-\-sam\-input\fR as a command\-line option, the tool does NOT try to guess file format from the extension\. Beware that when reading SAM, the tool will skip tags which don\'t conform to the SAM/BAM specification, and set invalid fields to their default values\.
+By default, the tool expects BAM file as an input\. In order to work with SAM, specify \fB\-S\fR|\fB\-\-sam\-input\fR as a command\-line option, the tool does NOT try to guess file format from the extension\. Beware that when reading SAM, the tool will skip tags which don\'t conform to the SAM/BAM specification, and set invalid fields to their default values\.
 .
 .SH "FILTERING"
 Filtering is presented in two ways\. First, you can specify a condition with \fB\-F\fR option, using a special language for filtering, described at
@@ -59,7 +59,7 @@ Set custom filter for alignments\.
 .
 .TP
 \fB\-f\fR, \fB\-\-format\fR=\fIFORMAT\fR
-Specify output format\. \fIFORMAT\fR must be one of sam, bam, cram, or json (in lowercase)\. Default is SAM\.
+Specify output format\. \fIFORMAT\fR must be one of sam, bam, or json (in lowercase)\. Default is SAM\.
 .
 .TP
 \fB\-h\fR, \fB\-\-with\-header\fR
@@ -88,10 +88,6 @@ Output only valid reads\.
 .TP
 \fB\-S\fR, \fB\-\-sam\-input\fR
 Specify that the input is SAM file (default is BAM for all operations)\.
-.
-.TP
-\fB\-C\fR, \fB\-\-cram\-input\fR
-Specify that input is in CRAM format
 .
 .TP
 \fB\-p\fR, \fB\-\-show\-progress\fR

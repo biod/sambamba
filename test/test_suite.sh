@@ -140,21 +140,8 @@ testMarkdupEmptyFile() {
     assertEquals "0" `$sambamba $opts view -c $outdir/empty.dedup.bam`
 }
 
-testCramWriting() {
-    $sambamba $opts view -S htslib/test/c1\#pad2.sam -T htslib/test/c1.fa -f cram -o $outdir/c1_pad2.cram
-    assertEquals 0 $?
-}
-
-testCramReading() {
-    $sambamba $opts view -C $outdir/c1_pad2.cram >/dev/null
-    assertEquals 0 $?
-}
-
 testIndexUsage() {
     rm -f $outdir/*.bai && rm -f $outdir/c1_*
-    $sambamba $opts view -S htslib/test/c1\#pad2.sam -T htslib/test/c1.fa -f cram -o $outdir/c1_pad2.cram &&
-    $sambamba $opts index -C $outdir/c1_pad2.cram && test -e $outdir/c1_pad2.cram.crai; assertEquals 0 $?
-    $sambamba $opts index -C $outdir/c1_pad2.cram $outdir/c1_cram_index && test -e $outdir/c1_cram_index.crai; assertEquals 0 $?
     $sambamba $opts index $sortedbam && test -e $sortedbam.bai; assertEquals 0 $?
     $sambamba $opts index $sortedbam $outdir/ex1_header.sorted.bai && test -e $outdir/ex1_header.sorted.bai; assertEquals 0 $?
 }

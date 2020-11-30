@@ -1,0 +1,3 @@
+# This command creates a build container for Sambamba using GNU Guix
+
+guix environment -C guix --ad-hoc gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim zlib
