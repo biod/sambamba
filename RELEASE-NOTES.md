@@ -10,6 +10,7 @@ headache. See also https://github.com/biod/sambamba/issues/425
 + Removed CRAM support and htslib dependency with ec78eabfbdebd620cf5d4a4d8232692184eacbf7
 + Sambamba builds on ARM64 (see [Travis-CI](https://travis-ci.org/github/biod/sambamba))
 + Changed github issue tracker template to report bugs only
++ Removed BioD source tree back into Sambamba
 
 ## ChangeLog v0.7.1 (20191128)
 

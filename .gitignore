@@ -1,11 +1,6 @@
 .dub/
 dub.selections.json
-BioD/
-BioD
-./BioD
-undeaD/
 lz4/
-core
 bin/
 test.log
 build/
