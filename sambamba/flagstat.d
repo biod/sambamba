@@ -56,8 +56,11 @@ void computeFlagStatistics(R)(R alignments) {
     }
 }
 
-void writeParam(string description, ulong[2] param) {
-    writefln("%s + %s %s", param[0], param[1], description);
+void writeParam(string description, ulong[2] param, bool tabular) {
+    if (tabular)
+        writefln("%s,%s,%s", description, param[0], param[1]);
+    else
+        writefln("%s + %s %s", param[0], param[1], description);
 }
 
 float percent(ulong a, ulong b) { return to!float(a) / b * 100.0; }
@@ -67,8 +70,11 @@ string percentStr(ulong a, ulong b) {
     return format("%.2f%%", percent(a, b));
 }
 
-void writeParamWithPercentage(string description, ulong[2] param, ulong[2] total) {
-    writefln("%s + %s %s (%s:%s)", param[0], param[1], description,
+void writeParamWithPercentage(string description, ulong[2] param, ulong[2] total, bool tabular) {
+    if (tabular)
+        writefln("%s,%s:%s,%s:%s", description, param[0], percentStr(param[0], total[0]), param[1], percentStr(param[1], total[1]));
+    else
+        writefln("%s + %s %s (%s:%s)", param[0], param[1], description,
              percentStr(param[0], total[0]),
              percentStr(param[1], total[1]));
 }
@@ -86,17 +92,21 @@ void printUsage() {
     stderr.writeln("            use NTHREADS for decompression");
     stderr.writeln("         -p, --show-progress");
     stderr.writeln("            show progressbar in STDERR");
+    stderr.writeln("         -b, --tabular");
+    stderr.writeln("            output in csv format");
 }
 
 int flagstat_main(string[] args) {
     size_t threads = totalCPUs;
     bool show_progress;
+    bool tabular;
 
     try {
         getopt(args,
                std.getopt.config.caseSensitive,
                "nthreads|t",      &threads,
-               "show-progress|p", &show_progress);
+               "show-progress|p", &show_progress,
+               "tabular|b", &tabular);
 
         if (args.length < 2) {
             printUsage();
@@ -118,19 +128,19 @@ int flagstat_main(string[] args) {
         }
         
         scope(exit) {
-            writeParam("in total (QC-passed reads + QC-failed reads)", reads);
-            writeParam("secondary", secondary);
-            writeParam("supplementary", supplementary);
-            writeParam("duplicates", dup);
-            writeParamWithPercentage("mapped", mapped, reads);
-            writeParam("paired in sequencing", pair_all);
-            writeParam("read1", first);
-            writeParam("read2", second);
-            writeParamWithPercentage("properly paired", pair_good, pair_all);
-            writeParam("with itself and mate mapped", pair_map);
-            writeParamWithPercentage("singletons", single, pair_all);
-            writeParam("with mate mapped to a different chr", diff_chr);
-            writeParam("with mate mapped to a different chr (mapQ>=5)", diff_high);
+            writeParam("in total (QC-passed reads + QC-failed reads)", reads, tabular);
+            writeParam("secondary", secondary, tabular);
+            writeParam("supplementary", supplementary, tabular);
+            writeParam("duplicates", dup, tabular);
+            writeParamWithPercentage("mapped", mapped, reads, tabular);
+            writeParam("paired in sequencing", pair_all, tabular);
+            writeParam("read1", first, tabular);
+            writeParam("read2", second, tabular);
+            writeParamWithPercentage("properly paired", pair_good, pair_all, tabular);
+            writeParam("with itself and mate mapped", pair_map, tabular);
+            writeParamWithPercentage("singletons", single, pair_all, tabular);
+            writeParam("with mate mapped to a different chr", diff_chr, tabular);
+            writeParam("with mate mapped to a different chr (mapQ>=5)", diff_high, tabular);
         }
     } catch (Throwable e) {
         stderr.writeln(e.msg);
