@@ -276,11 +276,11 @@ unittest {
     auto regions = fastaRegions(testFa, ["chr1:4-6", "chr2:36-45"]);
     assert ( regions.length == 2 );
     assert ( regions[0].header == "chr1:4-6" );
-    assert ( regions[0].len == 3 );
+    assert ( regions[0].len == 3, regions[0].toString() );
     assert ( regions[0].sequence == "tga" );
     assert ( regions[0].lineLen == 10 );
     assert ( regions[1].header == "chr2:36-45" );
-    assert ( regions[1].len == 10 );
+    assert ( regions[1].len == 10, regions[1].toString() );
     assert ( regions[1].sequence == "agtgcacgtg" );
     assert ( regions[1].lineLen == 30 );
 
@@ -294,7 +294,7 @@ unittest {
     regions = fastaRegions(testFa, ["chr2"]);
     assert ( regions.length == 1 );
     assert ( regions[0].header == "chr2" );
-    assert ( regions[0].len == 50 );
+    assert ( regions[0].len == 50, regions[0].toString() );
     assert ( regions[0].sequence == "acgtgagtgcacgtgagtgcacgtgagtgcacgtgagtgcacgtgagtgc" );
     assert ( regions[0].lineLen == 30 );
 }

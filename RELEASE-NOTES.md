@@ -1,16 +1,29 @@
 
-## ChangeLog v0.8.0 (2020??)
+
+## ChangeLog v0.8.1 (2020??)
+
+## ChangeLog v0.8.0 (20201130)
 
 Maintainance release and bug fixes: this is a special release where we
 removed all CRAM support. The added value of CRAM in sambamba was
 limited because it was using essentially the same htslib backend as
 samtools. Removing the htslib dependency removes one maintenance
-headache. See also https://github.com/biod/sambamba/issues/425
+headache. See also https://github.com/biod/sambamba/issues/425.
+
+BioD was also moved back into the main trunk. We separated it in the
+past, but as there is no development there we might as well have it in
+Sambamba (again).
 
 + Removed CRAM support and htslib dependency with ec78eabfbdebd620cf5d4a4d8232692184eacbf7
++ Removed BioD source tree back into Sambamba
 + Sambamba builds on ARM64 (see [Travis-CI](https://travis-ci.org/github/biod/sambamba))
 + Changed github issue tracker template to report bugs only
-+ Removed BioD source tree back into Sambamba
++ Added FASTA handlers, indexing and slicing (thanks @NickRoz1)
++ Updated slice.d (thanks @NickRoz1)
++ Fixed FASTA file handlers not closing cdc5f84c5b6135eedeaf5cba265e3eb9a3c23227
++ Added badges to the top of README
++ Added Meson build system for Debian (thanks Matthias @ximion)
++ Fixed Python2 -> Python3 stuff (thanks Matthias @ximion)
 
 ## ChangeLog v0.7.1 (20191128)
 

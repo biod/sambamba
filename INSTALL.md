@@ -35,3 +35,13 @@ container with
     make -f Makefile.guix check
 
 Note that this also works in the emacs shell.
+
+### Guix VM
+
+    guix package -i qemu -p ~/opt/qemu
+    . ~/opt/qemu/etc/profile
+
+Download the bootable image from https://guix.gnu.org/en/download/ and
+start it with, for example
+
+    qemu-system-x86_64    -nic user,model=virtio-net-pci    -enable-kvm -m 1024    -device virtio-blk,drive=myhd    -drive if=none,file=guix-system-vm-image-1.2.0.x86_64-linux,id=myhd
