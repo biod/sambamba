@@ -1246,25 +1246,28 @@ int markdup_main(string[] args) {
         InputRange!IndexedBamRead reads;
         shared(ProgressBar) bar;
 
-        void initInputs() {
+        void initInputs(MultiBamReader bamreader) {
             if (!show_progress)
-                reads = bam.reads.withIndices.inputRangeObject;
+                reads = bamreader.reads.withIndices.inputRangeObject;
             else {
                 bar = new shared(ProgressBar)();
-                reads = bam.readsWithProgress((lazy float p) { bar.update(p); },
-                                              () { bar.finish(); }).withIndices
-                           .inputRangeObject;
+                reads = bamreader.readsWithProgress(
+                          (lazy float p) { bar.update(p); },
+                          () { bar.finish(); })
+                        .withIndices
+                        .inputRangeObject;
             }
         }
 
-        initInputs();
+        initInputs(bam);
         auto dup_idx_storage = getDuplicateOffsets(reads, rg_index, taskPool, cfg);
 
         auto elapsed = sw.peek();
         stderr.writeln("collected list of positions in ",elapsed.total!"minutes"," min ",elapsed.total!"seconds" % 60," sec");
 
         // marking or removing duplicates
-        auto bam2 = new MultiBamReader(args[1 .. $-1], taskPool);
+        bam = null;
+        auto bam2 = new MultiBamReader(args[1 .. $-1]);
         bam2.setBufferSize(io_buffer_size / (args.length - 2));
         auto out_stream = new BufferedFile(args[$-1], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level);
@@ -1276,7 +1279,7 @@ int markdup_main(string[] args) {
 
         stderr.writeln(remove_duplicates ? "removing" : "marking", " duplicates...");
 
-        initInputs();
+        initInputs(bam2);
 
         auto indices = dup_idx_storage.reader;
 

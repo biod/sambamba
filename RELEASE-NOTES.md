@@ -1,6 +1,7 @@
-
-
 ## ChangeLog v0.8.1 (2020??)
+
++ Some FASTA unittests break when they write to disk and read after -
+  marked with ~version(Broken)~
 
 ## ChangeLog v0.8.0 (20201130)
 

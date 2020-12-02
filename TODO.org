@@ -1,0 +1,5 @@
+* SAMBAMBA
+
+** Enhancements
+
++ Make markdup single pass for pipes, see #421

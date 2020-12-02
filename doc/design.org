@@ -3,7 +3,7 @@
 ** Introduction
 
 Because of its great multi-core performance Sambamba has served over
-five years in sequencing centers [[https://groups.google.com/d/msg/sambamba-discussion/fIgrrUa441o/XG7Rt3dFAQAJ][around the world]]. Here we start on a
+eight years in sequencing centers [[https://groups.google.com/d/msg/sambamba-discussion/fIgrrUa441o/XG7Rt3dFAQAJ][around the world]]. Here we start on a
 new design (sambamba2) that should improve performance and, perhaps
 more importantly, make the building blocks more composable. D has
 proven to be a great language for multi-core performance and code
@@ -80,3 +80,6 @@ and should be capable of writing to a log file.
 The original markdup routine is written in sambamba/markdup.d. It
 maintains state in a structure called IndexedBamRead with an index
 value and the read object.
+
+Note that Markdup does two reader passes. This prevents piping
+through stdin. A future version may do a single pass.
