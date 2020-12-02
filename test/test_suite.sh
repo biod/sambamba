@@ -207,6 +207,13 @@ testIssue356(){
     assertEquals 0 $?
 }
 
+testIssue421(){ 
+    # sambamba-markdup: not enough data in stream https://github.com/biod/sambamba/issues/421
+    echo "cat test/issue_204.bam | $sambamba $opts markdup /dev/stdin test.bam"
+    cat test/issue_204.bam | $sambamba $opts markdup /dev/stdin test.bam
+    assertEquals 0 $?
+}
+
 testFastaIndex(){
     # check input and output are from here: http://www.htslib.org/doc/faidx.html
     $sambamba $opts index -F test/test.fasta $outdir/res.fai

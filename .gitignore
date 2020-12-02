@@ -5,11 +5,11 @@ bin/
 test.log
 build/
 shunit*
-/*.sam
-/*.bam
-/*.bai
-/*.cram
-/*.crai
+*.sam
+*.bam
+*.bai
+*.cram
+*.crai
 /*.txt
 !meson_options.txt
 *.hex
