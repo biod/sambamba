@@ -1264,15 +1264,15 @@ int markdup_main(string[] args) {
         stderr.writeln("collected list of positions in ",elapsed.total!"minutes"," min ",elapsed.total!"seconds" % 60," sec");
 
         // marking or removing duplicates
-        bam = new MultiBamReader(args[1 .. $-1]);  // FIXME: initialized twice
-        bam.setBufferSize(io_buffer_size / (args.length - 2));
+        auto bam2 = new MultiBamReader(args[1 .. $-1], taskPool);
+        bam2.setBufferSize(io_buffer_size / (args.length - 2));
         auto out_stream = new BufferedFile(args[$-1], FileMode.OutNew, io_buffer_size);
         auto writer = new BamWriter(out_stream, compression_level);
         writer.setFilename(args[$-1]);
         scope(exit) writer.finish();
-        auto header = addPG("markdup", unparsed_args, bam.header);
+        auto header = addPG("markdup", unparsed_args, bam2.header);
         writer.writeSamHeader(header);
-        writer.writeReferenceSequenceInfo(bam.reference_sequences);
+        writer.writeReferenceSequenceInfo(bam2.reference_sequences);
 
         stderr.writeln(remove_duplicates ? "removing" : "marking", " duplicates...");
 
