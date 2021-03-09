@@ -215,12 +215,16 @@ private {
 
 mixin HeaderLineStruct!("HdLine", "@HD", null,
           Field!("format_version", "VN"),
-          Field!("sorting_order", "SO"));
+          Field!("grouping", "GO"),
+          Field!("sorting_order", "SO"),
+          Field!("sub_sorting_order", "SS"));
 
 mixin HeaderLineStruct!("SqLine", "@SQ", "name",
           Field!("name", "SN"),
           Field!("length", "LN", uint),
+          Field!("alternative_names", "AN"),
           Field!("assembly", "AS"),
+          Field!("description", "DS"),
           Field!("md5", "M5"),
           Field!("species", "SP"),
           Field!("uri", "UR"),
@@ -228,6 +232,7 @@ mixin HeaderLineStruct!("SqLine", "@SQ", "name",
 
 mixin HeaderLineStruct!("RgLine", "@RG", "identifier",
           Field!("identifier", "ID"),
+          Field!("barcode", "BC"),
           Field!("sequencing_center", "CN"),
           Field!("description", "DS"),
           Field!("date", "DT"),
