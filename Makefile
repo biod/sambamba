@@ -52,7 +52,7 @@ coverage:                          DFLAGS += -cov
 
 release static pgo-static:         DFLAGS += -O3 -release -enable-inlining -boundscheck=off -L-lz
 
-static:                            DFLAGS += -static -L-Bstatic
+static:                            DFLAGS += -static -L-Bstatic -link-defaultlib-shared=false
 
 pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
 
