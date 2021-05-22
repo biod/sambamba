@@ -59,7 +59,7 @@ pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
 lz4-static: lz4/lib/liblz4.a
 
 lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhash.c
-	cd lz4/lib && gcc -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
+	cd lz4/lib && $(CC) -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
 
 utils/ldc_version_info_.d:
 	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
