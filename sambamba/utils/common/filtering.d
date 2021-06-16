@@ -32,6 +32,7 @@ import std.range;
 import std.algorithm;
 import std.array;
 import std.string : representation;
+import std.math;
 
 auto filtered(R)(R reads, Filter f) {
     return reads.zip(f.repeat()).filter!q{a[1].accepts(a[0])}.map!"a[0]"();
@@ -207,7 +208,7 @@ final class IntegerFieldFilter(string op) : Filter {
             case "sequence_length": mixin("return a.sequence_length " ~ op ~ "_value;");
             case "mate_ref_id": mixin("return a.mate_ref_id " ~ op ~ "_value;");
             case "mate_position": mixin("return a.mate_position " ~ op ~ "_value;");
-            case "template_length": mixin("return a.template_length " ~ op ~ "_value;");
+            case "template_length": mixin("return abs(a.template_length) " ~ op ~ "_value;");
             default: throw new Exception("unknown integer field '" ~ _fieldname ~ "'");
         }
     }
