@@ -37,7 +37,17 @@ container with
     env CC=gcc make -f Makefile.guix -j 8
     make -f Makefile.guix check
 
-Note that this also works in the emacs shell.
+To make the static release:
+
+    env CC=gcc make -f Makefile.guix static
+
+It gives some errors, but should work:
+
+    ./bin/sambamba
+
+When you only get unit tests disable them with `--DRT-testmode=run-main`
+
+Note that this all also works in the emacs shell.
 
 ### Guix VM
 

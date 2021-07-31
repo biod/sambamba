@@ -1,8 +1,8 @@
-## ChangeLog v0.8.1 (2020??)
+## ChangeLog v0.8.1 (20210731)
 
 + Some FASTA unittests break when they write to disk and read after -
   marked with ~version(Broken)~
-+ Fix build for LDC 1.26.0 and LLVM 9.0.1
++ Fix build for LDC 1.26.0 and LLVM 9.0.1 - some speed improvement
 
 ## ChangeLog v0.8.0 (20201130)
 

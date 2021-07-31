@@ -7,6 +7,38 @@ wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00100/alignment/HG00
 
 
 ** View
+
+Processing an 841Mb BAM file.
+
+*** AMD Ryzen 7 3700X 8-Core Processor
+
+#+BEGIN_SRC
+time ./bin/sambamba-0.8.1-pre1 HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam > /dev/null
+
+sambamba 0.8.1-pre1
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.26.0 / DMD v2.096.1 / LLVM9.0.1 / bootstrap LDC - the LLVM D compiler (0.17.6)
+real    0m1.398s
+user    0m16.589s
+sys     0m0.240s
+
+time ./bin/sambamba-0.8.1-pre1 sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
+
+sambamba 0.8.1-pre1
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.26.0 / DMD v2.096.1 / LLVM9.0.1 / bootstrap LDC - the LLVM D compiler (0.17.6)
+real    0m9.151s
+user    2m5.779s
+sys     0m3.101s
+
+time ./bin/sambamba-0.8.1-pre1 markdup HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.sorted.bam dedup.bam
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.26.0 / DMD v2.096.1 / LLVM9.0.1 / bootstrap LDC - the LLVM D compiler (0.17.6)
+real    0m11.319s
+user    1m47.719s
+sys     0m4.070s
+#+END_SRC
+
 *** 4x Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz (hyperthreaded)
 **** sambamba 0.6.8-pre3
 
