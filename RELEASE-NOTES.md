@@ -2,6 +2,7 @@
 
 + Some FASTA unittests break when they write to disk and read after -
   marked with ~version(Broken)~
++ Fix build for LDC 1.26.0 and LLVM 9.0.1
 
 ## ChangeLog v0.8.0 (20201130)
 

@@ -5,7 +5,7 @@ sambamba=$1
 if [ ! -f $sambamba ]; then
     sambamba=./bin/sambamba
 fi
-opts="-q"
+opts="-q --DRT-testmode=run-main"
 outdir=output
 mkdir -p $outdir
 
@@ -207,7 +207,7 @@ testIssue356(){
     assertEquals 0 $?
 }
 
-testIssue421(){ 
+testIssue421(){
     # sambamba-markdup: not enough data in stream https://github.com/biod/sambamba/issues/421
     cat test/issue_204.bam | $sambamba $opts markdup /dev/stdin test.bam 2> /dev/null
     # assertEquals 0 $?  Disable test until we have a single pass, see issue 421

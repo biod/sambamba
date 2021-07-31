@@ -31,7 +31,7 @@ LIBS   = -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz lz4/lib/liblz4.a
 
 LIBS_STATIC = $(DLIBS) lz4/lib/liblz4.a
 SRC         = $(wildcard main.d utils/*.d thirdparty/*.d) $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d BioD/bio/*/*/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
-OBJ    = $(SRC:.d=.o) utils/ldc_version_info_.o
+OBJ    = $(SRC:.d=.o)
 OUT    = bin/sambamba-$(shell cat VERSION)
 static: OUT += -static
 
@@ -116,7 +116,7 @@ clean-c:
 	rm -v lz4/lib/*.[oa]
 
 clean-d:
-	rm -v $(OBJ) $(OUT) trace.{def,log}
+	rm -v $(OBJ) $(OUT) # trace.{def,log}
 	rm -v bin/*
 
 clean-tests:

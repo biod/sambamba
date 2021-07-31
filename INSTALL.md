@@ -18,7 +18,7 @@ and run our development setup (gold was added lately by ldc)
 
     guix environment -C guix --ad-hoc gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim
     make clean
-    make -f Makefile.guix -j 4
+    env CC=gcc make -f Makefile.guix -j 4
     make -f Makefile.guix check
 
 this way all dependencies are isolated. To create a static release use
@@ -31,7 +31,10 @@ We use GNU Guix containers for development. Install Guix and run a build
 container with
 
     . .guix-build
-    make -f Makefile.guix
+    make -f Makefile.guix clean
+    # build the debug version
+    env CC=gcc make -f Makefile.guix lz4-static -j 8
+    env CC=gcc make -f Makefile.guix -j 8
     make -f Makefile.guix check
 
 Note that this also works in the emacs shell.
