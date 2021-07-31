@@ -112,7 +112,7 @@ sambamba_exe = executable('sambamba',
      thirdparty_src,
      version_info_d_fname],
     dependencies: [biod_dep,
-                   lz4_dep,
+                   lz4_dep],
     d_args: extra_dflags,
     d_import_dirs: [include_directories('.')],
     install: true
