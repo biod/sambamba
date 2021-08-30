@@ -243,7 +243,7 @@ void foreach_invalid_read(ref BamBlobReader reader, void delegate(ProcessReadBlo
 
 // ---- When current is unmapped, move through reads that are ignored.
 void foreach_outside_read(ref BamBlobReader reader, void delegate(ProcessReadBlob) dg) {
-  if (reader.peek.is_unmapped) {
+  if (reader.peek.get.is_unmapped) {
     foreach_invalid_read(reader,dg);
   }
 }
@@ -384,13 +384,13 @@ int subsample_main(string[] args) {
        }
       if (!pileup.empty) {
         auto read = reader.peek;
-        if (read.is_mapped && depth.ref_id != read.refid) {
+        if (read.get.is_mapped && depth.ref_id != read.get.refid) {
           // moving into a new pileup
           pileup.purge( (ReadState read) {
               write(",");
               writer.push(read.read);
             });
-          depth.reset(read.refid);
+          depth.reset(read.get.refid);
         }
       }
 
