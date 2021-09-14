@@ -199,7 +199,7 @@ struct BgzfReader {
     try {
       if (fpos.isNull) throwBgzfException("Trying to read past eof");
       report_fpos = fpos;
-      f.seek(fpos);
+      f.seek(fpos.get);
       immutable compressed_size = read_block_header();
       auto ret = read_compressed_data(buffer[0..compressed_size]);
       auto compressed_buf = ret[0];
@@ -209,7 +209,7 @@ struct BgzfReader {
       if (uncompressed_size == 0) {
         // check for eof marker, rereading block header
         auto lastpos = f.tell();
-        f.seek(start_offset);
+        f.seek(start_offset.get);
         ubyte[BGZF_EOF.length] buf;
         f.rawRead(buf);
         f.seek(lastpos);
@@ -412,17 +412,17 @@ struct BgzfStream {
     size_t remaining = buffer_length;
 
     while (remaining > 0) {
-      if (block_pos + remaining < uncompressed_size) {
+      if (block_pos.get + remaining < uncompressed_size) {
         // full copy
         assert(buffer_pos + remaining == buffer_length);
-        memcpy(buffer[buffer_pos..buffer_pos+remaining].ptr,uncompressed_buf[block_pos..block_pos+remaining].ptr,remaining);
-        block_pos += remaining;
+        memcpy(buffer[buffer_pos..buffer_pos+remaining].ptr,uncompressed_buf[block_pos.get..block_pos.get+remaining].ptr,remaining);
+        block_pos.get += remaining;
         remaining = 0;
       }
       else {
         // read tail of buffer
-        immutable tail = uncompressed_size - block_pos;
-        memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos..uncompressed_size].ptr,tail);
+        immutable tail = uncompressed_size - block_pos.get;
+        memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos.get..uncompressed_size].ptr,tail);
         buffer_pos += tail;
         remaining -= tail;
         auto res = blockread.read_block(bgzf,fpos,uncompressed_buf);

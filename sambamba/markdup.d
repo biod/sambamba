@@ -504,8 +504,8 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
     void popFrontTempFiles() {
         while (!_tmp_reads.empty) {
             auto r2 = next(_tmp_reads);
-            if (readsArePaired(_tmp_r1, r2)) {
-                _front = FrontType(_tmp_r1, r2);
+            if (readsArePaired(_tmp_r1.get, r2)) {
+                _front = FrontType(_tmp_r1.get, r2);
                 if (!_tmp_reads.empty)
                     _tmp_r1 = next(_tmp_reads);
                 else
@@ -513,7 +513,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
                 return;
             } else {
                 static if (keepFragments) {
-                    _front = FrontType(_tmp_r1);
+                    _front = FrontType(_tmp_r1.get);
                     _tmp_r1 = r2;
                     return;
                 } else {
@@ -523,7 +523,7 @@ struct CollateReadPairRange(R, bool keepFragments, alias charsHashFunc)
         }
 
         if (!_tmp_r1.isNull) {
-            _front = FrontType(_tmp_r1);
+            _front = FrontType(_tmp_r1.get);
             _tmp_r1.nullify();
             return;
         }
@@ -1050,7 +1050,7 @@ auto getDuplicateOffsets(R)(R reads, ReadGroupIndex rg_index,
                                        cfg.tmpdir, pool)) {
         auto end1 = collectSingleEndInfo(pf.read1, rg_index);
         if (!pf.read2.isNull) {
-            auto end2 = collectSingleEndInfo(pf.read2, rg_index);
+            auto end2 = collectSingleEndInfo(pf.read2.get, rg_index);
             auto pair = combine(end1, end2);
             paired_ends.put(pair);
             second_ends.put(end2.basic_info);

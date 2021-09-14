@@ -271,14 +271,14 @@ class PileUp(R) {
   }
   ref R read_current() {
     enforce(!current.isNull, "current should be set for PileUp.read_current");
-    return read(current);
+    return read(current.get);
   }
   bool is_at_end(RingBufferIndex idx) { return ring.is_tail(idx); }
 
   @property void current_inc() {
     asserte(!empty);
-    asserte(!ring.is_tail(current));
-    ++current;
+    asserte(!ring.is_tail(current.get));
+    ++current.get;
   }
 
   @property void set_current_to_head() {
@@ -290,7 +290,7 @@ class PileUp(R) {
   }
 
   @property bool current_is_tail() {
-    return ring.is_tail(current);
+    return ring.is_tail(current.get);
   }
 
   void each(void delegate(R) dg) {

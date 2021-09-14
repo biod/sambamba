@@ -429,28 +429,28 @@ class ChunkDispatcher(ChunkRange) {
         }
 
         if (num_ > 1) {
-            ulong diff = chunk[0].end_position - chunk[0].start_position;
-            int ref_id = chunk[0].ref_id;
-            if (ref_id == prev_ref_id && !chunk[0].front.reads.empty &&
-                prev_pos_diff + diff < chunk[0].front.reads[0].sequence_length) // assume reads are ~same length
+            ulong diff = chunk.get[0].end_position - chunk.get[0].start_position;
+            int ref_id = chunk.get[0].ref_id;
+            if (ref_id == prev_ref_id && !chunk.get[0].front.reads.empty &&
+                prev_pos_diff + diff < chunk.get[0].front.reads[0].sequence_length) // assume reads are ~same length
                 stderr.writeln("[WARNING] COVERAGE IS TOO HIGH, INCREASE --buffer-size TO AVOID WRONG RESULTS");
             prev_pos_diff = diff;
             prev_ref_id = ref_id;
         }
 
-        auto ref_name = bam_.reference_sequences[chunk[0].ref_id].name;
+        auto ref_name = bam_.reference_sequences[chunk.get[0].ref_id].name;
         auto f = std.stdio.File(filename ~ ".bed", "w");
         if (bed_filename is null) {
-            auto start = chunk[0].start_position;
-            auto end = chunk[0].end_position;
+            auto start = chunk.get[0].start_position;
+            auto end = chunk.get[0].end_position;
 
             auto bed = BedRecord(ref_name, start, end);
             f.writeln(bed);
         } else {
             foreach (reg; regions) {
-                if (chunk[0].ref_id != reg.ref_id) continue;
-                auto start = max(reg.start, chunk[0].start_position);
-                auto end = min(reg.end, chunk[0].end_position);
+                if (chunk.get[0].ref_id != reg.ref_id) continue;
+                auto start = max(reg.start, chunk.get[0].start_position);
+                auto end = min(reg.end, chunk.get[0].end_position);
                 if (start > end) continue;
                 auto bed = BedRecord(ref_name, start, end);
                 f.writeln(bed);
@@ -525,9 +525,9 @@ void worker(Dispatcher)(Dispatcher d,
         if (result.isNull)
             return;
 
-        auto chunk = result[0];
-        auto filename = result[1];
-        auto num = result[2];
+        auto chunk = result.get[0];
+        auto filename = result.get[1];
+        auto num = result.get[2];
         makeFifo(filename);
 
         import core.sys.posix.signal;

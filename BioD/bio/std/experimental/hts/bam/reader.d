@@ -33,7 +33,7 @@ import std.string;
 import std.typecons;
 import std.bitmanip;
 
-//TODO remove these dependecies 
+//TODO remove these dependecies
 import bio.std.hts.bam.cigar;
 import bio.std.hts.bam.constants;
 
@@ -234,7 +234,7 @@ struct ProcessReadBlob {
   }
 
   @property void cleanup() {
-    _read2.cleanup;
+    _read2.get.cleanup;
   }
 
   @property nothrow bool isNull() {
@@ -242,20 +242,20 @@ struct ProcessReadBlob {
   }
 
   @property RefId ref_id() {
-    enforce(_read2.is_mapped,"Trying to get ref_id an unmapped read " ~ to!string(_read2));
-    return _read2.refid;
+    enforce(_read2.get.is_mapped,"Trying to get ref_id an unmapped read " ~ to!string(_read2));
+    return _read2.get.refid;
   }
 
   @property RefId raw_ref_id() {
-    return _read2.refid;
+    return _read2.get.refid;
   }
 
   @property nothrow uint _flag_nc() {
-    return _read2._flag_nc;
+    return _read2.get._flag_nc;
   }
 
   @property nothrow ushort _flag() {
-    return _read2._flag;
+    return _read2.get._flag;
   }
 
   alias ref_id refid;
@@ -264,24 +264,24 @@ struct ProcessReadBlob {
   /// start_loc), i.e., the first base that gets consumed in the
   /// CIGAR.
   @property GenomePos start_pos() {
-    assert(_read2.is_mapped,"Trying to get pos on an unmapped read"); // BAM spec
-    asserte(_read2.pos < GenomePos.max);
-    return cast(GenomePos)_read2.pos;
+    assert(_read2.get.is_mapped,"Trying to get pos on an unmapped read"); // BAM spec
+    asserte(_read2.get.pos < GenomePos.max);
+    return cast(GenomePos)_read2.get.pos;
   }
 
   @property GenomePos raw_start_pos() {
-    return cast(GenomePos)_read2.pos;
+    return cast(GenomePos)_read2.get.pos;
   }
 
   /// Get the end position on the reference sequence (better use end_loc)
   @property GenomePos end_pos() {
     assert(sequence_length > 0, "Trying to get end_pos on an empty read sequence");
     assert(!consumed_reference_bases.isNull);
-    return start_pos + consumed_reference_bases;
+    return start_pos + consumed_reference_bases.get;
   }
 
   @property GenomePos raw_end_pos() {
-    return raw_start_pos + consumed_reference_bases;
+    return raw_start_pos + consumed_reference_bases.get;
   }
 
   @property GenomeLocation start_loc() {
@@ -293,27 +293,27 @@ struct ProcessReadBlob {
   }
 
   @property @trusted MappingQuality mapping_quality() { // MAPQ
-    assert(_read2.is_mapped,"Trying to get MAPQ on an unmapped read"); // BAM spec
-    return MappingQuality(_read2.mapping_quality);
+    assert(_read2.get.is_mapped,"Trying to get MAPQ on an unmapped read"); // BAM spec
+    return MappingQuality(_read2.get.mapping_quality);
   }
 
   @property @trusted int tlen() { // do not use
-    return _read2._tlen;
+    return _read2.get._tlen;
   }
 
   @property @trusted GenomePos sequence_length() {
     if (sequence_length2.isNull)
-      sequence_length2 = _read2.sequence_length;
-    return sequence_length2;
+      sequence_length2 = _read2.get.sequence_length;
+    return sequence_length2.get;
   }
 
   /// Count and caches consumed reference bases. Uses raw_cigar to
   /// avoid a heap allocation.
   @property @trusted Nullable!GenomePos consumed_reference_bases() {
     if (consumed_reference_bases2.isNull) {
-      assert(_read2.is_mapped,"Trying to get consumed bases on an unmapped read"); // BAM spec
+      assert(_read2.get.is_mapped,"Trying to get consumed bases on an unmapped read"); // BAM spec
       assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
-      auto raw = cast(uint[]) _read2.raw_cigar();
+      auto raw = cast(uint[]) _read2.get.raw_cigar();
       if (raw.length==1 && raw[0] == '*')
         return consumed_reference_bases2; // null
       else {
@@ -332,11 +332,14 @@ struct ProcessReadBlob {
   /// Count query consumed bases. Uses raw_cigar to avoid a heap
   /// allocation.
   @property @trusted GenomePos consumed_query_bases() {
-    assert(_read2.is_mapped,"Trying to get consumed bases on an unmapped read"); // BAM spec
+    assert(_read2.get.is_mapped,"Trying to get consumed bases on an unmapped read"); // BAM spec
     assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
-    auto raw = cast(uint[]) _read2.raw_cigar();
+    auto raw = cast(uint[]) _read2.get.raw_cigar();
     if (raw.length==1 && raw[0] == '*')
-      return consumed_reference_bases2; // null
+      // The existing comment here says "null", but function return type
+      // forces reading the value anyway. Bug?
+      // -Nix packager
+      return consumed_reference_bases2.get; // null
     else {
       GenomePos bases = 0;
       for (size_t i = 0; i < raw.length; i++) {
@@ -352,8 +355,8 @@ struct ProcessReadBlob {
   /// null. Caches name.
   @property Nullable!string read_name() {
     if (read_name2.isNull) {
-      assert(_read2.is_mapped,"Trying to get RNAME on an unmapped read"); // BAM spec
-      auto raw = _read2.read_name;
+      assert(_read2.get.is_mapped,"Trying to get RNAME on an unmapped read"); // BAM spec
+      auto raw = _read2.get.read_name;
       if (raw.length == 0 || (raw.length ==1 && raw[0] == '*'))
         return read_name2; // null
       assert(raw.length < 255); // BAM spec
@@ -368,9 +371,9 @@ struct ProcessReadBlob {
   /// operations. Caches Cigar when there are operations.
   @property Nullable!CigarOperations cigar() {
     if (cigar2.isNull) {
-      assert(_read2.is_mapped,"Trying to get CIGAR on an unmapped read"); // BAM spec
+      assert(_read2.get.is_mapped,"Trying to get CIGAR on an unmapped read"); // BAM spec
       assert(!read_name.isNull,"Trying to get CIGAR on RNAME is '*'"); // BAM spec
-      auto raw = cast(uint[]) _read2.raw_cigar();
+      auto raw = cast(uint[]) _read2.get.raw_cigar();
       if (raw.length==0 || (raw.length==1 && raw[0] == '*'))
         return cigar2; // null
       else {
@@ -389,7 +392,7 @@ struct ProcessReadBlob {
   /// undefined. Caches sequence.
   @property Nullable!string sequence() {
     if (sequence2.isNull) { // is it cached in sequence2?
-      auto raw = _read2.raw_sequence();
+      auto raw = _read2.get.raw_sequence();
       if (raw[0] == '*') {
         assert(raw.length == 1);
         return sequence2; // null
@@ -409,7 +412,7 @@ struct ProcessReadBlob {
   }
 
   @property ubyte[] toBlob() {
-    return _read2._data;
+    return _read2.get._data;
   }
 
   @property string posString() {
@@ -488,7 +491,7 @@ struct BamReadBlobStream {
     // void *p = pureMalloc(block_size-2*int.sizeof); // test for GC effectiveness
     data = new ubyte[block_size-2*int.sizeof];
     readbuf = ReadBlob(refid,pos,stream.read(data));
-    assert(readbuf._data.ptr == data.ptr);
+    assert(readbuf.get._data.ptr == data.ptr);
   }
 
 }
