@@ -278,7 +278,8 @@ class PileUp(R) {
   @property void current_inc() {
     asserte(!empty);
     asserte(!ring.is_tail(current.get));
-    ++current.get;
+    RingBufferIndex i = current.get.get + 1;
+    current = i;
   }
 
   @property void set_current_to_head() {

@@ -1,4 +1,6 @@
 # This command creates a build container for Sambamba using GNU Guix
-
+#
+# See INSTALL.md for the build with make
+#
 env GUIX_PACKAGE_PATH=~/iwrk/opensource/guix/guix-bioinformatics \
 guix environment -C guix --ad-hoc gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim zlib $*

@@ -378,7 +378,7 @@ struct BgzfStream {
   FilePos fpos;             // track file position
   ubyte[] uncompressed_buf; // current data buffer
   size_t uncompressed_size; // current data buffer size
-  Nullable!int block_pos;   // position in block
+  Nullable!size_t block_pos;   // position in block
   BlockReadUnbuffered blockread;
 
   this(string fn) {
@@ -406,32 +406,34 @@ struct BgzfStream {
       fpos = res[2];
       block_pos = 0;
     }
+    size_t bl_pos = block_pos.get;
 
     immutable buffer_length = buffer.length;
     size_t buffer_pos = 0;
     size_t remaining = buffer_length;
 
     while (remaining > 0) {
-      if (block_pos.get + remaining < uncompressed_size) {
+      if (bl_pos + remaining < uncompressed_size) {
         // full copy
         assert(buffer_pos + remaining == buffer_length);
-        memcpy(buffer[buffer_pos..buffer_pos+remaining].ptr,uncompressed_buf[block_pos.get..block_pos.get+remaining].ptr,remaining);
-        block_pos.get += remaining;
+        memcpy(buffer[buffer_pos..buffer_pos+remaining].ptr,uncompressed_buf[bl_pos..bl_pos+remaining].ptr,remaining);
+        bl_pos = bl_pos + remaining;
         remaining = 0;
       }
       else {
         // read tail of buffer
-        immutable tail = uncompressed_size - block_pos.get;
-        memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[block_pos.get..uncompressed_size].ptr,tail);
+        immutable tail = uncompressed_size - bl_pos;
+        memcpy(buffer[buffer_pos..buffer_pos+tail].ptr,uncompressed_buf[bl_pos..uncompressed_size].ptr,tail);
         buffer_pos += tail;
         remaining -= tail;
         auto res = blockread.read_block(bgzf,fpos,uncompressed_buf);
         assert(res[0].ptr == uncompressed_buf.ptr);
         uncompressed_size = res[1];
         fpos = res[2];
-        block_pos = 0;
+        bl_pos = 0;
       }
     }
+    block_pos = bl_pos;
     return buffer;
   }
 
