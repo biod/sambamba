@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/biod/sambamba.svg?branch=master)](https://travis-ci.org/biod/sambamba) [![AnacondaBadge](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba) [![DL](https://anaconda.org/bioconda/sambamba/badges/downloads.svg)](https://anaconda.org/bioconda/sambamba) [![BrewBadge](https://img.shields.io/badge/%F0%9F%8D%BAbrew-sambamba-brightgreen.svg)](https://github.com/brewsci/homebrew-bio) [![GuixBadge](https://img.shields.io/badge/gnuguix-sambamba-brightgreen.svg)](https://www.gnu.org/software/guix/packages/S/) [![DebianBadge](https://badges.debian.net/badges/debian/testing/sambamba/version.svg)](https://packages.debian.org/testing/sambamba)
 
+A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. [Sambamba: fast processing of NGS alignment formats](https://doi.org/10.1093/bioinformatics/btv098). Bioinformatics, 2015.
+
 # SAMBAMBA
 
 Table of Contents
@@ -26,7 +28,8 @@ Table of Contents
       * [Segfaults on certain Intel Xeons](#segfaults-on-certain-intel-xeons)
       * [Dump core](#dump-core)
       * [Use catchsegv](#use-catchsegv)
-      * [Using gdb](#using-gdb)
+
+* [Using gdb](#using-gdb)
    * [License](#license)
    * [Credit](#credit)
 
@@ -34,32 +37,15 @@ Table of Contents
 <a name="intro"></a>
 # Introduction
 
-
-Sambamba is a high performance highly parallel robust and fast tool
-(and library), written in the D programming language, for working with
-SAM and BAM files. Because of its efficiency Sambamba is an important
-work horse running in many sequencing centres around the world today.
-As of November 2020, Sambamba has been cited over [450
-times](http://scholar.google.nl/citations?hl=en&user=5ijHQRIAAAAJ) and
-has been installed from Conda over [180K
-times](https://anaconda.org/bioconda/sambamba). Sambamba is also
-distributed by [Debian](https://packages.debian.org/testing/sambamba).
+Sambamba is a high performance highly parallel robust and fast tool (and library), written in the D programming language, for working with SAM and BAM files. Because of its efficiency Sambamba is an important work horse running in many sequencing centres around the world today. As of December 2021, Sambamba has been cited over [740 times](http://scholar.google.nl/citations?hl=en&user=5ijHQRIAAAAJ) and has been installed from Conda over [200K times](https://anaconda.org/bioconda/sambamba). Sambamba is also distributed by [Debian](https://packages.debian.org/testing/sambamba). To cite sambamba see [Credit](#credit).
 
 Current functionality is an important subset of samtools
 functionality, including view, index, sort, markdup, and depth. Most
 tools support piping: just specify `/dev/stdin` or `/dev/stdout` as
 filenames. When we started writing sambamba (in 2012) the main
 advantage over `samtools` was parallelized BAM reading and writing.
-In March 2017 `samtools` 1.4 was released, reaching parity at least on
-architecture. A
-[recent performance comparison](https://github.com/guigolab/sambamBench-nf)
-shows that sambamba still holds its ground and can even do better.
-Here are some comparison
-[metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html). For
-example, for flagstat sambamba is 1.4x faster than samtools. For index
-they are similar. For Markdup almost 6x faster and for view 4x
-faster. For sort sambamba has been beaten, though sambamba is notably
-up to 2x faster than samtools on large RAM machines (120GB+).
+
+In March 2017 `samtools` 1.4 was released, reaching some parity. A [recent performance comparison](https://github.com/guigolab/sambamBench-nf) shows that sambamba still holds its ground and can even do better. Here are some comparison [metrics](https://public-docs.crg.es/rguigo/Data/epalumbo/sambamba_ws_report.html). For example, for flagstat sambamba is 1.4x faster than samtools. For index they are similar. For markdup almost *6x* faster and for view *4x* faster. For sort sambamba has been beaten, though sambamba is notably up to *2x* faster than samtools on large RAM machines (120GB+).
 
 In addition sambamba has a few interesting features to offer, in particular
 
@@ -72,12 +58,7 @@ In addition sambamba has a few interesting features to offer, in particular
 - `slice` quickly extracts a region into a new file, tweaking only first/last chunks
 - and more (you'll have to try)
 
-Even though Sambamba started out as a samtools clone we are now in the
-process of adding new functionality - also in the
-[BioD project](https://github.com/biod/BioD). The D language is
-extremely suitable for high performance computing (HPC). At this point
-we think that the BAM format is here to stay for processing sequencing
-data and we aim to make it easy to parse and process BAM files.
+The D language is extremely suitable for high performance computing (HPC). At this point we think that the BAM format is here to stay for processing reference guided sequencing data and we aim to make it easy to parse and process BAM files.
 
 Sambamba is free and open source software, licensed under GPLv2+.
 See manual pages [online](https://lomereiter.github.io/sambamba/docs/sambamba-view.html)
@@ -146,14 +127,9 @@ for installation help and general discussion.
 
 ## Reporting a sambamba bug or issue
 
-Before posting an issue search the issue tracker and
-[mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion)
-first. It is likely someone may have encountered something
-similar. Also try running the latest version of sambamba to make sure
-it has not been fixed already. Support/installation questions should
-be aimed at the mailing list. The issue tracker is for development
-issues around the software itself. When reporting an issue include the
-output of the program and the contents of the output directory.
+Before posting an issue search the issue tracker and [mailing list](https://groups.google.com/forum/#!forum/sambamba-discussion) first. It is likely someone may have encountered something similar. Also try running the latest version of sambamba to make sure it has not been fixed already. Support/installation questions should be aimed at the mailing list. The issue tracker is for development issues around the software itself. When reporting an issue include the output of the program and the contents of the output directory.
+
+Please use the following check list. It exists for multiple reasons :)
 
 ## Check list:
 
@@ -168,29 +144,19 @@ output of the program and the contents of the output directory.
 9. [ ] In the message I have included the relevant files in the output directory
 10. [ ] I have made available the data to reproduce the problem (optional)
 
-To find bugs the sambamba software developers may ask to install a
-development version of the software. They may also ask you for your
-data and will treat it confidentially.  Please always remember that
-sambamba is written and maintained by volunteers with good
-intentions. Our time is valuable too. By helping us as much as
-possible we can provide this tool for everyone to use.
+To find bugs the sambamba software developers may ask to install a development version of the software. They may also ask you for your data and will treat it confidentially.  Please always remember that sambamba is written and maintained by volunteers with good intentions. Our time is valuable too. By helping us as much as possible we can provide this tool for everyone to use.
 
 ## Code of conduct
 
-By using sambamba and communicating with its communtity you implicitely
-agree to abide by the
-[code of conduct](https://software-carpentry.org/conduct/) as
-published by the Software Carpentry initiative.
+By using sambamba and communicating with its communtity you implicitely agree to abide by the [code of conduct](https://software-carpentry.org/conduct/) as published by the Software Carpentry initiative.
 
 
 <a name="compile"></a>
 # Compiling Sambamba
 
-Note: in general there is no need to compile sambamba. You can use a
-recent binary install as listed above.
+Note: in general there is no need to compile sambamba. You can use a recent binary install as listed above.
 
-The preferred method for compiling Sambamba is with the LDC compiler
-which targets LLVM. LLVM version 6 is faster than earlier editions.
+The preferred method for compiling Sambamba is with the LDC compiler which targets LLVM. LLVM version 6 is faster than earlier editions.
 
 ## Compilation dependencies
 
@@ -198,9 +164,7 @@ See [INSTALL.md](./INSTALL.md).
 
 ## Compiling for Linux
 
-The LDC compiler's github repository provides binary images. The current
-preferred release for sambamba is LDC - the LLVM D compiler (>= 1.6.1). After
-installing LDC from https://github.com/ldc-developers/ldc/releases/ with, for example
+The LDC compiler's github repository provides binary images. The current preferred release for sambamba is LDC - the LLVM D compiler (>= 1.6.1). After installing LDC from https://github.com/ldc-developers/ldc/releases/ with, for example
 
 ```sh
 cd
@@ -333,10 +297,7 @@ Sambamba is generously distributed under GNU Public License v2+.
 <a name="credits"></a>
 # Credit
 
-Citations are the bread and butter of Science.  If you are using
-Sambamba in your research and want to support our future work on
-Sambamba, please cite the following publication:
-
+Citations are the bread and butter of Science.  If you are using Sambamba in your research and want to support our future work on Sambamba, please cite the following publication:
 A. Tarasov, A. J. Vilella, E. Cuppen, I. J. Nijman, and P. Prins. [Sambamba: fast processing of NGS alignment formats](https://doi.org/10.1093/bioinformatics/btv098). Bioinformatics, 2015.
 
 ## Bibtex reference
