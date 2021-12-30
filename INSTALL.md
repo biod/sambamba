@@ -6,6 +6,8 @@
 * gcc tool chain (for lz4)
 * libz
 
+The biod project was moved back into the sambamba git repo. It is no longer a dependency.
+
 ## Install Sambamba from source
 
 After checking out the source from github with git submodules it is
@@ -32,16 +34,25 @@ container with
 
     . .guix-build
     make -f Makefile.guix clean
+    # Set versions
+    python3 ./gen_ldc_version_info.py ldc2 > utils/ldc_version_info_.d
     # build the debug version
     env CC=gcc make -f Makefile.guix lz4-static -j 8
     env CC=gcc make -f Makefile.guix -j 8
-    make -f Makefile.guix check
+
+Instead, to make the release:
+
+    env CC=gcc make -f Makefile.guix -j 8 release
 
 To make the static release:
 
     env CC=gcc make -f Makefile.guix static
 
-It gives some errors, but should work:
+Run tests
+
+    make -f Makefile.guix check
+
+Run binary
 
     ./bin/sambamba
 
