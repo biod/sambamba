@@ -206,6 +206,17 @@ guix package -A ldc
 
 For more instructions see [INSTALL.md](./INSTALL.md).
 
+## Compiling with Meson/Ninja
+
+Debian uses a meson+ninja build. It may work with something like
+
+```sh
+rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release
+cd build/
+env CC=gcc ninja
+env CC=gcc ninja test
+```
+
 ## Compiling for MacOS
 
 Sambamba builds on MacOS. We have a Travis [integration test](https://travis-ci.org/pjotrp/sambamba) as

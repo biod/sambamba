@@ -1437,7 +1437,7 @@ bool compareReadNamesAsPicard(R1, R2)(const auto ref R1 a1, const auto ref R2 a2
 
             if(a1.is_second_of_pair() && a2.is_first_of_pair())
                 return false;
-                
+
         }
 
         if(a1.strand() != a2.strand())
@@ -1581,9 +1581,9 @@ unittest {
   assert(mixedStrCompare("1235", "1234") > 0);
 }
 
-// small utility function to get the value of the HI tag and return '0' 
+// small utility function to get the value of the HI tag and return '0'
 // if it is not defined
-private int getHI(R)(auto ref R r) 
+private int getHI(R)(auto ref R r)
     if (isBamRead!R)
 {
         auto v = r["HI"];
@@ -1595,7 +1595,7 @@ private int getHI(R)(auto ref R r)
 /// $(P Comparison function for 'queryname' sorting order setting mates
 /// of the same alignments adjacent with the first mate coming before
 /// the second mate)
-bool compareReadNamesAndMates(R1, R2)(const auto ref R1 r1, const auto ref R2 r2) 
+bool compareReadNamesAndMates(R1, R2)(const auto ref R1 r1, const auto ref R2 r2)
     if (isBamRead!R1 && isBamRead!R2)
 {
     if (r1.name == r2.name) {
@@ -1607,15 +1607,15 @@ bool compareReadNamesAndMates(R1, R2)(const auto ref R1 r1, const auto ref R2 r2
 }
 
 /// $(P Comparison function for 'queryname' sorting order as in Samtools
-/// setting mates of the same alignments adjacent with the first mate 
+/// setting mates of the same alignments adjacent with the first mate
 /// coming before the second mate)
 bool mixedCompareReadNamesAndMates(R1, R2)(const auto ref R1 r1, const auto ref R2 r2)
-    if (isBamRead!R1 && isBamRead!R2) 
+    if (isBamRead!R1 && isBamRead!R2)
 {
     if (mixedStrCompare(r1.name, r2.name) == 0) {
         if (getHI(r1) == getHI(r2))
             return r1.flag() < r2.flag();
-        return getHI(r1) < getHI(r2);    
+        return getHI(r1) < getHI(r2);
     }
     return mixedStrCompare(r1.name, r2.name) < 0;
 }
