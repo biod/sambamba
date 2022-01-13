@@ -45,7 +45,7 @@ in
 {
     assert(-1 <= level && level <= 9);
 }
-body
+do
 {
     assert(bio.core.utils.zlib.compressBound(BGZF_BLOCK_SIZE) < BGZF_MAX_BLOCK_SIZE);
 

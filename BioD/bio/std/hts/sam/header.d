@@ -336,7 +336,8 @@ class HeaderLineDictionary(T) {
     }
 
     ///
-    const(T)* opIn_r(string id) const {
+    // const(T)* opIn_r(string id) const {
+    auto opBinaryRight(string op)(string id) if (op == "in") {
         return id in _dict;
     }
 

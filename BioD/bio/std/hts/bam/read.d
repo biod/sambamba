@@ -1310,7 +1310,7 @@ unittest {
     assert(read.cigarString() == "20M2X");
 
     read["RG"] = cast(float)5.6;
-    assert(approxEqual(to!float(read["RG"]), 5.6));
+    assert(isClose(to!float(read["RG"]), 5.6));
 
     read.sequence = "AGCTGGCTACGTAATAGCCCT";
     assert(read.sequence_length == 21);

@@ -1828,7 +1828,7 @@ class BufferedStream : FilterStream {
     assert(bufferSourcePos == 0);
     assert(bufferLen == 0);
   }
-  body {
+  do {
     if (writeable && bufferDirty) {
       if (bufferSourcePos != 0 && seekable) {
         // move actual file pointer to front of buffer
@@ -2911,7 +2911,7 @@ class SliceStream : FilterStream {
   in {
     assert (low <= s.size);
   }
-  body {
+  do {
     super(s);
     this.low = low;
     this.high = 0;
@@ -2929,7 +2929,7 @@ class SliceStream : FilterStream {
     assert (low <= high);
     assert (high <= s.size);
   }
-  body {
+  do {
     super(s);
     this.low = low;
     this.high = high;

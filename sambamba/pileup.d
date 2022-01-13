@@ -734,8 +734,6 @@ int pileup_main(string[] args) {
         writer.join();
         stderr.writeln("[Successful exit]");
 
-        return 0;
-
     } catch (Exception e) {
         stderr.writeln("sambamba-pileup: ", e.msg);
 

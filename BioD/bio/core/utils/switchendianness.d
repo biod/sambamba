@@ -9,12 +9,12 @@ import core.bitop;
 * Switches the byte order of buffer.
 * $(D size) must be even.
 */
-void switchEndianness(const(void)* buffer, size_t size) 
+void switchEndianness(const(void)* buffer, size_t size)
 in
 {
   assert((size & 1) == 0);
 }
-body
+do
 {
     ubyte* startb = cast(ubyte*)buffer;
     uint* start = cast(uint*)buffer;

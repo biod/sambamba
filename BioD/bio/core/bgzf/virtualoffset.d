@@ -39,7 +39,7 @@ struct VirtualOffset {
     in {
         assert(coffset < (1UL<<48));
     } 
-    body {
+    do {
         voffset = (coffset << 16) | uoffset;
     }
     

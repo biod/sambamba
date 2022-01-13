@@ -61,6 +61,7 @@ import bio.core.utils.range;
 import bio.core.utils.stream;
 import bio.core.bgzf.inputstream;
 public import bio.core.bgzf.virtualoffset;
+static import bio.core.bgzf.block;
 
 import std.system;
 import std.stdio;

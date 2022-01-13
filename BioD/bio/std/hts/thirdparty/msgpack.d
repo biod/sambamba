@@ -1757,7 +1757,7 @@ else
         {
             assert(target.length);
         }
-        body
+        do
         {
             /*
              * Expands internal buffer.

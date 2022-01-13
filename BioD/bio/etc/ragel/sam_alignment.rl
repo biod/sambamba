@@ -505,7 +505,7 @@ unittest {
     assert(to!ubyte(alignment["SM"]) == 25);
     assert(to!string(alignment["MD"]) == "17A8A8");
     assert(equal(to!(byte[])(alignment["Y0"]), [1, 2, 3]));
-    assert(equal!approxEqual(to!(float[])(alignment["Y1"]), [13.263, -3.1415, 52.63461]));
+    assert(equal!isClose(to!(float[])(alignment["Y1"]), [13.263, -3.1415, 52.63461]));
     assert(to!char(alignment["XT"]) == 'U');
 
     import bio.std.hts.bam.reference;

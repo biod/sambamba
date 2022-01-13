@@ -6,7 +6,7 @@
 * gcc tool chain (for lz4)
 * libz
 
-The biod project was moved back into the sambamba git repo. It is no longer a dependency.
+The biod project was moved back into the sambamba git repo. It is no longer a dependency. We use [.guix-build](.guixbuild) to set up the build environment in a GNU Guix container.
 
 ## Install Sambamba from source
 
@@ -18,7 +18,7 @@ possible to install the build tools with GNU Guix
 Even better, with Guix, you can create a light-weight container in the source tree
 and run our development setup (gold was added lately by ldc)
 
-    guix environment -C guix --ad-hoc gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim
+    source .guix-build
     make clean
     env CC=gcc make -f Makefile.guix -j 4
     make -f Makefile.guix check
@@ -26,6 +26,13 @@ and run our development setup (gold was added lately by ldc)
 this way all dependencies are isolated. To create a static release use
 
     make static
+
+Alternatively use the meson+ninja build with
+
+    rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release
+    cd build/
+    env CC=gcc ninja -j 4
+    env CC=gcc ninja test
 
 ## Development
 

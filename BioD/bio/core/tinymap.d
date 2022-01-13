@@ -92,7 +92,8 @@ struct TinyMap(K, V, alias TinyMapPolicy=useBitArray) {
     }
 
     /// Check if the key is in the dictionary
-    bool opIn_r(K key) const {
+    // bool opIn_r(K key) const {
+    auto opBinaryRight(string op)(K key) if (op == "in") {
         return Policy._hasKey(key);
     }
 

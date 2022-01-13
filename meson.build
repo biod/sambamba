@@ -212,7 +212,7 @@ endif
 
 version_info_d_fname = build_root + '/utils/ldc_version_info_.d'
 
-r = run_command('sh', '-c', source_root + '/gen_ldc_version_info.py ' + ldmd_prog.path() + ' > ' + version_info_d_fname)
+r = run_command('python3', source_root + '/gen_ldc_version_info.py', ldmd_prog.path(), version_info_d_fname)
 if r.returncode() != 0
   error('Unable to write LDC version file: ' + r.stderr().strip())
 endif

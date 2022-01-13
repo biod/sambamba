@@ -126,7 +126,7 @@ struct ReadState {
     return state == RState.dirty;
   }
   // forwarders
-  @property ref ProcessReadBlob get() {
+  @property auto ref get() {
     return read;
   }
   @property RefId ref_id() {
