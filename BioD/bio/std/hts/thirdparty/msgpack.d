@@ -1111,7 +1111,7 @@ struct RefBuffer
      *  the array of iovec struct that stores references.
      */
     @property @safe
-    nothrow ref iovec[] vector()
+    nothrow ref auto vector()
     {
         return vecList_;
     }

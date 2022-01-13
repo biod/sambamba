@@ -5,8 +5,7 @@ sambamba=$1
 if [ ! -f $sambamba ]; then
     sambamba=./bin/sambamba
 fi
-# opts="--DRT-testmode=run-main"
-opts=""
+opts="-q --DRT-testmode=run-main"
 outdir=output
 mkdir -p $outdir
 

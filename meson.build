@@ -236,9 +236,8 @@ sambamba_exe = executable('sambamba',
 )
 
 test_exe = find_program(join_paths(source_root, 'test', 'test_suite.sh'))
-test('sambamba_test',
-     test_exe,
-     env: ['sambamba=' + sambamba_exe.full_path()],
+test('sambamba_test',test_exe,
+     args: sambamba_exe.full_path(),
      workdir: source_root
 )
 

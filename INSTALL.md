@@ -21,11 +21,11 @@ and run our development setup (gold was added lately by ldc)
     source .guix-build
     make clean
     env CC=gcc make -f Makefile.guix -j 4
-    make -f Makefile.guix check
+    make -f Makefile.guix check ./bin/sambamba-0.8.2
 
 this way all dependencies are isolated. To create a static release use
 
-    make static
+    env CC=gcc make -f Makefile.guix static -j 4 (FIXME)
 
 Alternatively use the meson+ninja build with
 
