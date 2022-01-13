@@ -16,7 +16,7 @@ def referenceSequences(bam_fn):
     return {item['SN']: item['LN'] for item in msgpack.unpackb(header)[2]}
 
 def randomIntervals(ref_seqs, n, max_length=1000):
-    keys = ref_seqs.keys()
+    keys = list(ref_seqs.keys())
     result = []
     for i in range(n):
         overlap = i > 0 and random.randint(1, 100) <= 20

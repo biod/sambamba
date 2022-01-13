@@ -30,7 +30,7 @@ about:
   summary: Tools for working with SAM/BAM data"""
 
 import json
-from urllib2 import urlopen
+from urllib.request import urlopen
 from hashlib import md5
 
 latest_release = json.loads(urlopen("https://api.github.com/repos/biod/sambamba/releases").read())[0]
@@ -50,7 +50,7 @@ def md5sum(download):
 linux_md5 = md5sum(downloads['linux'])
 osx_md5 = md5sum(downloads['osx'])
 
-print template.format(version=sambamba_version, 
-                linux_url=downloads['linux'], 
+print template.format(version=sambamba_version,
+                linux_url=downloads['linux'],
                 osx_url=downloads['osx'],
                 linux_md5=linux_md5, osx_md5=osx_md5)

@@ -6,6 +6,9 @@ if len(sys.argv) < 2:
     print("Usage: {0} <path to ldmd2 executable>".format(sys.argv[0]))
     sys.exit(1)
 
+if len(sys.argv) == 3:
+    sys.stdout = open(sys.argv[2], 'w')
+
 ldc = sys.argv[1].replace("ldmd2", "ldc2")
 ldc_output = subprocess.Popen([ldc, '-version'], stdout=subprocess.PIPE).communicate()[0]
 version_re = r"""^.+\((?P<LDC>[^\)]+)\):\n\s*based on DMD (?P<DMD>\S+) and LLVM (?P<LLVM>\S+)\n(?:\s*built with (?P<BOOTSTRAP>.*)\n)?"""
@@ -19,3 +22,5 @@ for component, version in match.groupdict().items():
     if version is None:
         version = "version not available"
     print("immutable {0}_VERSION_STRING = \"{1}\";".format(component, version))
+
+sys.stdout.close()
