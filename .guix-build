@@ -2,5 +2,5 @@
 #
 # See INSTALL.md for the build with make
 #
-env GUIX_PACKAGE_PATH=~/iwrk/opensource/guix/guix-bioinformatics \
-guix environment -C guix --ad-hoc meson ninja pkg-config python lz4 gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim zlib $*
+# -L ~/iwrk/opensource/guix/guix-bioinformatics 
+guix shell -C -D meson ninja pkg-config python lz4 gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim zlib $*

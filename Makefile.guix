@@ -5,7 +5,7 @@
 #
 # To build sambamba on GNU Guix:
 #
-#   make -f Makefile.guix GUIX=~/opt/sambamba-dev-env
+#   env CC=gcc make -f Makefile.guix GUIX=~/opt/sambamba-dev-env
 #
 # run with
 #

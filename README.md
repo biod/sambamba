@@ -211,6 +211,15 @@ For more instructions see [INSTALL.md](./INSTALL.md).
 Debian uses a meson+ninja build. It may work with something like
 
 ```sh
+meson build
+cd build
+ninja
+ninja test
+```
+
+or with some tuning
+
+```sh
 rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release
 cd build/
 env CC=gcc ninja

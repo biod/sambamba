@@ -5,15 +5,38 @@ Download the test BAM file from https://www.internationalgenome.org/
 wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00100/alignment/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
 
 
-
 ** View
 
 Processing an 841Mb BAM file.
 
+
+*** Penguin2
+
+#+begin_src sh
+time ./sambamba-0.8.2 sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam >
+ /dev/null
+
+sambamba 0.8.2
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.12.0 / DMD v2.082.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (1.12.0)
+
+real    0m16.786s
+user    3m45.792s
+sys     0m18.744s
+
+sambamba 0.8.1
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.26.0 / DMD v2.096.1 / LLVM9.0.1 / bootstrap LDC - the LLVM D compiler (0.17.6)
+
+real    0m20.158s
+user    4m5.968s
+sys     0m20.212s
+#+end_src
+
 *** AMD Ryzen 7 3700X 8-Core Processor
 
 #+BEGIN_SRC
-time ./bin/sambamba-0.8.1-pre1 HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam > /dev/null
+time ./bin/sambamba-0.8.1-pre1 view HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam > /dev/null
 
 sambamba 0.8.1-pre1
  by Artem Tarasov and Pjotr Prins (C) 2012-2021

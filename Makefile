@@ -16,11 +16,11 @@
 #
 # Static release with optimization (for releases):
 #
-#   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib pgo-static
+#   env CC=gcc make static
 #
 # Debug version
 #
-#   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug
+#   make debug
 #
 
 D_COMPILER=ldc2
