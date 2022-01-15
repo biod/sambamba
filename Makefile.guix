@@ -27,9 +27,9 @@ DFLAGS = -wi -I. -I$(BIOD_PATH) -J.
 # DLIBS_DEBUG = -debuglib=phobos2-ldc-debug-shared,druntime-ldc-debug-shared -link-debuglib -L-lphobos2-ldc-debug-shared -L-ldruntime-ldc-debug-shared
 # RPATH  = -L--rpath=$(dir $(realpath $(LDC_LIB_PATH)/libz.so)):$(dir $(realpath $(LDC_LIB_PATH)/liblz4.so))
 RPATH = -L--rpath=$(LIBRARY_PATH)
-LIBS   = -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz lz4/lib/liblz4.a
+LIBS   = -L-L$(LDC_LIB_PATH) -L-lrt -L-lpthread -L-lm -L-lz -L-llz4
 
-LIBS_STATIC = $(DLIBS) lz4/lib/liblz4.a
+LIBS_STATIC = $(DLIBS)
 SRC         = $(wildcard main.d utils/*.d thirdparty/*.d) $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d BioD/bio/*/*/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ    = $(SRC:.d=.o)
 OUT    = bin/sambamba-$(shell cat VERSION)
@@ -71,20 +71,13 @@ utils/ldc_version_info_.d:
 
 ldc_version_info: utils/ldc_version_info_.d
 
-lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhash.c
-	cd lz4/lib && $(CC) -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
-
-lz4-static: lz4/lib/liblz4.a
-
-build-setup: ldc_version_info lz4-static
+build-setup: ldc_version_info
 	mkdir -p bin/
 
 # utils/ldc_version_info_.o: utils/ldc_version_info_.d
 # 	$(D_COMPILER) $(DFLAGS) -c utils/ldc_version_info_.d -od=$(dir $@)
 
 guix guix-debug default debug release static profile: ldc_version_info $(OUT)
-
-debug profile release: lz4-static
 
 # ---- Compile step
 %.o: %.d
@@ -113,7 +106,6 @@ install:
 	install -m 0755 bin/sambamba $(prefix)/bin
 
 clean-c:
-	rm -v lz4/lib/*.[oa]
 
 clean-d:
 	rm -v $(OBJ) $(OUT) # trace.{def,log}
