@@ -3,6 +3,8 @@
 #   rm -rf build/ ; env D_LD=gold CC=gcc meson build
 #   cd build/
 #   env CC=gcc ninja
+#
+# See also INSTALL.md
 
 project('Sambamba', ['c','d'],
     license : 'GPL-2.0',
@@ -194,7 +196,8 @@ manpages = [
 #
 # Dependencies
 #
-lz4_dep    = dependency('liblz4')
+lz4     = dependency('liblz4')
+zlib    = dependency('zlib')
 
 #
 # Configure
@@ -229,7 +232,7 @@ sambamba_exe = executable('sambamba',
      cram_src,
      thirdparty_src,
      version_info_d_fname],
-    dependencies: [lz4_dep],
+    dependencies: [zlib,lz4],
     d_args: extra_dflags,
     d_import_dirs: [include_directories('.'),include_directories('BioD')],
     install: true

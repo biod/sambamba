@@ -3,12 +3,18 @@
 ## Sambamba dependencies
 
 * D compiler (ldc)
-* gcc tool chain (for lz4)
 * libz
+* liblz4
+* meson + ninja for builds
 
 The biod project was moved back into the sambamba git repo. It is no longer a dependency. We use [.guix-build](.guixbuild) to set up the build environment in a GNU Guix container.
 
 ## Install Sambamba from source
+
+    meson build --buildtype release
+    cd build
+    ninja
+    ninja test
 
 After checking out the source from github with git submodules it is
 possible to install the build tools with GNU Guix
@@ -31,7 +37,7 @@ Alternatively use the meson+ninja build with
 
     rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release
     cd build/
-    env CC=gcc ninja -j 4
+    env CC=gcc ninja
     env CC=gcc ninja test
 
 ## Development
@@ -76,3 +82,12 @@ Download the bootable image from https://guix.gnu.org/en/download/ and
 start it with, for example
 
     qemu-system-x86_64    -nic user,model=virtio-net-pci    -enable-kvm -m 1024    -device virtio-blk,drive=myhd    -drive if=none,file=guix-system-vm-image-1.2.0.x86_64-linux,id=myhd
+
+## Check list for release
+
+- [ ] Test meson build with local lz4
+- [ ] Build and test static version
+- [ ] Build and test optimized version with performance run
+- [ ] Update release notes
+- [ ] Release on github
+- [ ] Ping Debian, Guix and Conda projects

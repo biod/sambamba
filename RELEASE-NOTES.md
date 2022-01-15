@@ -1,3 +1,7 @@
+## ChangeLog v0.8.2 (2022....)
+
+
+
 ## ChangeLog v0.8.1 (20210731)
 
 + Some FASTA unittests break when they write to disk and read after -
