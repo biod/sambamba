@@ -116,7 +116,6 @@ install:
 	install -m 0755 bin/sambamba $(prefix)/bin
 
 clean: clean-d
-	rm lz4/lib/*.[oa]
 	rm -f profile.data
 	rm -f profile.raw
 
