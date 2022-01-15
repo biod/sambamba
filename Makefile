@@ -108,7 +108,7 @@ debug-strip:
 pgo-static: static debug-strip
 
 install:
-	install -m 0755 bin/sambamba $(prefix)/bin
+	install -m 0755 $(OUT) $(prefix)/bin
 
 clean: clean-d
 	rm -f profile.data

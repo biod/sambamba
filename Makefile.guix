@@ -91,13 +91,13 @@ biod:
 check: all debug test
 
 debug-strip: debug
-	objcopy --only-keep-debug bin/sambamba sambamba.debug
-	objcopy --strip-debug bin/sambamba
-	objcopy --add-gnu-debuglink=sambamba.debug bin/sambamba
+	objcopy --only-keep-debug $(OUT) sambamba.debug
+	objcopy --strip-debug $(OUT)
+	objcopy --add-gnu-debuglink=sambamba.debug $(OUT)
 	mv sambamba.debug bin/
 
 install:
-	install -m 0755 bin/sambamba $(prefix)/bin
+	install -m 0755 $(OUT) $(prefix)/bin
 
 clean-c:
 
