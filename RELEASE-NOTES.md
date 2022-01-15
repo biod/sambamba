@@ -1,7 +1,8 @@
 ## ChangeLog v0.8.2 (2022....)
 
-+ Purged lz4 sources if favour of using the lz4 dependency (the Debian
-  library appears to be complete
++ Slightly faster static sambamba with ldc2 1.27+LLVM 11.
++ Purged lz4 sources in favour of using the lz4 dependency (the Debian
+  library appears to be complete)
 + Fixed meson builds for Debian, see https://github.com/biod/sambamba/issues/484
   (thanks @atille)
 + Removed most ldc2 deprecation warnings
