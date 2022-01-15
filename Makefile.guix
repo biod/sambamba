@@ -3,17 +3,9 @@
 # standard Makefile instead because it compiles into a singleobj which
 # gives better performance. This Makefile is for development purposes.
 #
-# To build sambamba on GNU Guix:
-#
-#   env LIBRARY_PATH= make -f Makefile.guix GUIX=~/opt/sambamba-dev-env
-#
-# run with
-#
-#   ./bin/sambamba
-#
 # But it is preferred to run in a Guix environment/container. For more
 # information see INSTALL.md
-#
+
 D_COMPILER=ldc2
 CC=gcc
 CPP=gcc

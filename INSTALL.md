@@ -35,6 +35,8 @@ this way all dependencies are isolated. To create a static release use
 
     env CC=gcc make -f Makefile.guix static -j 4 (FIXME)
 
+Note that the static build is not working on GNU Guix right now because the Phobos libs are missing (shared lib only).
+
 Alternatively use the meson+ninja build with
 
     rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release

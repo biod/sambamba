@@ -3,7 +3,7 @@
 #
 # Note that this make file generates the most optimal binary for
 # sambamba (as a single run of ldc2 with aggressive inlining). For
-# development you may want to opt for meson+ninja instead.
+# development you may want to opt for meson+ninja or Makefile.guix instead.
 #
 # Targets (64-bit):
 #
@@ -24,6 +24,7 @@
 #
 
 D_COMPILER=ldc2
+CC=gcc
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -34,15 +35,14 @@ endif
 
 DFLAGS      = -wi -I. -IBioD -g -J.
 
-DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
+# DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
 LIBS        = -L-L$(LIBRARY_PATH) -L-lpthread -L-lm -L-lz -L-llz4
-LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) -L-llz4 -L-lz
+# LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) -L-llz4 -L-lz
+LIBS_STATIC = $(DLIBS) -L-lz -L-llz4 -L-lphobos2-ldc -L-ldruntime-ldc
 SRC         = utils/ldc_version_info_.d utils/lz4.d utils/strip_bcf_header.d $(sort $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d)) utils/version_.d $(sort $(wildcard thirdparty/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d))
 OBJ         = $(SRC:.d=.o)
 OUT         = bin/sambamba-$(shell cat VERSION)
-
-STATIC_LIB_PATH=-Llz4
 
 .PHONY: all debug release static clean test
 
@@ -56,14 +56,9 @@ coverage:                          DFLAGS += -cov
 
 release static pgo-static:         DFLAGS += -O3 -release -enable-inlining -boundscheck=off -L-lz
 
-static:                            DFLAGS += -static -L-Bstatic -link-defaultlib-shared=false
+static:                            DFLAGS += -static -L-Bstatic -link-defaultlib-shared=false $(LIBS_STATIC)
 
 pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
-
-lz4-static: lz4/lib/liblz4.a
-
-lz4/lib/liblz4.a: lz4/lib/lz4.c lz4/lib/lz4hc.c lz4/lib/lz4frame.c lz4/lib/xxhash.c
-	cd lz4/lib && $(CC) -O3 -c lz4.c lz4hc.c lz4frame.c xxhash.c && $(AR) rcs liblz4.a lz4.o lz4hc.o lz4frame.o xxhash.o
 
 utils/ldc_version_info_.d:
 	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
