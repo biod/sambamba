@@ -1,4 +1,4 @@
-# GNU Guix makefile. GNU Guix is the package manager for GNU and we
+# GNU Guix dev makefile. GNU Guix is the package manager for GNU and we
 # use it for sambamba development and deployment. Normally use the
 # standard Makefile instead because it compiles into a singleobj which
 # gives better performance. This Makefile is for development purposes.

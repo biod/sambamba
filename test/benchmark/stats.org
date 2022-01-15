@@ -18,11 +18,12 @@ time ./sambamba-0.8.2 sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.2013041
 
 sambamba 0.8.2
  by Artem Tarasov and Pjotr Prins (C) 2012-2021
-    LDC 1.12.0 / DMD v2.082.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (1.12.0)
+    LDC 1.27.1 / DMD v2.097.2 / LLVM11.0.0 / bootstrap LDC - the LLVM D compiler (1.27.1)
 
-real    0m16.786s
-user    3m45.792s
-sys     0m18.744s
+
+real    0m18.863s
+user    4m5.428s
+sys     0m20.552s
 
 sambamba 0.8.1
  by Artem Tarasov and Pjotr Prins (C) 2012-2021
