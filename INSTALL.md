@@ -11,6 +11,8 @@ The biod project was moved back into the sambamba git repo. It is no longer a de
 
 ## Install Sambamba from source
 
+Tested on Debian:
+
     meson build --buildtype release
     cd build
     ninja

@@ -1,6 +1,10 @@
 # This is a minimalistic make file to build sambamba with ldc2 as per instructions on
 # https://github.com/biod/sambamba#compiling-sambamba
 #
+# Note that this make file generates the most optimal binary for
+# sambamba (as a single run of ldc2 with aggressive inlining). For
+# development you may want to opt for meson+ninja instead.
+#
 # Targets (64-bit):
 #
 #   Linux
@@ -32,8 +36,8 @@ DFLAGS      = -wi -I. -IBioD -g -J.
 
 DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
-LIBS        = lz4/lib/liblz4.a -L-L$(LIBRARY_PATH) -L-lpthread -L-lm -L-lz
-LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) $(LIBRARY_PATH)/liblz4.a -L-lz
+LIBS        = -L-L$(LIBRARY_PATH) -L-lpthread -L-lm -L-lz -L-llz4
+LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) -L-llz4 -L-lz
 SRC         = utils/ldc_version_info_.d utils/lz4.d utils/strip_bcf_header.d $(sort $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d)) utils/version_.d $(sort $(wildcard thirdparty/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d))
 OBJ         = $(SRC:.d=.o)
 OUT         = bin/sambamba-$(shell cat VERSION)
@@ -67,7 +71,7 @@ utils/ldc_version_info_.d:
 
 ldc_version_info: utils/ldc_version_info_.d
 
-build-setup: ldc_version_info lz4-static
+build-setup: ldc_version_info
 	mkdir -p bin/
 
 default debug release static: $(OUT)

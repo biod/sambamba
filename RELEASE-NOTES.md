@@ -1,6 +1,13 @@
 ## ChangeLog v0.8.2 (2022....)
 
-
++ Purged lz4 sources if favour of using the lz4 dependency (the Debian
+  library appears to be complete
++ Fixed meson builds for Debian, see https://github.com/biod/sambamba/issues/484
+  (thanks @atille)
++ Removed most ldc2 deprecation warnings
++ Moved Python scripts 2->3 (following the Debian patch)
++ Fix ldc 1.27.1 build by using get to unwrap Nullable
++ Merged PR #480 (thanks @dukc)
 
 ## ChangeLog v0.8.1 (20210731)
 
