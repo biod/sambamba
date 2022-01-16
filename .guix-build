@@ -3,4 +3,4 @@
 # See INSTALL.md for the build with make
 #
 # -L ~/iwrk/opensource/guix/guix-bioinformatics 
-guix shell -C -D meson ninja pkg-config python lz4 gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold vim zlib $*
+guix shell -C meson ninja pkg-config lz4 gcc-toolchain gdb bash ld-wrapper ldc which python git binutils-gold coreutils vim zlib $*
