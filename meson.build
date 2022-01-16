@@ -23,13 +23,15 @@ build_root = meson.build_root()
 
 cc = meson.get_compiler('c')
 
-# if meson.get_compiler('d').get_id() != 'llvm'
-#     error('We only support the LLVM D compiler at this time. Please compile with LDC.')
-# endif
+if meson.get_compiler('d').get_id() != 'llvm'
+    error('We only support the LLVM D compiler at this time. Please compile with LDC.')
+endif
 
-extra_dflags = [ '-I=../BioD/' ]
+# The optimized flags are
+# ldc2 -singleobj -wi -I. -IBioD -g -J. -O3 -release -enable-inlining -boundscheck=off -L-lz -c -of=bin/sambamba-0.8.2.o
+extra_dflags = [ '-I../BioD' ]
 if get_option('optimize_strong')
-    extra_dflags += ['-O3', '-release', '-enable-inlining', '-boundscheck=off']
+    extra_dflags += ['-O3', '-release', '-flto=thin', '-enable-inlining', '-boundscheck=off']
 endif
 
 #
