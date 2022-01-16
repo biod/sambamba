@@ -29,10 +29,8 @@ endif
 
 # The optimized flags are
 # ldc2 -singleobj -wi -I. -IBioD -g -J. -O3 -release -enable-inlining -boundscheck=off -L-lz -c -of=bin/sambamba-0.8.2.o
-extra_dflags = [ '-I../BioD' ]
-if get_option('optimize_strong')
-    extra_dflags += ['-O3', '-release', '-flto=thin', '-enable-inlining', '-boundscheck=off']
-endif
+extra_dflags = [ '-I../BioD','-g','-release','-boundscheck=off']
+extra_ldflags = ['-L=-flto=full']
 
 #
 # Sources
@@ -236,6 +234,7 @@ sambamba_exe = executable('sambamba',
      version_info_d_fname],
     dependencies: [zlib,lz4],
     d_args: extra_dflags,
+    link_args: extra_ldflags,
     d_import_dirs: [include_directories('.'),include_directories('BioD')],
     install: true
 )
