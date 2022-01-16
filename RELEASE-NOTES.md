@@ -1,10 +1,13 @@
-## ChangeLog v0.8.2 (2022....)
+## ChangeLog v0.8.2 (20220116)
 
-+ Slightly faster static sambamba with ldc2 1.27+LLVM 11.
+Maintenance release aligns with D compiler updates which had sambamba breaking in Debian. Notably lz4 got removed from the source tree and the meson build system is close to becoming the default. Again some free speed improvement thanks to the latest ldc2+LLVM toolchain. Amazing work by these groups!
+
++ Slightly faster (approx 5%) static sambamba with ldc2 1.27+LLVM 11.
 + Purged lz4 sources in favour of using the lz4 dependency (the Debian
   library appears to be complete)
 + Fixed meson builds for Debian, see https://github.com/biod/sambamba/issues/484
   (thanks @atille)
++ Optimized meson build so it is close to static build times
 + Removed most ldc2 deprecation warnings
 + Moved Python scripts 2->3 (following the Debian patch)
 + Fix ldc 1.27.1 build by using get to unwrap Nullable

@@ -10,7 +10,7 @@
 The biod project was moved back into the sambamba git repo. It is no longer a dependency. We use [.guix-build](.guixbuild) to set up the build environment in a GNU Guix container.
 
 For optimal performance it really is important to compile '-singleobj' and -flto=full' as described in http://johanengelen.github.io/ldc/2016/11/10/Link-Time-Optimization-LDC.html
-At this point only the standard Makefile is fully optimized. The meson build system does not do singleobj yet.
+At this point only the standard Makefile is fully optimized. The meson build system does not do singleobj yet (it makes a 5% difference in runtime).
 
 ## Install Sambamba from source
 
