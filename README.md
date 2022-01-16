@@ -217,7 +217,7 @@ ninja
 ninja test
 ```
 
-or with some tuning
+or possibly with some additional tuning
 
 ```sh
 rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release

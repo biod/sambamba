@@ -9,8 +9,8 @@
 
 The biod project was moved back into the sambamba git repo. It is no longer a dependency. We use [.guix-build](.guixbuild) to set up the build environment in a GNU Guix container.
 
-For optimal performance it really is important to compile 'singleobj' as described in http://johanengelen.github.io/ldc/2016/11/10/Link-Time-Optimization-LDC.html
-At this point only the standard Makefile does this.
+For optimal performance it really is important to compile '-singleobj' and -flto=full' as described in http://johanengelen.github.io/ldc/2016/11/10/Link-Time-Optimization-LDC.html
+At this point only the standard Makefile is fully optimized. The meson build system does not do singleobj yet.
 
 ## Install Sambamba from source
 
@@ -26,8 +26,10 @@ possible to install the build tools with GNU Guix
 
     guix package -i gcc-toolchain gdb bash ld-wrapper ldc which python git
 
+(see also [guix-build](.guix-build))
+
 Even better, with Guix, you can create a light-weight container in the source tree
-and run our development setup (gold was added lately by ldc)
+and run our development setup (lately gold is required by ldc)
 
     source .guix-build
     make clean
@@ -40,7 +42,7 @@ this way all dependencies are isolated. To create a static release use
 
 Note that the static build is not working on GNU Guix right now because the Phobos libs are missing (shared lib only).
 
-Alternatively use the meson+ninja build with
+Alternatively use the Guix meson+ninja build with
 
     rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release
     cd build/
@@ -92,9 +94,9 @@ start it with, for example
 
 ## Check list for release
 
-- [ ] Test meson build with local lz4
-- [ ] Build and test static version
-- [ ] Build and test optimized version with performance run
-- [ ] Update release notes
+- [X] Test meson build with local lz4
+- [X] Build and test static version
+- [X] Build and test optimized version with performance run
+- [X] Update release notes
 - [ ] Release on github
 - [ ] Ping Debian, Guix and Conda projects
