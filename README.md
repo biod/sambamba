@@ -92,7 +92,7 @@ or Homebrew.
 
 [![Install with CONDA](https://anaconda.org/bioconda/sambamba/badges/installer/conda.svg)](https://anaconda.org/bioconda/sambamba)
 
-Ther should be binary downloads for Linux and MacOS.
+There should be binary downloads for Linux and MacOS.
 
 With Conda use the [`bioconda`](https://bioconda.github.io/) channel.
 
