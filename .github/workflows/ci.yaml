@@ -1,0 +1,79 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  LDC_VERSION: 1.30.0
+
+jobs:
+  build:
+    name: Build x86_64
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install build dependencies
+        run: |
+          set -x
+          sudo apt-get update -q -y
+          sudo apt-get install -q -y liblz4-dev
+          ARCH=$(uname -m)
+          wget --quiet https://github.com/ldc-developers/ldc/releases/download/v${LDC_VERSION}/ldc2-${LDC_VERSION}-linux-${ARCH}.tar.xz
+          tar xf ldc2-${LDC_VERSION}-linux-${ARCH}.tar.xz
+          echo "ldc2-${LDC_VERSION}-linux-${ARCH}/bin" >> $GITHUB_PATH
+
+      - name: Build & test
+        run:  make -j2 check
+      
+      - name: Create artifact
+        run: |
+          VERSION=$(cat VERSION)
+          mkdir artifact
+          gzip --stdout bin/sambamba-${VERSION} > artifact/sambamba-${VERSION}-linux-amd64-static.gz
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: sambamba-binary-archives
+          path: artifact
+
+  
+  build-aarch64:
+    name: Build aarch64
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Build
+      uses: uraimo/run-on-arch-action@v2
+      with:
+        arch: aarch64
+        distro: ubuntu20.04
+        githubToken: ${{ github.token }}
+        dockerRunArgs: --volume "${PWD}:/sambamba"
+        install: |
+          set -x
+          apt-get update -q -y
+          apt-get install -qq -y gcc g++ wget file xz-utils tar liblz4-dev make python3 libxml2-dev libz-dev
+          ARCH=$(uname -m)
+          wget --quiet https://github.com/ldc-developers/ldc/releases/download/v${{ env.LDC_VERSION }}/ldc2-${{ env.LDC_VERSION }}-linux-${ARCH}.tar.xz
+          tar xf ldc2-${{ env.LDC_VERSION }}-linux-${ARCH}.tar.xz
+          echo "export PATH=$PWD/ldc2-${{ env.LDC_VERSION }}-linux-${ARCH}/bin:$PATH" >> $HOME/.env
+        run: |
+          set -x
+          source $HOME/.env
+          cd /sambamba
+          make -j2 check
+          VERSION=$(cat VERSION)
+          file bin/sambamba-${VERSION}
+          mkdir artifact
+          gzip --stdout bin/sambamba-${VERSION} > artifact/sambamba-${VERSION}-linux-arm64-static.gz
+      
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: sambamba-binary-archives
+        path: artifact
