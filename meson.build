@@ -8,7 +8,7 @@
 
 project('Sambamba', ['c','d'],
     license : 'GPL-2.0',
-    version : '0.8.2',
+    version : '1.0.0',
     # default_options : ['buildtype=debugoptimized']
 )
 

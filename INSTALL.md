@@ -17,6 +17,13 @@ For the most optimal system use
     make release
     make check
 
+## Static release
+
+Use Guix for static release script.
+
+    . ./guix-build-static
+    make static
+
 ## Install Sambamba from source
 
 Tested on Debian:
