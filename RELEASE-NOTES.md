@@ -1,3 +1,7 @@
+## ChangeLog v1.0.0 (20230119)
+
+A minor fix and a major release. After 10 years and over one thousand citations we can announce sambamba 1.0 stable!
+
 ## ChangeLog v0.8.2 (20220116)
 
 Maintenance release aligns with D compiler updates which had sambamba breaking in Debian. Notably lz4 got removed from the source tree and the meson build system is close to becoming the default. Again some free speed improvement thanks to the latest ldc2+LLVM toolchain. Amazing work by these groups!
