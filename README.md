@@ -37,7 +37,11 @@ Table of Contents
 <a name="intro"></a>
 # Introduction
 
-Sambamba is a high performance, highly parallel, robust and fast tool (and library), written in the D programming language, for working with SAM and BAM files. Because of its efficiency, Sambamba is an important work horse running in many sequencing centers around the world today. As of December 2021, Sambamba has been cited over [740 times](http://scholar.google.nl/citations?hl=en&user=5ijHQRIAAAAJ) and has been installed from Conda over [200,000 times](https://anaconda.org/bioconda/sambamba). Sambamba is also distributed by [Debian](https://packages.debian.org/testing/sambamba). To cite Sambamba, see [Credit](#credit).
+*January 2023*: announcing v1.0 release of the great sambamba tool!
+
+A minor fix and a major release. After 10 years and over one thousand citations we can announce sambamba 1.0 stable!
+
+Sambamba is a high performance, highly parallel, robust and fast tool (and library), written in the D programming language, for working with SAM and BAM files. Because of its efficiency, Sambamba is an important work horse running in many sequencing centers around the world today. As of January 2023, Sambamba has been cited over [1000 times](http://scholar.google.nl/citations?hl=en&user=5ijHQRIAAAAJ) and has been installed from Conda over [250,000 times](https://anaconda.org/bioconda/sambamba). Sambamba is also distributed by [Debian](https://packages.debian.org/testing/sambamba). To cite Sambamba, see [Credit](#credit).
 
 Current functionality is an important subset of `samtools`
 functionality including view, index, sort, markdup, and depth. Most
