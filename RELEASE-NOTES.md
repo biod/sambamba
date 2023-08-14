@@ -1,3 +1,7 @@
+## ChangeLog v1.0.1
+
++ Fixed the build for recent ldc2 compilers by using a recent msgpack
+
 ## ChangeLog v1.0.0 (20230119)
 
 A minor fix and a major release. After 10 years and over one thousand citations we can announce sambamba 1.0 stable!
