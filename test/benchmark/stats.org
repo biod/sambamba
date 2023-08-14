@@ -36,14 +36,49 @@ sys     0m16.908s
 *** AMD Ryzen 7 3700X 8-Core Processor
 
 #+BEGIN_SRC
-time ./bin/sambamba-0.8.1-pre1 view HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam > /dev/null
 
+time ./bin/sambamba-1.0.0 view HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam > /dev/null
+sambamba 1.0.0
+ by Artem Tarasov and Pjotr Prins (C) 2012-2022
+    LDC 1.32.0 / DMD v2.102.2 / LLVM14.0.6 / bootstrap LDC - the LLVM D compiler (1.32.0)
+real    0m1.435s
+user    0m14.648s
+sys     0m0.336s
+
+time ./bin/sambamba-0.8.2-linux-amd64-static view HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam > /dev/null
+sambamba 0.8.2
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.27.1 / DMD v2.097.2 / LLVM11.0.0 / bootstrap LDC - the LLVM D compiler (1.27.1)
+real    0m1.393s
+user    0m14.114s
+sys     0m0.366s
+
+
+time ./bin/sambamba-0.8.1-pre1 view HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam > /dev/null
 sambamba 0.8.1-pre1
  by Artem Tarasov and Pjotr Prins (C) 2012-2021
     LDC 1.26.0 / DMD v2.096.1 / LLVM9.0.1 / bootstrap LDC - the LLVM D compiler (0.17.6)
 real    0m1.398s
 user    0m16.589s
 sys     0m0.240s
+
+--- sort
+
+ time ./bin/sambamba-1.0.0 sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
+
+sambamba 1.0.0
+ by Artem Tarasov and Pjotr Prins (C) 2012-2022
+    LDC 1.32.0 / DMD v2.102.2 / LLVM14.0.6 / bootstrap LDC - the LLVM D compiler (1.32.0)
+real    0m9.769s
+user    2m1.187s
+sys     0m3.830s
+
+sambamba 0.8.2
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.27.1 / DMD v2.097.2 / LLVM11.0.0 / bootstrap LDC - the LLVM D compiler (1.27.1)
+real    0m9.472s
+user    1m58.529s
+sys     0m3.850s
 
 time ./bin/sambamba-0.8.1-pre1 sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
 
@@ -53,6 +88,32 @@ sambamba 0.8.1-pre1
 real    0m9.151s
 user    2m5.779s
 sys     0m3.101s
+
+time ./bin/sambamba-0.6.8-linux-static sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
+
+sambamba 0.6.8 by Artem Tarasov and Pjotr Prins (C) 2012-2018
+    LDC 1.10.0 / DMD v2.080.1 / LLVM6.0.1 / bootstrap LDC - the LLVM D compiler (0.17.4)
+real    0m10.213s
+user    2m6.739s
+sys     0m3.425s
+
+--- markdup
+
+time ./bin/sambamba-1.0.0 markdup HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.sorted.bam dedup.bam
+sambamba 1.0.0
+ by Artem Tarasov and Pjotr Prins (C) 2012-2022
+    LDC 1.32.0 / DMD v2.102.2 / LLVM14.0.6 / bootstrap LDC - the LLVM D compiler (1.32.0)
+real    0m10.831s
+user    1m41.497s
+sys     0m3.413s
+
+time ./bin/sambamba-0.8.2-linux-amd64-static markdup HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.sorted.bam dedup.bam
+sambamba 0.8.2
+ by Artem Tarasov and Pjotr Prins (C) 2012-2021
+    LDC 1.27.1 / DMD v2.097.2 / LLVM11.0.0 / bootstrap LDC - the LLVM D compiler (1.27.1)
+real    0m10.315s
+user    1m38.043s
+sys     0m3.292s
 
 time ./bin/sambamba-0.8.1-pre1 markdup HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.sorted.bam dedup.bam
  by Artem Tarasov and Pjotr Prins (C) 2012-2021
