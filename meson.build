@@ -120,7 +120,6 @@ biod_src = [
     'BioD/bio/std/hts/sam/utils/recordparser.d',
     'BioD/bio/std/hts/snpcallers/maq.d',
     'BioD/bio/std/hts/snpcallers/simple.d',
-    'BioD/bio/std/hts/thirdparty/msgpack.d',
     'BioD/bio/std/hts/utils/array.d',
     'BioD/bio/std/hts/utils/graph.d',
     'BioD/bio/std/hts/utils/samheadermerger.d',

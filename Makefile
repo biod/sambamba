@@ -20,7 +20,7 @@
 #
 # Debug version
 #
-#   make debug
+#   make debug VERBOSE=1
 #
 
 D_COMPILER=ldc2

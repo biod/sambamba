@@ -22,7 +22,7 @@ module sambamba.utils.view.alignmentrangeprocessor;
 import bio.std.hts.bam.reader;
 import bio.std.hts.bam.read;
 import bio.std.hts.bam.writer;
-import bio.std.hts.thirdparty.msgpack;
+import msgpack;
 import bio.core.utils.outbuffer;
 import bio.core.utils.range;
 import sambamba.utils.common.readstorage;

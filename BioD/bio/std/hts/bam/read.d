@@ -62,7 +62,7 @@ import bio.std.hts.utils.array;
 import bio.std.hts.utils.value;
 import bio.core.utils.switchendianness;
 
-import bio.std.hts.thirdparty.msgpack : Packer, unpack;
+import msgpack : Packer, unpack, packer;
 
 import std.algorithm;
 import std.range;
@@ -631,7 +631,7 @@ struct BamRead {
 
     /// Packs message in the following format:
     /// $(BR)
-    /// MsgPack array with elements
+    /// Msack array with elements
     ///   $(OL
     ///     $(LI name - string)
     ///     $(LI flag - ushort)
@@ -1353,8 +1353,8 @@ unittest {
 
     {
     import std.typecons;
-    static import bio.std.hts.thirdparty.msgpack;
-    auto packer = bio.std.hts.thirdparty.msgpack.packer(Appender!(ubyte[])());
+    // static import msgpack.packer;
+    auto packer = packer(Appender!(ubyte[])());
     read.toMsgpack(packer);
     auto data = packer.stream.data;
     auto rec = unpack(data).via.array;

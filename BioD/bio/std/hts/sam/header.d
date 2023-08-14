@@ -23,7 +23,7 @@
 */
 module bio.std.hts.sam.header;
 
-import bio.std.hts.thirdparty.msgpack;
+import msgpack;
 import bio.core.utils.format;
 
 import std.algorithm;

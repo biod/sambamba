@@ -8,10 +8,10 @@
     the rights to use, copy, modify, merge, publish, distribute, sublicense,
     and/or sell copies of the Software, and to permit persons to whom the
     Software is furnished to do so, subject to the following conditions:
-    
+
     The above copyright notice and this permission notice shall be included in
     all copies or substantial portions of the Software.
-    
+
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -55,16 +55,16 @@ import std.format;
 import std.array;
 import bio.core.utils.format;
 
-import bio.std.hts.thirdparty.msgpack;
+import msgpack;
 
 struct CharToType(char c, T) {
     /** symbol */
     enum ch = c;
 
     /** type which corresponds to the symbol
-        according to SAM/BAM specification 
+        according to SAM/BAM specification
     */
-    alias T ValueType;    
+    alias T ValueType;
 }
 
 /**
@@ -76,22 +76,22 @@ class UnknownTagTypeException : Exception {
 
 
 alias TypeTuple!(CharToType!('A', char),
-                 CharToType!('c', byte),  
+                 CharToType!('c', byte),
                  CharToType!('C', ubyte),
-                 CharToType!('s', short), 
+                 CharToType!('s', short),
                  CharToType!('S', ushort),
-                 CharToType!('i', int),   
+                 CharToType!('i', int),
                  CharToType!('I', uint),
                  CharToType!('f', float))       PrimitiveTagValueTypes;
 
-alias TypeTuple!(CharToType!('Z', string), 
+alias TypeTuple!(CharToType!('Z', string),
                  CharToType!('H', string))      StringTagValueTypes;
 
-alias TypeTuple!(CharToType!('c', byte),  
+alias TypeTuple!(CharToType!('c', byte),
                  CharToType!('C', ubyte),
-                 CharToType!('s', short), 
+                 CharToType!('s', short),
                  CharToType!('S', ushort),
-                 CharToType!('i', int),   
+                 CharToType!('i', int),
                  CharToType!('I', uint),
                  CharToType!('f', float))       ArrayElementTagValueTypes;
 
@@ -112,14 +112,14 @@ uint charToSizeof(char c) {
         }
         return "switch (c) { " ~ cases.idup ~
                "  default: " ~
-               "    throw new UnknownTagTypeException(to!string(c));"~ 
+               "    throw new UnknownTagTypeException(to!string(c));"~
                "}";
     }
     mixin(charToSizeofHelper());
 }
 
 /*
-  Pair of type and its ubyte identifier. 
+  Pair of type and its ubyte identifier.
 
   (Currently, ubyte is enough, but that might change in the future.)
 */
@@ -131,12 +131,12 @@ struct TypeId(T, ubyte id) {
 /*
   Structure of type identifier:
 
-                              0                                   1   
+                              0                                   1
 
                              primitive                          array/string
                  something         null/nothing             numeric         string
-            numeric      char           0                   0              Z       H   
-    integer        float                0              [see left           0       0 
+            numeric      char           0                   0              Z       H
+    integer        float                0              [see left           0       0
 unsigned   signed       0               0               branch]            0       0
  [ size in bytes]  [size in bytes]      0            [element size]        1       1
 
@@ -144,25 +144,25 @@ unsigned   signed       0               0               branch]            0    
 
 */
 alias TypeTuple!(TypeId!(char,     0b001_00_1_00),
-        
-                 TypeId!(ubyte,    0b001_0_0000), 
-                 TypeId!(ushort,   0b010_0_0000), 
-                 TypeId!(uint,     0b100_0__0__0__0__0), 
-/* Let's take                         4  u  i  n  s  p                  
-   uint as an                            n  n  u  o  r                  
-   example                            b  s  t  m  m  i                  
+
+                 TypeId!(ubyte,    0b001_0_0000),
+                 TypeId!(ushort,   0b010_0_0000),
+                 TypeId!(uint,     0b100_0__0__0__0__0),
+/* Let's take                         4  u  i  n  s  p
+   uint as an                            n  n  u  o  r
+   example                            b  s  t  m  m  i
                                       y  i  e  e  e  m
                                       t  g  g  r  t  i
                                       e  n  e  i  h  t
                                       s  e  r  c  i  i
                                          d        n  v
                                                   g  e
-*/   
- 
+*/
+
 
                  TypeId!(byte,     0b001_1_0000),
-                 TypeId!(short,    0b010_1_0000), 
-                 TypeId!(int,      0b100_1_0000), 
+                 TypeId!(short,    0b010_1_0000),
+                 TypeId!(int,      0b100_1_0000),
 
                  TypeId!(float,    0b100_01_000),
 
@@ -190,7 +190,7 @@ private template GetType(U) {
 /// Get tag for type T.
 ///
 /// Useful for comparison with tag field of Value struct.
-/// 
+///
 /// Example:
 /// -----------------------------------
 /// Value v = "zzz";
@@ -251,10 +251,10 @@ string injectOpAssign() {
 string injectOpCast() {
     char[] cs = "static if".dup;
 
-    string injectSwitchPrimitive(string requested_type) 
+    string injectSwitchPrimitive(string requested_type)
     {
         char[] cs = `switch (_tag) {`.dup;
-              
+
         foreach (t2; PrimitiveTagValueTypes) {
             cs ~= `case GetTypeId!`~t2.ValueType.stringof~`: `~
                   `    return to!T(u.`~t2.ch~`);`.dup;
@@ -266,10 +266,10 @@ string injectOpCast() {
         return cs.idup;
     }
 
-    string injectSwitchArrayElement(string requested_type) 
+    string injectSwitchArrayElement(string requested_type)
     {
         char[] cs = `switch (_tag) {`.dup;
-              
+
         foreach (t2; ArrayElementTagValueTypes) {
             cs ~= `case GetTypeId!(`~t2.ValueType.stringof~`[]): `~
                   `    return to!T(u.B`~t2.ch~`);`.dup;
@@ -309,10 +309,10 @@ string injectOpCast() {
 }
 
 /**
-  Struct for representing tag values. 
+  Struct for representing tag values.
 
-  Tagged union, allows to store 
-  8/16/32-bit integers, floats, chars, strings, 
+  Tagged union, allows to store
+  8/16/32-bit integers, floats, chars, strings,
   and arrays of integers/floats.
 */
 struct Value {
@@ -338,7 +338,7 @@ struct Value {
     Currently, type identifier for (u)int requires 8 bits.
     Fortunately, SAM/BAM specification doesn't use bigger integer types.
     However, in case of need to extend the hierarchy, the type
-    should be changed from ubyte to something bigger. 
+    should be changed from ubyte to something bigger.
     */
     ubyte _tag;
 
@@ -382,16 +382,16 @@ struct Value {
     this(T)(T value) {
         opAssign(value);
     }
- 
+
     /// sets 'H' tag instead of default 'Z'. Is not expected to be used much.
     void setHexadecimalFlag() {
 
         enforce(this.is_string);
-      
+
         bam_typeid = 'H';
         _tag = hexStringTag;
 
-        if (_tag != 0b111) { 
+        if (_tag != 0b111) {
             u.H = u.Z;
         }
     }
@@ -465,7 +465,7 @@ struct Value {
     }
 
     /// ditto
-    void toSam(Sink)(auto ref Sink sink) const 
+    void toSam(Sink)(auto ref Sink sink) const
         if (isSomeSink!Sink)
     {
         if (is_integer) {
@@ -512,7 +512,7 @@ struct Value {
     }
 
     /// ditto
-    void toJson(Sink)(auto ref Sink sink) const 
+    void toJson(Sink)(auto ref Sink sink) const
         if (isSomeSink!Sink)
     {
         switch (_tag) {

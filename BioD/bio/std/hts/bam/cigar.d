@@ -50,7 +50,7 @@ import bio.std.hts.utils.array;
 import bio.std.hts.utils.value;
 import bio.core.utils.switchendianness;
 
-import bio.std.hts.thirdparty.msgpack : Packer, unpack;
+import msgpack : Packer, unpack;
 
 /**
   Represents single CIGAR operation

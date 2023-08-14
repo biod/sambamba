@@ -23,7 +23,7 @@ import bio.std.hts.sam.header;
 import std.conv;
 import std.array;
 import std.stdio;
-import bio.std.hts.thirdparty.msgpack;
+import msgpack;
 
 private {
     abstract class IHeaderSerializer {
@@ -69,7 +69,7 @@ final class HeaderSerializer {
             case "msgpack":
                 _serializer = new HeaderMsgpackSerializer(f); break;
             default:
-                throw new Exception("unknown format for serialization: '" ~ format ~ 
+                throw new Exception("unknown format for serialization: '" ~ format ~
                                     "' (expected 'sam', 'bam', 'json', or 'msgpack')");
         }
     }
