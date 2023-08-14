@@ -78,22 +78,26 @@
        `(("samtools" ,samtools) ; for pileup
          ("bcftools" ,bcftools) ; for pileup
          ("lz4" ,lz4)
-         ("zlib" ,zlib)
+         ("lz4-static" ,lz4 "static")
+         ("zlib-static" ,zlib "static")
+         ("zlib" ,zlib) ; also for the static build we need the includes
+         ; ("zstd-lib" ,zstd "static")
+         ; ("zstd" ,zstd "lib") ; same
        ))
       (native-inputs
        `(("ldc" ,ldc)
          ("coreutils" ,coreutils) ; for env
-         ("perl" ,perl) ; Needed for building htslib
-         ("ruby" ,ruby) ; Needed for building htslib
-         ("python" ,python-2) ; Needed for building htslib and sambamba
+         ; ("perl" ,perl) ; Needed for building htslib
+         ; ("ruby" ,ruby) ; Needed for building htslib
+         ("python" ,python) ; Needed for building htslib and sambamba
          ("gcc" ,gcc)
          ("which" ,which)))
       (home-page "https://github.com/lomereiter/sambamba")
-      (synopsis "Fast tool for working with SAM, BAM and CRAM files written in D.")
+      (synopsis "Fast tool for working with SAM and BAM files written in D.")
       (description
        "Sambamba is a high performance modern robust and fast
 tool (and library), written in the D programming language, for working
-with SAM, BAM and CRAM files.  Current parallelised functionality is
+with SAM and BAM files.  Current parallelised functionality is
 an important subset of samtools functionality, including view, index,
 sort, markdup, and depth.")
       (license license:gpl2+)))

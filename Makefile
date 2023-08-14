@@ -14,6 +14,10 @@
 #
 #   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug|profile|release|static
 #
+# With GNU Guix
+#
+#   env CC=gcc make VERBOSE=1 LIBRARY_PATH=/gnu/store/milyb96bnbnz7a107h7imswq1y5qhhk4-ldc-1.32.2/lib:$GUIX_ENVIRONMENT/lib static
+#
 # Static release with optimization (for releases):
 #
 #   env CC=gcc make static
@@ -33,14 +37,16 @@ else
   SYS = LINUX
 endif
 
-DFLAGS      = -wi -I. -IBioD -g -J.
+BIOD_PATH=./BioD:./BioD/contrib/msgpack-d/src
+DFLAGS      = -wi -I. -I$(BIOD_PATH) -g -J.
 
 # DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
-DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
-LIBS        = -L-L$(LIBRARY_PATH) -L-lpthread -L-lm -L-lz -L-llz4
+# DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
+# LIBS        = -L-L$(LIBRARY_PATH) -L-lpthread -L-lm -L-lz -L-llz4
 # LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) -L-llz4 -L-lz
-LIBS_STATIC = $(DLIBS) -L-lz -L-llz4 -L-lphobos2-ldc -L-ldruntime-ldc
-SRC         = utils/ldc_version_info_.d utils/lz4.d utils/strip_bcf_header.d $(sort $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d)) utils/version_.d $(sort $(wildcard thirdparty/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d))
+LIBS_STATIC = -L-lz -L-llz4 -L-L$(LIBRARY_PATH) -L-lphobos2-ldc -L-ldruntime-ldc
+# -L-lphobos2-ldc -L-ldruntime-ldc
+SRC         = $(wildcard main.d utils/*.d thirdparty/*.d) $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d BioD/bio/*/*/*/*/*/*/*.d BioD/contrib/msgpack-d/src/msgpack/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ         = $(SRC:.d=.o)
 OUT         = bin/sambamba-$(shell cat VERSION)
 
@@ -54,14 +60,14 @@ profile:                           DFLAGS += -fprofile-instr-generate=profile.ra
 
 coverage:                          DFLAGS += -cov
 
-release static pgo-static:         DFLAGS += -O3 -release -enable-inlining -boundscheck=off -L-lz
+release static pgo-static:         DFLAGS += -O3 -release -enable-inlining -boundscheck=off
 
 static:                            DFLAGS += -static -L-Bstatic -link-defaultlib-shared=false $(LIBS_STATIC)
 
 pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
 
 utils/ldc_version_info_.d:
-	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+	python ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 	cat utils/ldc_version_info_.d
 
 ldc_version_info: utils/ldc_version_info_.d
