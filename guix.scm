@@ -2,13 +2,6 @@
 ;;
 ;;   guix shell -C -D -f guix.scm -- bash --init-file <(echo "ln -s /bin/sh /bin/bash")
 ;;
-;; and build
-;;
-;;   find -name CMakeCache.txt|xargs rm -v
-;;   cd build
-;;   cmake -DCMAKE_BUILD_TYPE=Debug ..
-;;   cmake --build . --verbose -- -j 14 && ctest . --verbose
-;;
 ;; For the tests you may need /usr/bin/env. In a container create it with
 ;;
 ;;   mkdir -p /usr/bin ; ln -s $GUIX_ENVIRONMENT/bin/env /usr/bin/env
@@ -27,12 +20,15 @@
   (guix gexp)
   (gnu packages base)
   (gnu packages bioinformatics) ; for samtools in sambamba
+  (gnu packages build-tools) ; for meson
   (gnu packages compression)
   (gnu packages curl)
   (gnu packages dlang)
   (gnu packages gcc)
+  (gnu packages pkg-config)
   (gnu packages perl)
   (gnu packages python)
+  (gnu packages ninja)
   (gnu packages ruby)
   (gnu packages tls)
   (gnu packages version-control)
@@ -77,6 +73,9 @@
       (inputs
        `(("samtools" ,samtools) ; for pileup
          ("bcftools" ,bcftools) ; for pileup
+         ("meson" ,meson) ; for testing meson build system
+         ("ninja" ,ninja)
+         ("pkg-config" ,pkg-config)
          ("lz4" ,lz4)
          ("lz4-static" ,lz4 "static")
          ("zlib-static" ,zlib "static")

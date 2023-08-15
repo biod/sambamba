@@ -8,7 +8,7 @@
 
 project('Sambamba', ['c','d'],
     license : 'GPL-2.0',
-    version : '1.0.0',
+    version : '1.0.1',
     # default_options : ['buildtype=debugoptimized']
 )
 
@@ -29,7 +29,7 @@ endif
 
 # The optimized flags are
 # ldc2 -singleobj -wi -I. -IBioD -g -J. -O3 -release -enable-inlining -boundscheck=off -L-lz -c -of=bin/sambamba-0.8.2.o
-extra_dflags = [ '-I../BioD','-g','-release','-boundscheck=off']
+extra_dflags = [ '-I../BioD','-I../BioD/contrib/msgpack-d/src','-g','-release','-boundscheck=off','-enable-inlining','-singleobj']
 extra_ldflags = ['-L=-flto=full']
 
 #
@@ -176,8 +176,18 @@ cram_src = [
 ]
 
 thirdparty_src = [
-    'thirdparty/mergesort.d',
-    'thirdparty/unstablesort.d'
+'thirdparty/mergesort.d',
+'thirdparty/unstablesort.d',
+'BioD/contrib/msgpack-d/src/msgpack/attribute.d',
+'BioD/contrib/msgpack-d/src/msgpack/common.d',
+'BioD/contrib/msgpack-d/src/msgpack/package.d',
+'BioD/contrib/msgpack-d/src/msgpack/register.d',
+'BioD/contrib/msgpack-d/src/msgpack/unpacker.d',
+'BioD/contrib/msgpack-d/src/msgpack/buffer.d',
+'BioD/contrib/msgpack-d/src/msgpack/exception.d',
+'BioD/contrib/msgpack-d/src/msgpack/packer.d',
+'BioD/contrib/msgpack-d/src/msgpack/streaming_unpacker.d',
+'BioD/contrib/msgpack-d/src/msgpack/value.d',
 ]
 
 manpages = [

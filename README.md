@@ -219,15 +219,31 @@ meson build
 cd build
 ninja
 ninja test
+
+time ./build/sambamba sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
+sambamba 1.0.1
+ by Artem Tarasov and Pjotr Prins (C) 2012-2023
+    LDC 1.32.0 / DMD v2.102.2 / LLVM14.0.6 / bootstrap LDC - the LLVM D compiler (1.32.0)
+real    0m13.343s
+user    2m11.663s
+sys     0m4.232s
 ```
 
-or possibly with some additional tuning
+or possibly with some additional tuning runtimes get close to the optimized static build (see [benchmarks](test/benchmark/stats.org).
 
 ```sh
 rm -rf build/ ; env D_LD=gold CC=gcc meson build --buildtype release
 cd build/
 env CC=gcc ninja
 env CC=gcc ninja test
+
+time ./build/sambamba sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
+sambamba 1.0.1
+ by Artem Tarasov and Pjotr Prins (C) 2012-2023
+    LDC 1.32.0 / DMD v2.102.2 / LLVM14.0.6 / bootstrap LDC - the LLVM D compiler (1.32.0)
+real    0m10.227s
+user    2m7.203s
+sys     0m4.039s
 ```
 
 ## Compiling for MacOS

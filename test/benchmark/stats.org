@@ -55,6 +55,13 @@ sys     0m0.240s
 
  time ./bin/sambamba-1.0.0 sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
 
+sambamba 1.0.1
+ by Artem Tarasov and Pjotr Prins (C) 2012-2023
+    LDC 1.32.0 / DMD v2.102.2 / LLVM14.0.6 / bootstrap LDC - the LLVM D compiler (1.32.0)
+real    0m9.599s
+user    2m1.039s
+sys     0m3.834s
+
 sambamba 1.0.0
  by Artem Tarasov and Pjotr Prins (C) 2012-2022
     LDC 1.32.0 / DMD v2.102.2 / LLVM14.0.6 / bootstrap LDC - the LLVM D compiler (1.32.0)
