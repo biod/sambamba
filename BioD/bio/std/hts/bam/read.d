@@ -631,7 +631,7 @@ struct BamRead {
 
     /// Packs message in the following format:
     /// $(BR)
-    /// Msack array with elements
+    /// MsgPack array with elements
     ///   $(OL
     ///     $(LI name - string)
     ///     $(LI flag - ushort)
