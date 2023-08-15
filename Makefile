@@ -18,6 +18,8 @@
 #
 #   env CC=gcc make VERBOSE=1 LIBRARY_PATH=/gnu/store/milyb96bnbnz7a107h7imswq1y5qhhk4-ldc-1.32.2/lib:$GUIX_ENVIRONMENT/lib static
 #
+# (note that we use gcc for linkind and it requires setting the lib path to find D's static libs)
+#
 # Static release with optimization (for releases):
 #
 #   env CC=gcc make static
@@ -39,6 +41,7 @@ endif
 
 BIOD_PATH=./BioD:./BioD/contrib/msgpack-d/src
 DFLAGS      = -wi -I. -I$(BIOD_PATH) -g -J.
+LDFLAGS     = -L=-flto=full
 
 # DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 # DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
@@ -97,7 +100,7 @@ singleobj: build-setup
 # ---- Link step
 $(OUT): singleobj
 	$(info linking...)
-	$(D_COMPILER) $(DFLAGS) -of=$(OUT) $(OUT).o $(LINK_OBJ) $(LIBS)
+	$(D_COMPILER) $(DFLAGS) $(LDFLAGS) -of=$(OUT) $(OUT).o $(LINK_OBJ) $(LIBS)
 
 test: $(OUT)
 	$(OUT) --version
