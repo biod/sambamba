@@ -5,33 +5,22 @@ Download the test BAM file from https://www.internationalgenome.org/
 wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG00100/alignment/HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam
 
 
-** View
+** View/sort/markdup 841Mb BAM
 
 Processing an 841Mb BAM file.
 
+Check output:
 
-*** Penguin2 56x Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz, 256Gb
+#+BEGIN_SRC
+./bin/sambamba-1.0.0 view HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam |md5sum
+sambamba 1.0.0
+3cc1fcc85b0e5ab516784ffbbc9c347c
+#+END_SRC
 
-Sambamba appears to be slightly faster between 0.8.1 and 0.8.2 thanks to ldc2 and LLVM updates.
+Sorted
 
-#+begin_src sh
-time ./sambamba-0.8.2 sort HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam >
- /dev/null
-
-sambamba 0.8.2 by Artem Tarasov and Pjotr Prins (C) 2012-2021
-    LDC 1.27.1 / DMD v2.097.2 / LLVM11.0.0 / bootstrap LDC - the LLVM D compiler (1.27.1)
-
-real    0m18.636s
-user    3m47.704s
-sys     0m18.764s
-
-sambamba 0.8.1 by Artem Tarasov and Pjotr Prins (C) 2012-2021
-    LDC 1.26.0 / DMD v2.096.1 / LLVM9.0.1 / bootstrap LDC - the LLVM D compiler (0.17.6)
-
-real    0m19.045s
-user    3m50.088s
-sys     0m16.908s
-#+end_src
+: 02b42b6a7e5f8654a1bbc3ee1cf15a8d  HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.sorted.bam
+: ec5b9ba95b53f0d10c7949a933e65ac7  dedup.bam
 
 *** AMD Ryzen 7 3700X 8-Core Processor
 
@@ -123,6 +112,8 @@ user    1m47.719s
 sys     0m4.070s
 #+END_SRC
 
+** Older metrics
+
 *** 4x Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz (hyperthreaded)
 **** sambamba 0.6.8-pre3
 
@@ -195,14 +186,14 @@ user    0m22.344s
 sys     0m0.344s
 #+END_SRC
 
-** Sort
-*** 56x Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz, 256Gb
+*** Sort
+**** 56x Intel(R) Xeon(R) CPU E5-2683 v3 @ 2.00GHz, 256Gb
 
 #+BEGIN_SRC sh
 time ./sambamba_v0.6.6 sort -m 20615843020 -N -o /dev/null ENCFF696RLQ.bam -p
 #+END_SRC
 
-**** sambamba 0.6.8
+***** sambamba 0.6.8
 
 #+BEGIN_SRC
 sambamba 0.6.8 by Artem Tarasov and Pjotr Prins (C) 2012-2018
@@ -224,7 +215,7 @@ user    81m16.956s
 sys     1m58.332s
 #+END_SRC
 
-**** sambamba 0.6.8-pre1
+***** sambamba 0.6.8-pre1
 
 #+BEGIN_SRC
 Wed Feb  7 03:43:14 CST 2018
@@ -271,7 +262,7 @@ user    89m6.188s
 sys     2m51.228s
 #+END_SRC
 
-**** sambamba 0.6.7
+***** sambamba 0.6.7
 
 #+BEGIN_SRC
 This version was built with:
@@ -348,7 +339,7 @@ sys     2m56.244s
 
 So, the release is reverted an after a version bump:
 
-**** sambamba 0.6.6
+***** sambamba 0.6.6
 
 #+BEGIN_SRC
 This version was built with:
@@ -374,8 +365,8 @@ sys     2m51.996s
 
 Note, updating compiler shows a speed gain for 0.6.6.
 
-** Markdup
-*** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD (hyperthreaded)
+*** Markdup
+**** 8x Intel(R) Core(TM) i7-6770HQ CPU @ 2.60GHz, 16Gb, SSD (hyperthreaded)
 
 **** sambamba 0.6.8
 
@@ -455,7 +446,7 @@ total time elapsed: 1 min 4 sec
         Exit status: 0
 #+END_SRC
 
-*** 8x Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz (Thinkpad T480)
+**** 8x Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz (Thinkpad T480)
 
 : /usr/bin/time --verbose ./bin/sambamba-0.7.1 "--DRT-gcopt=profile:1" markdup HG00100.chrom20.ILLUMINA.bwa.GBR.low_coverage.20130415.bam test.bam
 
