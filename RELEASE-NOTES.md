@@ -1,4 +1,4 @@
-## ChangeLog v1.0.1 (20230815)
+## ChangeLog v1.0.1 (20230816)
 
 + Fixed the build for recent ldc2 compilers by using a recent msgpack
 + Ran benchmarks and optimized meson build

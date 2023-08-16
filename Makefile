@@ -46,9 +46,8 @@ LDFLAGS     = -L=-flto=full
 # DLIBS       = $(LIBRARY_PATH)/libphobos2-ldc.a $(LIBRARY_PATH)/libdruntime-ldc.a
 # DLIBS_DEBUG = $(LIBRARY_PATH)/libphobos2-ldc-debug.a $(LIBRARY_PATH)/libdruntime-ldc-debug.a
 # LIBS        = -L-L$(LIBRARY_PATH) -L-lpthread -L-lm -L-lz -L-llz4
-# LIBS_STATIC = $(LIBRARY_PATH)/libc.a $(DLIBS) -L-llz4 -L-lz
+LIBS        = -L-lz -L-llz4
 LIBS_STATIC = -L-lz -L-llz4 -L-L$(LIBRARY_PATH) -L-lphobos2-ldc -L-ldruntime-ldc
-# -L-lphobos2-ldc -L-ldruntime-ldc
 SRC         = $(wildcard main.d utils/*.d thirdparty/*.d) $(wildcard BioD/contrib/undead/*.d BioD/contrib/undead/*/*.d) $(wildcard BioD/bio/*/*.d BioD/bio/*/*/*.d BioD/bio/*/*/*/*.d BioD/bio/*/*/*/*/*.d BioD/bio/*/*/*/*/*/*/*.d BioD/contrib/msgpack-d/src/msgpack/*.d) $(wildcard sambamba/*.d sambamba/*/*.d sambamba/*/*/*.d)
 OBJ         = $(SRC:.d=.o)
 OUT         = bin/sambamba-$(shell cat VERSION)
@@ -69,8 +68,9 @@ static:                            DFLAGS += -static -L-Bstatic -link-defaultlib
 
 pgo-static:                        DFLAGS += -fprofile-instr-use=profile.data
 
+# note use python3 for github CI:
 utils/ldc_version_info_.d:
-	python ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
+	python3 ./gen_ldc_version_info.py $(shell which ldmd2) > utils/ldc_version_info_.d
 	cat utils/ldc_version_info_.d
 
 ldc_version_info: utils/ldc_version_info_.d

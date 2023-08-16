@@ -21,28 +21,10 @@ jobs:
           ARCH=$(uname -m)
           wget --quiet https://github.com/ldc-developers/ldc/releases/download/v${LDC_VERSION}/ldc2-${LDC_VERSION}-linux-${ARCH}.tar.xz
           tar xf ldc2-${LDC_VERSION}-linux-${ARCH}.tar.xz
-          ls -ld
-          ls -l
-          ls -l ./BioD/contrib/msgpack-d/src
-          ls -l BioD/contrib/msgpack-d/src
-          pwd
           echo "ldc2-${LDC_VERSION}-linux-${ARCH}/bin" >> $GITHUB_PATH
 
       - name: Build & test
-        run:  make -j2 check
-
-      - name: Create artifact
-        run: |
-          VERSION=$(cat VERSION)
-          mkdir artifact
-          gzip --stdout bin/sambamba-${VERSION} > artifact/sambamba-${VERSION}-linux-amd64-static.gz
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: sambamba-binary-archives
-          path: artifact
-
+        run:  make -j2 VERBOSE=1 check
 
   build-aarch64:
     name: Build aarch64
@@ -72,13 +54,3 @@ jobs:
           source $HOME/.env
           cd /sambamba
           make -j2 check
-          VERSION=$(cat VERSION)
-          file bin/sambamba-${VERSION}
-          mkdir artifact
-          gzip --stdout bin/sambamba-${VERSION} > artifact/sambamba-${VERSION}-linux-arm64-static.gz
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v1
-      with:
-        name: sambamba-binary-archives
-        path: artifact
