@@ -1,0 +1,169 @@
+/* This file is a part of CanDyDOC fileset.
+   File is written by Victor Nakoryakov and placed into the public domain.
+
+   This file is main CSS file of CanDyDOC. You may adjust some part of
+   parameters to control how result documentation would looks like. See
+   further documentation for details. */
+
+
+
+/* This controls how background would looks like and
+   sets some document-scope defaults. */
+body 
+{
+	/* These parameters control default font. */
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+	color: #666666;
+	
+	/* These control look of background. Note that you have to use
+       fixed background to keep documentation good-looking in
+       IE6 and earlier. Otherwise whole *explorer* will jerk while
+       scrolling. If you do not want to use background at all use
+       some invalid url, e.g. url(foo). */
+	background-color: #e6fcea;
+	background: url(img/bg.gif) fixed;
+	
+	/* Don't touch. Necessary for IE6 and earlier. */
+	height: 100%;	
+}
+
+
+
+/* Style applied to all tables. Actualy there are two: one table is
+   that contains contant and footer with CanDyDOC logo, and others
+   are that contains functions' parameters description. */
+table 
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+	color: #666666;
+	text-align: justify;
+}
+
+
+/* Style used for all hyperlinks. */
+a:link {  color: #009900; text-decoration: none }
+a:visited {  color: #009999; text-decoration: none }
+a:hover {  color: #0033cc; text-decoration: none }
+a:active {  color: #0033cc; text-decoration: none }
+
+/*
+table.matrix 
+{
+	border-left: double 3px #666666;
+	border-right: double 3px #666666;
+	margin-left: 3em;
+}
+*/
+
+/* Style appled to declarations. E.g. 'void foo(int a, float b);' */
+span.decl { font-size: 10pt; font-weight: bold; color: #000000; text-align: left }
+/* Style appled to current declaration's symbol. E.g. 'foo' in 'void foo(int a, float b);' */
+span.currsymbol { font-size: 12pt; color: #009900 }
+/* Style appled to function's parameters. E.g. 'a' and 'b' in 'void foo(int a, float b);' */
+span.funcparam  { font-style: italic; font-weight: normal; color: #331200 }
+
+/* Style for div that actualy contains documenation. */
+#content
+{
+	padding-right: 8px;
+	position: absolute;
+	left: 245px;
+	top: 8px;
+	text-align: justify;
+}
+
+/* Style for table that is inside div considered above. Contains documentaton
+   itself and footer with CanDyDOC logo. */
+table.content
+{
+	margin-bottom: 8px;
+	border-spacing: 0px;
+	border-collapse: collapse;
+	background-color: #ffffff;
+}
+
+/* Style for cell of above considered table that contains documentation itself. */
+#docbody
+{
+	padding: 8px 20px 8px 20px;
+	border: solid 1px #009900;
+}
+
+/* Style for cell that contains CanDyDOC logo. */
+#docfooter
+{
+	height: 16px;
+	background-color: #ddeedd;
+	padding: 0px 8px 0px 8px;
+	border: solid 1px #009900;
+}
+
+/* Style applied to currently active tab of explorer window. */
+span.activetab
+{
+	background-color: #0033cc;
+	border-top: solid 2px #009900;
+	color: #ffffff;
+	font-weight: bold;
+	padding-left: 4px;
+	padding-right: 4px;
+	padding-top: 1px;
+	margin-right: 1px;
+}
+
+/* Style applied to currently inactive tab of explorer window. */
+span.inactivetab
+{
+	background-color: #000066;
+	color: #cccccc;
+	font-weight: normal;
+	padding-left: 4px;
+	padding-right: 4px;
+	padding-top: 0px;
+	margin-right: 1px;
+}
+
+/* Style applied to div that contains tabs of explorer. Note that if
+   you want to change it's position you have to change position of
+   #explorerclient, #content and corresponding values in ie56hack.css */
+#tabarea
+{
+	position: fixed;
+	top: 8px;
+	width: 205px;
+	height: 16px;
+	cursor: default;
+}
+
+
+/* Style applied to div that contains tree in explorer. Note that if
+   you want to change it's position you have to change position of
+   #tabarea, #content and corresponding values in ie56hack.css */
+#explorerclient 
+{
+	position: fixed;
+	top: 24px;
+	bottom: 8px;
+	width: 205px;
+	overflow: auto;
+	background-color: #fcfffc;
+	border: solid 2px #0033cc;
+	padding: 4px;
+	cursor: default;
+	color: Black;
+}
+
+/* Following 3 styles control appearance of marker that appears
+   if you click some entity in outline window. */
+div.markertop	{ border-left: solid 2px #0033cc;}
+div.markermiddle{ border-left: dotted 2px #0033cc;}
+div.markerbottom{ border-left: dotted 2px #66cc66;}
+
+/* Style applied to preformated text used to show examples. */
+pre.d_code
+{
+	border: dotted 1px #9c9;
+	background-color: #eeffee;
+}

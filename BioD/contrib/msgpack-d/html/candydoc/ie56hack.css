@@ -1,0 +1,21 @@
+/* This file is a part of CanDyDOC fileset.
+   File is written by Victor Nakoryakov and placed into the public domain.
+
+   This file is CSS to work around IE6 and earlier bugs. It's included just
+   in these browsers. */
+
+
+/* Some magic to emulate unsupported "position: fixed" style. */
+#tabarea
+{
+	_position: absolute;
+	_top: expression(eval(document.body.scrollTop+8));
+}
+
+/* ditto */
+#explorerclient 
+{
+	_position: absolute;
+	_top: expression(eval(document.body.scrollTop+24));
+	_height: expression(eval(document.body.clientHeight-48));
+}

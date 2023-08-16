@@ -1,0 +1,19 @@
+{
+    "name":        "msgpack-d",
+    "description": "MessagePack for D.",
+    "authors":     ["Masahiro Nakagawa"],
+    "homepage":    "https://github.com/msgpack/msgpack-d",
+    "license":     "Boost Software License, Version 1.0",
+    "copyright":   "Copyright (c) 2010- Masahiro Nakagawa",
+
+    "configurations": [
+        {
+            "name": "default",
+            "targetType": "library"
+        },
+        {
+            "name": "unittest",
+            "dflags": ["-dip25", "-dip1000"]
+        }
+    ]
+}

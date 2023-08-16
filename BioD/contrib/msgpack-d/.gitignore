@@ -1,0 +1,12 @@
+dub.selections.json
+.dub
+tests/*/tests
+__test__*__
+*.obj
+*.[oa]
+*.so
+*.lib
+*.dll
+*.sublime-project
+*.sublime-workspace
+msgpack-d-test-unittest

@@ -1,0 +1,8 @@
+MODULES = 
+$(MODULE msgpack.buffer)
+$(MODULE msgpack.common)
+$(MODULE msgpack.msgpack)
+$(MODULE msgpack.object)
+$(MODULE msgpack.packer)
+$(MODULE msgpack.unpacker)
+$(MODULE msgpack.util)
