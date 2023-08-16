@@ -23,7 +23,7 @@ jobs:
           tar xf ldc2-${LDC_VERSION}-linux-${ARCH}.tar.xz
           ls -ld
           ls -l
-          cwd
+          pwd
           echo "ldc2-${LDC_VERSION}-linux-${ARCH}/bin" >> $GITHUB_PATH
 
       - name: Build & test
