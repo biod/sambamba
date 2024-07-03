@@ -3,7 +3,7 @@ name: CI
 on: [push, pull_request]
 
 env:
-  LDC_VERSION: 1.32.0
+  LDC_VERSION: 1.38.0
 
 jobs:
   build:
