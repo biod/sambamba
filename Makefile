@@ -14,11 +14,11 @@
 #
 #   make LIBRARY_PATH=~/opt/ldc2-$ver-linux-x86_64/lib debug|profile|release|static
 #
-# With GNU Guix
+# Example with GNU Guix
 #
 #   env CC=gcc make VERBOSE=1 LIBRARY_PATH=/gnu/store/milyb96bnbnz7a107h7imswq1y5qhhk4-ldc-1.32.2/lib:$GUIX_ENVIRONMENT/lib static
 #
-# (note that we use gcc for linkind and it requires setting the lib path to find D's static libs)
+# (note that we use gcc for linking and it requires setting the lib path to find D's static libs)
 #
 # Static release with optimization (for releases):
 #
